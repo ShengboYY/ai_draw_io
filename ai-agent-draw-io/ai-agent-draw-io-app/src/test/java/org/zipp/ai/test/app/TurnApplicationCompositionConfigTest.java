@@ -40,6 +40,8 @@ import org.zipp.ai.application.turn.execution.TurnAttemptCompletion;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
 import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
+import org.zipp.ai.trigger.http.turn.TurnHttpControlAdapter;
+import org.zipp.ai.trigger.http.turn.TurnHttpDeliveryAdapter;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -72,6 +74,8 @@ class TurnApplicationCompositionConfigTest {
             assertThat(context).hasSingleBean(org.zipp.ai.application.turn.DiagramTurnFacade.class);
             assertThat(context).hasSingleBean(org.zipp.ai.application.turn.TurnAdmissionGate.class);
             assertThat(context).hasSingleBean(org.zipp.ai.application.turn.TurnAttemptCancellationRegistry.class);
+            assertThat(context).hasSingleBean(TurnHttpDeliveryAdapter.class);
+            assertThat(context).hasSingleBean(TurnHttpControlAdapter.class);
             assertThat(context.getBean(org.zipp.ai.application.turn.TurnAdmissionGate.class).isOpen()).isFalse();
 
             org.springframework.boot.ApplicationRunner runner = context.getBean(org.springframework.boot.ApplicationRunner.class);

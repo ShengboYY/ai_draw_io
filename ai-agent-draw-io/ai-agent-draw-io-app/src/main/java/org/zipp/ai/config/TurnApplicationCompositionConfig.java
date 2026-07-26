@@ -38,6 +38,9 @@ import org.zipp.ai.application.turn.TurnAttemptCancellationSignalPort;
 import org.zipp.ai.application.turn.NoopTurnLifecycleTracePort;
 import org.zipp.ai.application.turn.TurnLifecycleTracePort;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
+import org.zipp.ai.trigger.http.turn.TurnHttpControlAdapter;
+import org.zipp.ai.trigger.http.turn.TurnHttpDeliveryAdapter;
+import org.zipp.ai.trigger.http.turn.TurnHttpRequestTranslator;
 
 import java.util.UUID;
 
@@ -109,6 +112,30 @@ public class TurnApplicationCompositionConfig {
     ) {
         // Keep one delivery boundary while allowing isolated V2 execution to be composed optionally.
         return new DefaultTurnDeliveryExecutor(facade, runner.getIfAvailable());
+    }
+
+    @Bean
+    public TurnHttpRequestTranslator turnHttpRequestTranslator() {
+        return new TurnHttpRequestTranslator();
+    }
+
+    @Bean
+    public TurnHttpDeliveryAdapter turnHttpDeliveryAdapter(
+            TurnHttpRequestTranslator translator,
+            TurnDeliveryExecutor executor
+    ) {
+        // The compatibility adapter is composed for future V2 wiring, not attached to legacy routes.
+        return new TurnHttpDeliveryAdapter(translator, executor);
+    }
+
+    @Bean
+    public TurnHttpControlAdapter turnHttpControlAdapter(
+            ConversationCatalogPort conversations,
+            ConversationReferenceResolver conversationResolver,
+            TurnControlFacade control
+    ) {
+        // Control requests share canonical identity and owner fencing without exposing takeover APIs.
+        return new TurnHttpControlAdapter(conversations, conversationResolver, control);
     }
 
     @Bean

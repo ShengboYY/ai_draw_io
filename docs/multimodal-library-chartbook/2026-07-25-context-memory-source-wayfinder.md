@@ -346,6 +346,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 M1 control transport boundary：新增 `TurnHttpControlAdapter` 与 typed control request，status/cancel 在进入 `TurnControlFacade` 前统一经 `ConversationReferenceResolver` 解析 `default`、canonical 与 legacy alias，生成 owner-fenced canonical `TurnKey`；adapter 原样返回 sealed application outcomes，不自行决定 HTTP 终态或把 disconnect 转成 cancel。新增 canonical/legacy status 与 cancel contract tests；legacy controller、production assignment 与 V2 cohort 均未改变，本切片没有新增或执行 migration。
 
+本切片补齐 compatibility transport 的 bootstrap composition：`TurnHttpRequestTranslator`、`TurnHttpDeliveryAdapter` 与 `TurnHttpControlAdapter` 现在共享同一个 application `TurnDeliveryExecutor`/`TurnControlFacade` graph；composition contract 验证 adapters 可用，但没有挂接 legacy `AgentServiceController`、新增 serving route 或改变 production assignment。app 全量仍只保留既有 `DefaultIntentRoutingServiceTest` 的 unrelated failure（`NONE`/`DIRECT`），本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
