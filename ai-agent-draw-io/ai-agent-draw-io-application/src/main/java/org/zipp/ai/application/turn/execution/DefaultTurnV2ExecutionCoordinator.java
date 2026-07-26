@@ -11,6 +11,7 @@ import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Isolated V2 execution seam. It dispatches only source-free drawing and response plans until
@@ -19,8 +20,8 @@ import java.util.Objects;
 public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionCoordinator {
 
     private final TurnV2PreHandlerCoordinator preHandler;
-    private final PlainDrawingHandler plain;
-    private final PlainResponseHandler response;
+    private final Optional<PlainDrawingHandler> plain;
+    private final Optional<PlainResponseHandler> response;
     private final TurnAttemptExecutionStatePort executionState;
 
     public DefaultTurnV2ExecutionCoordinator(
@@ -50,13 +51,38 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
 
     public DefaultTurnV2ExecutionCoordinator(
             TurnV2PreHandlerCoordinator preHandler,
+            PlainResponseHandler response
+    ) {
+        this(preHandler, response,
+                ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active());
+    }
+
+    public DefaultTurnV2ExecutionCoordinator(
+            TurnV2PreHandlerCoordinator preHandler,
+            PlainResponseHandler response,
+            TurnAttemptExecutionStatePort executionState
+    ) {
+        this(preHandler, Optional.empty(), Optional.of(response), executionState);
+    }
+
+    public DefaultTurnV2ExecutionCoordinator(
+            TurnV2PreHandlerCoordinator preHandler,
             PlainDrawingHandler plain,
             PlainResponseHandler response,
             TurnAttemptExecutionStatePort executionState
     ) {
+        this(preHandler, Optional.of(plain), Optional.ofNullable(response), executionState);
+    }
+
+    private DefaultTurnV2ExecutionCoordinator(
+            TurnV2PreHandlerCoordinator preHandler,
+            Optional<PlainDrawingHandler> plain,
+            Optional<PlainResponseHandler> response,
+            TurnAttemptExecutionStatePort executionState
+    ) {
         this.preHandler = Objects.requireNonNull(preHandler, "preHandler");
         this.plain = Objects.requireNonNull(plain, "plain");
-        this.response = response;
+        this.response = Objects.requireNonNull(response, "response");
         this.executionState = Objects.requireNonNull(executionState, "executionState");
     }
 
@@ -79,11 +105,15 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
             return new TurnV2ExecutionOutcome.PreparationBlocked(state);
         }
         if (ready.decision() instanceof TurnRouteDecision.Plain) {
-            return new TurnV2ExecutionOutcome.Committed(plain.execute(ready, events));
+            if (plain.isEmpty()) {
+                return new TurnV2ExecutionOutcome.NotDispatched(
+                        ready.decision(), "PLAIN_HANDLER_NOT_AVAILABLE");
+            }
+            return new TurnV2ExecutionOutcome.Committed(plain.get().execute(ready, events));
         }
         if (ready.decision() instanceof TurnRouteDecision.Response responseDecision
-                && response != null) {
-            return new TurnV2ExecutionOutcome.Committed(response.execute(
+                && response.isPresent()) {
+            return new TurnV2ExecutionOutcome.Committed(response.get().execute(
                     attempt,
                     ready.context(),
                     ready.readSet(),
@@ -115,6 +145,9 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
     }
 
     private String nonPlainCode(TurnRouteDecision decision) {
+        if (decision instanceof TurnRouteDecision.Plain) {
+            return "PLAIN_HANDLER_NOT_AVAILABLE";
+        }
         if (decision instanceof TurnRouteDecision.SourcePlanning) {
             return "SOURCE_AWARE_HANDLER_NOT_AVAILABLE";
         }

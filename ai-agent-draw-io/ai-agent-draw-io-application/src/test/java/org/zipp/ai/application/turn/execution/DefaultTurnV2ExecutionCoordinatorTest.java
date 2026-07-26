@@ -87,7 +87,6 @@ class DefaultTurnV2ExecutionCoordinatorTest {
         ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
         AtomicInteger generations = new AtomicInteger();
         AtomicInteger commits = new AtomicInteger();
-        PlainDrawingHandler plain = unusedPlainHandler();
         PlainResponseHandler response = new PlainResponseHandler(
                 (request, events) -> {
                     generations.incrementAndGet();
@@ -106,7 +105,6 @@ class DefaultTurnV2ExecutionCoordinatorTest {
                         (ignoredAttempt, ignoredCommand) -> ready(
                                 attempt, context, readSet, responseDecision(readSet, attempt),
                                 checkpoint(readSet, attempt)),
-                        plain,
                         response).execute(attempt, command, ignoredEvents()));
 
         assertInstanceOf(FencedCommitOutcome.Committed.class, committed.outcome());
@@ -233,14 +231,6 @@ class DefaultTurnV2ExecutionCoordinatorTest {
                 new PlanningLineageFingerprint("b".repeat(64)),
                 readSet.digest(),
                 attempt.inputBindingDigest()));
-    }
-
-    private static PlainDrawingHandler unusedPlainHandler() {
-        return new PlainDrawingHandler(
-                (request, events) -> new PlainGenerationResult("unused", "<mxGraphModel/>", "unused"),
-                commit -> new FencedCommitOutcome.Rejected("unused"),
-                new org.zipp.ai.application.turn.PlainRuntimeRegistry(),
-                PlainExecutionProfile.m2SourceFree());
     }
 
     private static TurnDecisionCheckpoint checkpoint(ContextReadSet readSet, FencedAttempt attempt) {

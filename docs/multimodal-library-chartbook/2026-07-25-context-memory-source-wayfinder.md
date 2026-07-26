@@ -512,7 +512,7 @@ Type: Task
 ## source-free-v2-path: Isolate The M2 Source-Free Path
 
 Blocked by: formal-contract-adr, turn-execution-control
-Status: in progress
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -585,6 +585,8 @@ source dependencies 全部故障时，isolated Plain CREATE/EDIT/LAYOUT 仍按�
 测试证明 SourceFreeReady 零 source 调用、Conversation File 不等于 current-message attachment，以及附件绑定可在 restart/takeover 后重建。
 
 M6 前不建立 Plain-only production cohort。这样 Router 的多语言误判不会决定 legacy/V2 engine，也不会造成两套路径语义漂移。
+
+本票最后收口 response-only composition：`TurnV2ExecutionCoordinator` 不再强制依赖 `PlainDrawingHandler`，仅有 `PlainResponseHandler + ResponseTurnCommitPort + TerminalOnlyTurnCommitPort` 时也能创建 isolated V2 executor；绘图 handler 缺失时 Plain route 明确返回 `PLAIN_HANDLER_NOT_AVAILABLE`，不会误调用或伪造终态。新增 response-only coordinator 与 bootstrap composition contract tests，定向测试和完整 Maven reactor 均通过（1658 项，0 failures，9 skipped）。本票未改变 production assignment，也没有新增或执行 migration。
 
 ## source-execution-plan: Build The Deterministic Source State Machine
 

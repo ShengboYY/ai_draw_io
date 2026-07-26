@@ -73,8 +73,11 @@ class TurnV2ExecutionCompositionConfigTest {
         contextRunner
                 .withBean(PlainResponseGenerationPort.class, () -> mock(PlainResponseGenerationPort.class))
                 .withBean(ResponseTurnCommitPort.class, () -> mock(ResponseTurnCommitPort.class))
+                .withBean(TerminalOnlyTurnCommitPort.class, () -> mock(TerminalOnlyTurnCommitPort.class))
                 .run(context -> assertThat(context)
                         .hasSingleBean(PlainResponseHandler.class)
-                        .hasSingleBean(org.zipp.ai.application.turn.PlainExecutionProfile.class));
+                        .hasSingleBean(org.zipp.ai.application.turn.PlainExecutionProfile.class)
+                        .hasSingleBean(TurnV2ExecutionCoordinator.class)
+                        .hasSingleBean(TurnV2TurnExecutor.class));
     }
 }

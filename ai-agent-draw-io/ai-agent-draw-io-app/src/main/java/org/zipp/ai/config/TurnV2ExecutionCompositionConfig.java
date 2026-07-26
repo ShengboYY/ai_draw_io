@@ -125,6 +125,22 @@ public class TurnV2ExecutionCompositionConfig {
     }
 
     @Bean
+    @ConditionalOnBean({
+            TurnV2PreHandlerCoordinator.class,
+            PlainResponseHandler.class,
+            TerminalOnlyTurnCommitPort.class
+    })
+    @ConditionalOnMissingBean(TurnV2ExecutionCoordinator.class)
+    public TurnV2ExecutionCoordinator turnV2ResponseOnlyExecutionCoordinator(
+            TurnV2PreHandlerCoordinator preHandler,
+            PlainResponseHandler response,
+            TurnAttemptExecutionStatePort executionState
+    ) {
+        // Response/review must remain reachable when the Plain drawing model is disabled.
+        return new DefaultTurnV2ExecutionCoordinator(preHandler, response, executionState);
+    }
+
+    @Bean
     @ConditionalOnBean({TurnV2ExecutionCoordinator.class, TerminalOnlyTurnCommitPort.class})
     public TurnV2TurnExecutor turnV2TurnExecutor(
             TurnV2ExecutionCoordinator coordinator,
