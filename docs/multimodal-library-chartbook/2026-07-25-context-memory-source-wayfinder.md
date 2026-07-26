@@ -855,7 +855,7 @@ Pending. 需要定义：
 ## turn-lifecycle-evals: Gate M1 Turn Control
 
 Blocked by: turn-execution-control
-Status: in progress
+Status: resolved
 Type: Research
 
 ### Question
@@ -879,6 +879,8 @@ Type: Research
 - cancel 在模型 port/Probe/Planner 阶段已由 cancellation port 持久化后，coordinator 返回 `TurnDecisionAlreadyTerminal`；不写 checkpoint，terminal commit adapter 调用数必须为零；
 - checkpoint crash-before 可重算；crash-after/takeover 必须 load 同一 decision。两个并发首 attempt 的 CAS loser 只能 reload winner；
 - trace 记录 assignment/claim、attempt epoch、lease/takeover、policy hash、input binding、decision digest、detach/cancel 和结果，不记录敏感正文。
+
+本轮补齐 M2 接流前的 transport 并发证据：`TurnHttpDeliveryAdapter` 的 sync 与 submission-only 调用并发进入同一 `TurnDeliveryExecutor`，两次请求经 translator 生成完全相同的 `UserTurnCommand`，共享 durable claim boundary，并固定只能得到一个 `ExecutionAccepted` 与一个 `AlreadyRunning`；accepted/running 两者均映射为 HTTP 202。既有 canonical/legacy control、status/cancel、terminal replay 与 detach contract 一并回归，trigger turn 定向测试 20/20 通过；application/infrastructure 的 M1 回归此前已分别通过 114/114 与真实 MySQL 56/56。本票不接入 legacy controller 或生产 assignment，也没有新增或执行 migration。
 
 ## plain-boundary-evals: Gate The Source-Free V2 Path
 
