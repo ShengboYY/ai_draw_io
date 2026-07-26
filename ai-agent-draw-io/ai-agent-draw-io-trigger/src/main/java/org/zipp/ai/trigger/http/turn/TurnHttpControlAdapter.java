@@ -24,6 +24,7 @@ public final class TurnHttpControlAdapter {
     private final ConversationCatalogPort conversations;
     private final ConversationReferenceResolver conversationResolver;
     private final TurnControlFacade control;
+    private final TurnHttpControlMapper mapper;
 
     public TurnHttpControlAdapter(
             ConversationCatalogPort conversations,
@@ -33,6 +34,7 @@ public final class TurnHttpControlAdapter {
         this.conversations = Objects.requireNonNull(conversations, "conversations");
         this.conversationResolver = Objects.requireNonNull(conversationResolver, "conversationResolver");
         this.control = Objects.requireNonNull(control, "control");
+        this.mapper = new TurnHttpControlMapper();
     }
 
     public TurnStatusQueryOutcome status(
@@ -43,12 +45,28 @@ public final class TurnHttpControlAdapter {
         return control.status(actor, new TurnStatusQuery(key));
     }
 
+    /** Maps the same canonical status query to a future HTTP response without re-resolving it. */
+    public TurnHttpStatusResult statusResponse(
+            AuthenticatedActor actor,
+            TurnHttpControlRequest request
+    ) {
+        return mapper.mapStatus(status(actor, request));
+    }
+
     public CancelTurnOutcome cancel(
             AuthenticatedActor actor,
             TurnHttpCancelRequest request
     ) {
         TurnKey key = key(actor, request.target());
         return control.cancel(actor, new CancelTurnCommand(key, request.reason()));
+    }
+
+    /** Maps the durable cancellation outcome while preserving its idempotent application payload. */
+    public TurnHttpCancelResult cancelResponse(
+            AuthenticatedActor actor,
+            TurnHttpCancelRequest request
+    ) {
+        return mapper.mapCancel(cancel(actor, request));
     }
 
     private TurnKey key(AuthenticatedActor actor, TurnHttpControlRequest request) {

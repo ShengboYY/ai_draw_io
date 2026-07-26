@@ -350,6 +350,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片固定 submission 到 HTTP disposition 的 transport contract：`ExecutionAccepted` 与 `AlreadyRunning` 映射 `202 Accepted + status endpoint required`，`TerminalReplay` 映射 `200 OK`，legacy retry expiry 为 `410 Gone`，fingerprint/admission conflict 为 `409 Conflict`，terminal schema unavailable/not-ready 为 `503 Service Unavailable`；`TurnHttpDeliveryResult` 暴露该映射但保留原始 sealed outcome 与 detach 标记。新增 mapper matrix tests，未改变 legacy controller、production assignment 或 V2 cohort，本切片没有新增或执行 migration。
 
+本切片补齐 control transport 的 HTTP disposition contract：status 的 available outcome 为 `200 OK`，terminal decoder unavailable 为 `503 Service Unavailable`；explicit cancel 的 persisted winner 与 already-terminal replay 为 `200 OK`，terminal unavailable/readiness rejection 为 `503`，fence/race rejection 为 `409`，owner/not-found rejection 统一为 `404` 以避免泄露 durable turn。`TurnHttpControlAdapter` 保留原始 sealed outcome，并额外提供 `statusResponse`/`cancelResponse`；新增 control mapper matrix 与 canonical adapter tests，未接入 legacy controller、serving route 或 production assignment，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

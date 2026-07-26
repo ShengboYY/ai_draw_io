@@ -62,6 +62,29 @@ class TurnHttpControlAdapterTest {
         assertEquals("user_requested", control.cancel.reason());
     }
 
+    @Test
+    void responseMethodsReuseTheCanonicalAdapterAndExposeTransportDisposition() {
+        RecordingControl control = new RecordingControl();
+        TurnHttpControlAdapter adapter = new TurnHttpControlAdapter(
+                new FakeConversationCatalog(),
+                new org.zipp.ai.application.turn.ConversationReferenceResolver(),
+                control);
+
+        TurnHttpStatusResult status = adapter.statusResponse(
+                new AuthenticatedActor("owner-1", "cohort-1"),
+                new TurnHttpControlRequest("turn-1", "conversation:conversation-1", "diagram-1"));
+        TurnHttpCancelResult cancel = adapter.cancelResponse(
+                new AuthenticatedActor("owner-1", "cohort-1"),
+                new TurnHttpCancelRequest(
+                        new TurnHttpControlRequest("turn-1", "conversation:conversation-1", "diagram-1"),
+                        "user_requested"));
+
+        assertEquals(org.springframework.http.HttpStatus.OK, status.httpStatus());
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, cancel.httpStatus());
+        assertEquals(new TurnKey("owner-1", "conversation-1", "turn-1"), control.status.key());
+        assertEquals(new TurnKey("owner-1", "conversation-1", "turn-1"), control.cancel.key());
+    }
+
     private static final class RecordingControl implements TurnControlFacade {
         private TurnStatusQuery status;
         private CancelTurnCommand cancel;
