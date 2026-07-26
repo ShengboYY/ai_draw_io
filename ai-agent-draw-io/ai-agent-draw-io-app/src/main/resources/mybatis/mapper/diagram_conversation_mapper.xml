@@ -84,8 +84,8 @@
         LIMIT 1
     </select>
 
-    <select id="selectAttachmentsByTurns" resultType="org.zipp.ai.infrastructure.dao.po.ConversationMessageAttachmentPO">
-        SELECT a.turn_id AS turnId,
+    <select id="selectAttachmentsByMessages" resultType="org.zipp.ai.infrastructure.dao.po.ConversationMessageAttachmentPO">
+        SELECT a.message_id AS messageId,
                a.conversation_file_ref AS fileRef,
                COALESCE(u.display_name, a.conversation_file_ref) AS displayName
         FROM conversation_message_attachment a
@@ -93,9 +93,9 @@
         LEFT JOIN material_upload_session u ON u.id = a.conversation_file_ref
         WHERE a.owner_key = #{userId}
           AND m.diagram_id = #{diagramId}
-          AND a.turn_id IN
-          <foreach collection="turnIds" item="turnId" open="(" separator="," close=")">#{turnId}</foreach>
-        ORDER BY a.turn_id ASC, a.attachment_order ASC
+          AND a.message_id IN
+          <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">#{messageId}</foreach>
+        ORDER BY a.message_id ASC, a.attachment_order ASC
     </select>
 
     <insert id="upsertMessage" parameterType="org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO">

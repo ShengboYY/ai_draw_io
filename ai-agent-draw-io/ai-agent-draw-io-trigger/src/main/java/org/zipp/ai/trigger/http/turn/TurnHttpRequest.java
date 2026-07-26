@@ -12,7 +12,8 @@ public record TurnHttpRequest(
         String runtimeSessionId,
         List<String> currentTurnAttachmentRefs,
         String clarificationId,
-        List<String> legacySelectedSourceIds
+        List<String> legacySelectedSourceIds,
+        String memoryChartbookId
 ) {
 
     public TurnHttpRequest {
@@ -20,5 +21,22 @@ public record TurnHttpRequest(
                 currentTurnAttachmentRefs == null ? List.of() : currentTurnAttachmentRefs);
         legacySelectedSourceIds = List.copyOf(
                 legacySelectedSourceIds == null ? List.of() : legacySelectedSourceIds);
+    }
+
+    /** Compatibility constructor for callers that do not declare a Memory target. */
+    public TurnHttpRequest(
+            String turnId,
+            String conversationReference,
+            String diagramId,
+            String clientMessageId,
+            String content,
+            String runtimeSessionId,
+            List<String> currentTurnAttachmentRefs,
+            String clarificationId,
+            List<String> legacySelectedSourceIds
+    ) {
+        this(turnId, conversationReference, diagramId, clientMessageId, content,
+                runtimeSessionId, currentTurnAttachmentRefs, clarificationId,
+                legacySelectedSourceIds, null);
     }
 }

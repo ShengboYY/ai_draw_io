@@ -5,6 +5,7 @@ import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.classification.OutputIntent;
 import org.zipp.ai.application.turn.planning.SourcePlanDecision;
 import org.zipp.ai.application.turn.planning.SourceProbeCommand;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 /**
  * Probe-to-capability boundary. Implementations resolve the immutable source snapshot, prepare
@@ -21,7 +22,8 @@ public interface SourceAwarePreparationPort {
             ContextReadSet readSet,
             SourceProbeCommand probeCommand,
             SourcePlanDecision plan,
-            OutputIntent outputIntent
+            OutputIntent outputIntent,
+            CancellationSignal cancellation
     ) {
         public Request {
             if (attempt == null || context == null || readSet == null
@@ -29,12 +31,22 @@ public interface SourceAwarePreparationPort {
                 throw new IllegalArgumentException("source preparation values must not be null");
             }
             outputIntent = outputIntent == null ? OutputIntent.DRAWING : outputIntent;
+            cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         }
 
         /** Compatibility constructor for adapters that only prepare source capabilities. */
         public Request(FencedAttempt attempt, BaseTurnContext context, ContextReadSet readSet,
                        SourceProbeCommand probeCommand, SourcePlanDecision plan) {
-            this(attempt, context, readSet, probeCommand, plan, OutputIntent.DRAWING);
+            this(attempt, context, readSet, probeCommand, plan,
+                    OutputIntent.DRAWING, CancellationSignal.NEVER);
+        }
+
+        /** Compatibility constructor for callers without attempt-scoped cancellation. */
+        public Request(FencedAttempt attempt, BaseTurnContext context, ContextReadSet readSet,
+                       SourceProbeCommand probeCommand, SourcePlanDecision plan,
+                       OutputIntent outputIntent) {
+            this(attempt, context, readSet, probeCommand, plan,
+                    outputIntent, CancellationSignal.NEVER);
         }
     }
 

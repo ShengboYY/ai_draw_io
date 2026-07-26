@@ -24,10 +24,15 @@ class TurnInputBindingJsonCodecTest {
                 new ReplyToClarification(new ClarificationId("clarification-1")),
                 List.of(new UntrustedLegacyVersionDeclaration("legacy-source-1")),
                 new RememberDecisionDeclaration(
-                        1,
-                        new MemoryWriteRuleVersion("memory-rule-v1"),
+                        2,
+                        new MemoryWriteRuleVersion("memory-locale-rule-v2"),
                         new MatchedInstructionSpan("remember this decision"),
-                        new MemoryWriteSemanticDigest("sha256:memory"), "chartbook-1"));
+                        new MemoryWriteSemanticDigest("sha256:memory"),
+                        "chartbook-1",
+                        "remembered-decision",
+                        "all",
+                        "use event naming",
+                        "en"));
 
         TurnInputBindingJsonCodec codec = new TurnInputBindingJsonCodec();
 

@@ -1,6 +1,7 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
 import com.alibaba.fastjson.JSON;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,11 +89,21 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
             """;
 
     private final JdbcOperations jdbc;
+    private final MySqlCompletedTurnMemoryProposalWriter memoryProposals;
     private final CanvasXmlContentHasher canvasHasher = new CanvasXmlContentHasher();
     private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlPlainTurnCommitAdapter(JdbcOperations jdbc) {
+        this(jdbc, null);
+    }
+
+    @Autowired
+    public MySqlPlainTurnCommitAdapter(
+            JdbcOperations jdbc,
+            MySqlCompletedTurnMemoryProposalWriter memoryProposals
+    ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.memoryProposals = memoryProposals;
     }
 
     @Override
@@ -160,6 +171,9 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
                 attempt.attemptEpoch());
         if (updated != 1) {
             throw new IllegalStateException("PLAIN_COMMIT_FENCE_NOT_APPLIED");
+        }
+        if (memoryProposals != null) {
+            memoryProposals.write(attempt, command.diagramId());
         }
         return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
                 TurnStatus.COMPLETED,

@@ -22,11 +22,16 @@ public final class MemoryTurnCompletedHook implements TurnCompletedHook {
         if (!(command.declarations().memoryWrite() instanceof RememberDecisionDeclaration declaration)) {
             return;
         }
-        ExplicitMemoryDecision.fromUserContent(command.content(), declaration.chartbookId())
-                .filter(decision -> decision.declaration().equals(declaration))
-                .ifPresent(decision -> proposals.propose(new MemoryProposalCommand(
-                        attempt.key(), declaration.chartbookId(), command.diagramId(),
-                        decision.candidateId(attempt.key()), decision.declarationDigest(), declaration,
-                        decision.decisionKey(), decision.applicabilityStage(), decision.canonicalText())));
+        if (!declaration.hasPinnedProposal()) {
+            return;
+        }
+        // Never rerun language extraction after admission; only the first pinned declaration is
+        // authoritative for candidate identity and content.
+        proposals.propose(new MemoryProposalCommand(
+                attempt.key(), declaration.chartbookId(), command.diagramId(),
+                ExplicitMemoryDecision.candidateId(attempt.key(), declaration.digest().value()),
+                declaration.digest().value(), declaration,
+                declaration.decisionKey(), declaration.applicabilityStage(),
+                declaration.canonicalText()));
     }
 }

@@ -1,6 +1,7 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
 import com.alibaba.fastjson.JSON;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -145,11 +146,21 @@ public class MySqlSourceAwareTurnCommitAdapter
             """;
 
     private final JdbcOperations jdbc;
+    private final MySqlCompletedTurnMemoryProposalWriter memoryProposals;
     private final CanvasXmlContentHasher canvasHasher = new CanvasXmlContentHasher();
     private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlSourceAwareTurnCommitAdapter(JdbcOperations jdbc) {
+        this(jdbc, null);
+    }
+
+    @Autowired
+    public MySqlSourceAwareTurnCommitAdapter(
+            JdbcOperations jdbc,
+            MySqlCompletedTurnMemoryProposalWriter memoryProposals
+    ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.memoryProposals = memoryProposals;
     }
 
     @Override
@@ -189,6 +200,7 @@ public class MySqlSourceAwareTurnCommitAdapter
         return complete(
                 command.attempt(),
                 command.sourceBinding(),
+                command.diagramId(),
                 "direct",
                 command.payloadRef(),
                 messageId,
@@ -240,6 +252,7 @@ public class MySqlSourceAwareTurnCommitAdapter
         return complete(
                 command.attempt(),
                 command.sourceBinding(),
+                command.diagramId(),
                 "grounded",
                 command.payloadRef(),
                 messageId,
@@ -279,6 +292,7 @@ public class MySqlSourceAwareTurnCommitAdapter
         return complete(
                 command.attempt(),
                 command.sourceBinding(),
+                command.diagramId(),
                 "evidence_answer",
                 command.payloadRef(),
                 messageId,
@@ -487,6 +501,7 @@ public class MySqlSourceAwareTurnCommitAdapter
     private FencedCommitOutcome complete(
             FencedAttempt attempt,
             SourceCommitBinding binding,
+            String diagramId,
             String payloadType,
             String payloadRef,
             long responseMessageId,
@@ -520,6 +535,9 @@ public class MySqlSourceAwareTurnCommitAdapter
                 key.turnId(),
                 attempt.attemptId(),
                 attempt.attemptEpoch()), "SOURCE_COMMIT_FENCE_NOT_APPLIED");
+        if (memoryProposals != null) {
+            memoryProposals.write(attempt, diagramId);
+        }
         return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
                 TurnStatus.COMPLETED,
                 "COMPLETED",

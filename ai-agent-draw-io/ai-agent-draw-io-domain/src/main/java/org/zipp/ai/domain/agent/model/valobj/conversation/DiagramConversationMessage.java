@@ -10,6 +10,8 @@ import java.util.List;
 @Builder
 public class DiagramConversationMessage {
 
+    // Internal durable identity used to attach message-level source bindings exactly once.
+    private Long id;
     private String userId;
     private String diagramId;
     // V2 uses this durable key to return the exact terminal message for a retried turn.

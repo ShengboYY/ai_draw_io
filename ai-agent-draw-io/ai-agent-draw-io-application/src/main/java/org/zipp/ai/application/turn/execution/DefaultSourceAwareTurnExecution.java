@@ -26,6 +26,7 @@ import org.zipp.ai.application.turn.planning.SourceProbeContext;
 import org.zipp.ai.application.turn.planning.SourceProbeOutcome;
 import org.zipp.ai.application.turn.planning.SourceProbePort;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -76,6 +77,17 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             TurnV2PreHandlerOutcome.Ready prepared,
             TurnEventSink events
     ) {
+        return execute(attempt, command, prepared, events, CancellationSignal.NEVER);
+    }
+
+    @Override
+    public TurnV2ExecutionOutcome execute(
+            FencedAttempt attempt,
+            UserTurnCommand command,
+            TurnV2PreHandlerOutcome.Ready prepared,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         Objects.requireNonNull(attempt, "attempt");
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(prepared, "prepared");
@@ -112,7 +124,7 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             SourceAwarePreparationPort.Outcome preparedSource = preparation.prepare(
                     new SourceAwarePreparationPort.Request(
                             attempt, prepared.context(), prepared.readSet(), probeCommand, plan,
-                            required.intent().outputIntent()));
+                            required.intent().outputIntent(), cancellation));
             if (!(preparedSource instanceof SourceAwarePreparationPort.Outcome.Ready ready)) {
                 if (plan instanceof SourcePlanDecision.OptionalRetrievalReady optionalReady) {
                     return optionalPreparationFallback(attempt, prepared, optionalReady.plan(),
@@ -172,7 +184,11 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
                 OptionalPrimaryBranchScope.none(), events));
     }
 
-    private FallbackReason fallbackReason(String preparationCode) {
+    FallbackReason fallbackReason(String preparationCode) {
+        // User cancellation is terminal authority for the whole turn and can never become Plain.
+        if ("EVIDENCE_PREPARATION_CANCELLED".equals(preparationCode)) {
+            return null;
+        }
         if ("SOURCE_SNAPSHOT_NOT_FOUND".equals(preparationCode)) {
             return FallbackReason.SNAPSHOT_DEPENDENCY_UNAVAILABLE;
         }

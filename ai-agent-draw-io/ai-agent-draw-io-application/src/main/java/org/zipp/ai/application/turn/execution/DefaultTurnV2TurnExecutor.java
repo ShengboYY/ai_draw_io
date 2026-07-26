@@ -12,6 +12,7 @@ import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.TurnWriteGate;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.util.Objects;
 
@@ -45,11 +46,22 @@ public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
             UserTurnCommand command,
             TurnEventSink events
     ) {
+        return execute(accepted, command, events, CancellationSignal.NEVER);
+    }
+
+    @Override
+    public TurnAttemptCompletion execute(
+            TurnSubmission.ExecutionAccepted accepted,
+            UserTurnCommand command,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         Objects.requireNonNull(accepted, "accepted");
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(events, "events");
         try {
-            TurnV2ExecutionOutcome outcome = coordinator.execute(accepted.attempt(), command, events);
+            TurnV2ExecutionOutcome outcome = coordinator.execute(
+                    accepted.attempt(), command, events, cancellation);
             if (outcome instanceof TurnV2ExecutionOutcome.PreparationBlocked blocked
                     && blocked.outcome() instanceof TurnV2PreHandlerOutcome.AlreadyTerminal terminal) {
                 return new TurnAttemptCompletion.PersistedTerminal(terminal.outcome());

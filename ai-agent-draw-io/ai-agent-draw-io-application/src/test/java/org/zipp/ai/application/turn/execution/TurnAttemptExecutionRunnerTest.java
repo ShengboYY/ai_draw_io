@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -250,6 +251,65 @@ class TurnAttemptExecutionRunnerTest {
                     handle.completion().toCompletableFuture().get(1, TimeUnit.SECONDS));
             assertEquals(cancelled, completion.outcome());
             assertTrue(interrupted.await(1, TimeUnit.SECONDS));
+        } finally {
+            execution.shutdownNow();
+            scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    void explicitCancelIsVisibleToNestedPreparationSignal() throws Exception {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        ExecutorService execution = Executors.newSingleThreadExecutor();
+        TurnAttemptCancellationRegistry cancellations = new TurnAttemptCancellationRegistry();
+        AtomicReference<org.zipp.ai.domain.retrieval.CancellationSignal> observed =
+                new AtomicReference<>();
+        CountDownLatch entered = new CountDownLatch(1);
+        TurnV2TurnExecutor executor = new TurnV2TurnExecutor() {
+            @Override
+            public TurnAttemptCompletion execute(
+                    TurnSubmission.ExecutionAccepted accepted,
+                    UserTurnCommand command,
+                    TurnEventSink events
+            ) {
+                throw new AssertionError("runner must call the cancellation-aware overload");
+            }
+
+            @Override
+            public TurnAttemptCompletion execute(
+                    TurnSubmission.ExecutionAccepted accepted,
+                    UserTurnCommand command,
+                    TurnEventSink events,
+                    org.zipp.ai.domain.retrieval.CancellationSignal cancellation
+            ) {
+                observed.set(cancellation);
+                entered.countDown();
+                try {
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(30));
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+                return new TurnAttemptCompletion.AttemptSelfAborted(
+                        new TurnStatusRef(accepted.key()), "TEST_INTERRUPTED");
+            }
+
+            @Override
+            public void disableWritesAndDrain(FencedAttempt attempt) {
+            }
+        };
+        try {
+            TurnAttemptExecutionRunner runner = new TurnAttemptExecutionRunner(
+                    executor, supervisor(executor, ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(
+                            Duration.ofSeconds(30))), execution, scheduler, cancellations);
+            TurnHandle handle = runner.start(accepted(false), command(), ignored -> { });
+            assertTrue(entered.await(1, TimeUnit.SECONDS));
+
+            cancellations.signal(accepted(false).key(), new PersistedTurnOutcome(
+                    TurnStatus.CANCELLED, "CANCELLED_BY_USER", "cancel", null, "{}"));
+
+            assertTrue(observed.get().isCancelled());
+            assertInstanceOf(TurnAttemptCompletion.PersistedTerminal.class,
+                    handle.completion().toCompletableFuture().get(1, TimeUnit.SECONDS));
         } finally {
             execution.shutdownNow();
             scheduler.shutdownNow();

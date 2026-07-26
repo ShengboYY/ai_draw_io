@@ -29,7 +29,8 @@ public final class TurnHttpRequestTranslator {
                 required(request.content(), "content"),
                 request.runtimeSessionId(),
                 declarations(request.currentTurnAttachmentRefs(), request.clarificationId(),
-                        request.legacySelectedSourceIds(), request.content(), null));
+                        request.legacySelectedSourceIds(), request.content(),
+                        request.memoryChartbookId()));
     }
 
     /**

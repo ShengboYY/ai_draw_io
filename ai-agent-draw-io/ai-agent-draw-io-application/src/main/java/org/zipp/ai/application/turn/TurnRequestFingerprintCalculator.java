@@ -42,11 +42,20 @@ public final class TurnRequestFingerprintCalculator {
             return "NONE";
         }
         RememberDecisionDeclaration remember = (RememberDecisionDeclaration) declaration;
-        return remember.schemaVersion() + "|"
+        String v1 = remember.schemaVersion() + "|"
                 + remember.ruleVersion().value() + "|"
                 + remember.matchedSpan().value() + "|"
                 + remember.digest().value() + "|"
                 + remember.chartbookId();
+        // Preserve schema-v1 retry fingerprints; schema-v2 declarations pin proposal content.
+        if (remember.schemaVersion() < 2) {
+            return v1;
+        }
+        return v1 + "|"
+                + String.valueOf(remember.decisionKey()) + "|"
+                + String.valueOf(remember.applicabilityStage()) + "|"
+                + String.valueOf(remember.canonicalText()) + "|"
+                + String.valueOf(remember.locale());
     }
 
     private static void append(StringBuilder canonical, String field, String value) {

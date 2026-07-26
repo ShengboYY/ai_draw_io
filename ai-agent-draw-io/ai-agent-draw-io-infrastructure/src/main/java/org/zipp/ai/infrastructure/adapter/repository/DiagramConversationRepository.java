@@ -13,6 +13,7 @@ import javax.annotation.Resource;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -58,17 +59,18 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
         List<DiagramConversationMessage> messages = rows.stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
-        List<String> turnIds = messages.stream().map(DiagramConversationMessage::getTurnId)
-                .filter(value -> !isBlank(value)).distinct().toList();
-        if (turnIds.isEmpty()) {
+        List<Long> messageIds = messages.stream().map(DiagramConversationMessage::getId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (messageIds.isEmpty()) {
             return messages;
         }
-        Map<String, List<String>> attachmentsByTurn = diagramConversationMapper.selectAttachmentsByTurns(
-                userId, diagramId, turnIds).stream().collect(Collectors.groupingBy(
-                        ConversationMessageAttachmentPO::getTurnId,
+        Map<Long, List<String>> attachmentsByMessage =
+                diagramConversationMapper.selectAttachmentsByMessages(
+                        userId, diagramId, messageIds).stream().collect(Collectors.groupingBy(
+                        ConversationMessageAttachmentPO::getMessageId,
                         Collectors.mapping(ConversationMessageAttachmentPO::getDisplayName, Collectors.toList())));
         messages.forEach(message -> message.setAttachmentRefs(
-                attachmentsByTurn.getOrDefault(message.getTurnId(), List.of())));
+                attachmentsByMessage.getOrDefault(message.getId(), List.of())));
         return messages;
     }
 
@@ -115,6 +117,7 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
 
     private DiagramConversationMessage toDomain(DiagramConversationMessagePO po) {
         return DiagramConversationMessage.builder()
+                .id(po.getId())
                 .userId(po.getUserId())
                 .diagramId(po.getDiagramId())
                 .turnId(po.getTurnId())

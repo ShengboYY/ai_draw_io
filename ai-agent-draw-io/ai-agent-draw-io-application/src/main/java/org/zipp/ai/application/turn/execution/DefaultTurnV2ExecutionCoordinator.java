@@ -9,6 +9,7 @@ import org.zipp.ai.application.turn.TurnFailureCode;
 import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -118,6 +119,16 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
             UserTurnCommand command,
             TurnEventSink events
     ) {
+        return execute(attempt, command, events, CancellationSignal.NEVER);
+    }
+
+    @Override
+    public TurnV2ExecutionOutcome execute(
+            FencedAttempt attempt,
+            UserTurnCommand command,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         Objects.requireNonNull(attempt, "attempt");
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(events, "events");
@@ -148,7 +159,7 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
         }
         if (ready.decision() instanceof TurnRouteDecision.SourcePlanning
                 && sourceAware.isPresent()) {
-            return sourceAware.get().execute(attempt, command, ready, events);
+            return sourceAware.get().execute(attempt, command, ready, events, cancellation);
         }
         return new TurnV2ExecutionOutcome.NotDispatched(
                 ready.decision(), nonPlainCode(ready.decision()));

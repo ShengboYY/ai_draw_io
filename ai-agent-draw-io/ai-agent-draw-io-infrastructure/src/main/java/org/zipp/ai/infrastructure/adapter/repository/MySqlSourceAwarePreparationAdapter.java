@@ -155,10 +155,11 @@ public final class MySqlSourceAwarePreparationAdapter implements SourceAwarePrep
                         || bound.plan() instanceof SourceAwareDrawPlan.OptionalComposite);
         RunResourceDomain resources = new RunResourceDomain();
         PreparationOutcome outcome = module.prepare(
-                        command, resources, EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                        command, resources, EvidenceProgressListener.NOOP, request.cancellation())
                 .toCompletableFuture().join();
         if (!(outcome instanceof PreparationOutcome.Ready ready)) {
-            resources.closeExactlyOnce(CloseReason.FAILED);
+            resources.closeExactlyOnce(outcome instanceof PreparationOutcome.Cancelled
+                    ? CloseReason.CANCELLED : CloseReason.FAILED);
             return new Outcome.Rejected("EVIDENCE_PREPARATION_" + outcomeCode(outcome));
         }
         PreparedEvidence evidence = ready.preparedEvidence();

@@ -248,7 +248,8 @@ public final class LegacyTurnV2IngressBridge {
                 session,
                 request.getCurrentTurnAttachmentRefs(),
                 null,
-                request.getSelectedLibraryVersionIds());
+                request.getSelectedLibraryVersionIds(),
+                request.getMemoryChartbookId());
     }
 
     private ChatResponseDTO toChatResponse(BridgeResult result) {

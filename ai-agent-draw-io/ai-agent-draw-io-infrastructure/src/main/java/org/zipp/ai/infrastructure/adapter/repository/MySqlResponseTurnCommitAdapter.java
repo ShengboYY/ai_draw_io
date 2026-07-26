@@ -1,6 +1,7 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
 import com.alibaba.fastjson.JSON;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,10 +66,20 @@ public class MySqlResponseTurnCommitAdapter implements ResponseTurnCommitPort {
             """;
 
     private final JdbcOperations jdbc;
+    private final MySqlCompletedTurnMemoryProposalWriter memoryProposals;
     private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlResponseTurnCommitAdapter(JdbcOperations jdbc) {
+        this(jdbc, null);
+    }
+
+    @Autowired
+    public MySqlResponseTurnCommitAdapter(
+            JdbcOperations jdbc,
+            MySqlCompletedTurnMemoryProposalWriter memoryProposals
+    ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.memoryProposals = memoryProposals;
     }
 
     @Override
@@ -126,6 +137,9 @@ public class MySqlResponseTurnCommitAdapter implements ResponseTurnCommitPort {
             // The transaction rolls back the message and conversation increment if the lease
             // fence expires between the initial check and the terminal CAS.
             throw new IllegalStateException("RESPONSE_COMMIT_FENCE_NOT_APPLIED");
+        }
+        if (memoryProposals != null) {
+            memoryProposals.write(attempt, command.diagramId());
         }
         return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
                 TurnStatus.COMPLETED,

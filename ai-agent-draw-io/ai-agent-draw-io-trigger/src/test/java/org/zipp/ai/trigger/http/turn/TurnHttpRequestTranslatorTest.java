@@ -78,4 +78,25 @@ class TurnHttpRequestTranslatorTest {
 
         assertEquals(RememberDecisionDeclaration.class, command.declarations().memoryWrite().getClass());
     }
+
+    @Test
+    void canonicalV2RequestCanDeclareTheSameMemoryWrite() {
+        UserTurnCommand command = new TurnHttpRequestTranslator().translate(new TurnHttpRequest(
+                "turn-1",
+                "conversation-1",
+                "diagram-1",
+                "client-1",
+                "remember this decision: use event naming",
+                "session-1",
+                List.of(),
+                null,
+                List.of(),
+                "chartbook-1"));
+
+        RememberDecisionDeclaration declaration = (RememberDecisionDeclaration)
+                command.declarations().memoryWrite();
+        assertEquals("chartbook-1", declaration.chartbookId());
+        assertEquals("use event naming", declaration.canonicalText());
+        assertEquals("en", declaration.locale());
+    }
 }

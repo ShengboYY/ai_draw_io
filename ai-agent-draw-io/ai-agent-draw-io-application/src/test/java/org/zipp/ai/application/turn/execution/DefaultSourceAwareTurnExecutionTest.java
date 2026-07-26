@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class DefaultSourceAwareTurnExecutionTest {
 
@@ -81,6 +82,22 @@ class DefaultSourceAwareTurnExecutionTest {
         assertEquals("SOURCE_PROBE_NO_MATCH", outcome.code());
         assertEquals(0, preparations.get());
         assertEquals(0, pins.get());
+    }
+
+    @Test
+    void optionalEvidenceCancellationIsNeverFallbackEligible() {
+        DefaultSourceAwareTurnExecution execution = execution(
+                ignored -> {
+                    throw new AssertionError("probe is not used");
+                },
+                ignored -> {
+                    throw new AssertionError("preparation is not used");
+                },
+                (ignoredAttempt, ignoredBinding) -> {
+                    throw new AssertionError("binding is not used");
+                });
+
+        assertNull(execution.fallbackReason("EVIDENCE_PREPARATION_CANCELLED"));
     }
 
     private DefaultSourceAwareTurnExecution execution(

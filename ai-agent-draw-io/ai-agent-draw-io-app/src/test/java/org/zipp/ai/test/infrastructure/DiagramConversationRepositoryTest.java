@@ -51,7 +51,8 @@ public class DiagramConversationRepositoryTest {
         assertEquals(2, messages.size());
         assertEquals("msg-1", messages.get(0).getClientMessageId());
         assertEquals("agent", messages.get(1).getRole());
-        assertEquals(List.of("architecture.pdf"), messages.get(1).getAttachmentRefs());
+        assertEquals(List.of("architecture.pdf"), messages.get(0).getAttachmentRefs());
+        assertTrue(messages.get(1).getAttachmentRefs().isEmpty());
     }
 
     @Test
@@ -107,6 +108,7 @@ public class DiagramConversationRepositoryTest {
             this.listedDiagramId = diagramId;
 
             DiagramConversationMessagePO first = new DiagramConversationMessagePO();
+            first.setId(101L);
             first.setUserId(userId);
             first.setDiagramId(diagramId);
             first.setSessionId("session-1");
@@ -115,6 +117,7 @@ public class DiagramConversationRepositoryTest {
             first.setContent("Create a flowchart");
 
             DiagramConversationMessagePO second = new DiagramConversationMessagePO();
+            second.setId(102L);
             second.setUserId(userId);
             second.setDiagramId(diagramId);
             second.setSessionId("session-1");
@@ -143,10 +146,10 @@ public class DiagramConversationRepositoryTest {
         }
 
         @Override
-        public List<ConversationMessageAttachmentPO> selectAttachmentsByTurns(
-                String userId, String diagramId, List<String> turnIds) {
+        public List<ConversationMessageAttachmentPO> selectAttachmentsByMessages(
+                String userId, String diagramId, List<Long> messageIds) {
             ConversationMessageAttachmentPO attachment = new ConversationMessageAttachmentPO();
-            attachment.setTurnId("turn-1");
+            attachment.setMessageId(101L);
             attachment.setFileRef("upload-1");
             attachment.setDisplayName("architecture.pdf");
             return List.of(attachment);

@@ -1,6 +1,7 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -184,7 +185,7 @@ public class MySqlConfirmedMemoryAdapter implements MemoryCandidateStorePort, Me
                     proposal.diagramId(), proposal.decisionKey(), proposal.applicabilityStage(),
                     proposal.scope(), proposal.canonicalText(), proposal.policyVersion(),
                     proposal.declarationDigest(), proposal.ttl().toSeconds(), RETAIN_SECONDS);
-        } catch (DataAccessException exception) {
+        } catch (DuplicateKeyException exception) {
             MemoryCandidateProposal existing = findCandidate(proposal);
             if (existing != null) {
                 return new MemoryProposalOutcome.AlreadyExists(existing);

@@ -26,6 +26,10 @@ final class MemoryWriteDeclarationJsonCodec {
                     .put("matchedSpan", remember.matchedSpan().value())
                     .put("digest", remember.digest().value())
                     .put("chartbookId", remember.chartbookId())
+                    .put("decisionKey", remember.decisionKey())
+                    .put("applicabilityStage", remember.applicabilityStage())
+                    .put("canonicalText", remember.canonicalText())
+                    .put("locale", remember.locale())
                     .toString();
         } catch (RuntimeException e) {
             throw new IllegalArgumentException("memory write declaration cannot be encoded", e);
@@ -46,10 +50,19 @@ final class MemoryWriteDeclarationJsonCodec {
                     new MemoryWriteRuleVersion(node.path("ruleVersion").asText()),
                     new MatchedInstructionSpan(node.path("matchedSpan").asText()),
                     new MemoryWriteSemanticDigest(node.path("digest").asText()),
-                    node.path("chartbookId").asText()
+                    node.path("chartbookId").asText(),
+                    optionalText(node, "decisionKey"),
+                    optionalText(node, "applicabilityStage"),
+                    optionalText(node, "canonicalText"),
+                    optionalText(node, "locale")
             );
         } catch (Exception e) {
             throw new IllegalStateException("persisted memory write declaration is unavailable", e);
         }
+    }
+
+    private String optionalText(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        return value.isTextual() && !value.asText().isBlank() ? value.asText() : null;
     }
 }

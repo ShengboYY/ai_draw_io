@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongSupplier;
 
 /**
@@ -225,6 +226,7 @@ public final class TurnAttemptExecutionRunner {
         private ScheduledFuture<?> deadlineFuture;
         private FutureTask<Void> executionTask;
         private TurnAttemptCancellationRegistry.Registration cancellationRegistration;
+        private final AtomicBoolean cancellationRequested = new AtomicBoolean();
         private boolean completed;
 
         private AttemptState(
@@ -450,7 +452,9 @@ public final class TurnAttemptExecutionRunner {
         private void execute() {
             TurnAttemptCompletion result;
             try {
-                result = executor.execute(accepted, command, events);
+                result = executor.execute(
+                        accepted, command, events,
+                        () -> cancellationRequested.get() || Thread.currentThread().isInterrupted());
             } catch (RuntimeException exception) {
                 result = new TurnAttemptCompletion.AttemptSelfAborted(
                         new TurnStatusRef(accepted.key()), "TURN_EXECUTION_FAILED");
@@ -491,6 +495,11 @@ public final class TurnAttemptExecutionRunner {
                 scheduled.cancel(false);
             }
             if (task != null && !task.isDone()) {
+                if (interruptExecution) {
+                    // Nested asynchronous preparation observes this flag even though it runs on
+                    // a different executor thread from the outer turn task.
+                    cancellationRequested.set(true);
+                }
                 task.cancel(interruptExecution);
             }
             traceCompletion(tracedAttempt, result);

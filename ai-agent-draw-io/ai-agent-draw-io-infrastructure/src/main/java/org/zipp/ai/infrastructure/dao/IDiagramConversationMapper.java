@@ -23,10 +23,10 @@ public interface IDiagramConversationMapper {
             @Param("conversationId") String conversationId,
             @Param("turnId") String turnId);
 
-    List<ConversationMessageAttachmentPO> selectAttachmentsByTurns(
+    List<ConversationMessageAttachmentPO> selectAttachmentsByMessages(
             @Param("userId") String userId,
             @Param("diagramId") String diagramId,
-            @Param("turnIds") List<String> turnIds);
+            @Param("messageIds") List<Long> messageIds);
 
     int upsertMessage(DiagramConversationMessagePO message);
 
