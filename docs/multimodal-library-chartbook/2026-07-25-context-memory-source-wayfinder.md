@@ -354,6 +354,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片接入 feature-gated V2 HTTP boundary：`TurnV2HttpController` 提供 `POST /api/v2/turns`、`GET /api/v2/turns/{turnId}/status` 与 `POST /api/v2/turns/{turnId}/cancel`，通过 `CurrentOwnerHttpResolver` 构造 owner-fenced `AuthenticatedActor`，并复用 delivery/control adapters 的既有 disposition。`turn-engine.http.v2.enabled` 缺省关闭，未开启时 controller 不注册；没有修改 `/api/v1` legacy controller、assignment selection 或数据库 schema。测试覆盖 owner 不来自 request body、status/cancel HTTP code 以及 feature flag annotation contract。
 
+本切片补齐 submission-only NDJSON delivery boundary：`POST /api/v2/turns/stream` 与 sync submit 共享同一 `TurnHttpDeliveryAdapter`/`TurnDeliveryExecutor`，只发送安全的 `turn_submission` envelope 后结束连接；RUNNING attempt 继续由服务端执行并通过 status 查询，不承诺可重放进度事件。`NdjsonTurnEventSink` writer failure 仍只 detach subscriber，不转成业务取消；本切片未改变 legacy route、production assignment 或数据库 schema，也没有新增 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

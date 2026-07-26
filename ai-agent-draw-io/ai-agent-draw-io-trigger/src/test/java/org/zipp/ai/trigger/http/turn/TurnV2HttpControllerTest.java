@@ -68,6 +68,27 @@ class TurnV2HttpControllerTest {
     }
 
     @Test
+    void streamReturnsSubmissionDispositionAsNdjsonAndDoesNotPromiseProgressReplay() throws Exception {
+        TurnHttpDeliveryAdapter delivery = new TurnHttpDeliveryAdapter(
+                new TurnHttpRequestTranslator(),
+                (actor, command, events) -> new org.zipp.ai.application.turn.TurnSubmission.NotReady(
+                        "TURN_INSTANCE_NOT_READY"));
+        TurnV2HttpController controller = new TurnV2HttpController(
+                new FakeOwnerResolver(), delivery,
+                new TurnHttpControlAdapter(
+                        new FakeConversationCatalog(), new ConversationReferenceResolver(), new FakeControl()));
+
+        ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter> response =
+                controller.stream(new TurnHttpRequest(
+                        "turn-1", "conversation:conversation-1", "diagram-1", "client-1", "draw it",
+                        null, java.util.List.of(), null, java.util.List.of()));
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertEquals("application", response.getHeaders().getContentType().getType());
+        assertEquals("x-ndjson", response.getHeaders().getContentType().getSubtype());
+    }
+
+    @Test
     void controllerRequiresAnExplicitV2FeatureFlag() {
         ConditionalOnProperty condition = TurnV2HttpController.class
                 .getAnnotation(ConditionalOnProperty.class);
