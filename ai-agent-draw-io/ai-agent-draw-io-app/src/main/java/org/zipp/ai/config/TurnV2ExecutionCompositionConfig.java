@@ -10,8 +10,11 @@ import org.zipp.ai.application.turn.PlainDrawingHandler;
 import org.zipp.ai.application.turn.AttemptWriteGate;
 import org.zipp.ai.application.turn.PlainExecutionProfile;
 import org.zipp.ai.application.turn.PlainGenerationPort;
+import org.zipp.ai.application.turn.PlainResponseGenerationPort;
+import org.zipp.ai.application.turn.PlainResponseHandler;
 import org.zipp.ai.application.turn.PlainRuntimeRegistry;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
+import org.zipp.ai.application.turn.ResponseTurnCommitPort;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
@@ -84,6 +87,17 @@ public class TurnV2ExecutionCompositionConfig {
             TurnWriteGate writeGate
     ) {
         return new PlainDrawingHandler(generation, commit, runtime, profile, writeGate);
+    }
+
+    @Bean
+    @ConditionalOnBean({PlainResponseGenerationPort.class, ResponseTurnCommitPort.class})
+    public PlainResponseHandler plainResponseHandler(
+            PlainResponseGenerationPort generation,
+            ResponseTurnCommitPort commit,
+            PlainExecutionProfile profile,
+            TurnWriteGate writeGate
+    ) {
+        return new PlainResponseHandler(generation, commit, profile, writeGate);
     }
 
     @Bean

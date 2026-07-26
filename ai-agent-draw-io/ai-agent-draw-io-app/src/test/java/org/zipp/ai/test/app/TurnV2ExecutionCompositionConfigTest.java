@@ -4,7 +4,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
 import org.zipp.ai.application.turn.PlainGenerationPort;
+import org.zipp.ai.application.turn.PlainResponseGenerationPort;
+import org.zipp.ai.application.turn.PlainResponseHandler;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
+import org.zipp.ai.application.turn.ResponseTurnCommitPort;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
@@ -63,5 +66,15 @@ class TurnV2ExecutionCompositionConfigTest {
                         .hasSingleBean(TurnAttemptRecoveryCoordinator.class)
                         .satisfies(appContext -> assertThat(appContext.getBean(ScheduledExecutorService.class))
                                 .isNotInstanceOf(ThreadPoolExecutor.class)));
+    }
+
+    @Test
+    void composesSourceFreeResponseHandlerOnlyWhenBothResponsePortsExist() {
+        contextRunner
+                .withBean(PlainGenerationPort.class, () -> mock(PlainGenerationPort.class))
+                .withBean(PlainTurnCommitPort.class, () -> mock(PlainTurnCommitPort.class))
+                .withBean(PlainResponseGenerationPort.class, () -> mock(PlainResponseGenerationPort.class))
+                .withBean(ResponseTurnCommitPort.class, () -> mock(ResponseTurnCommitPort.class))
+                .run(context -> assertThat(context).hasSingleBean(PlainResponseHandler.class));
     }
 }
