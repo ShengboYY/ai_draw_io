@@ -360,6 +360,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本补充收紧 V2 serving 的 bootstrap 前提：`TurnV2HttpController` 除显式 `turn-engine.http.v2.enabled=true` 外，还要求 isolated `TurnAttemptExecutionRunner` 已由完整 V2 execution graph 组合；配置误开但 runner 缺失时不注册 route，避免 durable claim 后留下无人执行的 `RUNNING` attempt。新增 annotation contract test；legacy controller、assignment selection、production cohort 与数据库 schema 均未改变，本补充没有执行 migration。
 
+本切片收口 status 的 not-found 语义：跨 owner 或不存在的 `turn_execution` 不再通过异常传播，而是返回 typed `TurnStatusQueryOutcome.NotFound`，HTTP control mapper 统一映射为 `404`，避免把资源存在性泄露为 `500`；新增 application、MySQL lifecycle adapter 与 HTTP mapper contract tests。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

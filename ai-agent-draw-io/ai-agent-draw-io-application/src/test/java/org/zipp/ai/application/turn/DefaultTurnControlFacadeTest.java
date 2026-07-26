@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DefaultTurnControlFacadeTest {
 
@@ -27,10 +26,12 @@ class DefaultTurnControlFacadeTest {
                 key -> new TurnAttemptTakeoverPort.Rejected("TEST_ONLY"),
                 new OpenAdmissionBarrier());
 
-        assertThrows(IllegalStateException.class,
-                () -> facade.status(
+        TurnStatusQueryOutcome.NotFound outcome = assertInstanceOf(
+                TurnStatusQueryOutcome.NotFound.class,
+                facade.status(
                         new AuthenticatedActor("owner-a", "cohort-a"),
                         new TurnStatusQuery(new TurnKey("owner-b", "conversation-1", "turn-1"))));
+        assertEquals("owner-b", outcome.key().ownerKey());
         assertEquals(false, called[0]);
     }
 

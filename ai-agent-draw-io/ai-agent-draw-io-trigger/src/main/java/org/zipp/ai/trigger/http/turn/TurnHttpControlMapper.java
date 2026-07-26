@@ -23,6 +23,9 @@ public final class TurnHttpControlMapper {
         if (outcome instanceof TurnStatusQueryOutcome.TerminalUnavailable) {
             return new TurnHttpStatusResult(HttpStatus.SERVICE_UNAVAILABLE, outcome);
         }
+        if (outcome instanceof TurnStatusQueryOutcome.NotFound) {
+            return new TurnHttpStatusResult(HttpStatus.NOT_FOUND, outcome);
+        }
         throw new IllegalStateException("unmapped turn status outcome: " + outcome.getClass().getName());
     }
 

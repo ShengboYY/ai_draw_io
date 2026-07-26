@@ -31,6 +31,12 @@ class TurnHttpControlMapperTest {
     }
 
     @Test
+    void statusMapsMissingTurnWithoutRevealingItsExistence() {
+        assertEquals(HttpStatus.NOT_FOUND, mapper.mapStatus(
+                new TurnStatusQueryOutcome.NotFound(key)).httpStatus());
+    }
+
+    @Test
     void cancellationMapsDurableWinnersAndRetryableFailures() {
         PersistedTurnOutcome cancelled = terminal(TurnStatus.CANCELLED, "CANCELLED");
 

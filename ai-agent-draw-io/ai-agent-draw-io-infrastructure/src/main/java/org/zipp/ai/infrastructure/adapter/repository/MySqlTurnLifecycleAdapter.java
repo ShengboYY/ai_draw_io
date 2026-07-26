@@ -105,11 +105,11 @@ public class MySqlTurnLifecycleAdapter implements
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(query, "query");
         if (!actor.ownerKey().equals(query.key().ownerKey())) {
-            throw new IllegalStateException("TURN_NOT_FOUND");
+            return new TurnStatusQueryOutcome.NotFound(query.key());
         }
         ExecutionRow row = find(query.key());
         if (row == null) {
-            throw new IllegalStateException("TURN_NOT_FOUND");
+            return new TurnStatusQueryOutcome.NotFound(query.key());
         }
         return row.statusOutcome(query.key(), terminalDecoder);
     }

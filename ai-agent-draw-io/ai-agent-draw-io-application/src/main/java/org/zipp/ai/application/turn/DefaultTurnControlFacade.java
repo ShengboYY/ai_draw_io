@@ -65,7 +65,7 @@ public final class DefaultTurnControlFacade implements TurnControlFacade {
         Objects.requireNonNull(query, "query");
         if (!actor.ownerKey().equals(query.key().ownerKey())) {
             // Keep cross-owner status probes out of the durable control port.
-            throw new IllegalStateException("TURN_NOT_FOUND");
+            return new TurnStatusQueryOutcome.NotFound(query.key());
         }
         return status.get(actor, query);
     }

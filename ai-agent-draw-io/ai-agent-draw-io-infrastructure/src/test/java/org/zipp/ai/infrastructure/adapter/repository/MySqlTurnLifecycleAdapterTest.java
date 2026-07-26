@@ -100,6 +100,15 @@ class MySqlTurnLifecycleAdapterTest {
     }
 
     @Test
+    void statusReturnsTypedNotFoundWhenExecutionDoesNotExist() {
+        TurnStatusQueryOutcome outcome = new MySqlTurnLifecycleAdapter(new JdbcStub(null).proxy()).get(
+                new AuthenticatedActor("owner-1", "cohort-1"),
+                new org.zipp.ai.application.turn.TurnStatusQuery(key()));
+
+        assertInstanceOf(TurnStatusQueryOutcome.NotFound.class, outcome);
+    }
+
+    @Test
     void executionStateReturnsAlreadyTerminalUsingTheCurrentForUpdateRead() {
         JdbcStub jdbc = new JdbcStub(terminalExecutionRow());
 
@@ -254,6 +263,9 @@ class MySqlTurnLifecycleAdapterTest {
                 }
                 if ("query".equals(method.getName())) {
                     lastQuery = (String) args[0];
+                    if (row == null) {
+                        return List.of();
+                    }
                     @SuppressWarnings("unchecked")
                     RowMapper<Object> mapper = (RowMapper<Object>) args[1];
                     return List.of(map(mapper, row));
