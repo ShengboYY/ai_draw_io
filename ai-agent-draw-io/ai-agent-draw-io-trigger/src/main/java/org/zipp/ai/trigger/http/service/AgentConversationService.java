@@ -236,6 +236,12 @@ public class AgentConversationService {
             RequestProbe requestProbe = sourceSnapshot == null
                     ? routingProbe : probeRequest(currentRequest, sourceSnapshot);
             TaskSourcePlan sourcePlan = directSourcePlan(currentRequest, routingResult, sourceSnapshot);
+            if (sourcePlan != null && sourcePlan.rejected()) {
+                ChatResponseDTO responseDTO = directSourceRejectionResponse(sourcePlan);
+                attachCorrelation(responseDTO, runScope);
+                captureRunOutput(runScope, responseDTO, currentRequest.getDiagramId());
+                return responseDTO;
+            }
             if (sourcePlan != null && sourcePlan.needsClarification()) {
                 ChatResponseDTO responseDTO = directSourceClarificationResponse();
                 attachCorrelation(responseDTO, runScope);
@@ -481,6 +487,18 @@ public class AgentConversationService {
             // The UI uses this compact event to describe the selected route without exposing model reasoning.
             streamResponseWriter.sendRoute(emitter, routingResult.getRouteType(),
                     routingResult.getDiagramType(), routingResult.getSkillName(), selectedSourceUse);
+            if (sourcePlan != null && sourcePlan.rejected()) {
+                try {
+                    ChatResponseDTO response = directSourceRejectionResponse(sourcePlan);
+                    captureRunOutput(runScope, response, currentRequest.getDiagramId());
+                    streamResponseWriter.sendEvidenceOutcome(emitter,
+                            "source_not_ready", response.getType(), response.getContent());
+                    completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                } finally {
+                    clearSessionConfig(finalSessionId, runScope.getContext().runId());
+                }
+                return;
+            }
             if (sourcePlan != null && sourcePlan.needsClarification()) {
                 try {
                     ChatResponseDTO response = directSourceClarificationResponse();
@@ -1782,10 +1800,27 @@ public class AgentConversationService {
 
     private TaskSourcePlan directSourcePlan(ChatRequestDTO request, IntentRoutingResult routing,
                                             ResolvedSourceSet sources) {
-        if ((directImageConversionExecutionModule == null && directSourcePreparationModule == null)
-                || taskSourcePlanner == null
-                || request == null || routing == null || sources == null
-                || sources.resolutionFailed()) {
+        if (request == null || routing == null) {
+            return null;
+        }
+        SourceUse requestedUse = requestedSourceUse(routing);
+        boolean requiresDirect = requestedUse == SourceUse.DIRECT
+                || requestedUse == SourceUse.DIRECT_AND_RETRIEVAL;
+        if (!requiresDirect && (directImageConversionExecutionModule == null
+                && directSourcePreparationModule == null)) {
+            return null;
+        }
+        if (taskSourcePlanner == null) {
+            return requiresDirect
+                    ? TaskSourcePlan.rejected(canvasAction(routing), requestedUse, "DIRECT_SOURCE_MISSING")
+                    : null;
+        }
+        if (requiresDirect && (sources == null || sources.resolutionFailed())) {
+            // Source resolution is part of the Direct precondition. A failed snapshot must not
+            // fall through to the ordinary Drawer path.
+            return TaskSourcePlan.rejected(canvasAction(routing), requestedUse, "DIRECT_SOURCE_MISSING");
+        }
+        if (sources == null || sources.resolutionFailed()) {
             return null;
         }
         List<ResolvedSource> directReadableImages = sources.sources().stream()
@@ -1811,6 +1846,13 @@ public class AgentConversationService {
                 namedDirectCandidateVersionId(request.getMessage(), directReadableImages),
                 List.of(),
                 sources.processingSourceCount()));
+    }
+
+    private ChatResponseDTO directSourceRejectionResponse(TaskSourcePlan sourcePlan) {
+        return evidenceResponse("direct_source_missing",
+                "请求要求使用指定图片，但当前没有可用且已授权的 Direct 来源，已停止本轮操作。 / "
+                        + "The request requires a Direct image source, but no usable authorized source is available; "
+                        + "the turn was stopped. [" + sourcePlan.rejectionReason() + "]");
     }
 
     private String namedDirectCandidateVersionId(String message, List<ResolvedSource> candidates) {
@@ -1967,6 +2009,7 @@ public class AgentConversationService {
             case "material_waiting" -> "source_wait_started";
             case "material_not_ready" -> "source_not_ready";
             case "source_resolution_failed" -> "source_not_ready";
+            case "direct_source_missing" -> "source_not_ready";
             case "target_clarification" -> "target_clarification";
             case "source_clarification" -> "source_clarification";
             case "claim_clarification" -> "claim_clarification";

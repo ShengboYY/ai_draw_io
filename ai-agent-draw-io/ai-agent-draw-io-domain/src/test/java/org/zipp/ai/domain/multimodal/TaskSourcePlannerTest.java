@@ -24,13 +24,26 @@ class TaskSourcePlannerTest {
     }
 
     @Test
-    void directIntentWithoutAUsableCandidateFallsBackToPlain() {
+    void requiredDirectWithoutAUsableCandidateIsRejected() {
         TaskSourcePlan plan = planner.plan(command(
                 SourceUse.DIRECT, List.of(), List.of(), List.of(), "", List.of()));
 
-        assertEquals(SourceUse.NONE, plan.sourceUse());
+        assertEquals(SourceUse.DIRECT, plan.sourceUse());
+        assertTrue(plan.rejected());
+        assertEquals("DIRECT_SOURCE_MISSING", plan.rejectionReason());
         assertFalse(plan.requiresVisualObservation());
         assertFalse(plan.needsClarification());
+    }
+
+    @Test
+    void directAndRetrievalDoesNotFallBackToRetrievalWhenDirectIsMissing() {
+        TaskSourcePlan plan = planner.plan(command(
+                SourceUse.DIRECT_AND_RETRIEVAL, List.of(), List.of(), List.of(), "",
+                List.of("ver-guide")));
+
+        assertEquals(SourceUse.DIRECT_AND_RETRIEVAL, plan.sourceUse());
+        assertTrue(plan.rejected());
+        assertEquals("DIRECT_SOURCE_MISSING", plan.rejectionReason());
     }
 
     @Test

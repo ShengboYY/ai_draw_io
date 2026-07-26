@@ -21,6 +21,7 @@ import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextSlice;
 import org.zipp.ai.application.turn.context.ContextSlicePin;
+import org.zipp.ai.application.turn.demand.NeedsSourceClarification;
 import org.zipp.ai.application.turn.planning.PlanningLineageFingerprint;
 import org.zipp.ai.application.turn.planning.PrePlanOutcome;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
@@ -127,6 +128,37 @@ class DefaultTurnV2TurnExecutorTest {
                         commandToCommit -> {
                             assertEquals(TurnStatus.REJECTED, commandToCommit.terminalStatus());
                             assertEquals("UNSUPPORTED_ACTION", commandToCommit.terminalCode());
+                            return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
+                                    TurnStatus.REJECTED, commandToCommit.terminalCode(),
+                                    commandToCommit.terminalPayloadType(), null, "{}"));
+                        })
+                        .execute(accepted, command, event -> { }));
+
+        assertEquals(TurnStatus.REJECTED, outcome.outcome().status());
+    }
+
+    @Test
+    void commitsClarificationAsDeferredUntilDurableAuthorityExists() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
+        ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
+
+        TurnAttemptCompletion.PersistedTerminal outcome = assertInstanceOf(
+                TurnAttemptCompletion.PersistedTerminal.class,
+                new DefaultTurnV2TurnExecutor(
+                        (ignoredAttempt, ignoredCommand, ignoredEvents) ->
+                                new TurnV2ExecutionOutcome.NotDispatched(
+                                        new TurnRouteDecision.Clarification(
+                                                new PrePlanOutcome.NeedsClarification(
+                                                        new NeedsSourceClarification(
+                                                                "AMBIGUOUS_SOURCE_DEMAND", java.util.List.of()),
+                                                        new PlanningLineageFingerprint("b".repeat(64)),
+                                                        readSet.digest(), attempt.inputBindingDigest())),
+                                        "CLARIFICATION_DEFERRED"),
+                        commandToCommit -> {
+                            assertEquals(TurnStatus.REJECTED, commandToCommit.terminalStatus());
+                            assertEquals("CLARIFICATION_DEFERRED", commandToCommit.terminalCode());
                             return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
                                     TurnStatus.REJECTED, commandToCommit.terminalCode(),
                                     commandToCommit.terminalPayloadType(), null, "{}"));

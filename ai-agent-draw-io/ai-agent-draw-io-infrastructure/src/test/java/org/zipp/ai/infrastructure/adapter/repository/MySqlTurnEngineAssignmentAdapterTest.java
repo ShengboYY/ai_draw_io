@@ -33,6 +33,19 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class MySqlTurnEngineAssignmentAdapterTest {
 
     @Test
+    void refusesNewAssignmentsWhileCanaryCohortSelectionIsDeferred() {
+        JdbcStub jdbc = new JdbcStub("V2_CANARY", false);
+
+        AdmissionWriteOutcome.Rejected rejected = assertInstanceOf(
+                AdmissionWriteOutcome.Rejected.class,
+                new MySqlTurnEngineAssignmentAdapter(jdbc.proxy()).assignOrReuse(
+                        command(new NoMemoryWrite(), TurnEngineMode.V2_CANARY)));
+
+        assertEquals("V2_CANARY_UNSUPPORTED", rejected.code());
+        assertEquals(List.of(), jdbc.updates);
+    }
+
+    @Test
     void matchingFingerprintAndDeclarationReuseThePersistedAssignment() {
         JdbcStub jdbc = new JdbcStub();
 
@@ -102,6 +115,20 @@ class MySqlTurnEngineAssignmentAdapterTest {
 
     private static TurnEngineAssignmentCommand command(
             org.zipp.ai.application.turn.MemoryWriteDeclaration memoryWrite,
+            TurnEngineMode mode
+    ) {
+        return new TurnEngineAssignmentCommand(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "diagram-1",
+                new VersionedRequestFingerprintSet(
+                        List.of(new VersionedRequestFingerprint(1, "fingerprint"))),
+                new ExecutionPolicySnapshot(1, mode, "{}", "policy-hash"),
+                new MigrationStateSnapshot(3, mode, Instant.parse("2026-07-26T00:00:00Z")),
+                memoryWrite);
+    }
+
+    private static TurnEngineAssignmentCommand command(
+            org.zipp.ai.application.turn.MemoryWriteDeclaration memoryWrite,
             String diagramId,
             ExecutionPolicySnapshot policy
     ) {
@@ -119,6 +146,17 @@ class MySqlTurnEngineAssignmentAdapterTest {
 
     private static final class JdbcStub {
         private final List<String> updates = new java.util.ArrayList<>();
+        private final String migrationMode;
+        private final boolean existing;
+
+        private JdbcStub() {
+            this("ALL_V2", true);
+        }
+
+        private JdbcStub(String migrationMode, boolean existing) {
+            this.migrationMode = migrationMode;
+            this.existing = existing;
+        }
 
         private JdbcOperations proxy() {
             InvocationHandler handler = (proxy, method, args) -> {
@@ -130,7 +168,7 @@ class MySqlTurnEngineAssignmentAdapterTest {
                 if ("query".equals(method.getName())) {
                     @SuppressWarnings("unchecked")
                     RowMapper<Object> mapper = (RowMapper<Object>) args[1];
-                    return List.of(map(mapper, assignmentRow()));
+                    return existing ? List.of(map(mapper, assignmentRow())) : List.of();
                 }
                 if ("update".equals(method.getName())) {
                     updates.add((String) args[0]);
@@ -142,10 +180,10 @@ class MySqlTurnEngineAssignmentAdapterTest {
                     JdbcOperations.class.getClassLoader(), new Class<?>[]{JdbcOperations.class}, handler);
         }
 
-        private static Map<String, Object> migrationRow() {
+        private Map<String, Object> migrationRow() {
             return values(
                     "generation", 3L,
-                    "mode", "ALL_V2",
+                    "mode", migrationMode,
                     "switched_at", Timestamp.from(Instant.parse("2026-07-26T00:00:00Z")));
         }
 

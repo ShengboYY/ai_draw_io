@@ -28,7 +28,7 @@ public class MySqlTurnAttemptInputRecoveryAdapter implements TurnAttemptInputRec
             FROM turn_execution e
             JOIN diagram_conversation_message m ON m.id = e.request_message_id
             WHERE e.owner_key = ? AND e.conversation_id = ? AND e.turn_id = ?
-              AND m.owner_key = e.owner_key
+              AND m.user_id = e.owner_key
               AND m.conversation_id = e.conversation_id
               AND m.turn_id = e.turn_id
               AND m.role = 'user'

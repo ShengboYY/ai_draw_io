@@ -14,10 +14,32 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TurnEngineMigrationCoordinatorTest {
+
+    @Test
+    void rejectsCanaryUntilStableCohortSelectionExists() {
+        List<String> calls = new ArrayList<>();
+        TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
+                new RecordingBarrier(calls),
+                command -> {
+                    throw new AssertionError("canary must not reach durable switch");
+                },
+                new RecordingExpiry(calls, 0));
+
+        MigrationModeSwitchOutcome outcome = coordinator.switchMode(
+                new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                        Instant.parse("2026-07-26T00:00:00Z")),
+                TurnEngineMode.V2_CANARY);
+
+        MigrationModeSwitchOutcome.Rejected rejected =
+                assertInstanceOf(MigrationModeSwitchOutcome.Rejected.class, outcome);
+        assertEquals("V2_CANARY_UNSUPPORTED", rejected.code());
+        assertEquals(List.of(), calls);
+    }
 
     @Test
     void pausesBeforeSwitchAndResumesAfterSuccess() {
@@ -36,11 +58,11 @@ class TurnEngineMigrationCoordinatorTest {
         MigrationModeSwitchOutcome outcome = coordinator.switchMode(
                 new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
                         Instant.parse("2026-07-26T00:00:00Z")),
-                TurnEngineMode.V2_CANARY);
+                TurnEngineMode.ALL_V2);
 
         assertEquals(MigrationModeSwitchOutcome.Changed.class, outcome.getClass());
         assertEquals(List.of(
-                "pause", "backfill:100", "expire:100", "switch:LEGACY->V2_CANARY", "resume"), calls);
+                "pause", "backfill:100", "expire:100", "switch:LEGACY->ALL_V2", "resume"), calls);
     }
 
     @Test
@@ -60,11 +82,11 @@ class TurnEngineMigrationCoordinatorTest {
         coordinator.switchMode(
                 new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
                         Instant.parse("2026-07-26T00:00:00Z")),
-                TurnEngineMode.V2_CANARY);
+                TurnEngineMode.ALL_V2);
 
         assertEquals(List.of(
                 "pause", "backfill:100", "backfill:100",
-                "expire:100", "expire:100", "switch:LEGACY->V2_CANARY", "resume"), calls);
+                "expire:100", "expire:100", "switch:LEGACY->ALL_V2", "resume"), calls);
     }
 
     @Test
@@ -82,7 +104,7 @@ class TurnEngineMigrationCoordinatorTest {
                 () -> coordinator.switchMode(
                         new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
                                 Instant.parse("2026-07-26T00:00:00Z")),
-                        TurnEngineMode.V2_CANARY));
+                        TurnEngineMode.ALL_V2));
         assertEquals(List.of("pause", "backfill:100", "expire:100", "resume"), barrier.calls);
     }
 
@@ -116,7 +138,7 @@ class TurnEngineMigrationCoordinatorTest {
                 () -> coordinator.switchMode(
                         new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
                                 Instant.parse("2026-07-26T00:00:00Z")),
-                        TurnEngineMode.V2_CANARY));
+                        TurnEngineMode.ALL_V2));
         assertFalse(switched[0]);
         assertEquals(List.of("pause", "backfill:100", "resume"), calls);
     }
@@ -171,7 +193,7 @@ class TurnEngineMigrationCoordinatorTest {
             Future<MigrationModeSwitchOutcome> switchFuture = executor.submit(() -> coordinator.switchMode(
                     new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
                             Instant.parse("2026-07-26T00:00:00Z")),
-                    TurnEngineMode.V2_CANARY));
+                    TurnEngineMode.ALL_V2));
             assertTrue(firstBackfillEntered.await(5, TimeUnit.SECONDS));
             Future<Integer> expiryFuture = executor.submit(() -> coordinator.expireLegacyRetries(25));
 
@@ -187,7 +209,7 @@ class TurnEngineMigrationCoordinatorTest {
         }
 
         assertEquals(List.of(
-                "pause", "backfill:100", "expire:100", "switch:LEGACY->V2_CANARY", "resume",
+                "pause", "backfill:100", "expire:100", "switch:LEGACY->ALL_V2", "resume",
                 "pause", "expire:25", "resume"), calls);
     }
 

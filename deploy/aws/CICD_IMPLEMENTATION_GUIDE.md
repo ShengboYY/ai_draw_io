@@ -318,6 +318,7 @@ Settings -> Secrets and variables -> Actions -> Variables
 | `AWS_PUBLISH_ROLE_ARN` | Publisher IAM Role ARN |
 | `ECR_BACKEND_REPOSITORY` | `ai-drawio-backend` |
 | `ECR_FRONTEND_REPOSITORY` | `ai-drawio-frontend` |
+| `ECR_MIGRATION_REPOSITORY` | `ai-drawio-db-migrate` |
 
 在 `production` Environment variables 中添加：
 
@@ -696,6 +697,7 @@ env:
   AWS_REGION: ap-southeast-2
   ECR_BACKEND_REPOSITORY: ai-drawio-backend
   ECR_FRONTEND_REPOSITORY: ai-drawio-frontend
+  ECR_MIGRATION_REPOSITORY: ai-drawio-db-migrate
 
 jobs:
   backend-ci:

@@ -70,6 +70,16 @@ public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
                         unsupported.value().code(),
                         "rejection");
             }
+            if (outcome instanceof TurnV2ExecutionOutcome.NotDispatched notDispatched
+                    && notDispatched.decision() instanceof TurnRouteDecision.Clarification) {
+                // Clarification cannot be safely resumed after restart until its options and
+                // authority are durably persisted; make the deferred boundary terminal.
+                return terminalCommit(
+                        accepted,
+                        TurnStatus.REJECTED,
+                        "CLARIFICATION_DEFERRED",
+                        "rejection");
+            }
             return mapExecutionOutcome(accepted, outcome);
         } catch (RuntimeException ignored) {
             // Execution errors detach this attempt; they must not become a product terminal.

@@ -122,6 +122,11 @@ public class MySqlTurnEngineAssignmentAdapter
             return new AdmissionWriteOutcome.Reused(existing.toAssignment(memoryCodec));
         }
 
+        if (migration.mode == TurnEngineMode.V2_CANARY) {
+            // Stable cohort selection is intentionally deferred; never persist a canary label
+            // that still executes through the legacy engine.
+            return new AdmissionWriteOutcome.Rejected(command.key(), "V2_CANARY_UNSUPPORTED");
+        }
         SelectedTurnEngine selectedEngine = selectEngine(migration.mode);
         if (selectedEngine == null) {
             return new AdmissionWriteOutcome.Rejected(command.key(), "TURN_ENGINE_RETIRED");
@@ -166,7 +171,8 @@ public class MySqlTurnEngineAssignmentAdapter
 
     private SelectedTurnEngine selectEngine(TurnEngineMode mode) {
         return switch (mode) {
-            case LEGACY, V2_CANARY -> SelectedTurnEngine.LEGACY;
+            case LEGACY -> SelectedTurnEngine.LEGACY;
+            case V2_CANARY -> null;
             case ALL_V2 -> SelectedTurnEngine.V2;
             case RETIRED -> null;
         };

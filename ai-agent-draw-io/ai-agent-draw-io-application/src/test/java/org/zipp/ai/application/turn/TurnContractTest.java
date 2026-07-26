@@ -9,6 +9,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TurnContractTest {
 
@@ -53,14 +54,9 @@ class TurnContractTest {
                 new ExecutionPolicySnapshot(1, TurnEngineMode.V2_CANARY, "{}", "policy"),
                 new NoMemoryWrite());
 
-        assertThrows(IllegalArgumentException.class, () -> new TurnStartCommand(
-                assignment.key(),
-                "diagram-1",
-                assignment,
-                "draw it",
-                "client-1",
+        assertThrows(IllegalArgumentException.class, () -> new TurnDeclarations(
                 List.of(new OpaqueConversationFileRef("file-1"), new OpaqueConversationFileRef("file-1")),
-                "input"));
+                new NoClarificationReply(), List.of(), new NoMemoryWrite()));
     }
 
     @Test
@@ -172,6 +168,7 @@ class TurnContractTest {
 
         assertEquals(databaseNow, lease.databaseNow());
         assertEquals(Duration.ofSeconds(30), lease.expiresWithin());
-        assertEquals(Duration.ofSeconds(30), lease.renewWithin());
+        assertEquals(Duration.ofSeconds(15), lease.renewWithin());
+        assertTrue(lease.renewWithin().compareTo(lease.expiresWithin()) < 0);
     }
 }

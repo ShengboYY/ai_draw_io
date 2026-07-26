@@ -28,6 +28,11 @@ public final class TurnEngineMigrationCoordinator {
     ) {
         Objects.requireNonNull(expectedState, "expectedState");
         Objects.requireNonNull(targetMode, "targetMode");
+        if (targetMode == TurnEngineMode.V2_CANARY) {
+            // M1 has no stable cohort selector; refusing the switch is safer than a canary
+            // state whose assignments all still execute on the legacy engine.
+            return new MigrationModeSwitchOutcome.Rejected("V2_CANARY_UNSUPPORTED");
+        }
         admissionBarrier.pauseAndDrain();
         try {
             // Complete durable legacy-horizon preparation before changing the singleton mode row.

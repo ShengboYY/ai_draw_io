@@ -18,14 +18,15 @@ public final class DefaultTaskSourcePlanner implements TaskSourcePlanner {
         }
 
         SourceUse use = command.requestedSourceUse();
-        if (command.action() != CanvasAction.CREATE) {
+        if (command.action() != CanvasAction.CREATE && usesDirect(use)) {
             // Direct image reconstruction only creates a replacement canvas in this release.
-            if (use == SourceUse.DIRECT) use = SourceUse.NONE;
-            if (use == SourceUse.DIRECT_AND_RETRIEVAL) use = SourceUse.RETRIEVAL;
+            return TaskSourcePlan.rejected(command.action(), use, "DIRECT_ACTION_UNSUPPORTED");
         }
         DirectSelection direct = usesDirect(use) ? selectDirect(command) : DirectSelection.none();
         if (usesDirect(use) && direct.unavailable()) {
-            use = use == SourceUse.DIRECT_AND_RETRIEVAL ? SourceUse.RETRIEVAL : SourceUse.NONE;
+            // A required direct source is an execution precondition; never turn its absence into
+            // an ordinary drawing or a retrieval-only request.
+            return TaskSourcePlan.rejected(command.action(), use, "DIRECT_SOURCE_MISSING");
         }
         // The explicit no-material declaration is authoritative over a model-provided source-use hint.
         if (command.retrievalMode() == SourceMode.NONE) {
@@ -37,7 +38,7 @@ public final class DefaultTaskSourcePlanner implements TaskSourcePlanner {
         return new TaskSourcePlan(command.action(), use, command.retrievalMode(),
                 usesDirect(use) ? direct.versionId() : "",
                 usesRetrieval(use) ? command.selectedReferenceVersionIds() : List.of(), strict,
-                usesDirect(use) && direct.selected(), usesDirect(use) ? direct.clarificationReason() : "");
+                usesDirect(use) && direct.selected(), usesDirect(use) ? direct.clarificationReason() : "", "");
     }
 
     private TaskSourcePlan none(TaskSourcePlanningCommand command) {

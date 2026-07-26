@@ -20,7 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
-/** Fenced terminal-only persistence for clarification, rejection, and cancellation outcomes. */
+/** Fenced terminal-only persistence for rejection and cancellation outcomes; clarification is M1-deferred. */
 @Repository
 public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommitPort {
     private static final String COMMIT = """

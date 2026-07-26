@@ -16,7 +16,8 @@ public record AttemptLease(
     /** Compatibility constructor for pure application tests; adapters use the DB-clock factory. */
     public AttemptLease(String attemptId, long epoch, Instant leaseExpiresAt, long leaseTtlMillis) {
         this(attemptId, epoch, leaseExpiresAt.minusMillis(leaseTtlMillis), leaseExpiresAt,
-                leaseTtlMillis, Duration.ofMillis(leaseTtlMillis), Duration.ofMillis(leaseTtlMillis));
+                leaseTtlMillis, Duration.ofMillis(leaseTtlMillis),
+                renewBudget(Duration.ofMillis(leaseTtlMillis)));
     }
 
     public AttemptLease {
@@ -25,7 +26,7 @@ public record AttemptLease(
                 || expiresWithin == null || renewWithin == null
                 || expiresWithin.isZero() || expiresWithin.isNegative()
                 || renewWithin.isZero() || renewWithin.isNegative()
-                || renewWithin.compareTo(expiresWithin) > 0) {
+                || renewWithin.compareTo(expiresWithin) >= 0) {
             throw new IllegalArgumentException("invalid attempt lease");
         }
     }
@@ -46,6 +47,12 @@ public record AttemptLease(
                 leaseExpiresAt,
                 leaseTtlMillis,
                 expiresWithin,
-                expiresWithin);
+                renewBudget(expiresWithin));
+    }
+
+    /** Schedule the first heartbeat while the database lease is still safely valid. */
+    private static Duration renewBudget(Duration expiresWithin) {
+        Duration half = expiresWithin.dividedBy(2);
+        return half.isZero() ? Duration.ofNanos(1) : half;
     }
 }

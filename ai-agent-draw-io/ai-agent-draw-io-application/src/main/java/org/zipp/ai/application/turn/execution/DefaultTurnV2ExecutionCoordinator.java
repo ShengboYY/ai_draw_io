@@ -88,7 +88,8 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
             return "SOURCE_AWARE_HANDLER_NOT_AVAILABLE";
         }
         if (decision instanceof TurnRouteDecision.Clarification) {
-            return "CLARIFICATION_HANDLER_NOT_AVAILABLE";
+            // M1 has no durable clarification authority; reject explicitly until M4 adds it.
+            return "CLARIFICATION_DEFERRED";
         }
         if (decision instanceof TurnRouteDecision.Unsupported) {
             return "UNSUPPORTED_ROUTE_NOT_EXECUTABLE";

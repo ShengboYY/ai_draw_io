@@ -1,8 +1,6 @@
 package org.zipp.ai.application.turn;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public record TurnStartCommand(
         TurnKey key,
@@ -52,12 +50,6 @@ public record TurnStartCommand(
                 || !currentTurnAttachments.equals(declarations.currentTurnAttachments())
                 || !assignment.memoryWrite().equals(declarations.memoryWrite())) {
             throw new IllegalArgumentException("turn declarations must match the pinned assignment");
-        }
-        Set<String> attachmentRefs = new HashSet<>();
-        for (OpaqueConversationFileRef attachment : currentTurnAttachments) {
-            if (attachment == null || !attachmentRefs.add(attachment.value())) {
-                throw new IllegalArgumentException("currentTurnAttachments must contain unique non-null refs");
-            }
         }
     }
 }
