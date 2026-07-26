@@ -18,7 +18,7 @@ import java.util.Optional;
 
 /** Durable display-evidence hand-off for grounded and evidence-answer generation. */
 @Repository
-public final class MySqlEvidencePreparationStore {
+public class MySqlEvidencePreparationStore {
 
     private static final String INSERT = """
             INSERT INTO turn_source_evidence_preparation (

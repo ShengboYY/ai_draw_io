@@ -12,7 +12,7 @@ import java.util.Optional;
 
 /** Durable, turn-scoped hand-off for the Direct visual projection. */
 @Repository
-public final class MySqlDirectPreparationStore {
+public class MySqlDirectPreparationStore {
 
     private static final String INSERT = """
             INSERT INTO turn_source_direct_preparation (
