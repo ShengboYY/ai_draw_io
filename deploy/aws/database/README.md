@@ -6,6 +6,7 @@ This directory packages reviewed, ordered migration releases added after the suc
 
 - `Dockerfile` / `release-20260717.manifest`: the original 30-migration release.
 - `Dockerfile.20260722` / `release-20260722.manifest`: the five additive multimodal migrations from anonymous workspace credentials through WP3B document-processing artifacts. Its dedicated runner refuses to execute any DDL until all 30 `20260717` history rows and their packaged checksums are verified.
+- `Dockerfile.20260729` / `release-20260729.manifest`: the ordered M1 durable turn lifecycle release. It requires all five `20260722` history rows, then applies conversation/turn control, pinned input recovery, and redacted lifecycle trace tables.
 
 ## Safety properties
 
@@ -31,9 +32,17 @@ Run the same image a second time against that database. It must verify every che
 
 `MYSQL_SSL_VERIFY_SERVER_CERT=false` is permitted only for this disposable local test. Do not set it in an ECS task definition; production uses the checksum-pinned AWS RDS CA bundle and endpoint verification by default.
 
+A successful `20260729` run must report:
+
+```text
+Migration release 20260729 is complete: 3 recorded, 3 applied in this run.
+```
+
+Run the same image a second time against that database. It must verify all three checksums and report `0 applied in this run`.
+
 ## Production sequence
 
-1. Select exactly one release and verify its precondition: `20260717` requires the 2026-07-05 schema baseline; `20260722` requires all 30 `20260717` history rows and checksums. The `20260722` runner enforces its predecessor gate before DDL.
+1. Select exactly one release and verify its precondition: `20260717` requires the 2026-07-05 schema baseline; `20260722` requires all 30 `20260717` history rows and checksums; `20260729` requires all five `20260722` history rows and checksums. The selected runner enforces its predecessor gate before DDL.
 2. Confirm RDS automated backups and point-in-time recovery are available.
 3. Create a manual RDS snapshot and wait until its status is `available`.
 4. Run the selected release image once as an ECS Fargate one-off task in the same VPC as RDS.
@@ -41,6 +50,6 @@ Run the same image a second time against that database. It must verify every che
 6. Require the task's essential container exit code to be `0`.
 7. Review the dedicated CloudWatch migration log stream.
 8. Verify `deployment_schema_history`, key tables, and application data.
-9. Deploy the backend with the `migration-completed` database gate, then deploy the frontend.
+9. Deploy the backend with the `migration-completed` database gate. Set `TURN_ENGINE_LIFECYCLE_ENABLED=true` only after the `20260729` task succeeds; then deploy the frontend.
 
 Do not start the ECS service deployment if the migration task fails.

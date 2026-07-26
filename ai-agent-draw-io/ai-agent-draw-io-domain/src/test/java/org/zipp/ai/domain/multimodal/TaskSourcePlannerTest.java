@@ -24,6 +24,16 @@ class TaskSourcePlannerTest {
     }
 
     @Test
+    void directIntentWithoutAUsableCandidateFallsBackToPlain() {
+        TaskSourcePlan plan = planner.plan(command(
+                SourceUse.DIRECT, List.of(), List.of(), List.of(), "", List.of()));
+
+        assertEquals(SourceUse.NONE, plan.sourceUse());
+        assertFalse(plan.requiresVisualObservation());
+        assertFalse(plan.needsClarification());
+    }
+
+    @Test
     void oneNewlyUploadedImageWinsAmongOtherAuthorizedCandidates() {
         TaskSourcePlan plan = planner.plan(command(
                 SourceUse.DIRECT, List.of("ver-conversation", "ver-chartbook"),

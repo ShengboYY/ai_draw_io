@@ -3,6 +3,7 @@ package org.zipp.ai.config;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.turn.AdmissionBarrier;
@@ -44,8 +45,9 @@ import org.zipp.ai.trigger.http.turn.TurnHttpRequestTranslator;
 
 import java.util.UUID;
 
-/** Bootstrap-only composition for the M1 turn control plane; legacy HTTP remains unchanged. */
+/** Bootstrap-only M1 composition; lifecycle startup is opt-in after the matching release manifest. */
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(name = "turn-engine.lifecycle.enabled", havingValue = "true")
 public class TurnApplicationCompositionConfig {
 
     @Bean

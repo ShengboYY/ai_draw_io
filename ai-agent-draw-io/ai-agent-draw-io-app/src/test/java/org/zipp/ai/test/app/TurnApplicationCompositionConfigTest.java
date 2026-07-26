@@ -54,6 +54,7 @@ class TurnApplicationCompositionConfigTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(org.zipp.ai.config.TurnApplicationCompositionConfig.class)
+            .withPropertyValues("turn-engine.lifecycle.enabled=true")
             .withBean(SingleActiveInstanceLock.class, FakeInstanceLock::new)
             .withBean(StartupOrphanReconciler.class, FakeOrphanReconciler::new)
             .withBean(TurnEngineMigrationStatePort.class, FakeMigrationState::new)
@@ -67,6 +68,17 @@ class TurnApplicationCompositionConfigTest {
             .withBean(TurnEngineAssignmentPort.class, FakeAssignments::new)
             .withBean(ConversationCatalogPort.class, FakeConversationCatalog::new)
             .withBean(TurnStartCommitPort.class, FakeTurnStart::new);
+
+    @Test
+    void keepsDurableM1StartupDisabledUntilTheMigrationReleaseIsEnabled() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(org.zipp.ai.config.TurnApplicationCompositionConfig.class)
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(
+                            org.zipp.ai.application.turn.TurnAdmissionGate.class);
+                    assertThat(context).doesNotHaveBean(org.springframework.boot.ApplicationRunner.class);
+                });
+    }
 
     @Test
     void composesFacadeAndOpensAdmissionOnlyAfterStartupRepair() {

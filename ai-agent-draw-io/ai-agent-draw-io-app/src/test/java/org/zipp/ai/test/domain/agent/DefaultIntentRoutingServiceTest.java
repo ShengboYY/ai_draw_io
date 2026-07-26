@@ -306,7 +306,8 @@ public class DefaultIntentRoutingServiceTest {
                 new IntentRoutingProbe(false, 0, 0, 0, 0, false, true,
                         false, SourceMode.AUTO, 0, 0, 0, false, false, 2));
 
-        assertEquals("NONE", unavailable.getSourceUse());
+        // H0 keeps routing as an intent hint; trusted candidate validation belongs to the planner.
+        assertEquals("DIRECT", unavailable.getSourceUse());
         assertEquals("DIRECT", readyImage.getSourceUse());
         assertEquals("DIRECT", multipleReadyImages.getSourceUse());
     }

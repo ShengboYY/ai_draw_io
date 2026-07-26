@@ -1,0 +1,5 @@
+# M1 durable turn lifecycle release after the 20260722 production release.
+# Order is dependency-aware; do not sort these entries alphabetically.
+2026-07-26-create-turn-execution-control.sql
+2026-07-27-add-turn-input-binding-payload.sql
+2026-07-28-create-turn-lifecycle-trace.sql

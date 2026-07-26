@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TurnExecutionControlMigrationContractTest {
@@ -56,5 +58,31 @@ class TurnExecutionControlMigrationContractTest {
         assertTrue(sql.contains("outcome_status"));
         assertTrue(!sql.contains("user_message"));
         assertTrue(!sql.contains("terminal_payload_json"));
+    }
+
+    @Test
+    void m1MigrationsArePackagedInAnOrderedProductionRelease() throws Exception {
+        Path manifest = projectFile("deploy/aws/database/release-20260729.manifest");
+        List<String> entries = Files.readAllLines(manifest).stream()
+                .map(String::trim)
+                .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+                .toList();
+
+        assertEquals(List.of(
+                "2026-07-26-create-turn-execution-control.sql",
+                "2026-07-27-add-turn-input-binding-payload.sql",
+                "2026-07-28-create-turn-lifecycle-trace.sql"), entries);
+        assertTrue(Files.readString(projectFile("deploy/aws/database/Dockerfile.20260729"))
+                .contains("EXPECTED_PREDECESSOR_COUNT=5"));
+    }
+
+    private Path projectFile(String relativePath) {
+        for (Path base : List.of(Path.of(""), Path.of("../"), Path.of("../../"))) {
+            Path path = base.resolve(relativePath).normalize();
+            if (Files.exists(path)) {
+                return path;
+            }
+        }
+        throw new IllegalStateException("project file is missing: " + relativePath);
     }
 }
