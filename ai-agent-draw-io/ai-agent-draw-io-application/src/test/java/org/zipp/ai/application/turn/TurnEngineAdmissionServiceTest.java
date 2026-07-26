@@ -89,6 +89,40 @@ class TurnEngineAdmissionServiceTest {
         assertEquals(false, assignmentWrite[0]);
     }
 
+    @Test
+    void retiredModeRejectsNewAssignmentBeforeWritingStickyState() {
+        AuthenticatedActor actor = new AuthenticatedActor("owner-1", "cohort-1");
+        ConversationRef conversation = new ConversationRef(
+                "conversation-1", "owner-1", "diagram-1", ConversationStatus.ACTIVE);
+        UserTurnCommand command = new UserTurnCommand(
+                "turn-1", "conversation:conversation-1", "diagram-1", "client-1", "draw a box", null,
+                TurnDeclarations.empty());
+        MigrationStateSnapshot migration = new MigrationStateSnapshot(
+                8, TurnEngineMode.RETIRED, Instant.parse("2026-07-26T00:00:00Z"));
+        boolean[] assignmentWrite = {false};
+
+        TurnEngineAdmissionService service = new TurnEngineAdmissionService(
+                () -> migration,
+                input -> {
+                    assignmentWrite[0] = true;
+                    throw new AssertionError("retired mode must not create a new assignment");
+                },
+                new OpenAdmissionBarrier());
+
+        AdmissionWriteOutcome outcome = service.admit(
+                actor,
+                conversation,
+                command,
+                new VersionedRequestFingerprintSet(
+                        java.util.List.of(new VersionedRequestFingerprint(1, "fingerprint-hash"))),
+                new ExecutionPolicySnapshot(1, TurnEngineMode.RETIRED, "{}", "policy-hash"));
+
+        AdmissionWriteOutcome.Rejected rejected = assertInstanceOf(
+                AdmissionWriteOutcome.Rejected.class, outcome);
+        assertEquals("TURN_ENGINE_RETIRED", rejected.code());
+        assertEquals(false, assignmentWrite[0]);
+    }
+
     private static final class OpenAdmissionBarrier implements AdmissionBarrier {
         @Override
         public void pauseAndDrain() {

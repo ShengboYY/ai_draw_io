@@ -4,6 +4,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.LegacyRetryExpiryPort;
+import org.zipp.ai.application.turn.LegacyRetirementGatePort;
 import org.zipp.ai.application.turn.MigrationModeSwitchCommand;
 import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
 import org.zipp.ai.application.turn.MigrationStateSnapshot;
@@ -18,7 +19,7 @@ import java.util.Objects;
 /** Serializes migration mode changes on the same singleton row used by assignment admission. */
 @Repository
 public class MySqlTurnEngineMigrationControlAdapter
-        implements TurnEngineMigrationControlPort, LegacyRetryExpiryPort {
+        implements TurnEngineMigrationControlPort, LegacyRetryExpiryPort, LegacyRetirementGatePort {
 
     private static final String SELECT_FOR_UPDATE = """
             SELECT generation, mode, switched_at, tombstone_retain_until
@@ -76,6 +77,29 @@ public class MySqlTurnEngineMigrationControlAdapter
                 legacy_archived_at = CURRENT_TIMESTAMP(3)
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
               AND selected_engine = 'LEGACY' AND legacy_retirement_state = 'EXECUTABLE'
+            """;
+    private static final String SELECT_RETIREMENT_READINESS = """
+            SELECT
+                (SELECT COUNT(*)
+                 FROM turn_engine_assignment
+                 WHERE selected_engine = 'LEGACY'
+                   AND legacy_retirement_state = 'EXECUTABLE') AS executable_assignments,
+                (SELECT COUNT(*)
+                 FROM turn_engine_assignment
+                 WHERE selected_engine = 'LEGACY'
+                   AND legacy_retry_eligible_until > CURRENT_TIMESTAMP(3)) AS retry_horizon_pending,
+                (SELECT COUNT(*)
+                 FROM turn_engine_assignment a
+                 LEFT JOIN legacy_turn_tombstone t
+                   ON t.owner_key = a.owner_key
+                  AND t.conversation_id = a.conversation_id
+                  AND t.turn_id = a.turn_id
+                 WHERE a.selected_engine = 'LEGACY'
+                   AND a.legacy_retirement_state = 'EXPIRED_GONE'
+                   AND t.owner_key IS NULL) AS missing_tombstones,
+                (SELECT COUNT(*)
+                 FROM legacy_turn_tombstone
+                 WHERE retain_until <= CURRENT_TIMESTAMP(3)) AS expired_tombstones
             """;
 
     private final JdbcOperations jdbc;
@@ -169,6 +193,22 @@ public class MySqlTurnEngineMigrationControlAdapter
                     assignment.turnId);
         }
         return expired;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LegacyRetirementGatePort.LegacyRetirementReadiness readiness() {
+        var rows = jdbc.query(
+                SELECT_RETIREMENT_READINESS,
+                (rs, rowNum) -> new LegacyRetirementGatePort.LegacyRetirementReadiness(
+                        rs.getLong("executable_assignments"),
+                        rs.getLong("retry_horizon_pending"),
+                        rs.getLong("missing_tombstones"),
+                        rs.getLong("expired_tombstones")));
+        if (rows.isEmpty()) {
+            throw new IllegalStateException("LEGACY_RETIREMENT_READINESS_UNAVAILABLE");
+        }
+        return rows.get(0);
     }
 
     private MigrationRow currentForUpdate() {

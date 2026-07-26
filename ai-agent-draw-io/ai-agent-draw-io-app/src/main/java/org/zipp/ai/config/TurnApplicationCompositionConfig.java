@@ -15,6 +15,7 @@ import org.zipp.ai.application.turn.DiagramTurnFacade;
 import org.zipp.ai.application.turn.InstanceBootId;
 import org.zipp.ai.application.turn.InstanceLockOutcome;
 import org.zipp.ai.application.turn.LegacyRetryExpiryPort;
+import org.zipp.ai.application.turn.LegacyRetirementGatePort;
 import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
 import org.zipp.ai.application.turn.SingleActiveInstanceLock;
 import org.zipp.ai.application.turn.StartupOrphanReconciler;
@@ -109,9 +110,14 @@ public class TurnApplicationCompositionConfig {
     public TurnEngineMigrationCoordinator turnEngineMigrationCoordinator(
             AdmissionBarrier admissionBarrier,
             TurnEngineMigrationControlPort migrationControl,
-            LegacyRetryExpiryPort expiry
+            LegacyRetryExpiryPort expiry,
+            ObjectProvider<LegacyRetirementGatePort> retirement
     ) {
-        return new TurnEngineMigrationCoordinator(admissionBarrier, migrationControl, expiry);
+        return new TurnEngineMigrationCoordinator(
+                admissionBarrier,
+                migrationControl,
+                expiry,
+                retirement.getIfAvailable(LegacyRetirementGatePort::unavailable));
     }
 
     @Bean

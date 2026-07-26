@@ -473,7 +473,7 @@ M6 全量 V2 前，如何证明 sync/stream 不再是两套业务执行？
 ## legacy-retirement: Remove Legacy Execution Safely
 
 Blocked by: all-v2-cutover
-Status: open
+Status: resolved
 Type: Task
 
 ### Question
@@ -482,19 +482,13 @@ Type: Task
 
 ### Answer
 
-Pending. batch scanner 使用 DB time，把到期 executable row 原子转 `EXPIRED_GONE` 并 upsert tombstone。
+已完成 legacy executor retirement entry gate。migration coordinator 在 admission pause/drain 后继续使用 DB time scanner：先批量 backfill legacy retry metadata，再把到期 executable assignment upsert 为 tombstone 并原子标记 `EXPIRED_GONE`；两个 scanner 都排空后才读取最终 readiness。
 
-删除 executor 前必须同时满足 LEGACY inventory 归零、migration retry horizon 结束、tombstone retention/Gone 判定仍有效。
+新增 `LegacyRetirementGatePort`，MySQL adapter 用一个 DB-time 查询同时核验四项条件：`EXECUTABLE` assignment 为零、retry horizon 未结束的 assignment 为零、`EXPIRED_GONE` assignment 不得缺 tombstone、tombstone retention 不得已过期。任一计数非零，或 readiness 不可用，均返回 typed `LEGACY_RETIREMENT_NOT_READY`，不写 migration mode，并在 finally 恢复 admission。
 
-retry horizon 结束后再次 pause admission、drain 当时的本地 legacy in-flight、运行最终 scanner，并重验 executable inventory 为零。
+只有 `ALL_V2 → RETIRED` 且四项计数全为零时才执行 durable generation/mode CAS。`RETIRED` 下 admission 在 assignment 写入前返回 `TURN_ENGINE_RETIRED`；adapter 不允许从 `RETIRED` 回滚到旧 mode，因此旧 artifact 不能重新创建已无 executor 的 `LEGACY/V2_CANARY` assignment。restart 仍先执行 singleton lock 与 orphan reconciliation，显式 retirement target 随后才运行最终 scanner 和 readiness gate。
 
-通过后原子切到 `RETIRED`；restart 先 reconcile orphaned execution，再继续 expiry scanner。
-
-retirement 发布永久禁用 `LEGACY/V2_CANARY` 新 assignment；旧配置启动 fail closed。
-
-之后只能回滚到兼容当前 migration generation 的 artifact，不能创建已无 executor 的 assignment。
-
-测试覆盖 scanner、restart、old-key retry 与 retirement inventory gate；无需 durable dispatch permit、lease 或 write fence。
+测试覆盖最终 scanner 后的 retirement success/rejection、四项 readiness SQL 计数、`RETIRED` admission fail-closed、restart composition、old-key `LEGACY_RETRY_EXPIRED` 与既有 migration CAS。application `198/198`、domain `302/302`、trigger `40/40`、infrastructure `275`（5 个外部服务测试跳过）、app `900/900` 全部通过；本票没有新增或执行数据库 migration。
 
 ## docs-reconciliation: Reconcile Superseded Source Semantics
 

@@ -10,15 +10,26 @@ public final class TurnEngineMigrationCoordinator {
     private final AdmissionBarrier admissionBarrier;
     private final TurnEngineMigrationControlPort migrationControl;
     private final LegacyRetryExpiryPort expiry;
+    private final LegacyRetirementGatePort retirement;
 
     public TurnEngineMigrationCoordinator(
             AdmissionBarrier admissionBarrier,
             TurnEngineMigrationControlPort migrationControl,
             LegacyRetryExpiryPort expiry
     ) {
+        this(admissionBarrier, migrationControl, expiry, LegacyRetirementGatePort.unavailable());
+    }
+
+    public TurnEngineMigrationCoordinator(
+            AdmissionBarrier admissionBarrier,
+            TurnEngineMigrationControlPort migrationControl,
+            LegacyRetryExpiryPort expiry,
+            LegacyRetirementGatePort retirement
+    ) {
         this.admissionBarrier = Objects.requireNonNull(admissionBarrier, "admissionBarrier");
         this.migrationControl = Objects.requireNonNull(migrationControl, "migrationControl");
         this.expiry = Objects.requireNonNull(expiry, "expiry");
+        this.retirement = Objects.requireNonNull(retirement, "retirement");
     }
 
     // Serialize migration windows so one operation cannot resume admission for another.
@@ -36,6 +47,10 @@ public final class TurnEngineMigrationCoordinator {
         try {
             // Complete durable legacy-horizon preparation before changing the singleton mode row.
             drainRetryPreparation();
+            if (targetMode == TurnEngineMode.RETIRED && !retirement.readiness().safeToRetire()) {
+                // Never remove the executor while a retry or Gone guarantee is still unsafe.
+                return new MigrationModeSwitchOutcome.Rejected("LEGACY_RETIREMENT_NOT_READY");
+            }
             return migrationControl.switchMode(new MigrationModeSwitchCommand(
                     expectedState.generation(), expectedState.mode(), targetMode));
         } finally {

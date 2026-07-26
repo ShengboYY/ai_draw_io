@@ -118,6 +118,55 @@ class TurnEngineMigrationCoordinatorTest {
     }
 
     @Test
+    void retiresOnlyAfterFinalLegacyReadinessGatePasses() {
+        List<String> calls = new ArrayList<>();
+        TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
+                new RecordingBarrier(calls),
+                command -> {
+                    calls.add("switch:" + command.expectedMode() + "->" + command.targetMode());
+                    return new MigrationModeSwitchOutcome.Changed(
+                            new MigrationStateSnapshot(4, command.targetMode(),
+                                    Instant.parse("2026-07-26T00:00:00Z")));
+                },
+                new RecordingExpiry(calls, 0),
+                () -> new LegacyRetirementGatePort.LegacyRetirementReadiness(0, 0, 0, 0));
+
+        MigrationModeSwitchOutcome.Changed changed = assertInstanceOf(
+                MigrationModeSwitchOutcome.Changed.class,
+                coordinator.switchMode(
+                        new MigrationStateSnapshot(3, TurnEngineMode.ALL_V2,
+                                Instant.parse("2026-07-26T00:00:00Z")),
+                        TurnEngineMode.RETIRED));
+
+        assertEquals(TurnEngineMode.RETIRED, changed.state().mode());
+        assertEquals(List.of(
+                "pause", "backfill:100", "expire:100",
+                "switch:ALL_V2->RETIRED", "resume"), calls);
+    }
+
+    @Test
+    void retirementReadinessFailureKeepsThePreviousModeAndResumesAdmission() {
+        List<String> calls = new ArrayList<>();
+        TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
+                new RecordingBarrier(calls),
+                command -> {
+                    throw new AssertionError("unsafe retirement must not switch durable mode");
+                },
+                new RecordingExpiry(calls, 0),
+                () -> new LegacyRetirementGatePort.LegacyRetirementReadiness(1, 0, 0, 0));
+
+        MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
+                MigrationModeSwitchOutcome.Rejected.class,
+                coordinator.switchMode(
+                        new MigrationStateSnapshot(3, TurnEngineMode.ALL_V2,
+                                Instant.parse("2026-07-26T00:00:00Z")),
+                        TurnEngineMode.RETIRED));
+
+        assertEquals("LEGACY_RETIREMENT_NOT_READY", rejected.code());
+        assertEquals(List.of("pause", "backfill:100", "expire:100", "resume"), calls);
+    }
+
+    @Test
     void drainsAllBackfillAndExpiryBatchesBeforeSwitch() {
         List<String> calls = new ArrayList<>();
         SequencedExpiry expiry = new SequencedExpiry(calls, new int[]{2, 0}, new int[]{1, 0});

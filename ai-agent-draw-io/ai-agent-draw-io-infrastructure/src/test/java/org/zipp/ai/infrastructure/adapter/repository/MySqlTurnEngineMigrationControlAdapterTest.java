@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import org.zipp.ai.application.turn.MigrationModeSwitchCommand;
 import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
+import org.zipp.ai.application.turn.LegacyRetirementGatePort;
 import org.zipp.ai.application.turn.TurnEngineMode;
 
 import java.lang.reflect.InvocationHandler;
@@ -124,6 +125,18 @@ class MySqlTurnEngineMigrationControlAdapterTest {
     }
 
     @Test
+    void retirementReadinessReadsAllDatabaseSafetyCounters() {
+        JdbcStub jdbc = new JdbcStub(List.of(migrationRow(4, TurnEngineMode.ALL_V2)), 1);
+
+        LegacyRetirementGatePort.LegacyRetirementReadiness readiness =
+                new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).readiness();
+
+        assertEquals(new LegacyRetirementGatePort.LegacyRetirementReadiness(2, 1, 3, 4), readiness);
+        assertTrue(jdbc.queries.get(0).contains("CURRENT_TIMESTAMP(3)"));
+        assertTrue(jdbc.queries.get(0).contains("legacy_turn_tombstone"));
+    }
+
+    @Test
     void backfillUsesDatabaseCreatedAtAndLeavesExpiredGoneRowsUntouched() {
         JdbcStub jdbc = new JdbcStub(List.of(migrationRow(4, TurnEngineMode.LEGACY)), 3);
 
@@ -161,6 +174,14 @@ class MySqlTurnEngineMigrationControlAdapterTest {
                 "tombstone_retain_until", Timestamp.from(Instant.parse("2026-08-26T00:00:00Z")));
     }
 
+    private static Map<String, Object> readinessRow() {
+        return values(
+                "executable_assignments", 2L,
+                "retry_horizon_pending", 1L,
+                "missing_tombstones", 3L,
+                "expired_tombstones", 4L);
+    }
+
     private static Map<String, Object> values(Object... pairs) {
         Map<String, Object> values = new HashMap<>();
         for (int index = 0; index < pairs.length; index += 2) {
@@ -173,6 +194,7 @@ class MySqlTurnEngineMigrationControlAdapterTest {
         private final List<Map<String, Object>> stateRows;
         private final int updateResult;
         private final List<String> updates = new ArrayList<>();
+        private final List<String> queries = new ArrayList<>();
         private int stateReads;
 
         private JdbcStub(List<Map<String, Object>> stateRows, int updateResult) {
@@ -183,9 +205,13 @@ class MySqlTurnEngineMigrationControlAdapterTest {
         private JdbcOperations proxy() {
             InvocationHandler handler = (proxy, method, args) -> {
                 if ("query".equals(method.getName())) {
+                    String sql = (String) args[0];
+                    queries.add(sql);
                     @SuppressWarnings("unchecked")
                     RowMapper<Object> mapper = (RowMapper<Object>) args[1];
-                    Map<String, Object> row = stateRows.get(Math.min(stateReads++, stateRows.size() - 1));
+                    Map<String, Object> row = sql.contains("executable_assignments")
+                            ? readinessRow()
+                            : stateRows.get(Math.min(stateReads++, stateRows.size() - 1));
                     return List.of(map(mapper, row));
                 }
                 if ("update".equals(method.getName())) {
