@@ -88,8 +88,15 @@ public final class DefaultPrePlanner {
                     contextReadSetDigest, inputBindingDigest);
         }
         if (resolved.decision() instanceof AcceptedSourceDemand accepted) {
+            if (accepted.kind()
+                    == org.zipp.ai.application.turn.demand.SourceDemandKind.OPTIONAL_DISCOVERY
+                    && !supportsPlainFallback(classification)) {
+                return new PrePlanOutcome.Unsupported(
+                        "OPTIONAL_DISCOVERY_REQUIRES_PLAIN_DRAW",
+                        lineage, contextReadSetDigest, inputBindingDigest);
+            }
             return new PrePlanOutcome.SourcePlanningRequired(
-                    classification.intent(), resolved, accepted, lineage,
+                    classification.instruction(), classification.intent(), resolved, accepted, lineage,
                     contextReadSetDigest, inputBindingDigest);
         }
         AmbiguousSourceDemand ambiguous = (AmbiguousSourceDemand) resolved.decision();
@@ -104,6 +111,13 @@ public final class DefaultPrePlanner {
     private boolean isResponseAction(TurnClassification classification) {
         return switch (classification.intent().action()) {
             case ANSWER, REVIEW, DIRECT_REPLY -> true;
+            default -> false;
+        };
+    }
+
+    private boolean supportsPlainFallback(TurnClassification classification) {
+        return switch (classification.intent().action()) {
+            case CREATE, EDIT, LAYOUT -> true;
             default -> false;
         };
     }

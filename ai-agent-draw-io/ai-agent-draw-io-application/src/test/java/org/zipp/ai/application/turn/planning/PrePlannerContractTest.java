@@ -67,6 +67,7 @@ class PrePlannerContractTest {
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
                         classification, CONTEXT_DIGEST, INPUT_DIGEST));
         assertEquals(accepted, required.accepted());
+        assertEquals("draw a flow", required.instruction().value());
         assertEquals(CONTEXT_DIGEST, required.contextReadSetDigest());
     }
 
@@ -117,6 +118,23 @@ class PrePlannerContractTest {
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
                         classification, CONTEXT_DIGEST, INPUT_DIGEST));
         assertEquals("PLAIN_RESPONSE_ACTION_UNSUPPORTED", unsupported.code());
+    }
+
+    @Test
+    void optionalDiscoveryWithoutAPlainDrawBranchStopsBeforeProbe() {
+        AcceptedSourceDemand accepted = new AcceptedSourceDemand(
+                SourceDemandKind.OPTIONAL_DISCOVERY, List.of(), "project facts");
+        TurnClassification classification = classification(
+                new SemanticIntent(SemanticAction.ANSWER, OutputIntent.TEXT,
+                        TargetNeed.NOT_REQUIRED, "unknown", "none"),
+                new ResolvedSourceDemand(accepted, List.of()));
+
+        PrePlanOutcome.Unsupported unsupported = assertInstanceOf(
+                PrePlanOutcome.Unsupported.class,
+                new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
+                        classification, CONTEXT_DIGEST, INPUT_DIGEST));
+
+        assertEquals("OPTIONAL_DISCOVERY_REQUIRES_PLAIN_DRAW", unsupported.code());
     }
 
     private TurnClassification classification(

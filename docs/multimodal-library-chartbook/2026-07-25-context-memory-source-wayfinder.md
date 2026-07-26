@@ -709,7 +709,7 @@ Chartbook 除 shared files 外还应拥有哪些可编辑、可版本化的 Proj
 ## optional-enrichment: Make OPTIONAL Actually Optional
 
 Blocked by: source-execution-plan
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -718,18 +718,16 @@ Type: Prototype
 
 ### Answer
 
-Pending. 目标语义：
+OPTIONAL 降级边界已按 closed algebra 落到 application contract：
 
-- 清空 Evidence/citation context，继续 ungrounded Drawer；
-- 普通任务的 Optional Discovery 先用 relevance query 做 metadata/vector Probe；只有相关命中才构造 Retrieval plan；
-- standalone Diagram 直接 `SourceFreeReady`；Chartbook Probe no-match/unavailable 使用 `ProbeFallbackReady`，两者 lineage 不得混淆；
-- 纯 Optional Retrieval 的 Plain Probe fallback 必须在第一次 source I/O 前签发；Probe 后的执行期仍只能进入最终 Plan 中对应的 signed branch；
-- grounded primary branch 使用 branch-local ephemeral runtime；fallback 从 pinned Base Context 与 signed branch 启动全新 tool-free invocation；
-- primary branch 的模型/session/tool side effects 必须销毁，不能进入 fallback、Conversation 或下一 turn；
-- pre-commit event 只允许安全进度，不得暴露 provisional answer、candidate、citation 或 source-used 声明；
-- 发送 `enrichment_skipped` 或等价的明确 UI receipt；
-- 绝不暗示使用了资料；
-- REQUIRED、Direct required 和 Evidence Answer 继续 fail closed。
+- `SourceProbeCommand.from(SourcePlanningRequired)` 是唯一 Probe command factory；Required command 在类型上没有 fallback，Optional Discovery command 则在第一次 source I/O 前携带确定性 `ValidatedPlainFallback` branch id、Plain plan 与原始 planning lineage。
+- `SourceProbeOutcome` 只回显 binding 与 metadata candidate refs，不决定策略；`OptionalEnrichmentPlanner` 先校验 lineage/context/input binding。Optional no-match、timeout、dependency unavailable 只生成独立的 `ProbeFallbackReady`，不会伪装成零 source-call 的 `SourceFreeReady`；命中才生成携带同一 signed branch 的 `OptionalRetrievalDrawPlan`。
+- Required source 的 no-match、timeout、dependency unavailable 全部 `PlanningBlocked`；authorization/terminal、cancellation 与 capability binding mismatch 对 Optional 也 fail closed。没有合法 Plain draw branch 的 Optional Discovery 在 Pre-Planner 阶段即拒绝，不允许调用 Probe。
+- 执行期 fallback taxonomy 只接受 snapshot dependency unavailable、evidence insufficient、retrieval dependency failure 与 pre-commit citation rejection，并且只能读取最终 plan 的 `validatedFallback()`。
+- `OptionalEnrichmentFallbackHandler` 在 fallback 前先 discard 并 close branch-local primary scope；任一步销毁失败都不会启动 fallback。销毁完成后才由既有 source-free `PlainDrawingHandler` 从 pinned `BaseTurnContext`/`ContextReadSet` 启动 fresh tool-free generation，Plain request 类型不含 Evidence、citation、candidate 或 source capability。
+- fallback 只发送安全的 `enrichment_skipped` reason/branch receipt，然后进入正常 Plain progress/strong commit；不会发 provisional answer、candidate XML、citation 或 source-used 声明。
+
+新增 planner/handler contract tests 覆盖 Probe hit/no-match/timeout/dependency、Required fail-closed、binding mismatch、terminal/cancel、四种 post-Probe fallback、scope 销毁顺序与销毁失败零 generation。完整 Maven reactor 通过（1704 项，0 failures，9 skipped）；本票没有新增或执行数据库 migration，production assignment 仍保持 legacy。
 
 ## direct-composite-hardening: Finish Direct And Composite Boundaries
 

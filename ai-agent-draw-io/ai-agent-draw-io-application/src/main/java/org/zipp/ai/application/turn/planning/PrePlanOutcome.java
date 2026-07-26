@@ -7,6 +7,7 @@ import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
 import org.zipp.ai.application.turn.demand.DemandResolutionReason;
 import org.zipp.ai.application.turn.demand.NeedsSourceClarification;
 import org.zipp.ai.application.turn.demand.ResolvedSourceDemand;
+import org.zipp.ai.application.turn.demand.CurrentInstruction;
 
 import java.time.Duration;
 import java.util.List;
@@ -50,6 +51,7 @@ public sealed interface PrePlanOutcome
     }
 
     record SourcePlanningRequired(
+            CurrentInstruction instruction,
             SemanticIntent intent,
             ResolvedSourceDemand demand,
             AcceptedSourceDemand accepted,
@@ -58,7 +60,8 @@ public sealed interface PrePlanOutcome
             String inputBindingDigest
     ) implements PrePlanOutcome {
         public SourcePlanningRequired {
-            if (intent == null || demand == null || accepted == null || lineage == null) {
+            if (instruction == null || intent == null || demand == null
+                    || accepted == null || lineage == null) {
                 throw new IllegalArgumentException("source planning values must not be null");
             }
             if (!demand.decision().equals(accepted)) {

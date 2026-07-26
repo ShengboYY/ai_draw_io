@@ -18,6 +18,7 @@ import org.zipp.ai.application.turn.classification.TargetNeed;
 import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
 import org.zipp.ai.application.turn.demand.DemandResolutionCode;
 import org.zipp.ai.application.turn.demand.DemandResolutionReason;
+import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.demand.NeedsSourceClarification;
 import org.zipp.ai.application.turn.demand.ResolvedSourceDemand;
 import org.zipp.ai.application.turn.demand.SourceDemandKind;
@@ -65,6 +66,7 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
             root.put("targetNeed", value.intent().targetNeed().name());
             root.put("diagramType", value.intent().diagramType());
             root.put("skillName", value.intent().skillName());
+            root.put("instruction", value.instruction().value());
             root.put("demandKind", value.accepted().kind().name());
             root.put("attachmentRefs", new JSONArray(value.accepted().attachmentRefs()));
             root.put("relevanceQuery", value.accepted().relevanceQuery() == null
@@ -151,6 +153,7 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
                 relevanceQuery.isBlank() ? null : relevanceQuery);
         ResolvedSourceDemand demand = new ResolvedSourceDemand(accepted, reasons(root));
         return new TurnRouteDecision.SourcePlanning(new PrePlanOutcome.SourcePlanningRequired(
+                new CurrentInstruction(text(root, "instruction", 16_000)),
                 intent, demand, accepted, lineage, contextDigest, inputDigest));
     }
 

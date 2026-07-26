@@ -14,6 +14,7 @@ import org.zipp.ai.application.turn.classification.TargetNeed;
 import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
 import org.zipp.ai.application.turn.demand.DemandResolutionCode;
 import org.zipp.ai.application.turn.demand.DemandResolutionReason;
+import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.demand.ResolvedSourceDemand;
 import org.zipp.ai.application.turn.demand.SourceDemandKind;
 import org.zipp.ai.application.turn.planning.PlanningLineageFingerprint;
@@ -64,6 +65,7 @@ class FastjsonTurnRouteDecisionCodecTest {
                 "architecture");
         TurnRouteDecision original = new TurnRouteDecision.SourcePlanning(
                 new PrePlanOutcome.SourcePlanningRequired(
+                        new CurrentInstruction("draw from the architecture"),
                         new SemanticIntent(
                                 SemanticAction.EDIT,
                                 OutputIntent.DRAWING,
