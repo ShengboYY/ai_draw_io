@@ -554,6 +554,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片进一步把明确 terminal 接入 handoff：pre-handler 的 `Terminal` 使用 accepted attempt 通过 `TerminalOnlyTurnCommitPort` fenced 写入 `FAILED`，deterministic `Unsupported` route 写入 `REJECTED`；fence-lost、unavailable、source-planning 与 clarification 仍返回 typed non-terminal outcome，不伪造产品终态。executor 只有在 terminal commit port 存在时才由 app composition 注册；Legacy HTTP/production assignment 仍不变。本切片没有新增 migration。
 
+本切片补齐 M2 的 response/review strong commit seam：`ResponseTurnCommit` 固定 diagram scope、assistant message 与 payload ref；`MySqlResponseTurnCommitAdapter` 在同一事务内锁定 active attempt/conversation、推进 conversation high-water、写 assistant message 并以 lease/epoch CAS 完成 `turn_execution`。terminal replay、stale/expired attempt 与 missing conversation 在触碰业务写入前返回；terminal CAS 在初始检查后失去 fence 时抛出并依靠事务回滚 message/conversation 写入。新增 4 项 adapter contract tests 与 Plain adapter 回归共 9 项通过。本切片复用现有 M1 message/turn_execution 字段，没有新增或执行 migration；response handler、source-aware Planner 与 production V2 assignment 仍待后续切片。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。
