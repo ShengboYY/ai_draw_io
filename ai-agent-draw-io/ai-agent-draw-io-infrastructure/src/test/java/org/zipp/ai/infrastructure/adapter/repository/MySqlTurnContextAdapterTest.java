@@ -19,6 +19,7 @@ import org.zipp.ai.application.turn.context.ContextMaterializationOutcome;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.context.ConversationContext;
+import org.zipp.ai.application.turn.context.ConfirmedMemoryContext;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -114,6 +115,35 @@ class MySqlTurnContextAdapterTest {
         assertEquals("Use swimlanes", profile.value().instructions());
         assertEquals(List.of("SLO=service objective"), profile.value().glossary());
         assertEquals(List.of("No hidden source calls"), profile.value().stableConstraints());
+    }
+
+    @Test
+    void confirmedMemoryIsPinnedAndProjectedAsContextOnlyData() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        Map<String, Object> domain = domainRow(2L, "canvas-hash", "<xml>");
+        domain.put("diagram_chartbook_id", "book-1");
+        domain.put("active_chartbook_id", "book-1");
+        domain.put("chartbook_owner_key", "owner-1");
+        domain.put("chartbook_status", "ACTIVE");
+        domain.put("chartbook_updated_at", Timestamp.from(UPDATED_AT));
+        domain.put("chartbook_memory_version", 1L);
+        domain.put("chartbook_memory_json",
+                "[{\"decisionKey\":\"labels\",\"text\":\"Prefer short labels\"}]");
+
+        MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
+                jdbc(executionRow(attempt), domain, List.of()));
+        ContextReadSet readSet = assertInstanceOf(
+                ContextCandidateLoadOutcome.Ready.class,
+                adapter.loadCandidate(attempt, command)).value().readSet();
+
+        assertEquals("chartbook-memory:book-1", readSet.memory().reference());
+        ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
+                ContextMaterializationOutcome.Ready.class,
+                adapter.materialize(attempt, command, readSet));
+        AvailableContext<ConfirmedMemoryContext> memory = assertInstanceOf(
+                AvailableContext.class, materialized.value().memory());
+        assertEquals(List.of("labels: Prefer short labels"), memory.value().decisions());
     }
 
     @Test

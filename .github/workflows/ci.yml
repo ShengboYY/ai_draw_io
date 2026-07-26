@@ -132,7 +132,7 @@ jobs:
           docker build
           --provenance=false
           --platform linux/amd64
-          --file deploy/aws/database/Dockerfile.20260730
+          --file deploy/aws/database/Dockerfile.20260731
           --tag ai-drawio-db-migrate:ci
           .
 
@@ -228,7 +228,7 @@ jobs:
             docker build \
               --provenance=false \
               --platform linux/amd64 \
-              --file deploy/aws/database/Dockerfile.20260730 \
+              --file deploy/aws/database/Dockerfile.20260731 \
               --tag "$migration_uri" \
               .
           else

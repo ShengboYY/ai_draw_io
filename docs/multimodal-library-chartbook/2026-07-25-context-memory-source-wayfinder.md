@@ -791,7 +791,7 @@ clarification terminal commit 现在同事务保存 stable hidden id、immutable
 ## memory-v1: Implement Confirmed Chartbook Memory
 
 Blocked by: memory-policy, context-envelope, chartbook-profile, session-continuity
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -800,24 +800,18 @@ Type: Prototype
 
 ### Answer
 
-Pending. 实现边界：
+已完成 Memory v1 的最小可控闭环：
 
-- 只有明确的“记住这个决定”指令或 Memory 管理 API 才产生 deterministic `MemoryWriteDeclaration`；
-- declaration 的 schema、rule 与 semantic digest 在 assignment/claim 固定；模型不能决定是否写 Memory；
-- successful terminal 前由 `MemoryPolicySanitizer` 检查 secret/PII、external fact、Profile-owned field、kind 与大小；
-- sanitizer 拒绝时只保存 safe reason；proposal、terminal 与 trace 都不得保存原文或内容 digest；
-- 只有 sanitizer 产出的 bounded payload 才能与 successful terminal 原子保存为 versioned `MemoryCandidateProposal`；
-- proposal 状态为 `PENDING | MATERIALIZED | EXPIRED | REVOKED`，并保存 policy version、`expires_at`、`retain_until` 与 `payload_deleted_at`；
-- UI/独立 command 以 TurnKey + digest owner-fenced、幂等 materialize candidate，失败时显示待保存而非“已记住”；
-- 覆盖 crash-before/after-terminal、terminal replay、candidate API retry 与 duplicate submission；
-- 未 materialize proposal 使用短 TTL；materialize、reject、delete、Chartbook/account purge 后清除 payload，只保留无正文 digest tombstone；
-- expired/revoked API 返回 typed Gone，status 标记不可重试；删除与 replay/materialize race 不能复活 payload；
-- v1 仅 `CONFIRMED_DECISION`，术语/style/stable constraints 转 Profile update proposal；
-- decision 提升为 Profile 时走专用 application promotion use case，以 expected Profile/Memory versions 在窄 integration transaction 中更新 Profile 并 supersede Memory；
-- 普通 Profile/Memory module 不得互相访问 repository，promotion 冲突时两边都不写；
-- 记录 decision key、适用阶段、supersedes、scope、canonical text、source turn/diagram、provenance、status 和 version；
-- 仅在同一 Chartbook 的 Context Envelope 中按需注入；
-- 用户可查看、编辑、删除和关闭。
+- `MemoryProposalService` 只接受显式 `RememberDecisionDeclaration`；声明 digest 必须与 owner-fixed declaration 一致，模型执行阶段不能新增 remember 意图。
+- `MemoryPolicySanitizer` 在 persistence 前拒绝 secret、PII、external fact/source ref、Profile-owned field、非法 key/stage 和超限文本；拒绝结果只有 safe code，不带原文或内容 digest。
+- `MySqlConfirmedMemoryAdapter` 在 proposal transaction 内锁定并校验 `turn_execution.status = COMPLETED`、Chartbook owner 和 Diagram scope，再保存 versioned `PENDING` candidate；候选状态为 `PENDING | MATERIALIZED | EXPIRED | REVOKED`，并保存 policy version、TTL、retention 和 scrub 时间。
+- proposal 以 owner + Chartbook + TurnKey + declaration digest fence 幂等；materialize 使用 `SELECT ... FOR UPDATE`，terminal replay、duplicate retry、过期、revoke/delete race 均不会复活已清除 payload，失败返回 typed `Gone`/`Rejected`。
+- materialize 将内容原子转入 `chartbook_memory` 后清除 candidate payload；管理端提供 list、edit、disable、delete，并用 expected version 做 owner-fenced CAS。
+- `MySqlTurnContextAdapter` 只读取同一 Chartbook 的 ACTIVE confirmed Memory，建立 exact memory pin，冲突/损坏时整片 degraded；投影仍是 `ConfirmedMemoryContext`，不会进入 source、Evidence、citation 或 retrieval scope。
+- 新增 `2026-07-31-create-confirmed-memory.sql`、ordered release manifest、immutable `Dockerfile.20260731` 和 CI image build/publish；本地 MySQL 已通过 20260730 predecessor/checksum gate 执行，第二次运行按 checksum 幂等跳过。
+- 全量 clean Maven reactor 1773 项通过、0 failures/errors、11 skipped；Memory sanitizer、Context projection、migration contract 和真实 MySQL candidate/materialize/scrub 测试均通过。
+
+v1 仍只承载 `CONFIRMED_DECISION`；术语、style、stable constraints 继续归 Chartbook Profile，自动 extraction 和 Memory→Profile promotion 保留给后续专用 ticket。
 
 ## memory-automation: Add Extraction And Consolidation Carefully
 

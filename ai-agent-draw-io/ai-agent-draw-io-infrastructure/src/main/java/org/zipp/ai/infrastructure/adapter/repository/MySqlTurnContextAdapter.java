@@ -91,7 +91,16 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                    p.glossary_json AS chartbook_profile_glossary_json,
                    p.default_style_json AS chartbook_profile_default_style_json,
                    p.stable_constraints_json AS chartbook_profile_stable_constraints_json,
-                   p.profile_state AS chartbook_profile_state
+                   p.profile_state AS chartbook_profile_state,
+                   COALESCE((SELECT MAX(m.version) FROM chartbook_memory m
+                       WHERE m.owner_key = cb.owner_key AND m.chartbook_id = cb.id
+                         AND m.status = 'ACTIVE'), 0) AS chartbook_memory_version,
+                   COALESCE(CONCAT('[', COALESCE((SELECT GROUP_CONCAT(JSON_OBJECT(
+                       'decisionKey', m.decision_key, 'text', m.canonical_text)
+                       ORDER BY m.decision_key, m.memory_id SEPARATOR ',')
+                       FROM chartbook_memory m
+                       WHERE m.owner_key = cb.owner_key AND m.chartbook_id = cb.id
+                         AND m.status = 'ACTIVE'), ''), ']'), '[]') AS chartbook_memory_json
             FROM diagram d
             LEFT JOIN diagram_canvas_state c
                 ON c.diagram_id = d.id AND c.user_id = d.user_id
@@ -118,7 +127,16 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                    p.glossary_json AS chartbook_profile_glossary_json,
                    p.default_style_json AS chartbook_profile_default_style_json,
                    p.stable_constraints_json AS chartbook_profile_stable_constraints_json,
-                   p.profile_state AS chartbook_profile_state
+                   p.profile_state AS chartbook_profile_state,
+                   COALESCE((SELECT MAX(m.version) FROM chartbook_memory m
+                       WHERE m.owner_key = cb.owner_key AND m.chartbook_id = cb.id
+                         AND m.status = 'ACTIVE'), 0) AS chartbook_memory_version,
+                   COALESCE(CONCAT('[', COALESCE((SELECT GROUP_CONCAT(JSON_OBJECT(
+                       'decisionKey', m.decision_key, 'text', m.canonical_text)
+                       ORDER BY m.decision_key, m.memory_id SEPARATOR ',')
+                       FROM chartbook_memory m
+                       WHERE m.owner_key = cb.owner_key AND m.chartbook_id = cb.id
+                         AND m.status = 'ACTIVE'), ''), ']'), '[]') AS chartbook_memory_json
             FROM diagram d
             LEFT JOIN diagram_canvas_state c
                 ON c.diagram_id = d.id AND c.user_id = d.user_id
@@ -232,6 +250,11 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             if (profileResolution.retry()) {
                 return new ContextMaterializationOutcome.Retry();
             }
+            SliceResolution<ConfirmedMemoryContext> memoryResolution =
+                    materializeMemory(readSet.memory(), domain);
+            if (memoryResolution.retry()) {
+                return new ContextMaterializationOutcome.Retry();
+            }
 
             List<CurrentMessageAttachmentView> attachments = materializeAttachments(
                     valid.row(), attempt.key(), command);
@@ -243,6 +266,8 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                     "CONTEXT_SELECTION_ABSENT"));
             diagnosticCodes.add(domain.hasProfile()
                     ? "CONTEXT_PROFILE_PROJECTED" : "CONTEXT_PROFILE_ABSENT");
+            diagnosticCodes.add(domain.hasMemory()
+                    ? "CONTEXT_MEMORY_PROJECTED" : "CONTEXT_MEMORY_ABSENT");
             ContextDiagnostics diagnostics = new ContextDiagnostics(diagnosticCodes);
 
             return new ContextMaterializationOutcome.Ready(new ContextMaterializedSlices(
@@ -256,7 +281,7 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                     conversation,
                     membershipResolution.value(),
                     profileResolution.value(),
-                    new AbsentContext<ConfirmedMemoryContext>("NO_CONFIRMED_MEMORY_STORE"),
+                    memoryResolution.value(),
                     diagnostics));
         } catch (DataAccessException exception) {
             return unavailableMaterialization(attempt, TurnFailureCode.TERMINAL_UNAVAILABLE);
@@ -288,14 +313,20 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                         domain.profileVersionValue(),
                         domain.profileDigest())
                 : ContextSlicePin.absent(ContextSlice.PROFILE, "PROFILE_NOT_AVAILABLE");
-        // Memory is intentionally not inferred from legacy preferences or source tables.
+        ContextSlicePin memory = domain.hasMemory()
+                ? ContextSlicePin.pinned(
+                        ContextSlice.MEMORY,
+                        "chartbook-memory:" + domain.chartbookId(),
+                        domain.memoryVersionValue(),
+                        domain.memoryDigest())
+                : ContextSlicePin.absent(ContextSlice.MEMORY, "NO_CONFIRMED_MEMORY");
         return ContextReadSet.create(
                 1,
                 messageHighWater,
                 summary,
                 membership,
                 profile,
-                ContextSlicePin.absent(ContextSlice.MEMORY, "NO_CONFIRMED_MEMORY"));
+                memory);
     }
 
     private SliceResolution<TrustedCanvasContext> materializeCanvas(
@@ -382,6 +413,45 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
         } catch (RuntimeException exception) {
             // A corrupt Profile degrades only this optional slice; plain generation may continue.
             return SliceResolution.exact(new DegradedContext<>("PROFILE_MALFORMED"));
+        }
+    }
+
+    private SliceResolution<ConfirmedMemoryContext> materializeMemory(
+            ContextSlicePin pin,
+            DomainRow domain
+    ) {
+        if (pin.state() == ContextPinState.REVOKED || pin.state() == ContextPinState.DEGRADED) {
+            return SliceResolution.exact(new DegradedContext<>(pin.reference()));
+        }
+        if (pin.state() == ContextPinState.ABSENT) {
+            if (domain.hasMemory()) {
+                return SliceResolution.retrying();
+            }
+            return SliceResolution.exact(new AbsentContext<>(pin.reference()));
+        }
+        if (!domain.hasMemory()
+                || domain.memoryVersionValue() != pin.version()
+                || !domain.memoryDigest().equals(pin.contentDigest())) {
+            return SliceResolution.retrying();
+        }
+        try {
+            var entries = JSON.parseArray(domain.memoryJson());
+            java.util.Set<String> keys = new java.util.HashSet<>();
+            List<String> decisions = new ArrayList<>();
+            for (Object value : entries) {
+                JSONObject object = (JSONObject) value;
+                String key = bounded(object.getString("decisionKey"), 128);
+                String text = bounded(object.getString("text"), 1_000);
+                if (key.isBlank() || text.isBlank() || !keys.add(key)) {
+                    // Conflicting or malformed Memory is never silently injected.
+                    return SliceResolution.exact(new DegradedContext<>("MEMORY_CONFLICT_OR_MALFORMED"));
+                }
+                decisions.add(key + ": " + text);
+            }
+            return SliceResolution.exact(new AvailableContext<>(new ConfirmedMemoryContext(decisions),
+                    pin.reference()));
+        } catch (RuntimeException exception) {
+            return SliceResolution.exact(new DegradedContext<>("MEMORY_MALFORMED"));
         }
     }
 
@@ -508,7 +578,9 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                 resultSet.getString("chartbook_profile_glossary_json"),
                 resultSet.getString("chartbook_profile_default_style_json"),
                 resultSet.getString("chartbook_profile_stable_constraints_json"),
-                resultSet.getString("chartbook_profile_state"));
+                resultSet.getString("chartbook_profile_state"),
+                nullableLong(resultSet, "chartbook_memory_version"),
+                resultSet.getString("chartbook_memory_json"));
     }
 
     private ExecutionCheck checkExecution(FencedAttempt attempt) {
@@ -666,7 +738,9 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             String profileGlossaryJson,
             String profileDefaultStyleJson,
             String profileStableConstraintsJson,
-            String profileState
+            String profileState,
+            Long memoryVersion,
+            String memoryJson
     ) {
         boolean hasCanvas() {
             return canvasVersion != null && canvasVersion >= 0;
@@ -700,6 +774,19 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             return ChartbookProfilePersistenceCodec.digestRaw(
                     chartbookId, profileVersionValue(), profileInstructions, profileGoal, profileSummary,
                     profileGlossaryJson, profileDefaultStyleJson, profileStableConstraintsJson, profileState);
+        }
+
+        boolean hasMemory() {
+            return hasActiveChartbook() && memoryVersion != null && memoryVersion > 0
+                    && memoryJson != null && !memoryJson.isBlank() && !"[]".equals(memoryJson.trim());
+        }
+
+        long memoryVersionValue() {
+            return memoryVersion == null ? 0 : memoryVersion;
+        }
+
+        String memoryDigest() {
+            return digest("memory", chartbookId, String.valueOf(memoryVersionValue()), memoryJson);
         }
 
         long membershipRevision() {
