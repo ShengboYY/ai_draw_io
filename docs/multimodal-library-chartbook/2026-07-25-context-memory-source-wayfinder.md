@@ -452,7 +452,7 @@ transaction 固定 retry horizon；旧 key/tombstone 继续返回 410，existing
 ## unified-turn-delivery: Unify Sync And Stream Attempt Results
 
 Blocked by: turn-lifecycle-evals, source-aware-commit-seams, source-aware-boundary-evals
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -461,13 +461,14 @@ M6 全量 V2 前，如何证明 sync/stream 不再是两套业务执行？
 
 ### Answer
 
-Pending. 两种 transport 必须调用同一 executor，只替换 detachable event sink。
+统一 delivery boundary 已落地并通过 M6 gate：
 
-只有 `PersistedTerminal` 写 final；ownership lost/self-abort/unavailable 转 status，disconnect 不取消。
+- `TurnHttpDeliveryAdapter` 的 canonical sync、NDJSON 与 submission-only stream 入口现在都经过同一个 `executeCanonical`，只替换 `TurnEventSink`；legacy DTO 仍保留独立 compatibility translator。
+- V2 stream 保持 v1 的 submission-only 合同：只返回 `turn_submission`，RUNNING 继续由 server-owned runner 执行并通过 status 查询，避免 emitter 结束后再写进度。
+- 新增 `UnifiedTurnDeliveryMatrixTest`，覆盖 Plain、Direct、Grounded、Evidence Answer × `PersistedTerminal`、`AttemptOwnershipLost`、`AttemptSelfAborted`、`StatusOnly(TERMINAL_SCHEMA_UNAVAILABLE)` 共 16 个组合。两条 transport 都得到同一 `TurnSubmission` 与相同 attempt completion；只有 `PersistedTerminal` 保持产品终态，其余均保持 status-only 语义。
+- NDJSON writer 主动失败时只触发 sink detach；同一 execution completion 仍返回，未生成取消、第二份 outcome 或伪造 terminal。既有 runner 测试继续覆盖 explicit cancel、deadline CAS、lease ownership loss 与 commit race；terminal decoder unavailable 继续走 typed status-only。
 
-测试覆盖每个 Plain、Direct、Grounded 与 Evidence Answer plan × sync/stream/detach/explicit-cancel/deadline-race 的 transport matrix。
-
-writer failure、commit race 与 terminal decoder unavailable 均不得生成第二份 outcome，才能解除 all-V2 gate。
+本票只修改 delivery adapter 与 transport gate tests，没有新增或执行数据库 migration；production assignment 仍未切换，all-path canary 可以解除本票阻塞后继续等待其余 gates。
 
 ## legacy-retirement: Remove Legacy Execution Safely
 

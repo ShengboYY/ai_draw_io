@@ -5,6 +5,7 @@ import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.TurnDeliveryExecutor;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnSubmission;
+import org.zipp.ai.application.turn.UserTurnCommand;
 
 import java.util.Objects;
 
@@ -27,7 +28,7 @@ public final class TurnHttpDeliveryAdapter {
 
     public TurnHttpDeliveryResult executeSync(AuthenticatedActor actor, TurnHttpRequest request) {
         BufferingTurnEventSink sink = new BufferingTurnEventSink();
-        TurnSubmission submission = executor.execute(actor, translator.translate(request), sink);
+        TurnSubmission submission = executeCanonical(actor, request, sink);
         return new TurnHttpDeliveryResult(submission, sink.events(), sink.isDetached());
     }
 
@@ -37,7 +38,7 @@ public final class TurnHttpDeliveryAdapter {
      * continues through the server-owned runner and is observed through status.
      */
     public TurnSubmission executeSubmission(AuthenticatedActor actor, TurnHttpRequest request) {
-        return executor.execute(actor, translator.translate(request), ignored -> { });
+        return executeCanonical(actor, request, ignored -> { });
     }
 
     public TurnHttpDeliveryResult executeLegacySync(AuthenticatedActor actor, ChatRequestDTO request) {
@@ -52,6 +53,16 @@ public final class TurnHttpDeliveryAdapter {
             NdjsonLineWriter writer
     ) {
         TurnEventSink sink = new NdjsonTurnEventSink(writer);
-        return executor.execute(actor, translator.translate(request), sink);
+        return executeCanonical(actor, request, sink);
+    }
+
+    /** Keeps canonical sync and NDJSON delivery on one executor call site. */
+    private TurnSubmission executeCanonical(
+            AuthenticatedActor actor,
+            TurnHttpRequest request,
+            TurnEventSink sink
+    ) {
+        UserTurnCommand command = translator.translate(request);
+        return executor.execute(actor, command, sink);
     }
 }
