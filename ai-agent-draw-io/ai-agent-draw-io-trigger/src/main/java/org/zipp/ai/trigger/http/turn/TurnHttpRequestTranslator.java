@@ -79,9 +79,8 @@ public final class TurnHttpRequestTranslator {
     }
 
     private String canonicalizeLegacyReference(String sessionId) {
-        if (sessionId.startsWith("conversation:") || sessionId.startsWith("legacy:")) {
-            return sessionId;
-        }
+        // Legacy DTOs have no typed reference contract; every sessionId stays in the alias
+        // namespace, even when its opaque value happens to use a reserved prefix.
         return "legacy:" + sessionId;
     }
 

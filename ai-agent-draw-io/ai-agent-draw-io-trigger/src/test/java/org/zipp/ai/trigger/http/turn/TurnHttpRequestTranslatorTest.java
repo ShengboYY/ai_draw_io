@@ -48,4 +48,18 @@ class TurnHttpRequestTranslatorTest {
         assertFalse(command.declarations().currentTurnAttachments().contains(
                 new org.zipp.ai.application.turn.OpaqueConversationFileRef("client-authoritative-canvas")));
     }
+
+    @Test
+    void legacySessionIdNeverEscapesItsAliasNamespace() {
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setSessionId("conversation:opaque-session-value");
+        request.setRequestId("turn-1");
+        request.setResponseMessageId("client-1");
+        request.setDiagramId("diagram-1");
+        request.setMessage("draw");
+
+        UserTurnCommand command = new TurnHttpRequestTranslator().translateLegacy(request);
+
+        assertEquals("legacy:conversation:opaque-session-value", command.conversationReference());
+    }
 }

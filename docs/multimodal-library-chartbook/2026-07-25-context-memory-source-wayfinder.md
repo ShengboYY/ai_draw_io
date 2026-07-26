@@ -212,7 +212,7 @@ M1/M2 实现票据必须依赖该 ADR；旧文档清理可以随后并行进行�
 ## conversation-identity-foundation: Canonicalize Turn Scope Before M1
 
 Blocked by: formal-contract-adr
-Status: in progress
+Status: resolved
 Type: Task
 
 ### Question
@@ -221,13 +221,13 @@ Type: Task
 
 ### Answer
 
-已开始实现 durable canonical conversation id、active actor/conversation/diagram binding 与 immutable legacy alias mapping。当前 canonical catalog、owner-fenced lookup/default creation 和 application TurnKey 已落地；Facade/HTTP translator 与历史 scope 双读仍留给后续接线。
+已完成 durable canonical conversation id、active actor/conversation/diagram binding 与 immutable legacy alias mapping。`MySqlConversationCatalogAdapter` 对 default/canonical/legacy reference 都执行 owner + diagram + active 状态校验；Facade 在 fingerprint、assignment 和 claim 前解析 canonical `ConversationRef`，所有 M1 TurnKey/assignment/execution/clarification/tombstone 只保存 canonical id。
 
-Facade 在 fingerprint、assignment 和 claim 前解析 canonical `ConversationRef`。TurnKey、assignment、execution、clarification 与 tombstone 只保存 canonical id。
+V2 HTTP control 与 submission adapter 已复用同一 `ConversationReferenceResolver`；legacy `ChatRequestDTO.sessionId` 被强制放入 `legacy:` alias namespace，即使 opaque session value 带有 `conversation:` 保留前缀也不能伪装 canonical id。canonical id 与 legacy alias resolve 到同一 `ConversationRef` 后，retry/status/cancel 使用同一 `TurnKey`；无法唯一解析时 fail closed。
 
-旧 alias 与新 id 的同 turn retry 必须命中同一行。无法唯一解析时 fail closed，不得临时把 runtime session 当 conversation scope。
+现有 M1 migration 已建立 `conversation` 与 `conversation_legacy_alias` durable boundary，但不回填旧消息或重写 source/files/history scope；历史 scope 双读、consumer 迁移和 alias backfill horizon 明确留给 M3 `conversation-scope-migration`，不得在本票中把 runtime session 当长期 authority。
 
-本票只负责 identity foundation；recent history/summary rebuild 与 source/files consumers 的 scope migration留给 M3。
+application/HTTP identity contract 与 application composition 回归通过；本票本轮没有新增 schema 或 migration。
 
 ## turn-execution-control: Implement Claim, Fence, Status And Cancellation
 
