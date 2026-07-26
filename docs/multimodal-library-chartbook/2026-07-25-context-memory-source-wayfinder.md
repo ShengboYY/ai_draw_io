@@ -761,7 +761,7 @@ Direct、Direct + Retrieval 和 EDIT 场景还需要哪些明确合同？
 ## source-aware-commit-seams: Implement M5 Strong Commits
 
 Blocked by: direct-composite-hardening
-Status: open
+Status: resolved
 Type: Task
 
 ### Question
@@ -770,21 +770,23 @@ Type: Task
 
 ### Answer
 
-Pending. M5 通过 isolated all-path test executor 实现三条窄 strong seam；不创建任何 production V2 assignment：
+M5 已通过 isolated all-path test executor 实现三条窄 strong seam；没有创建 production V2 assignment：
 
 test executor 只在 isolated fixtures/smoke 环境复用真实 handler、port 与 adapter，不暴露 serving route，也不写 production assignment。
 
-- `DirectTurnCommitPort`：Canvas + direct provenance + assistant message + terminal；
-- `GroundedTurnCommitPort`：Canvas + validated citations/source usage + assistant message + terminal；
-- `EvidenceAnswerTurnCommitPort`：answer + claims + citations/source usage + assistant message + terminal。
+- `DirectTurnCommitPort` 原子保存 Canvas/version、opaque visual provenance、Direct source usage pin、assistant message 与 terminal，不产生 factual citation；
+- `GroundedTurnCommitPort` 原子保存 Canvas/version、package-validated citations/evidence pins、assistant message 与 terminal；Composite 才附加 Direct provenance/pin；
+- `EvidenceAnswerTurnCommitPort` 原子保存 answer message、package-validated claims/citations/evidence pins 与 terminal，不修改 Canvas。
 
-Evidence Answer handler 固定 `aiKnowledgeAllowed=false`，只接受 Required evidence；sufficiency 不足必须 terminal，且每个 factual claim 都要通过 citation whitelist/support guard。
+三条 handler 只依赖固定的 path-specific generation/commit port；Evidence Answer request 继续由类型固定 `aiKnowledgeAllowed=false`。`ValidatedCitationManifest` 只有在每条 factual target 通过 support guard、且所有 evidence id 都属于 prepared snapshot whitelist 后才能签发；insufficient/unsupported/out-of-snapshot 均 fail closed。
 
-每条 adapter 都在一个短事务中验证 attempt fence、active lease、expected Canvas/target version、plan identity 与 snapshot binding。
+`turn_source_execution_binding` 在 generation 前 first-writer pin exact plan identity、snapshot ref/digest 与 execution entry。三条 MySQL adapter 在短事务开头锁定并逐值验证 active attempt/lease、expected Canvas/target version、plan identity 与 snapshot binding；terminal replay 使用统一 decoder，未知 schema typed unavailable。
 
-fault-injection 覆盖每个写点和 terminal decoder schema；只能得到完整 persisted terminal、既有 terminal replay、fence lost 或 typed unavailable，不能留下半提交。
+clarification terminal commit 现在同事务保存 stable hidden id、immutable option set/digest、exact candidate fact、DB-clock expiry、安全 assistant message 与 terminal；reply resolution 必须逐值匹配 owner/conversation/turn/id/option/set/expiry，authority store 故障 typed unavailable。
 
-generation runtime 由 path-specific port 与 sealed execution profile 创建；handler 不接收通用 `AgentRuntimePort` 或可变工具集合。
+20260730 additive migration、ordered release manifest、immutable migration image 与 CI build/publish 已接入；本机 MySQL 已通过 predecessor/checksum gate 执行 release，并验证第二次运行幂等跳过。真实 schema-backed Direct strong transaction 1/1 通过并整体回滚测试 fixture；完整 clean Maven reactor 1766 项通过、0 failures/errors、10 skipped。
+
+逐写点 fault-injection 覆盖 Direct、Grounded、Evidence Answer 与 durable clarification，terminal decoder unknown schema 也 fail closed。isolated executor 覆盖三条 handler，不暴露 production serving route；production assignment 仍保持 legacy，M6 canary 继续由 `source-aware-boundary-evals` 与 `unified-turn-delivery` 控制。
 
 ## memory-v1: Implement Confirmed Chartbook Memory
 

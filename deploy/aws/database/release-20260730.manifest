@@ -1,0 +1,3 @@
+# M5 source-aware strong commit release after the 20260729 lifecycle release.
+# Order is dependency-aware; do not sort these entries alphabetically.
+2026-07-30-create-source-aware-commit-boundaries.sql

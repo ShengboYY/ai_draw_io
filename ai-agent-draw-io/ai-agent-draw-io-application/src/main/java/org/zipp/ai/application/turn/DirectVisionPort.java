@@ -21,9 +21,17 @@ public interface DirectVisionPort {
         }
     }
 
-    record Observation(String observationRef) {
+    record Observation(
+            String observationRef,
+            String observationFingerprint
+    ) {
         public Observation {
             ContractValues.requiredText(observationRef, "observationRef");
+            ContractValues.requiredText(observationFingerprint, "observationFingerprint");
+        }
+
+        public Observation(String observationRef) {
+            this(observationRef, observationRef);
         }
     }
 }

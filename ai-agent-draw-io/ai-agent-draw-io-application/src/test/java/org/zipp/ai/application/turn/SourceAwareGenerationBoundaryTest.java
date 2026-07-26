@@ -35,7 +35,10 @@ class SourceAwareGenerationBoundaryTest {
                 DirectVisionPort.class,
                 DirectGenerationPort.class,
                 GroundedGenerationPort.class,
-                EvidenceAnswerGenerationPort.class);
+                EvidenceAnswerGenerationPort.class,
+                DirectTurnCommitPort.class,
+                GroundedTurnCommitPort.class,
+                EvidenceAnswerTurnCommitPort.class);
 
         for (Class<?> port : ports) {
             String signature = Arrays.toString(port.getDeclaredMethods()).toLowerCase(Locale.ROOT);

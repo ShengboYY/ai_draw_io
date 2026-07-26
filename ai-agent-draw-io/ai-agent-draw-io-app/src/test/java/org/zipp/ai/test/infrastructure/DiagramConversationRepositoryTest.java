@@ -124,6 +124,16 @@ public class DiagramConversationRepositoryTest {
         }
 
         @Override
+        public List<DiagramConversationMessagePO> selectMessagesByScope(
+                String userId,
+                String diagramId,
+                List<String> scopeKeys
+        ) {
+            // This fake does not model scope filtering; repository mapping is identical.
+            return selectMessages(userId, diagramId);
+        }
+
+        @Override
         public int deleteByUserId(String userId) {
             return 1;
         }
