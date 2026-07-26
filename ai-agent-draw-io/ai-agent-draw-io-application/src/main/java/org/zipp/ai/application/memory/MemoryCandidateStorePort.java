@@ -6,6 +6,9 @@ import java.util.List;
 public interface MemoryCandidateStorePort {
     MemoryProposalOutcome propose(SanitizedMemoryProposal proposal);
 
+    /** Lists only still-pending candidates owned by the requested Chartbook. */
+    List<MemoryCandidateProposal> listPending(String ownerKey, String chartbookId);
+
     MemoryMaterializeOutcome materialize(MemoryMaterializeCommand command);
 
     MemoryMaterializeOutcome revoke(MemoryCandidateFence fence);

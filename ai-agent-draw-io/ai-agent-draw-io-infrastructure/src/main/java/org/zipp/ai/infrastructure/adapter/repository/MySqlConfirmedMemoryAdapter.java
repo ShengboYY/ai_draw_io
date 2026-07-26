@@ -68,6 +68,16 @@ public class MySqlConfirmedMemoryAdapter implements MemoryCandidateStorePort, Me
               AND source_conversation_id = ? AND source_turn_id = ? AND declaration_digest = ?
             """;
     private static final String SELECT_CANDIDATE_FOR_UPDATE = SELECT_CANDIDATE + " FOR UPDATE";
+    private static final String PENDING_CANDIDATES = """
+            SELECT candidate_id, owner_key, chartbook_id, source_conversation_id, source_turn_id,
+                   source_diagram_id, decision_key, applicability_stage, scope, canonical_text,
+                   policy_version, declaration_digest, status, version, expires_at, retain_until,
+                   payload_deleted_at, materialized_memory_id
+            FROM chartbook_memory_candidate
+            WHERE owner_key = ? AND chartbook_id = ? AND status = 'PENDING'
+              AND expires_at > CURRENT_TIMESTAMP(3)
+            ORDER BY expires_at ASC, candidate_id ASC
+            """;
     private static final String MARK_EXPIRED = """
             UPDATE chartbook_memory_candidate
             SET status = 'EXPIRED', canonical_text = NULL,
@@ -186,6 +196,14 @@ public class MySqlConfirmedMemoryAdapter implements MemoryCandidateStorePort, Me
             throw new IllegalStateException("MEMORY_CANDIDATE_NOT_READ_BACK");
         }
         return new MemoryProposalOutcome.Accepted(created);
+    }
+
+    @Override
+    public List<MemoryCandidateProposal> listPending(String ownerKey, String chartbookId) {
+        if (ownerKey == null || ownerKey.isBlank() || chartbookId == null || chartbookId.isBlank()) {
+            return List.of();
+        }
+        return jdbc.query(PENDING_CANDIDATES, this::mapCandidate, ownerKey, chartbookId);
     }
 
     @Override

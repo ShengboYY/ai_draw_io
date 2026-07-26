@@ -88,6 +88,10 @@ class MemoryPolicySanitizerTest {
                     java.time.Instant.now().plus(proposal.ttl()), null, null));
         }
 
+        @Override public List<MemoryCandidateProposal> listPending(String ownerKey, String chartbookId) {
+            return List.of();
+        }
+
         @Override public MemoryMaterializeOutcome materialize(MemoryMaterializeCommand command) { return null; }
         @Override public MemoryMaterializeOutcome revoke(MemoryCandidateFence fence) { return null; }
         @Override public MemoryMaterializeOutcome delete(MemoryCandidateFence fence) { return null; }
