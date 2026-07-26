@@ -97,6 +97,18 @@ test('buildDrawioChatRequestPayload carries bounded Library version declarations
   assert.equal('selectedVersionIds' in request, false);
 });
 
+test('buildDrawioChatRequestPayload binds only the current turn upload ids', () => {
+  const request = buildDrawioChatRequestPayload({
+    agentId: 'agent-1',
+    userId: 'user-1',
+    sessionId: 'session-1',
+    userMessage: 'redraw this attachment',
+    currentTurnAttachmentRefs: [' upload-1 ', 'upload-1', 'upload-2'],
+  });
+
+  assert.deepEqual(request.currentTurnAttachmentRefs, ['upload-1', 'upload-2']);
+});
+
 test('buildDrawioChatRequestPayload carries bounded direct image clarifications', () => {
   const payload = buildDrawioChatRequestPayload({
     agentId: '300000',

@@ -108,7 +108,7 @@ jobs:
             # The checked-in SQL targets production's name; CI rewrites only the disposable DB name.
             sed 's/ai_draw_io/ai_draw_io_test/g' "$schema" \
               | mysql --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" \
-                  -u "$MYSQL_USER" -p"$MYSQL_PASSWORD"
+                  --database="$MYSQL_DATABASE" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD"
           done
 
       - name: Run backend tests

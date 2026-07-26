@@ -5,6 +5,7 @@
     <resultMap id="diagramConversationMessageMap" type="org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO">
         <id column="id" property="id"/>
         <result column="diagram_id" property="diagramId"/>
+        <result column="turn_id" property="turnId"/>
         <result column="conversation_id" property="conversationId"/>
         <result column="user_id" property="userId"/>
         <result column="session_id" property="sessionId"/>
@@ -19,6 +20,7 @@
         SELECT
             m.id,
             m.diagram_id,
+            m.turn_id,
             m.conversation_id,
             m.user_id,
             m.session_id,
@@ -41,6 +43,7 @@
         SELECT
             m.id,
             m.diagram_id,
+            m.turn_id,
             m.conversation_id,
             m.user_id,
             m.session_id,

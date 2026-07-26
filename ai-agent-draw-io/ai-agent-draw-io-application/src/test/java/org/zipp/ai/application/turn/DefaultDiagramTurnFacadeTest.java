@@ -141,6 +141,34 @@ class DefaultDiagramTurnFacadeTest {
     }
 
     @Test
+    void legacyAssignmentHandsOffWithoutCreatingAV2Attempt() {
+        TurnEngineAssignment legacy = new TurnEngineAssignment(
+                assignment().key(), "diagram-1", new VersionedRequestFingerprint(1, "fingerprint"),
+                SelectedTurnEngine.LEGACY, migration(),
+                new ExecutionPolicySnapshot(1, TurnEngineMode.V2_CANARY, "{}", "policy"),
+                new NoMemoryWrite());
+        DefaultDiagramTurnFacade facade = new DefaultDiagramTurnFacade(
+                fixedCatalog(activeConversation()),
+                new ConversationReferenceResolver(),
+                new FixedProfile(),
+                new TurnEngineAdmissionService(
+                        DefaultDiagramTurnFacadeTest::migration,
+                        ignored -> new AdmissionWriteOutcome.Reused(legacy),
+                        new OpenAdmissionBarrier()),
+                ignored -> {
+                    throw new AssertionError("Legacy handoff must not create a V2 attempt");
+                },
+                new OpenAdmissionBarrier());
+
+        TurnSubmission.LegacyHandoff handoff = assertInstanceOf(
+                TurnSubmission.LegacyHandoff.class,
+                facade.execute(new AuthenticatedActor("owner-1", "cohort-1"),
+                        command("conversation:conversation-1"), ignored -> { }));
+
+        assertEquals(legacy.key(), handoff.key());
+    }
+
+    @Test
     void admittedSubmissionFinishesWhileMigrationDrainClosesNewAdmission() throws Exception {
         AuthenticatedActor actor = new AuthenticatedActor("owner-1", "cohort-1");
         ConversationRef conversation = activeConversation();

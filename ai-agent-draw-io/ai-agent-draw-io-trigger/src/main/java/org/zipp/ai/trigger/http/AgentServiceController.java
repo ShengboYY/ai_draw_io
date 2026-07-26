@@ -502,17 +502,20 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
-        if (legacyTurnV2IngressBridge != null && legacyTurnV2IngressBridge.handles(workspaceId)) {
-            ChatResponseDTO responseDTO = legacyTurnV2IngressBridge.chat(
+        if (legacyTurnV2IngressBridge != null) {
+            LegacyTurnV2IngressBridge.ChatDispatch dispatch = legacyTurnV2IngressBridge.chat(
                     workspaceId, requestDTO, requestId, runId);
-            responseDTO.setRequestId(requestId);
-            responseDTO.setRunId(runId);
-            writeCorrelationHeaders(httpResponse, requestId, runId);
-            return Response.<ChatResponseDTO>builder()
-                    .code(ResponseCode.SUCCESS.getCode())
-                    .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTO)
-                    .build();
+            if (dispatch.handled()) {
+                ChatResponseDTO responseDTO = dispatch.response();
+                responseDTO.setRequestId(requestId);
+                responseDTO.setRunId(runId);
+                writeCorrelationHeaders(httpResponse, requestId, runId);
+                return Response.<ChatResponseDTO>builder()
+                        .code(ResponseCode.SUCCESS.getCode())
+                        .info(ResponseCode.SUCCESS.getInfo())
+                        .data(responseDTO)
+                        .build();
+            }
         }
         try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
              MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
@@ -575,8 +578,8 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
-        if (legacyTurnV2IngressBridge != null && legacyTurnV2IngressBridge.handles(workspaceId)) {
-            legacyTurnV2IngressBridge.stream(workspaceId, requestDTO, requestId, runId, emitter);
+        if (legacyTurnV2IngressBridge != null
+                && legacyTurnV2IngressBridge.stream(workspaceId, requestDTO, requestId, runId, emitter)) {
             return emitter;
         }
         try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);

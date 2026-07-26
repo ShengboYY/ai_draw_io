@@ -10,6 +10,7 @@ public class DiagramConversationMessagePO {
     private Long id;
     private String userId;
     private String diagramId;
+    private String turnId;
     private String conversationId;
     private String sessionId;
     private String clientMessageId;

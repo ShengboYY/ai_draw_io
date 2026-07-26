@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
+import org.zipp.ai.application.turn.OptionalEnrichmentFallbackHandler;
 import org.zipp.ai.application.turn.AttemptWriteGate;
 import org.zipp.ai.application.turn.DirectGenerationPort;
 import org.zipp.ai.application.turn.DirectTurnCommitPort;
@@ -115,6 +116,15 @@ public class TurnV2ExecutionCompositionConfig {
     }
 
     @Bean
+    @ConditionalOnBean(PlainDrawingHandler.class)
+    public OptionalEnrichmentFallbackHandler optionalEnrichmentFallbackHandler(
+            PlainDrawingHandler plainDrawing
+    ) {
+        // Optional discovery may only fall back through the signed source-free Plain branch.
+        return new OptionalEnrichmentFallbackHandler(plainDrawing);
+    }
+
+    @Bean
     @ConditionalOnBean({PlainResponseGenerationPort.class, ResponseTurnCommitPort.class})
     public PlainResponseHandler plainResponseHandler(
             PlainResponseGenerationPort generation,
@@ -146,7 +156,8 @@ public class TurnV2ExecutionCompositionConfig {
             SourceExecutionBindingPort sourceBinding,
             ObjectProvider<DirectTurnHandler> direct,
             ObjectProvider<GroundedTurnHandler> grounded,
-            ObjectProvider<EvidenceAnswerTurnHandler> evidenceAnswer
+            ObjectProvider<EvidenceAnswerTurnHandler> evidenceAnswer,
+            ObjectProvider<OptionalEnrichmentFallbackHandler> optionalFallback
     ) {
         return new DefaultSourceAwareTurnExecution(
                 probe,
@@ -156,7 +167,8 @@ public class TurnV2ExecutionCompositionConfig {
                 sourceBinding,
                 java.util.Optional.ofNullable(direct.getIfAvailable()),
                 java.util.Optional.ofNullable(grounded.getIfAvailable()),
-                java.util.Optional.ofNullable(evidenceAnswer.getIfAvailable()));
+                java.util.Optional.ofNullable(evidenceAnswer.getIfAvailable()),
+                java.util.Optional.ofNullable(optionalFallback.getIfAvailable()));
     }
 
     @Bean

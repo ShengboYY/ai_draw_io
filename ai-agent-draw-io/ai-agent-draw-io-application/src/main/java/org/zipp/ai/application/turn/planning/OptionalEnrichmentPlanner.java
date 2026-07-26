@@ -38,11 +38,23 @@ public final class OptionalEnrichmentPlanner {
             return new SourcePlanDecision.PlanningBlocked("INVARIANT_BREACH", false);
         }
         if (command instanceof SourceProbeCommand.OptionalDiscovery optional) {
+            RoleAvailability.RetrievalAvailable retrieval =
+                    (RoleAvailability.RetrievalAvailable) ((SourceAvailability.SingleRole)
+                            available.availability()).role();
+            SourceAwareDrawPlan.Retrieval drawPlan =
+                    new SourceAwareDrawPlan.Retrieval(retrieval.candidates());
+            String fingerprint = digest(command.binding().lineage().value(),
+                    command.binding().declarationDigest(), String.join("\u001f", candidateRefs),
+                    "OPTIONAL_RETRIEVAL");
             return new SourcePlanDecision.OptionalRetrievalReady(
                     new OptionalRetrievalDrawPlan(
                             candidateRefs,
                             optional.validatedProbeFallback(),
-                        command.binding().lineage()));
+                            command.binding().lineage()),
+                    new BoundSourcePlan(
+                            drawPlan,
+                            new SourcePlanIdentity(command.binding().lineage(), fingerprint),
+                            new SourceExecutionEntry.Primary()));
         }
         RoleAvailability.RetrievalAvailable retrieval =
                 (RoleAvailability.RetrievalAvailable) ((SourceAvailability.SingleRole)

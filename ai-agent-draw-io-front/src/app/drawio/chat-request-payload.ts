@@ -22,6 +22,8 @@ type BuildDrawioChatRequestPayloadInput = {
   canvasSummary?: string;
   directClarifications?: DirectClarification[];
   directConfirmationSourceVersionId?: string;
+  currentTurnAttachmentRefs?: string[];
+  memoryChartbookId?: string;
   selectedLibraryVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;
@@ -89,6 +91,8 @@ export const buildDrawioChatRequestPayload = ({
   canvasSummary,
   directClarifications,
   directConfirmationSourceVersionId,
+  currentTurnAttachmentRefs,
+  memoryChartbookId,
   selectedLibraryVersionIds,
   selectedCellIds,
   selectionCanvasVersion,
@@ -110,6 +114,9 @@ export const buildDrawioChatRequestPayload = ({
   const libraryVersionIds = [...new Set(
     (selectedLibraryVersionIds || []).map(versionId => versionId.trim()).filter(Boolean),
   )].slice(0, MAX_CONVERSATION_LIBRARY_SELECTIONS);
+  const attachmentRefs = [...new Set(
+    (currentTurnAttachmentRefs || []).map(uploadId => uploadId.trim()).filter(Boolean),
+  )];
   return {
     agentId,
     userId,
@@ -126,6 +133,9 @@ export const buildDrawioChatRequestPayload = ({
     ...(canvasSummary && { canvasSummary }),
     ...(directClarifications?.length && { directClarifications }),
     ...(directConfirmationSourceVersionId && { directConfirmationSourceVersionId }),
+    // A conversation upload is only source-eligible for the message that declares its upload id.
+    ...(attachmentRefs.length > 0 && { currentTurnAttachmentRefs: attachmentRefs }),
+    ...(memoryChartbookId?.trim() && { memoryChartbookId: memoryChartbookId.trim() }),
     // Library choices are source declarations; the Router still decides whether this turn uses them.
     ...(libraryVersionIds.length > 0 && { selectedLibraryVersionIds: libraryVersionIds }),
     ...(selectedCellIds?.length && { selectedCellIds }),

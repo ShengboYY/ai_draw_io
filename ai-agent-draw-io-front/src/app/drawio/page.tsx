@@ -2453,6 +2453,8 @@ function DrawioPageContent() {
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
           directClarifications: options.directClarifications,
           directConfirmationSourceVersionId: options.directConfirmationSourceVersionId,
+          currentTurnAttachmentRefs: conversationAttachments.map(attachment => attachment.uploadId),
+          memoryChartbookId: filesChartbook?.chartbookId,
           selectedLibraryVersionIds: librarySelections.map(selection => selection.versionId),
           selectedCellIds: selectedCellsRef.current?.cellIds,
           selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
@@ -2461,6 +2463,8 @@ function DrawioPageContent() {
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined,
           conversationMessages: messages,
       });
+      // Uploads remain in the conversation catalog, but must not silently bind to the next turn.
+      setConversationAttachments([]);
 
       type ReviewStreamOutcome = {
         decision?: string;

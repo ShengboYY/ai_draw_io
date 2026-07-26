@@ -4,6 +4,7 @@ import org.zipp.ai.application.turn.DirectTurnHandler;
 import org.zipp.ai.application.turn.EvidenceAnswerTurnHandler;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.GroundedTurnHandler;
+import org.zipp.ai.application.turn.OptionalEnrichmentFallbackHandler;
 import org.zipp.ai.application.turn.SourceAwarePreparedExecution;
 import org.zipp.ai.application.turn.SourceAwarePreparationPort;
 import org.zipp.ai.application.turn.SourceExecutionBindingOutcome;
@@ -40,6 +41,7 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
     private final Optional<DirectTurnHandler> direct;
     private final Optional<GroundedTurnHandler> grounded;
     private final Optional<EvidenceAnswerTurnHandler> evidenceAnswer;
+    private final Optional<OptionalEnrichmentFallbackHandler> optionalFallback;
 
     public DefaultSourceAwareTurnExecution(
             SourceProbePort probe,
@@ -49,7 +51,8 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             SourceExecutionBindingPort sourceBinding,
             Optional<DirectTurnHandler> direct,
             Optional<GroundedTurnHandler> grounded,
-            Optional<EvidenceAnswerTurnHandler> evidenceAnswer
+            Optional<EvidenceAnswerTurnHandler> evidenceAnswer,
+            Optional<OptionalEnrichmentFallbackHandler> optionalFallback
     ) {
         this.probe = Objects.requireNonNull(probe, "probe");
         this.directPlanner = Objects.requireNonNull(directPlanner, "directPlanner");
@@ -59,6 +62,7 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
         this.direct = Objects.requireNonNull(direct, "direct");
         this.grounded = Objects.requireNonNull(grounded, "grounded");
         this.evidenceAnswer = Objects.requireNonNull(evidenceAnswer, "evidenceAnswer");
+        this.optionalFallback = Objects.requireNonNull(optionalFallback, "optionalFallback");
     }
 
     @Override
@@ -86,8 +90,16 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
                     "USER", attempt.key().ownerKey(), prepared.context().request().diagramId(),
                     required.turn().canonicalConversationId(), required.turn().turnId()));
             SourcePlanDecision plan = plan(probeCommand, probeOutcome);
+            if (plan instanceof SourcePlanDecision.ProbeFallbackReady fallback) {
+                if (optionalFallback.isEmpty()) {
+                    return rejected(prepared.decision(), "OPTIONAL_FALLBACK_HANDLER_NOT_AVAILABLE");
+                }
+                return committed(optionalFallback.get().executeProbeFallback(
+                        attempt, prepared.context(), prepared.readSet(), fallback, events));
+            }
             if (!(plan instanceof SourcePlanDecision.SourceReady sourceReady)
                     && !(plan instanceof SourcePlanDecision.DirectOnlyReady directOnlyReady)
+                    && !(plan instanceof SourcePlanDecision.OptionalRetrievalReady optionalReady)
                     && !(plan instanceof SourcePlanDecision.RequiredSourceReady requiredReady
                     && requiredReady.bound() != null)) {
                 return rejected(prepared.decision(), rejectionCode(plan));
@@ -197,12 +209,6 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
         }
         if (decision instanceof SourcePlanDecision.NeedClarification clarification) {
             return clarification.code();
-        }
-        if (decision instanceof SourcePlanDecision.ProbeFallbackReady) {
-            return "SOURCE_AWARE_FALLBACK_NOT_EXECUTABLE";
-        }
-        if (decision instanceof SourcePlanDecision.OptionalRetrievalReady) {
-            return "OPTIONAL_RETRIEVAL_HANDLER_NOT_AVAILABLE";
         }
         return "SOURCE_AWARE_PLAN_NOT_EXECUTABLE";
     }

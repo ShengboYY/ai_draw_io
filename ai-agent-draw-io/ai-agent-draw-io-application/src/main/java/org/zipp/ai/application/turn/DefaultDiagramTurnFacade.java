@@ -96,6 +96,11 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
         TurnEngineAssignment assignment = admissionOutcome instanceof AdmissionWriteOutcome.Assigned assigned
                 ? assigned.assignment()
                 : ((AdmissionWriteOutcome.Reused) admissionOutcome).assignment();
+        if (assignment.selectedEngine() == SelectedTurnEngine.LEGACY) {
+            // The bridge has crossed the only assignment boundary. Do not create a V2 attempt
+            // for a key whose durable assignment requires V1 handling.
+            return new TurnSubmission.LegacyHandoff(key);
+        }
         String inputBindingDigest = TurnInputBindingDigestCalculator.current(command);
         trace.recordSafely(TurnLifecycleTraceEvent.of(
                 TurnLifecycleTraceType.ASSIGNMENT,

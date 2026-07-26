@@ -80,6 +80,7 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
         return DiagramConversationMessage.builder()
                 .userId(po.getUserId())
                 .diagramId(po.getDiagramId())
+                .turnId(po.getTurnId())
                 .sessionId(po.getSessionId())
                 .clientMessageId(po.getClientMessageId())
                 .role(po.getRole())
@@ -93,6 +94,7 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
         DiagramConversationMessagePO po = new DiagramConversationMessagePO();
         po.setUserId(message.getUserId());
         po.setDiagramId(message.getDiagramId());
+        po.setTurnId(message.getTurnId());
         po.setSessionId(message.getSessionId());
         if (conversationScopes != null) {
             // Messages without a legacy session still belong to the diagram's durable default conversation.

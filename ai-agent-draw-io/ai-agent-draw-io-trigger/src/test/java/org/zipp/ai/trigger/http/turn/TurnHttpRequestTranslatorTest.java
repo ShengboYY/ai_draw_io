@@ -3,6 +3,7 @@ package org.zipp.ai.trigger.http.turn;
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.application.turn.ReplyToClarification;
+import org.zipp.ai.application.turn.RememberDecisionDeclaration;
 import org.zipp.ai.application.turn.UserTurnCommand;
 
 import java.util.List;
@@ -61,5 +62,19 @@ class TurnHttpRequestTranslatorTest {
         UserTurnCommand command = new TurnHttpRequestTranslator().translateLegacy(request);
 
         assertEquals("legacy:conversation:opaque-session-value", command.conversationReference());
+    }
+
+    @Test
+    void explicitMemoryLanguageCreatesADeclaration() {
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setSessionId("session-1");
+        request.setRequestId("turn-1");
+        request.setResponseMessageId("client-1");
+        request.setDiagramId("diagram-1");
+        request.setMessage("记住这个决定：所有服务使用事件命名约定");
+
+        UserTurnCommand command = new TurnHttpRequestTranslator().translateLegacy(request);
+
+        assertEquals(RememberDecisionDeclaration.class, command.declarations().memoryWrite().getClass());
     }
 }

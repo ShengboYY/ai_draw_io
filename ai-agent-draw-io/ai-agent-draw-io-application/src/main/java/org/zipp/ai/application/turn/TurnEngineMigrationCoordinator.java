@@ -39,10 +39,10 @@ public final class TurnEngineMigrationCoordinator {
     ) {
         Objects.requireNonNull(expectedState, "expectedState");
         Objects.requireNonNull(targetMode, "targetMode");
-        if (targetMode == TurnEngineMode.RETIRED) {
-            // The v1 HTTP ingress is still active; retirement must remain unavailable until it
-            // is removed or explicitly routed through the V2 admission boundary.
-            return new MigrationModeSwitchOutcome.Rejected("LEGACY_INGRESS_NOT_REMOVED");
+        if (targetMode == TurnEngineMode.RETIRED && !retirement.readiness().safeToRetire()) {
+            // RETIRED removes only the legacy executor. V2 admission remains live after the
+            // durable inventory confirms there is no Legacy assignment left to hand off.
+            return new MigrationModeSwitchOutcome.Rejected("LEGACY_RETIREMENT_NOT_READY");
         }
         if (!isAllowedTransition(expectedState.mode(), targetMode)) {
             // Keep the cutover fail-closed even when a non-MySQL control port is composed.
@@ -86,6 +86,7 @@ public final class TurnEngineMigrationCoordinator {
         return current == target
                 || (current == TurnEngineMode.LEGACY && target == TurnEngineMode.V2_CANARY)
                 || (current == TurnEngineMode.V2_CANARY
-                && (target == TurnEngineMode.LEGACY || target == TurnEngineMode.ALL_V2));
+                && (target == TurnEngineMode.LEGACY || target == TurnEngineMode.ALL_V2))
+                || (current == TurnEngineMode.ALL_V2 && target == TurnEngineMode.RETIRED);
     }
 }

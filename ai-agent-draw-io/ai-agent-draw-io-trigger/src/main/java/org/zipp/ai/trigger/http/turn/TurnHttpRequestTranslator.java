@@ -3,6 +3,7 @@ package org.zipp.ai.trigger.http.turn;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.application.turn.ClarificationId;
 import org.zipp.ai.application.turn.ConversationReferenceResolver;
+import org.zipp.ai.application.turn.ExplicitMemoryDecision;
 import org.zipp.ai.application.turn.NoClarificationReply;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.ReplyToClarification;
@@ -28,7 +29,7 @@ public final class TurnHttpRequestTranslator {
                 required(request.content(), "content"),
                 request.runtimeSessionId(),
                 declarations(request.currentTurnAttachmentRefs(), request.clarificationId(),
-                        request.legacySelectedSourceIds()));
+                        request.legacySelectedSourceIds(), request.content()));
     }
 
     /**
@@ -51,13 +52,15 @@ public final class TurnHttpRequestTranslator {
                 required(clientMessageId, "clientMessageId"),
                 required(request.getMessage(), "content"),
                 sessionId,
-                declarations(List.of(), null, request.getSelectedLibraryVersionIds()));
+                declarations(request.getCurrentTurnAttachmentRefs(), null,
+                        request.getSelectedLibraryVersionIds(), request.getMessage()));
     }
 
     private TurnDeclarations declarations(
             List<String> attachmentRefs,
             String clarificationId,
-            List<String> legacySources
+            List<String> legacySources,
+            String requestContent
     ) {
         List<OpaqueConversationFileRef> attachments = attachmentRefs == null
                 ? List.of()
@@ -75,7 +78,10 @@ public final class TurnHttpRequestTranslator {
                         ? new NoClarificationReply()
                         : new ReplyToClarification(new ClarificationId(clarificationId)),
                 sources,
-                new org.zipp.ai.application.turn.NoMemoryWrite());
+                ExplicitMemoryDecision.fromUserContent(requestContent)
+                        .<org.zipp.ai.application.turn.MemoryWriteDeclaration>map(
+                                ExplicitMemoryDecision::declaration)
+                        .orElseGet(org.zipp.ai.application.turn.NoMemoryWrite::new));
     }
 
     private String canonicalizeLegacyReference(String sessionId) {

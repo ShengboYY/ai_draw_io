@@ -5,6 +5,7 @@ public sealed interface TurnSubmission
         TurnSubmission.TerminalReplay,
         TurnSubmission.TerminalUnavailable,
         TurnSubmission.AlreadyRunning,
+        TurnSubmission.LegacyHandoff,
         TurnSubmission.IdempotencyConflict,
         TurnSubmission.LegacyRetryExpired,
         TurnSubmission.AdmissionRejected,
@@ -33,6 +34,19 @@ public sealed interface TurnSubmission
     }
 
     record AlreadyRunning(TurnKey key, TurnStatusView status) implements TurnSubmission {
+    }
+
+    /**
+     * Admission has durably selected Legacy for this key. HTTP compatibility ingress must hand
+     * the request to V1 without claiming a V2 attempt, preserving the sticky assignment.
+     */
+    record LegacyHandoff(TurnKey key) implements TurnSubmission {
+
+        public LegacyHandoff {
+            if (key == null) {
+                throw new IllegalArgumentException("key must not be null");
+            }
+        }
     }
 
     record IdempotencyConflict(TurnKey key, String code) implements TurnSubmission {

@@ -118,7 +118,7 @@ class TurnEngineMigrationCoordinatorTest {
     }
 
     @Test
-    void refusesRetirementWhileLegacyIngressStillExists() {
+    void retiresLegacyOnlyAfterTheDurableGateIsClear() {
         List<String> calls = new ArrayList<>();
         TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
                 new RecordingBarrier(calls),
@@ -131,15 +131,16 @@ class TurnEngineMigrationCoordinatorTest {
                 new RecordingExpiry(calls, 0),
                 () -> new LegacyRetirementGatePort.LegacyRetirementReadiness(0, 0, 0, 0));
 
-        MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
-                MigrationModeSwitchOutcome.Rejected.class,
+        MigrationModeSwitchOutcome.Changed changed = assertInstanceOf(
+                MigrationModeSwitchOutcome.Changed.class,
                 coordinator.switchMode(
                         new MigrationStateSnapshot(3, TurnEngineMode.ALL_V2,
                                 Instant.parse("2026-07-26T00:00:00Z")),
                         TurnEngineMode.RETIRED));
 
-        assertEquals("LEGACY_INGRESS_NOT_REMOVED", rejected.code());
-        assertEquals(List.of(), calls);
+        assertEquals(TurnEngineMode.RETIRED, changed.state().mode());
+        assertEquals(List.of(
+                "pause", "backfill:100", "expire:100", "switch:ALL_V2->RETIRED", "resume"), calls);
     }
 
     @Test
@@ -160,7 +161,7 @@ class TurnEngineMigrationCoordinatorTest {
                                 Instant.parse("2026-07-26T00:00:00Z")),
                         TurnEngineMode.RETIRED));
 
-        assertEquals("LEGACY_INGRESS_NOT_REMOVED", rejected.code());
+        assertEquals("LEGACY_RETIREMENT_NOT_READY", rejected.code());
         assertEquals(List.of(), calls);
     }
 

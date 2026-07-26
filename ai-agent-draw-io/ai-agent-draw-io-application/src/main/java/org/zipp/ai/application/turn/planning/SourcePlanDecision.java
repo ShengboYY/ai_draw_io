@@ -12,10 +12,22 @@ public sealed interface SourcePlanDecision
         SourcePlanDecision.NeedClarification,
         SourcePlanDecision.PlanningBlocked {
 
-    record OptionalRetrievalReady(OptionalRetrievalDrawPlan plan) implements SourcePlanDecision {
+    /**
+     * Optional discovery still needs a frozen retrieval graph before evidence preparation. The
+     * fallback remains on the companion plan and is used only when the signed branch cannot run.
+     */
+    record OptionalRetrievalReady(
+            OptionalRetrievalDrawPlan plan,
+            BoundSourcePlan bound
+    ) implements SourcePlanDecision {
         public OptionalRetrievalReady {
-            if (plan == null) {
-                throw new IllegalArgumentException("Optional Retrieval plan must not be null");
+            if (plan == null || bound == null
+                    || !(bound.plan() instanceof SourceAwareDrawPlan.Retrieval)
+                    || !bound.identity().lineage().equals(plan.lineage())
+                    || !((SourceAwareDrawPlan.Retrieval) bound.plan()).retrieval().stream()
+                    .map(RetrievalCandidateFact::candidateRef)
+                    .toList().equals(plan.candidateRefs())) {
+                throw new IllegalArgumentException("Optional Retrieval plan must be frozen");
             }
         }
     }

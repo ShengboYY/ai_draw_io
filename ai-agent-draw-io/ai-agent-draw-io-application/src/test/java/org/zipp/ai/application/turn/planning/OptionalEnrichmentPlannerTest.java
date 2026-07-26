@@ -73,6 +73,11 @@ class OptionalEnrichmentPlannerTest {
 
         assertEquals(List.of("source-v1"), ready.plan().candidateRefs());
         assertEquals(command.validatedProbeFallback(), ready.plan().validatedFallback());
+        SourceAwareDrawPlan.Retrieval retrieval = assertInstanceOf(
+                SourceAwareDrawPlan.Retrieval.class, ready.bound().plan());
+        assertEquals(List.of("source-v1"), retrieval.retrieval().stream()
+                .map(RetrievalCandidateFact::candidateRef).toList());
+        assertEquals(command.binding().lineage(), ready.bound().identity().lineage());
     }
 
     @ParameterizedTest

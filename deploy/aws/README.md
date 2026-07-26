@@ -72,6 +72,12 @@ aws ecr create-repository \
   --image-tag-mutability IMMUTABLE \
   --image-scanning-configuration scanOnPush=true \
   --region "$AWS_REGION"
+
+aws ecr create-repository \
+  --repository-name ai-drawio-db-migrate \
+  --image-tag-mutability IMMUTABLE \
+  --image-scanning-configuration scanOnPush=true \
+  --region "$AWS_REGION"
 ```
 
 登录 ECR：

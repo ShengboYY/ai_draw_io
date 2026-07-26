@@ -3,6 +3,7 @@ package org.zipp.ai.trigger.http.turn;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -11,11 +12,15 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.ConversationReferenceResolver;
-import org.zipp.ai.application.turn.TurnEngineMigrationStatePort;
-import org.zipp.ai.application.turn.TurnEngineMode;
+import org.zipp.ai.application.turn.ExplicitMemoryDecision;
+import org.zipp.ai.application.turn.PersistedTurnOutcome;
+import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
 import org.zipp.ai.application.turn.TurnSubmission;
+import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
+import org.zipp.ai.application.memory.MemoryProposalCommand;
+import org.zipp.ai.application.memory.MemoryProposalService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
@@ -23,7 +28,6 @@ import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.api.dto.ChatResponseDTO;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -37,7 +41,11 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 @ConditionalOnProperty(name = "turn-engine.http.v1-v2-bridge.enabled", havingValue = "true")
-@ConditionalOnBean({TurnHttpDeliveryAdapter.class, TurnHttpControlAdapter.class})
+@ConditionalOnBean({
+        TurnHttpDeliveryAdapter.class,
+        TurnHttpControlAdapter.class,
+        TurnAttemptExecutionRunner.class
+})
 public final class LegacyTurnV2IngressBridge {
 
     private static final MediaType NDJSON = MediaType.parseMediaType("application/x-ndjson");
@@ -45,56 +53,43 @@ public final class LegacyTurnV2IngressBridge {
 
     private final TurnHttpDeliveryAdapter delivery;
     private final TurnHttpControlAdapter control;
-    private final TurnEngineMigrationStatePort migrationState;
-    private final org.zipp.ai.application.turn.TurnEngineCohortSelector cohortSelector;
     private final ICanvasStateStore canvases;
     private final IDiagramConversationStore messages;
+    private final ObjectProvider<MemoryProposalService> memoryProposals;
     private final long timeoutMillis;
 
     public LegacyTurnV2IngressBridge(
             TurnHttpDeliveryAdapter delivery,
             TurnHttpControlAdapter control,
-            TurnEngineMigrationStatePort migrationState,
-            org.zipp.ai.application.turn.TurnEngineCohortSelector cohortSelector,
             ICanvasStateStore canvases,
             IDiagramConversationStore messages,
+            ObjectProvider<MemoryProposalService> memoryProposals,
             @Value("${turn-engine.http.v1-v2-bridge.timeout-millis:60000}") long timeoutMillis
     ) {
         this.delivery = Objects.requireNonNull(delivery, "delivery");
         this.control = Objects.requireNonNull(control, "control");
-        this.migrationState = Objects.requireNonNull(migrationState, "migrationState");
-        this.cohortSelector = Objects.requireNonNull(cohortSelector, "cohortSelector");
         this.canvases = Objects.requireNonNull(canvases, "canvases");
         this.messages = Objects.requireNonNull(messages, "messages");
+        this.memoryProposals = Objects.requireNonNull(memoryProposals, "memoryProposals");
         if (timeoutMillis < 1_000L) {
             throw new IllegalArgumentException("timeoutMillis must be at least one second");
         }
         this.timeoutMillis = timeoutMillis;
     }
 
-    public boolean handles(String ownerKey) {
-        if (ownerKey == null || ownerKey.isBlank()) {
-            return false;
-        }
-        TurnEngineMode mode = migrationState.current().mode();
-        return switch (mode) {
-            case ALL_V2, RETIRED -> true;
-            case V2_CANARY -> cohortSelector.select(ownerKey)
-                    == org.zipp.ai.application.turn.SelectedTurnEngine.V2;
-            case LEGACY -> false;
-        };
-    }
-
-    public ChatResponseDTO chat(
+    public ChatDispatch chat(
             String ownerKey,
             ChatRequestDTO request,
             String requestId,
             String runId
     ) {
-        return toChatResponse(execute(ownerKey, request, requestId, runId));
+        BridgeResult result = execute(ownerKey, request, requestId, runId);
+        return result.legacyHandoff()
+                ? new ChatDispatch(false, null)
+                : new ChatDispatch(true, toChatResponse(result));
     }
 
-    public void stream(
+    public boolean stream(
             String ownerKey,
             ChatRequestDTO request,
             String requestId,
@@ -103,6 +98,9 @@ public final class LegacyTurnV2IngressBridge {
     ) {
         try {
             BridgeResult result = execute(ownerKey, request, requestId, runId);
+            if (result.legacyHandoff()) {
+                return false;
+            }
             if (result.errorCode() != null) {
                 JSONObject chunk = new JSONObject();
                 chunk.put("type", "error");
@@ -139,6 +137,7 @@ public final class LegacyTurnV2IngressBridge {
         } catch (Exception failure) {
             emitter.completeWithError(failure);
         }
+        return true;
     }
 
     private BridgeResult execute(
@@ -151,36 +150,77 @@ public final class LegacyTurnV2IngressBridge {
         TurnHttpRequest canonical = canonicalRequest(request, requestId, runId);
         TurnHttpDeliveryResult deliveryResult = delivery.executeLegacySync(actor, request);
         TurnSubmission submission = deliveryResult.submission();
+        if (submission instanceof TurnSubmission.LegacyHandoff) {
+            return BridgeResult.forLegacyHandoff();
+        }
+        TurnKey key = submissionKey(submission);
+        PersistedTurnOutcome terminal;
         if (submission instanceof TurnSubmission.ExecutionAccepted
                 || submission instanceof TurnSubmission.AlreadyRunning) {
-            awaitTerminal(actor, canonical);
-        } else if (!(submission instanceof TurnSubmission.TerminalReplay)) {
+            terminal = awaitTerminalReplay(actor, request, canonical);
+        } else if (submission instanceof TurnSubmission.TerminalReplay replay) {
+            terminal = replay.outcome();
+        } else {
             return new BridgeResult(null, null, submissionCode(submission));
         }
-
-        String conversationReference = canonical.conversationReference();
-        List<DiagramConversationMessage> stored = messages.listMessages(
-                ownerKey, canonical.diagramId(), conversationReference);
-        String assistantMessage = stored.stream()
-                .filter(message -> "agent".equalsIgnoreCase(message.getRole()))
-                .map(DiagramConversationMessage::getContent)
-                .filter(value -> value != null && !value.isBlank())
-                .reduce((first, second) -> second)
-                .orElse(null);
-        CanvasState canvas = canvases.find(ownerKey, canonical.diagramId()).orElse(null);
-        return new BridgeResult(canvas, assistantMessage, null);
+        proposeExplicitMemory(request, canonical, key, terminal);
+        return terminalResult(ownerKey, canonical, terminal);
     }
 
-    private void awaitTerminal(AuthenticatedActor actor, TurnHttpRequest request) {
+    private void proposeExplicitMemory(
+            ChatRequestDTO request,
+            TurnHttpRequest canonical,
+            TurnKey turn,
+            PersistedTurnOutcome terminal
+    ) {
+        if (terminal.status() != TurnStatus.COMPLETED
+                || request.getMemoryChartbookId() == null || request.getMemoryChartbookId().isBlank()) {
+            return;
+        }
+        ExplicitMemoryDecision.fromUserContent(canonical.content()).ifPresent(decision -> {
+            MemoryProposalService service = memoryProposals.getIfAvailable();
+            if (service == null) {
+                return;
+            }
+            // Proposal failure must not rewrite a successfully committed turn response.
+            service.propose(new MemoryProposalCommand(
+                    turn,
+                    request.getMemoryChartbookId(),
+                    canonical.diagramId(),
+                    decision.candidateId(turn),
+                    decision.declarationDigest(),
+                    decision.declaration(),
+                    decision.decisionKey(),
+                    decision.applicabilityStage(),
+                    decision.canonicalText()));
+        });
+    }
+
+    private TurnKey submissionKey(TurnSubmission submission) {
+        if (submission instanceof TurnSubmission.ExecutionAccepted accepted) return accepted.key();
+        if (submission instanceof TurnSubmission.AlreadyRunning running) return running.status().key();
+        if (submission instanceof TurnSubmission.TerminalReplay replay) return replay.key();
+        throw new IllegalArgumentException("V2 submission key is unavailable");
+    }
+
+    private PersistedTurnOutcome awaitTerminalReplay(
+            AuthenticatedActor actor,
+            ChatRequestDTO request,
+            TurnHttpRequest canonical
+    ) {
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
         while (System.nanoTime() < deadline) {
             TurnStatusQueryOutcome outcome = control.status(actor,
                     new TurnHttpControlRequest(
-                            request.turnId(), request.conversationReference(), request.diagramId()));
+                            canonical.turnId(), canonical.conversationReference(), canonical.diagramId()));
             if (outcome instanceof TurnStatusQueryOutcome.Available available) {
                 if (available.status().status() != TurnStatus.RUNNING
                         && available.status().status().isTerminal()) {
-                    return;
+                    TurnSubmission replay = delivery.executeLegacySync(actor, request).submission();
+                    if (replay instanceof TurnSubmission.TerminalReplay terminalReplay) {
+                        return terminalReplay.outcome();
+                    }
+                    throw new IllegalStateException("TURN_TERMINAL_REPLAY_UNAVAILABLE");
                 }
             } else if (outcome instanceof TurnStatusQueryOutcome.TerminalUnavailable unavailable) {
                 throw new IllegalStateException(unavailable.code());
@@ -195,6 +235,37 @@ public final class LegacyTurnV2IngressBridge {
             }
         }
         throw new IllegalStateException("TURN_V2_BRIDGE_TIMEOUT");
+    }
+
+    private BridgeResult terminalResult(
+            String ownerKey,
+            TurnHttpRequest canonical,
+            PersistedTurnOutcome terminal
+    ) {
+        if (terminal.status() != TurnStatus.COMPLETED) {
+            return new BridgeResult(null, null, terminal.terminalCode());
+        }
+        DiagramConversationMessage assistant = messages.listMessages(
+                        ownerKey, canonical.diagramId(), canonical.conversationReference())
+                .stream()
+                .filter(message -> "agent".equalsIgnoreCase(message.getRole()))
+                .filter(message -> canonical.turnId().equals(message.getTurnId()))
+                .reduce((first, second) -> second)
+                .orElse(null);
+        if (assistant == null) {
+            return new BridgeResult(null, null, "TURN_TERMINAL_MESSAGE_UNAVAILABLE");
+        }
+        JSONObject payload = JSON.parseObject(terminal.terminalPayloadJson());
+        Long canvasVersion = payload == null ? null : payload.getLong("canvasVersionAfter");
+        if (canvasVersion == null) {
+            return new BridgeResult(null, assistant.getContent(), null);
+        }
+        CanvasState canvas = canvases.find(ownerKey, canonical.diagramId()).orElse(null);
+        if (canvas == null || canvas.getVersion() != canvasVersion) {
+            // Never substitute a later canvas for the one committed by this turn.
+            return new BridgeResult(null, null, "TURN_TERMINAL_CANVAS_UNAVAILABLE");
+        }
+        return new BridgeResult(canvas, assistant.getContent(), null);
     }
 
     private TurnHttpRequest canonicalRequest(ChatRequestDTO request, String requestId, String runId) {
@@ -214,7 +285,7 @@ public final class LegacyTurnV2IngressBridge {
                 clientMessageId,
                 required(request.getMessage(), "content"),
                 session,
-                List.of(),
+                request.getCurrentTurnAttachmentRefs(),
                 null,
                 request.getSelectedLibraryVersionIds());
     }
@@ -263,6 +334,22 @@ public final class LegacyTurnV2IngressBridge {
         return value;
     }
 
-    private record BridgeResult(CanvasState canvas, String assistantMessage, String errorCode) {
+    public record ChatDispatch(boolean handled, ChatResponseDTO response) {
+    }
+
+    private record BridgeResult(
+            CanvasState canvas,
+            String assistantMessage,
+            String errorCode,
+            boolean legacyHandoff
+    ) {
+
+        private BridgeResult(CanvasState canvas, String assistantMessage, String errorCode) {
+            this(canvas, assistantMessage, errorCode, false);
+        }
+
+        private static BridgeResult forLegacyHandoff() {
+            return new BridgeResult(null, null, null, true);
+        }
     }
 }

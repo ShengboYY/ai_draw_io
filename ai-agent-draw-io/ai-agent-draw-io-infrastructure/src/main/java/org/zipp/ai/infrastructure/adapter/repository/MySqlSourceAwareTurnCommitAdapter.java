@@ -493,13 +493,19 @@ public class MySqlSourceAwareTurnCommitAdapter
             long canvasVersionBefore,
             long canvasVersionAfter
     ) {
-        String payloadJson = JSON.toJSONString(Map.of(
+        Map<String, Object> payload = new java.util.LinkedHashMap<>(Map.of(
                 "responseMessageId", responseMessageId,
                 "planFingerprint", binding.planIdentity().planFingerprint(),
                 "sourceSnapshotRef", binding.sourceSnapshotRef(),
                 "snapshotBindingDigest", binding.snapshotBindingDigest(),
                 "executionEntryId", binding.executionEntryId(),
                 "payloadRef", payloadRef));
+        if (!"evidence_answer".equals(payloadType)) {
+            // Text answers do not mutate a canvas and must not cause the bridge to return one.
+            payload.put("canvasVersionBefore", canvasVersionBefore);
+            payload.put("canvasVersionAfter", canvasVersionAfter);
+        }
+        String payloadJson = JSON.toJSONString(payload);
         TurnKey key = attempt.key();
         requireOne(jdbc.update(
                 COMMIT_EXECUTION,

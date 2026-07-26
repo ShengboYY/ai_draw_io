@@ -29,6 +29,10 @@ public class ChatRequestDTO {
     private String directConfirmationSourceVersionId;
     // Library choices declare available immutable versions; routing still decides whether to use them.
     private java.util.List<String> selectedLibraryVersionIds;
+    // Exact conversation upload ids attached to this user message; never inferred from prior turns.
+    private java.util.List<String> currentTurnAttachmentRefs;
+    // Present only when the explicit Memory action belongs to an active Chartbook.
+    private String memoryChartbookId;
     private java.util.List<String> selectedCellIds;
     private Long selectionCanvasVersion;
     private String selectionContentHash;

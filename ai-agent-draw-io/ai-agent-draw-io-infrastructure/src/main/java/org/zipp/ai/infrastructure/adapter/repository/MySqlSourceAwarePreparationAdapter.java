@@ -80,6 +80,7 @@ public final class MySqlSourceAwarePreparationAdapter implements SourceAwarePrep
     private BoundSourcePlan bound(SourcePlanDecision decision) {
         if (decision instanceof SourcePlanDecision.SourceReady ready) return ready.bound();
         if (decision instanceof SourcePlanDecision.DirectOnlyReady ready) return ready.bound();
+        if (decision instanceof SourcePlanDecision.OptionalRetrievalReady ready) return ready.bound();
         if (decision instanceof SourcePlanDecision.RequiredSourceReady ready) return ready.bound();
         return null;
     }

@@ -170,7 +170,8 @@ public class MySqlTurnEngineAssignmentAdapter
             case V2_CANARY -> selectedEngine == SelectedTurnEngine.LEGACY
                     || selectedEngine == SelectedTurnEngine.V2;
             case ALL_V2 -> selectedEngine == SelectedTurnEngine.V2;
-            case RETIRED -> false;
+            // RETIRED means V1 has been removed; all new assignments remain V2.
+            case RETIRED -> selectedEngine == SelectedTurnEngine.V2;
         };
     }
 
