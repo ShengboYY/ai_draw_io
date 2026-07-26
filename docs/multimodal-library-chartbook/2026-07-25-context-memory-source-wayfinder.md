@@ -358,6 +358,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本补充修正 submission-only stream 的真实实现边界：`TurnV2HttpController` 不再把执行进度事件接到已承诺只发送 submission 的 `ResponseBodyEmitter`，而是通过同一 `TurnDeliveryExecutor` 使用丢弃 progress 的 submission-only sink；因此快速执行不会把 progress 行混入 submission envelope，慢执行也不会在 emitter 完成后继续写入。执行、durable status/cancel 与断流不取消语义保持不变；`NdjsonTurnEventSink` 仍保留给需要真实 NDJSON 事件订阅的 adapter contract。本补充没有 schema 变化，也没有执行 migration。
 
+本补充收紧 V2 serving 的 bootstrap 前提：`TurnV2HttpController` 除显式 `turn-engine.http.v2.enabled=true` 外，还要求 isolated `TurnAttemptExecutionRunner` 已由完整 V2 execution graph 组合；配置误开但 runner 缺失时不注册 route，避免 durable claim 后留下无人执行的 `RUNNING` attempt。新增 annotation contract test；legacy controller、assignment selection、production cohort 与数据库 schema 均未改变，本补充没有执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

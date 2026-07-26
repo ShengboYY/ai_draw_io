@@ -1,6 +1,7 @@
 package org.zipp.ai.trigger.http.turn;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusQuery;
 import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
 import org.zipp.ai.application.turn.TurnStatusView;
+import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 import org.zipp.ai.trigger.http.CurrentOwnerHttpResolver;
 import org.zipp.ai.domain.account.model.valobj.ResolvedOwner;
 
@@ -97,6 +99,15 @@ class TurnV2HttpControllerTest {
         assertEquals("turn-engine.http.v2.enabled", condition.name()[0]);
         assertEquals("true", condition.havingValue());
         assertFalse(condition.matchIfMissing());
+    }
+
+    @Test
+    void controllerRequiresTheIsolatedExecutionRunner() {
+        ConditionalOnBean condition = TurnV2HttpController.class
+                .getAnnotation(ConditionalOnBean.class);
+
+        assertNotNull(condition);
+        assertEquals(TurnAttemptExecutionRunner.class, condition.value()[0]);
     }
 
     static class FakeOwnerResolver extends CurrentOwnerHttpResolver {
