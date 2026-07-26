@@ -944,7 +944,7 @@ Context/Memory boundary gate 已完成，durable read-set 是 takeover/restart �
 ## delivery-plan: Convert Resolved Decisions Into Small Commits
 
 Blocked by: docs-reconciliation, turn-lifecycle-evals, legacy-retirement, plain-boundary-evals, source-aware-boundary-evals, context-memory-evals, memory-automation
-Status: open
+Status: resolved
 Type: Task
 
 ### Question
@@ -953,20 +953,17 @@ Type: Task
 
 ### Answer
 
-Pending. 固定交付顺序：
+交付顺序已落地为“可独立回滚的实现 commit”与“只能按门禁激活的发布顺序”两层，未采用一次大重构：
 
-0. H0：先把 legacy source resolve/freeze 移到 existing Router gate 后，恢复普通画图可用性。
-1. M0：正式 superseding ADR、术语、状态机、Source Demand/Optional Discovery 规则与多语言标注集。
-2. M1：application module、canonical conversation identity、sticky assignment、atomic claim/fencing、message attachment binding 与 terminal seams。
-3. M2：双模型路由/Resolver 骨架、Plain strong commit、source-free 物理隔离与零资料调用测试；production 仍全部 legacy。
-4. M3：durable Context/as-of history、consumer scope migration；M4–M5 完成 typed planning、conditional relevance Probe、Direct/Composite 与全部 strong commits。
-5. M6：all-path gates 通过后启用 stable `V2_CANARY`；canary 通过后 pause/drain 并原子切换 `ALL_V2`，同时统一 sync/stream outcome。
-6. M7–M9：Chartbook Profile、显式 confirmed Memory、自动 extraction shadow，以及三重 gate 后的 legacy retirement。
+1. H0/M0 先完成 superseding ADR、source-free containment 与 M1 review safety/release gates（`9b5fae3d`、`084cf3c5`、`a12a0567`）。
+2. M1 按 control plane → transport lifecycle → single-instance startup 分片（`1b17043f`、`f771e1cc`、`2734904a`、`cbd592d2`）；canonical identity、claim/fence、attachment binding 和 terminal seams 各有独立测试与回滚点。
+3. M2 先交付 isolated Plain generation/response/commit 与 source-free boundary（`dfdd373e`、`939714dc`、`bf617e8f`、`1c0ba263`、`a51473e8`），production assignment 继续保持 legacy。
+4. M3–M5 依次落 Context pin/rebuild、canonical scope migration、Chartbook Profile、typed source planning、optional signed fallback、Direct/Composite 和 source-aware strong commits（`e48b9f02`、`70bb5e0a`、`931ab2bf`、`90052728`、`0a67cfb8`、`799d43b0`、`0d630810`）。每个 source-aware commit 只接自己的 typed seam。
+5. M6–M9 的激活门禁按 `SourceAwareBoundary` → unified sync/stream outcome → stable `V2_CANARY` → guarded `ALL_V2` → retirement readiness 执行（`c2272719`、`51e718f3`、`c0196b5a`、`fdc15741`、`188848fe`）。
+6. Profile/confirmed Memory/shadow automation 与 receipt/context boundary 作为独立可禁用切片发布（`5b15f336`、`2262d205`、`dbf3aefc`、`8d4b093b`），不会扩大 source scope 或改变 Plain path。
 
-M6 mode switch 前按 high-water mark backfill retry-eligible legacy assignment，并为不可安全恢复的旧 key 写 Gone tombstone。
+发布前每个切片必须通过对应 Maven/isolated evaluation、sync/stream contract、合法 flag 组合和部署 smoke；数据库变更使用 ordered release manifest 与 immutable migration image（已验证的 `release-20260729`、`release-20260730`、`release-20260731`），按 predecessor/checksum gate 顺序执行，重复运行必须幂等跳过。
 
-switch 后无 assignment 的旧请求返回 410；只有无旧证据的 key 才能作为 unseen V2。
+激活顺序固定为：先保持旧 assignment 兼容 → stable canary → pause/drain 后 `V2_CANARY → ALL_V2` → 最终 scanner/readiness gate 后 `ALL_V2 → RETIRED`。M6 mode switch 前按 DB high-water mark backfill retry-eligible legacy assignment，并为不可安全恢复的旧 key 写 Gone tombstone；旧 key 继续返回 `410 LEGACY_RETRY_EXPIRED`，无旧证据的 key 才能作为 unseen V2。
 
-M9 删除 legacy executor 前必须同时满足 inventory、migration retry horizon 与 tombstone retention gate。
-
-每个切片必须包含 migration、合法 flag 组合、isolated eval/rollback、同步/流式测试和部署 smoke，不能以一次大重构交付。
+回滚边界同样固定：`V2_CANARY` 可回到 `LEGACY`；禁止绕过 canary 直接 `LEGACY → ALL_V2`；`ALL_V2` 后不接受旧 assignment 创建路径；`RETIRED` 后禁止回到旧 mode，只能使用兼容当前 migration generation 的 artifact。每个阶段的状态、migration checksum、测试结果和 commit hash 均记录在本 Wayfinder 及对应 release manifest 中。
