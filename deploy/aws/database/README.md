@@ -53,3 +53,10 @@ Run the same image a second time against that database. It must verify all three
 9. Deploy the backend with the `migration-completed` database gate. Set `TURN_ENGINE_LIFECYCLE_ENABLED=true` only after the `20260729` task succeeds; then deploy the frontend.
 
 Do not start the ECS service deployment if the migration task fails.
+
+The lifecycle composition also has an explicit, one-shot startup migration hook:
+
+- Keep `TURN_ENGINE_MIGRATION_STARTUP_TARGET_MODE` empty for ordinary starts.
+- Only set it while operating exactly one instance that already holds the singleton lock and has passed orphan repair; the runner performs the durable backfill, expiry scan, and compare-and-switch under the admission drain.
+- An invalid target or rejected durable transition fails startup instead of serving with a partially applied migration.
+- M1 deliberately rejects `V2_CANARY` until stable cohort selection and the later all-path gates exist; this hook does not bypass that restriction.

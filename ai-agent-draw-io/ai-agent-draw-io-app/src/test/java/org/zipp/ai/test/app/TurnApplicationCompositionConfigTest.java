@@ -45,6 +45,8 @@ import org.zipp.ai.trigger.http.turn.TurnHttpDeliveryAdapter;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -99,6 +101,31 @@ class TurnApplicationCompositionConfigTest {
             assertThat(reconciler.calls).isEqualTo(1);
             assertThat(context.getBean(org.zipp.ai.application.turn.TurnAdmissionGate.class).isOpen()).isTrue();
         });
+    }
+
+    @Test
+    void doesNotRunMigrationWithoutAnExplicitStartupTarget() {
+        contextRunner.run(context -> {
+            context.getBean(org.springframework.boot.ApplicationRunner.class)
+                    .run(new org.springframework.boot.DefaultApplicationArguments());
+
+            FakeMigrationControl migration = context.getBean(FakeMigrationControl.class);
+            assertThat(migration.commands).isEmpty();
+        });
+    }
+
+    @Test
+    void runsExplicitStartupMigrationOnlyAfterAdmissionStartup() {
+        contextRunner.withPropertyValues("turn-engine.migration.startup-target-mode=ALL_V2")
+                .run(context -> {
+                    context.getBean(org.springframework.boot.ApplicationRunner.class)
+                            .run(new org.springframework.boot.DefaultApplicationArguments());
+
+                    FakeMigrationControl migration = context.getBean(FakeMigrationControl.class);
+                    assertThat(migration.commands).singleElement()
+                            .extracting(MigrationModeSwitchCommand::targetMode)
+                            .isEqualTo(TurnEngineMode.ALL_V2);
+                });
     }
 
     @Test
@@ -179,9 +206,15 @@ class TurnApplicationCompositionConfigTest {
     }
 
     private static final class FakeMigrationControl implements TurnEngineMigrationControlPort {
+        private final List<MigrationModeSwitchCommand> commands = new ArrayList<>();
+
         @Override
         public MigrationModeSwitchOutcome switchMode(MigrationModeSwitchCommand command) {
-            return new MigrationModeSwitchOutcome.Rejected("TEST_ONLY");
+            commands.add(command);
+            return new MigrationModeSwitchOutcome.Changed(new MigrationStateSnapshot(
+                    command.expectedGeneration() + 1,
+                    command.targetMode(),
+                    Instant.parse("2026-07-26T00:00:00Z")));
         }
     }
 

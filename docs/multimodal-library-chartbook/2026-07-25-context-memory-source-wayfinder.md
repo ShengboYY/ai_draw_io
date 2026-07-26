@@ -371,7 +371,7 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
-Status: in progress
+Status: resolved
 Type: Task
 
 ### Question
@@ -400,6 +400,8 @@ DB singleton lock、启动 orphan reconciler、application admission gate 以及
 drain/backfill 失败时保持旧 mode 并恢复 admission；singleton lock 丢失时关闭 admission、标记 not-ready 并终止进程。
 
 若未来允许实例重叠或水平扩容，本票的简化 profile 失效，必须恢复 distributed migration protocol。
+
+本轮收口生产组合：`TurnApplicationCompositionConfig` 的 startup runner 仍默认只执行 singleton lock → orphan repair → open admission；只有显式设置 `TURN_ENGINE_MIGRATION_STARTUP_TARGET_MODE` 时，才在同一 runner 中调用 `TurnEngineMigrationCoordinator`，由 admission drain 包住 retry backfill、expiry tombstone scanner 和 durable generation/mode CAS。目标 mode 非法或 durable transition rejected 会抛出启动失败，避免半迁移实例继续 serving；`V2_CANARY` 仍由 M1 明确拒绝，不绕过 stable cohort。数据库 migration 没有新增；部署手册已记录该 one-shot hook。composition 5/5、application migration/admission 13/13、真实 MySQL infrastructure 56/56 通过。
 
 ## all-path-v2-canary: Run A Sticky All-Path Canary
 
