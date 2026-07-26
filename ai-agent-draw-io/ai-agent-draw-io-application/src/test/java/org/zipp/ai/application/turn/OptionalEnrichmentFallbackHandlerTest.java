@@ -170,6 +170,7 @@ class OptionalEnrichmentFallbackHandlerTest {
                 SourceDemandKind.OPTIONAL_DISCOVERY, List.of(), "login architecture");
         return (SourceProbeCommand.OptionalDiscovery) SourceProbeCommand.from(
                 new PrePlanOutcome.SourcePlanningRequired(
+                        new TurnKey("owner-1", "conversation-1", "turn-1"),
                         new CurrentInstruction("draw a login flow"),
                         new SemanticIntent(
                                 SemanticAction.CREATE,

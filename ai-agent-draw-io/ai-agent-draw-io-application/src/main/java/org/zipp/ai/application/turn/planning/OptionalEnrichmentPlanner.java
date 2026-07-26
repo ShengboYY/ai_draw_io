@@ -29,15 +29,20 @@ public final class OptionalEnrichmentPlanner {
         }
 
         SourceProbeOutcome.Available available = (SourceProbeOutcome.Available) outcome;
+        java.util.List<String> candidateRefs = retrievalCandidates(
+                command.binding(), available.availability());
+        if (candidateRefs == null) {
+            return new SourcePlanDecision.PlanningBlocked("INVARIANT_BREACH", false);
+        }
         if (command instanceof SourceProbeCommand.OptionalDiscovery optional) {
             return new SourcePlanDecision.OptionalRetrievalReady(
                     new OptionalRetrievalDrawPlan(
-                            available.candidateRefs(),
+                            candidateRefs,
                             optional.validatedProbeFallback(),
                             command.binding().lineage()));
         }
         return new SourcePlanDecision.RequiredSourceReady(
-                available.candidateRefs(), command.binding().lineage());
+                candidateRefs, command.binding().lineage());
     }
 
     private FallbackReason fallbackReason(SourceProbeOutcome.Unavailability reason) {
@@ -45,5 +50,20 @@ public final class OptionalEnrichmentPlanner {
             case NO_MATCH -> FallbackReason.SOURCE_NO_MATCH;
             case TIMEOUT, DEPENDENCY_UNAVAILABLE -> FallbackReason.SOURCE_UNAVAILABLE;
         };
+    }
+
+    private java.util.List<String> retrievalCandidates(
+            SourceProbeBinding binding,
+            SourceAvailability availability
+    ) {
+        if (!(availability instanceof SourceAvailability.SingleRole single)
+                || !(single.role() instanceof RoleAvailability.RetrievalAvailable retrieval)
+                || retrieval.candidates().stream()
+                .anyMatch(candidate -> !binding.equals(candidate.binding()))) {
+            return null;
+        }
+        return retrieval.candidates().stream()
+                .map(RetrievalCandidateFact::candidateRef)
+                .toList();
     }
 }

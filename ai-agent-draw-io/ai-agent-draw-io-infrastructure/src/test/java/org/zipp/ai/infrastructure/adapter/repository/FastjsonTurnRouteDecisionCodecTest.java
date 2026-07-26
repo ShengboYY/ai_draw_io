@@ -65,6 +65,8 @@ class FastjsonTurnRouteDecisionCodecTest {
                 "architecture");
         TurnRouteDecision original = new TurnRouteDecision.SourcePlanning(
                 new PrePlanOutcome.SourcePlanningRequired(
+                        new org.zipp.ai.application.turn.TurnKey(
+                                "owner-1", "conversation-1", "turn-1"),
                         new CurrentInstruction("draw from the architecture"),
                         new SemanticIntent(
                                 SemanticAction.EDIT,

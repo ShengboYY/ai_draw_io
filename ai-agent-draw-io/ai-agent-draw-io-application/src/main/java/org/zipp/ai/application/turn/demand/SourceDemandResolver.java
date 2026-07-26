@@ -57,8 +57,8 @@ public final class SourceDemandResolver {
                 java.util.Optional.ofNullable(typed.relevanceQuery()))) {
             return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
         }
-        if (typed.kind() == SourceDemandKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED) {
-            if (typed.relevanceQuery() != null) {
+        if (usesCurrentMessageAttachments(typed.kind())) {
+            if (!validAttachmentQuery(typed)) {
                 return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
             }
             if (!policy.acceptedRequiredConfidence().contains(typed.evidence().confidence())) {
@@ -71,8 +71,17 @@ public final class SourceDemandResolver {
                     .containsAll(typed.attachmentRefs())) {
                 return clarification("ATTACHMENT_REFERENT", DemandResolutionCode.ATTACHMENT_NOT_BOUND_TO_MESSAGE);
             }
+            if (isComposite(typed.kind()) && input.chartbookMembership().isEmpty()) {
+                if (typed.kind()
+                        == SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_REQUIRED) {
+                    return clarification(
+                            "COMPOSITE_RETRIEVAL_SCOPE",
+                            DemandResolutionCode.CLARIFICATION_REQUIRED);
+                }
+            }
             return new ResolvedSourceDemand(
-                    new AcceptedSourceDemand(typed.kind(), typed.attachmentRefs(), null),
+                    new AcceptedSourceDemand(
+                            typed.kind(), typed.attachmentRefs(), typed.relevanceQuery()),
                     append(verified,
                             new DemandResolutionReason(3, DemandResolutionCode.ATTACHMENT_BINDING_VERIFIED),
                             new DemandResolutionReason(4, DemandResolutionCode.REQUIRED_PROPOSAL_ACCEPTED)));
@@ -101,6 +110,22 @@ public final class SourceDemandResolver {
                 new AcceptedSourceDemand(typed.kind(), List.of(), typed.relevanceQuery()),
                 append(verified,
                         new DemandResolutionReason(5, DemandResolutionCode.OPTIONAL_DISCOVERY_ACCEPTED)));
+    }
+
+    private boolean usesCurrentMessageAttachments(SourceDemandKind kind) {
+        return kind != SourceDemandKind.OPTIONAL_DISCOVERY;
+    }
+
+    private boolean isComposite(SourceDemandKind kind) {
+        return kind == SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL
+                || kind == SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_REQUIRED;
+    }
+
+    private boolean validAttachmentQuery(TypedSourceDemandProposal proposal) {
+        if (isComposite(proposal.kind())) {
+            return proposal.relevanceQuery() != null && !proposal.relevanceQuery().isBlank();
+        }
+        return proposal.relevanceQuery() == null;
     }
 
     private ProposalEvidence evidenceOf(SourceDemandProposal proposal) {

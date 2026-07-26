@@ -8,6 +8,7 @@ import org.zipp.ai.application.turn.PlainDrawAction;
 import org.zipp.ai.application.turn.PlainDrawPlan;
 import org.zipp.ai.application.turn.PlainResponseKind;
 import org.zipp.ai.application.turn.PlainResponsePlan;
+import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.checkpoint.EncodedTurnRouteDecision;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCheckpoint;
 import org.zipp.ai.application.turn.checkpoint.TurnRouteDecisionCodec;
@@ -37,7 +38,7 @@ import java.util.Set;
 public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCodec {
 
     private static final String KIND = "TURN_ROUTE_V1";
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
     @Override
     public EncodedTurnRouteDecision encode(TurnRouteDecision decision) {
         if (decision == null) {
@@ -67,6 +68,9 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
             root.put("diagramType", value.intent().diagramType());
             root.put("skillName", value.intent().skillName());
             root.put("instruction", value.instruction().value());
+            root.put("ownerKey", value.turn().ownerKey());
+            root.put("conversationId", value.turn().canonicalConversationId());
+            root.put("turnId", value.turn().turnId());
             root.put("demandKind", value.accepted().kind().name());
             root.put("attachmentRefs", new JSONArray(value.accepted().attachmentRefs()));
             root.put("relevanceQuery", value.accepted().relevanceQuery() == null
@@ -99,7 +103,8 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
             throw new IllegalArgumentException("unknown route decision checkpoint kind");
         }
         JSONObject root = JSON.parseObject(checkpoint.decisionJson());
-        if (root == null || root.getIntValue("version") != VERSION
+        int version = root == null ? 0 : root.getIntValue("version");
+        if (root == null || version < 1 || version > VERSION
                 || !checkpoint.contextReadSetDigest().equals(root.getString("contextReadSetDigest"))
                 || !checkpoint.inputBindingDigest().equals(root.getString("inputBindingDigest"))) {
             throw new IllegalArgumentException("route decision checkpoint binding is invalid");
@@ -139,6 +144,10 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
             String contextDigest,
             String inputDigest
     ) {
+        // V1 source-planning payloads did not bind TurnKey and are unsafe to resume.
+        if (root.getIntValue("version") < 2) {
+            throw new IllegalArgumentException("source planning checkpoint TurnKey is unavailable");
+        }
         SemanticIntent intent = new SemanticIntent(
                 SemanticAction.valueOf(text(root, "action", 32)),
                 OutputIntent.valueOf(text(root, "outputIntent", 32)),
@@ -153,6 +162,10 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
                 relevanceQuery.isBlank() ? null : relevanceQuery);
         ResolvedSourceDemand demand = new ResolvedSourceDemand(accepted, reasons(root));
         return new TurnRouteDecision.SourcePlanning(new PrePlanOutcome.SourcePlanningRequired(
+                new TurnKey(
+                        text(root, "ownerKey", 256),
+                        text(root, "conversationId", 256),
+                        text(root, "turnId", 256)),
                 new CurrentInstruction(text(root, "instruction", 16_000)),
                 intent, demand, accepted, lineage, contextDigest, inputDigest));
     }

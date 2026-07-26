@@ -732,7 +732,7 @@ OPTIONAL 降级边界已按 closed algebra 落到 application contract：
 ## direct-composite-hardening: Finish Direct And Composite Boundaries
 
 Blocked by: source-execution-plan, optional-enrichment
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -741,23 +741,22 @@ Direct、Direct + Retrieval 和 EDIT 场景还需要哪些明确合同？
 
 ### Answer
 
-Pending. 至少覆盖：
+已把 Direct、Retrieval 与 Composite 从单一 attachment demand 拆为明确的 REQUIRED/OPTIONAL typed demand。所有 current-attachment demand 都必须通过 claim 保存的本轮 message binding；未随消息发送的 Conversation File 和历史图片不能成为 current-attachment referent。Direct v1 只允许 CREATE + REQUIRED，EDIT + Direct 在 Probe 前返回 `UNSUPPORTED_DIRECT_EDIT`。
 
-- 请求携带 `currentTurnAttachments`；claim 原子写 message binding，旧 Conversation 图片不再伪装成新附件；
-- 上传后未发送只有 Conversation File；只有随消息发送后才可成为 current-attachment Direct referent；
-- EDIT + DIRECT 不再静默降级；
-- Direct v1 只有 REQUIRED；Retrieval 拥有 REQUIRED/OPTIONAL policy；
-- 多图片 clarification 使用自然语言回复 + hidden clarification id，不提交 candidate/source mode 按钮；
-- Composite 的 role-aware Probe 只返回 `DirectRoleAvailable`、`RetrievalRoleAvailable` 或对应 `RoleUnavailable(reason)` 事实；
-- 只有 Planner 将 Retrieval reason 映射为 Optional fallback-eligible 后，才能把 direct-only entry 签入最终 `BoundSourcePlan`；
-- 全局 Probe 不可用、Direct unavailable、terminal 或 Required conflict 均停止；
-- handler 必须 transport-agnostic；M5 保留现有 delivery 行为，并完成真实 VLM/S3 保存、导出、重开 smoke。
+`SourceProbeCommand` 现在携带 TurnKey、planning lineage、完整 declaration/context/input digest，并按 Direct、Retrieval、Optional Composite、Required Composite 分型。Probe outcome 使用 role-aware availability；每个 Direct/Retrieval candidate fact 都回显同一 binding，Direct candidate 还原子携带 origin、observation fingerprint 与 clarification ref。角色交换、candidate binding 交换、terminal/cancel 和全局 Probe unavailable 均 fail closed。
 
-sync/stream outcome 的全量统一只在 M6 `unified-turn-delivery` 完成。
+`DirectCompositePlanner` 已实现：
 
-Direct 只注入 tool-free `DirectVisionPort` 与 `DirectGenerationPort`；Grounded/Evidence Answer 分别使用固定的 `GroundedGenerationPort`、`EvidenceAnswerGenerationPort`。
+- Direct 无候选返回 `DIRECT_SOURCE_MISSING`，多候选进入 `AMBIGUOUS_DIRECT_IMAGE` clarification；
+- Required Composite 缺任一角色均停止；
+- Optional Composite 只有在 Direct 已确定且 Retrieval reason 明确属于可降级集合时，才签发 package-issued `ValidatedDirectOnlyFallback`；
+- primary 与 direct-only execution entry 共享不可重算的 `SourcePlanIdentity`，post-Probe fallback 只能消费原始 `BoundSourcePlan` 中已签名分支。
 
-这些 port 的 application factory 不接收动态 tool registry。恶意图片/文档内容不能让模型取得 Source、Material、Retrieval、Memory-management 或任意跨路径工具。
+多图片 clarification 合同采用自然语言回复 + hidden clarification id；`ClarificationReplyResolutionPort` 要求 durable authority 逐值验证 TurnKey、option、set digest、candidate 与 expiry，不暴露 source mode 按钮。Direct、Grounded、Evidence Answer 分别只依赖固定的 `DirectVisionPort`、`DirectGenerationPort`、`GroundedGenerationPort`、`EvidenceAnswerGenerationPort`，application API 不接收动态 tool registry；Evidence Answer 固定 `aiKnowledgeAllowed=false`。
+
+新增矩阵测试覆盖 Direct hit/no-match/ambiguity、Optional/Required Composite role availability、signed fallback、plan identity、terminal/global failure、swapped role/binding、EDIT + Direct、current-message binding 和 tool-free generation boundary。完整 Maven reactor 通过（1723 项，0 failures，9 skipped）；本票没有新增或执行数据库 migration，production assignment 仍保持 legacy。
+
+本票只完成 source-aware planning/boundary contract。Direct/Grounded/Evidence Answer 的真实 strong commit、durable clarification row 写入、isolated VLM/S3 保存/导出/重开 smoke 由下一票 `source-aware-commit-seams` 完成；sync/stream outcome 的全量统一仍只在 M6 `unified-turn-delivery` 完成。
 
 ## source-aware-commit-seams: Implement M5 Strong Commits
 

@@ -13,15 +13,20 @@ public sealed interface SourceProbeOutcome
 
     record Available(
             SourceProbeBinding binding,
-            List<String> candidateRefs
+            SourceAvailability availability
     ) implements SourceProbeOutcome {
         public Available {
-            if (binding == null || candidateRefs == null || candidateRefs.isEmpty()
-                    || candidateRefs.stream().anyMatch(value -> value == null || value.isBlank())
-                    || candidateRefs.stream().distinct().count() != candidateRefs.size()) {
-                throw new IllegalArgumentException("Probe candidates must be unique and non-empty");
+            if (binding == null || availability == null) {
+                throw new IllegalArgumentException("Probe availability values must not be null");
             }
-            candidateRefs = List.copyOf(candidateRefs);
+        }
+
+        /** Compatibility constructor for the Optional Retrieval slice. */
+        public Available(SourceProbeBinding binding, List<String> candidateRefs) {
+            this(binding, new SourceAvailability.SingleRole(
+                    new RoleAvailability.RetrievalAvailable(candidateRefs.stream()
+                            .map(value -> new RetrievalCandidateFact(binding, value))
+                            .toList())));
         }
     }
 

@@ -81,7 +81,7 @@ class OptionalEnrichmentPlannerTest {
         SourceProbeCommand.Required command = assertInstanceOf(
                 SourceProbeCommand.Required.class,
                 SourceProbeCommand.from(
-                        requirement(SourceDemandKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED)));
+                        requirement(SourceDemandKind.CURRENT_MESSAGE_RETRIEVAL_REQUIRED)));
 
         assertInstanceOf(SourcePlanDecision.PlanningBlocked.class,
                 planner.plan(command,
@@ -95,7 +95,11 @@ class OptionalEnrichmentPlannerTest {
         SourceProbeCommand command =
                 SourceProbeCommand.from(requirement(SourceDemandKind.OPTIONAL_DISCOVERY));
         SourceProbeBinding wrongBinding = new SourceProbeBinding(
-                LINEAGE, "d".repeat(64), INPUT_DIGEST);
+                command.binding().turn(),
+                LINEAGE,
+                command.binding().declarationDigest(),
+                "d".repeat(64),
+                INPUT_DIGEST);
 
         SourcePlanDecision.PlanningBlocked mismatch = assertInstanceOf(
                 SourcePlanDecision.PlanningBlocked.class,
@@ -116,6 +120,8 @@ class OptionalEnrichmentPlannerTest {
                 ? new AcceptedSourceDemand(kind, List.of(), "login architecture")
                 : new AcceptedSourceDemand(kind, List.of("file-1"), null);
         return new PrePlanOutcome.SourcePlanningRequired(
+                new org.zipp.ai.application.turn.TurnKey(
+                        "owner-1", "conversation-1", "turn-1"),
                 new CurrentInstruction("draw a login flow"),
                 new SemanticIntent(
                         SemanticAction.CREATE,

@@ -3,6 +3,7 @@ package org.zipp.ai.application.turn.planning;
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.application.turn.PlainDrawAction;
 import org.zipp.ai.application.turn.PlainResponseKind;
+import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.classification.OutputIntent;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanFactory;
 import org.zipp.ai.application.turn.classification.SemanticAction;
@@ -32,6 +33,7 @@ class PrePlannerContractTest {
 
     private static final String CONTEXT_DIGEST = "a".repeat(64);
     private static final String INPUT_DIGEST = "b".repeat(64);
+    private static final TurnKey TURN = new TurnKey("owner-1", "conversation-1", "turn-1");
 
     @Test
     void noSourceCreateBecomesTheOnlyPlainRoute() {
@@ -45,7 +47,7 @@ class PrePlannerContractTest {
         PrePlanOutcome.SourceFreeReady ready = assertInstanceOf(
                 PrePlanOutcome.SourceFreeReady.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
-                        classification, CONTEXT_DIGEST, INPUT_DIGEST));
+                        TURN, classification, CONTEXT_DIGEST, INPUT_DIGEST));
         assertEquals(PlainDrawAction.CREATE, ready.plan().action());
         assertInstanceOf(TurnRouteDecision.Plain.class,
                 new org.zipp.ai.application.turn.planning.DefaultTurnRouteDispatcher().dispatch(ready));
@@ -56,8 +58,8 @@ class PrePlannerContractTest {
         AcceptedSourceDemand accepted = new AcceptedSourceDemand(
                 SourceDemandKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED, List.of("file-1"), null);
         TurnClassification classification = classification(
-                new SemanticIntent(SemanticAction.EDIT, OutputIntent.DRAWING,
-                        TargetNeed.CANVAS_REQUIRED, "flowchart", "none"),
+                new SemanticIntent(SemanticAction.CREATE, OutputIntent.DRAWING,
+                        TargetNeed.NOT_REQUIRED, "flowchart", "none"),
                 new ResolvedSourceDemand(
                         accepted,
                         List.of(new DemandResolutionReason(4, DemandResolutionCode.REQUIRED_PROPOSAL_ACCEPTED))));
@@ -65,7 +67,7 @@ class PrePlannerContractTest {
         PrePlanOutcome.SourcePlanningRequired required = assertInstanceOf(
                 PrePlanOutcome.SourcePlanningRequired.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
-                        classification, CONTEXT_DIGEST, INPUT_DIGEST));
+                        TURN, classification, CONTEXT_DIGEST, INPUT_DIGEST));
         assertEquals(accepted, required.accepted());
         assertEquals("draw a flow", required.instruction().value());
         assertEquals(CONTEXT_DIGEST, required.contextReadSetDigest());
@@ -81,7 +83,7 @@ class PrePlannerContractTest {
         PrePlanOutcome.SourceFreeResponseReady ready = assertInstanceOf(
                 PrePlanOutcome.SourceFreeResponseReady.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
-                        classification, CONTEXT_DIGEST, INPUT_DIGEST));
+                        TURN, classification, CONTEXT_DIGEST, INPUT_DIGEST));
         assertEquals(PlainResponseKind.ANSWER, ready.plan().kind());
         assertInstanceOf(TurnRouteDecision.Response.class,
                 new DefaultTurnRouteDispatcher().dispatch(ready));
@@ -100,10 +102,10 @@ class PrePlannerContractTest {
 
         assertInstanceOf(PrePlanOutcome.NeedsClarification.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
-                        clarification, CONTEXT_DIGEST, INPUT_DIGEST));
+                        TURN, clarification, CONTEXT_DIGEST, INPUT_DIGEST));
         assertInstanceOf(PrePlanOutcome.Unavailable.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
-                        unavailable, CONTEXT_DIGEST, INPUT_DIGEST));
+                        TURN, unavailable, CONTEXT_DIGEST, INPUT_DIGEST));
     }
 
     @Test
@@ -116,7 +118,7 @@ class PrePlannerContractTest {
         PrePlanOutcome.Unsupported unsupported = assertInstanceOf(
                 PrePlanOutcome.Unsupported.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
-                        classification, CONTEXT_DIGEST, INPUT_DIGEST));
+                        TURN, classification, CONTEXT_DIGEST, INPUT_DIGEST));
         assertEquals("PLAIN_RESPONSE_ACTION_UNSUPPORTED", unsupported.code());
     }
 
@@ -132,9 +134,27 @@ class PrePlannerContractTest {
         PrePlanOutcome.Unsupported unsupported = assertInstanceOf(
                 PrePlanOutcome.Unsupported.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
-                        classification, CONTEXT_DIGEST, INPUT_DIGEST));
+                        TURN, classification, CONTEXT_DIGEST, INPUT_DIGEST));
 
         assertEquals("OPTIONAL_DISCOVERY_REQUIRES_PLAIN_DRAW", unsupported.code());
+    }
+
+    @Test
+    void editWithDirectStopsBeforeProbeInsteadOfBecomingPlainOrRetrieval() {
+        AcceptedSourceDemand accepted = new AcceptedSourceDemand(
+                SourceDemandKind.CURRENT_MESSAGE_DIRECT_REQUIRED,
+                List.of("file-1"), null);
+        TurnClassification classification = classification(
+                new SemanticIntent(SemanticAction.EDIT, OutputIntent.DRAWING,
+                        TargetNeed.CANVAS_REQUIRED, "flowchart", "none"),
+                new ResolvedSourceDemand(accepted, List.of()));
+
+        PrePlanOutcome.Unsupported unsupported = assertInstanceOf(
+                PrePlanOutcome.Unsupported.class,
+                new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
+                        TURN, classification, CONTEXT_DIGEST, INPUT_DIGEST));
+
+        assertEquals("UNSUPPORTED_DIRECT_EDIT", unsupported.code());
     }
 
     private TurnClassification classification(

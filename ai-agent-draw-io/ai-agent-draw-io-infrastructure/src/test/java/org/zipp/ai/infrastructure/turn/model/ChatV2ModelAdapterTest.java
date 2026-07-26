@@ -14,6 +14,7 @@ import org.zipp.ai.application.turn.classification.TargetNeed;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.demand.RestrictedSourceDemandInput;
 import org.zipp.ai.application.turn.demand.SourceDemandInterpreterUnavailable;
+import org.zipp.ai.application.turn.demand.SourceDemandKind;
 import org.zipp.ai.application.turn.demand.SourceDemandProposalReady;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
@@ -105,7 +106,7 @@ class ChatV2ModelAdapterTest {
                 Optional.of("chartbook-1"), Set.of("first"));
         demandInput = demandInput.withModelInputBinding(binding(demandInput.inputDigest()));
         RecordingChat chat = new RecordingChat(
-                "{\"demandKind\":\"CURRENT_MESSAGE_ATTACHMENTS_REQUIRED\","
+                "{\"demandKind\":\"CURRENT_MESSAGE_DIRECT_REQUIRED\","
                         + "\"confidence\":\"HIGH\",\"safeReason\":\"use the attached file\","
                         + "\"attachmentRefs\":[\"file-1\"],\"relevanceQuery\":null,"
                         + "\"inputDigest\":\"" + demandInput.inputDigest() + "\","
@@ -122,8 +123,10 @@ class ChatV2ModelAdapterTest {
                         Optional.of("chartbook-1"), Set.of("first"))
                         .withModelInputBinding(binding(demandInput.inputDigest()))));
 
-        assertEquals("file-1", ((org.zipp.ai.application.turn.demand.TypedSourceDemandProposal)
-                ready.proposal()).attachmentRefs().get(0));
+        var proposal = (org.zipp.ai.application.turn.demand.TypedSourceDemandProposal)
+                ready.proposal();
+        assertEquals("file-1", proposal.attachmentRefs().get(0));
+        assertEquals(SourceDemandKind.CURRENT_MESSAGE_DIRECT_REQUIRED, proposal.kind());
         assertTrue(chat.lastText.contains("CURRENT_MESSAGE_ATTACHMENT_REFS_DATA"));
         assertTrue(chat.lastText.contains("chartbook-1"));
         assertFalse(chat.lastText.contains("CONVERSATION_DATA"));

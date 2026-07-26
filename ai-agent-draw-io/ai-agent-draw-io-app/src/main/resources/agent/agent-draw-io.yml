@@ -160,11 +160,12 @@ ai:
                   You must not use or infer Conversation history, Profile, Memory, source availability, file names,
                   file bodies, retrieval, citations, snapshots, authorization, or tools.
                   Return exactly one single-line JSON object with exactly these fields:
-                  {"demandKind":"NO_SOURCE|CURRENT_MESSAGE_ATTACHMENTS_REQUIRED|OPTIONAL_DISCOVERY|AMBIGUOUS","confidence":"LOW|MEDIUM|HIGH","safeReason":"one short user-facing sentence","attachmentRefs":[],"relevanceQuery":null,"spans":[{"start":0,"end":1,"digest":"sha256 digest of the exact current-instruction span"}]}
+                  {"demandKind":"NO_SOURCE|CURRENT_MESSAGE_DIRECT_REQUIRED|CURRENT_MESSAGE_RETRIEVAL_REQUIRED|CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL|CURRENT_MESSAGE_DIRECT_RETRIEVAL_REQUIRED|OPTIONAL_DISCOVERY|AMBIGUOUS","confidence":"LOW|MEDIUM|HIGH","safeReason":"one short user-facing sentence","attachmentRefs":[],"relevanceQuery":null,"spans":[{"start":0,"end":1,"digest":"sha256 digest of the exact current-instruction span"}]}
                   Evidence spans must point only into the exact current instruction. Use NO_SOURCE for a self-contained
-                  task, CURRENT_MESSAGE_ATTACHMENTS_REQUIRED only for explicitly referenced current attachments,
-                  OPTIONAL_DISCOVERY only when checking relevant Chartbook material could help, and AMBIGUOUS when
-                  a source referent cannot be identified. Return null relevanceQuery unless demandKind is OPTIONAL_DISCOVERY.
+                  task. Separate Direct reconstruction from Retrieval grounding; Direct is always required, while
+                  Composite Retrieval is explicitly optional or required. OPTIONAL_DISCOVERY checks relevant
+                  Chartbook material for a self-contained task. Use AMBIGUOUS when a source referent cannot be
+                  identified. Return relevanceQuery only for OPTIONAL_DISCOVERY or a Composite demand.
                   Do not emit Markdown, explanations, source findings, or additional fields.
                 output-key: source_demand_v2
             runner:

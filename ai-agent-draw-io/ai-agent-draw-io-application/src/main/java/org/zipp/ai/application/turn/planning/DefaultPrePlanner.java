@@ -1,6 +1,7 @@
 package org.zipp.ai.application.turn.planning;
 
 import org.zipp.ai.application.turn.PlainDrawPlan;
+import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanDecision;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanFactory;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanReady;
@@ -45,10 +46,12 @@ public final class DefaultPrePlanner {
     }
 
     public PrePlanOutcome plan(
+            TurnKey turn,
             TurnClassification classification,
             String contextReadSetDigest,
             String inputBindingDigest
     ) {
+        Objects.requireNonNull(turn, "turn");
         Objects.requireNonNull(classification, "classification");
         PlanningLineageFingerprint lineage = PlanningLineageFingerprintCalculator.calculate(
                 classification, contextReadSetDigest, inputBindingDigest);
@@ -88,6 +91,15 @@ public final class DefaultPrePlanner {
                     contextReadSetDigest, inputBindingDigest);
         }
         if (resolved.decision() instanceof AcceptedSourceDemand accepted) {
+            if (usesDirect(accepted.kind())
+                    && classification.intent().action()
+                    != org.zipp.ai.application.turn.classification.SemanticAction.CREATE) {
+                String code = classification.intent().action()
+                        == org.zipp.ai.application.turn.classification.SemanticAction.EDIT
+                        ? "UNSUPPORTED_DIRECT_EDIT" : "DIRECT_ACTION_UNSUPPORTED";
+                return new PrePlanOutcome.Unsupported(
+                        code, lineage, contextReadSetDigest, inputBindingDigest);
+            }
             if (accepted.kind()
                     == org.zipp.ai.application.turn.demand.SourceDemandKind.OPTIONAL_DISCOVERY
                     && !supportsPlainFallback(classification)) {
@@ -96,7 +108,8 @@ public final class DefaultPrePlanner {
                         lineage, contextReadSetDigest, inputBindingDigest);
             }
             return new PrePlanOutcome.SourcePlanningRequired(
-                    classification.instruction(), classification.intent(), resolved, accepted, lineage,
+                    turn, classification.instruction(), classification.intent(),
+                    resolved, accepted, lineage,
                     contextReadSetDigest, inputBindingDigest);
         }
         AmbiguousSourceDemand ambiguous = (AmbiguousSourceDemand) resolved.decision();
@@ -120,6 +133,17 @@ public final class DefaultPrePlanner {
             case CREATE, EDIT, LAYOUT -> true;
             default -> false;
         };
+    }
+
+    private boolean usesDirect(org.zipp.ai.application.turn.demand.SourceDemandKind kind) {
+        return kind == org.zipp.ai.application.turn.demand.SourceDemandKind
+                .CURRENT_MESSAGE_ATTACHMENTS_REQUIRED
+                || kind == org.zipp.ai.application.turn.demand.SourceDemandKind
+                .CURRENT_MESSAGE_DIRECT_REQUIRED
+                || kind == org.zipp.ai.application.turn.demand.SourceDemandKind
+                .CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL
+                || kind == org.zipp.ai.application.turn.demand.SourceDemandKind
+                .CURRENT_MESSAGE_DIRECT_RETRIEVAL_REQUIRED;
     }
 
     private PrePlanOutcome.Unavailable unavailable(

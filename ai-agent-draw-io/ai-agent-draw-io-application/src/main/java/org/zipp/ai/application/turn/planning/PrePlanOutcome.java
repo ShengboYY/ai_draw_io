@@ -2,6 +2,7 @@ package org.zipp.ai.application.turn.planning;
 
 import org.zipp.ai.application.turn.PlainDrawPlan;
 import org.zipp.ai.application.turn.PlainResponsePlan;
+import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.classification.SemanticIntent;
 import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
 import org.zipp.ai.application.turn.demand.DemandResolutionReason;
@@ -51,6 +52,7 @@ public sealed interface PrePlanOutcome
     }
 
     record SourcePlanningRequired(
+            TurnKey turn,
             CurrentInstruction instruction,
             SemanticIntent intent,
             ResolvedSourceDemand demand,
@@ -60,7 +62,7 @@ public sealed interface PrePlanOutcome
             String inputBindingDigest
     ) implements PrePlanOutcome {
         public SourcePlanningRequired {
-            if (instruction == null || intent == null || demand == null
+            if (turn == null || instruction == null || intent == null || demand == null
                     || accepted == null || lineage == null) {
                 throw new IllegalArgumentException("source planning values must not be null");
             }

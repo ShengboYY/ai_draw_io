@@ -71,7 +71,8 @@ public final class DefaultTurnRouteComputer implements TurnRouteComputer {
         TurnClassificationOutcome classified = classification.classify(routerInput, demandInput);
         if (classified instanceof TurnClassificationReady ready) {
             PrePlanOutcome prePlan = prePlanner.plan(
-                    ready.classification(), readSet.digest(), attempt.inputBindingDigest());
+                    attempt.key(), ready.classification(),
+                    readSet.digest(), attempt.inputBindingDigest());
             return new TurnRouteComputationOutcome.Ready(dispatcher.dispatch(prePlan));
         }
         return unavailable(((org.zipp.ai.application.turn.classification.TurnClassificationUnavailable)

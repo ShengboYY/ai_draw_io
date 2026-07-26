@@ -114,6 +114,18 @@ public final class ChatSourceDemandInterpreterAdapter implements SourceDemandInt
             case "CURRENT_MESSAGE_ATTACHMENTS_REQUIRED" -> new TypedSourceDemandProposal(
                     SourceDemandKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED,
                     attachmentRefs, relevanceQuery.orElse(null), evidence, safeReason);
+            case "CURRENT_MESSAGE_DIRECT_REQUIRED" -> new TypedSourceDemandProposal(
+                    SourceDemandKind.CURRENT_MESSAGE_DIRECT_REQUIRED,
+                    attachmentRefs, relevanceQuery.orElse(null), evidence, safeReason);
+            case "CURRENT_MESSAGE_RETRIEVAL_REQUIRED" -> new TypedSourceDemandProposal(
+                    SourceDemandKind.CURRENT_MESSAGE_RETRIEVAL_REQUIRED,
+                    attachmentRefs, relevanceQuery.orElse(null), evidence, safeReason);
+            case "CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL" -> new TypedSourceDemandProposal(
+                    SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL,
+                    attachmentRefs, relevanceQuery.orElse(null), evidence, safeReason);
+            case "CURRENT_MESSAGE_DIRECT_RETRIEVAL_REQUIRED" -> new TypedSourceDemandProposal(
+                    SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_REQUIRED,
+                    attachmentRefs, relevanceQuery.orElse(null), evidence, safeReason);
             case "OPTIONAL_DISCOVERY" -> new TypedSourceDemandProposal(
                     SourceDemandKind.OPTIONAL_DISCOVERY,
                     attachmentRefs, relevanceQuery.orElse(null), evidence, safeReason);

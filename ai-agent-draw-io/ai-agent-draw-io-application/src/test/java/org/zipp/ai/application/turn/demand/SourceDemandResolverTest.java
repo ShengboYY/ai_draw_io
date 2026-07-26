@@ -67,6 +67,82 @@ class SourceDemandResolverTest {
     }
 
     @Test
+    void directAndRetrievalDemandsRemainDistinctAfterBindingValidation() {
+        RestrictedSourceDemandInput input = input(
+                "rebuild this image and use project facts",
+                List.of(new OpaqueConversationFileRef("file-1")),
+                Optional.of("chartbook-1"));
+        ProposalEvidence evidence = evidence(input, Optional.of("project facts"));
+
+        ResolvedSourceDemand resolved = assertInstanceOf(
+                ResolvedSourceDemand.class,
+                resolver.resolve(
+                        new TypedSourceDemandProposal(
+                                SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL,
+                                List.of("file-1"),
+                                "project facts",
+                                evidence,
+                                "重建附件并可选参考资料"),
+                        input,
+                        policy));
+
+        AcceptedSourceDemand accepted =
+                assertInstanceOf(AcceptedSourceDemand.class, resolved.decision());
+        assertEquals(SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL,
+                accepted.kind());
+        assertEquals("project facts", accepted.relevanceQuery());
+    }
+
+    @Test
+    void optionalCompositeWithoutChartbookRemainsCompositeUntilRoleAwareProbe() {
+        RestrictedSourceDemandInput input = input(
+                "rebuild this image and use project facts",
+                List.of(new OpaqueConversationFileRef("file-1")),
+                Optional.empty());
+        ProposalEvidence evidence = evidence(input, Optional.of("project facts"));
+
+        ResolvedSourceDemand resolved = assertInstanceOf(
+                ResolvedSourceDemand.class,
+                resolver.resolve(
+                        new TypedSourceDemandProposal(
+                                SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL,
+                                List.of("file-1"),
+                                "project facts",
+                                evidence,
+                                "重建附件并可选参考资料"),
+                        input,
+                        policy));
+
+        AcceptedSourceDemand accepted =
+                assertInstanceOf(AcceptedSourceDemand.class, resolved.decision());
+        assertEquals(SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_OPTIONAL, accepted.kind());
+        assertEquals(List.of("file-1"), accepted.attachmentRefs());
+    }
+
+    @Test
+    void requiredCompositeWithoutChartbookCannotDropRetrieval() {
+        RestrictedSourceDemandInput input = input(
+                "rebuild this image strictly using project facts",
+                List.of(new OpaqueConversationFileRef("file-1")),
+                Optional.empty());
+        ProposalEvidence evidence = evidence(input, Optional.of("project facts"));
+
+        NeedsSourceClarification clarification = assertInstanceOf(
+                NeedsSourceClarification.class,
+                resolver.resolve(
+                        new TypedSourceDemandProposal(
+                                SourceDemandKind.CURRENT_MESSAGE_DIRECT_RETRIEVAL_REQUIRED,
+                                List.of("file-1"),
+                                "project facts",
+                                evidence,
+                                "必须使用附件和项目资料"),
+                        input,
+                        policy));
+
+        assertEquals("COMPOSITE_RETRIEVAL_SCOPE", clarification.kind());
+    }
+
+    @Test
     void evidenceFromAnotherInstructionCannotBecomePlainOrSourceDemand() {
         RestrictedSourceDemandInput input = input("draw a login flow", List.of(), Optional.empty());
         CurrentInstruction other = new CurrentInstruction("use the specification");
