@@ -45,7 +45,11 @@ public final class ChatSemanticIntentRouterAdapter implements SemanticIntentRout
         }
         final String output;
         try {
-            output = model.invoke(renderer.render(input));
+            if (!input.modelInputBinding().isBound()
+                    || !input.modelInputBinding().inputDigest().equals(input.inputDigest())) {
+                return new SemanticIntentUnavailable("V2_SEMANTIC_ROUTER_MODEL_INPUT_INVALID");
+            }
+            output = model.invoke(input.modelInputBinding(), renderer.render(input));
         } catch (RuntimeException exception) {
             return new SemanticIntentUnavailable("V2_SEMANTIC_ROUTER_MODEL_UNAVAILABLE");
         }

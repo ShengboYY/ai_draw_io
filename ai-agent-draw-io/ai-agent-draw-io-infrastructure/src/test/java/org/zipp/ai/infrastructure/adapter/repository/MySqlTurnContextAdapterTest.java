@@ -17,6 +17,7 @@ import org.zipp.ai.application.turn.context.ContextCandidateLoadOutcome;
 import org.zipp.ai.application.turn.context.ContextMaterializationOutcome;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
+import org.zipp.ai.application.turn.context.ConversationContext;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -76,6 +77,32 @@ class MySqlTurnContextAdapterTest {
         assertInstanceOf(
                 ContextMaterializationOutcome.Retry.class,
                 changedAdapter.materialize(attempt, command, readSet));
+    }
+
+    @Test
+    void conversationContextIsRebuiltFromThePinnedMessageHighWater() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        ContextReadSet readSet = assertInstanceOf(
+                ContextCandidateLoadOutcome.Ready.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        executionRow(attempt), domainRow(2L, "canvas-hash", "<xml>"), List.of()))
+                        .loadCandidate(attempt, command)).value().readSet();
+        List<Map<String, Object>> messages = List.of(
+                values("role", "agent", "content", "flow created"),
+                values("role", "user", "content", "draw a flow"));
+
+        ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
+                ContextMaterializationOutcome.Ready.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        executionRow(attempt), domainRow(2L, "canvas-hash", "<xml>"), messages))
+                        .materialize(attempt, command, readSet));
+        AvailableContext<ConversationContext> conversation = assertInstanceOf(
+                AvailableContext.class, materialized.value().conversation());
+
+        assertEquals(List.of("user: draw a flow", "agent: flow created"),
+                conversation.value().recentTurns());
+        assertEquals("messageHighWater=4", conversation.value().summary().substring(0, 18));
     }
 
     @Test

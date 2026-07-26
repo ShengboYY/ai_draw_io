@@ -42,7 +42,7 @@ public final class ChatPlainGenerationAdapter implements PlainGenerationPort {
         }
         final String output;
         try {
-            output = model.invoke(renderer.render(request));
+            output = model.invoke(request.modelInputBinding(), renderer.render(request));
         } catch (RuntimeException exception) {
             throw new IllegalStateException("V2_PLAIN_MODEL_UNAVAILABLE", exception);
         }

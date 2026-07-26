@@ -43,6 +43,14 @@ public final class TurnClassificationService {
         if (!routerInput.instruction().digest().equals(demandInput.instruction().digest())) {
             return new TurnClassificationUnavailable("CLASSIFICATION_INPUT_DIGEST_MISMATCH");
         }
+        if (!routerInput.modelInputBinding().isBound()
+                || !demandInput.modelInputBinding().isBound()
+                || !routerInput.modelInputBinding().turnKey()
+                .equals(demandInput.modelInputBinding().turnKey())
+                || !routerInput.modelInputBinding().contextReadSetDigest()
+                .equals(demandInput.modelInputBinding().contextReadSetDigest())) {
+            return new TurnClassificationUnavailable("CLASSIFICATION_MODEL_INPUT_BINDING_INVALID");
+        }
 
         SemanticIntentOutcome intentOutcome = router.route(routerInput);
         if (intentOutcome instanceof SemanticIntentUnavailable unavailable) {

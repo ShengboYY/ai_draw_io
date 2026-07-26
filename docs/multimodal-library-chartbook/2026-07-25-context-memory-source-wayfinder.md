@@ -646,7 +646,7 @@ Type: Prototype
 ## session-continuity: Restore Model Context Across Restarts
 
 Blocked by: context-envelope, conversation-identity-foundation, turn-execution-control
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -655,18 +655,14 @@ Type: Prototype
 
 ### Answer
 
-Pending. 无论选择哪条路，都必须：
+已选择从 durable canonical Conversation 与 pinned ContextReadSet 重建模型上下文，不把 ADK session 持久化为历史 authority。V2 的 runtime session 每次模型调用 fresh 创建，前端继续使用 canonical `conversationReference`/`TurnKey` 和 status/replay contract；legacy HTTP 路径仍在 session 被替换时回写新的 `sessionId`，不会把 ephemeral V2 session id 当作下一轮的 scope。
 
-- 消除 UI 看得到历史但 Drawer 不记得的状态；
-- 将替换后的 backend session id 返回前端；
-- 限制 recent turns，并使用可重建、可失效的 summary 控制 token；
-- claim 固定 server message-sequence high-water；initial attempt/takeover 只能读取该 as-of 边界前的 history/summary；
-- Router 前 fenced-CAS immutable ContextReadSet，固定 membership、summary、Profile 与 exact Memory recall versions；
-- takeover 按 pin 重建；普通 edit/supersede 保留旧 version，hard delete/revocation fail closed；
-- 每次模型调用只接收 canonical rendered input、TurnKey、ContextReadSet digest 与 model-input schema；durable Conversation 始终是唯一历史 authority；
-- runtime session 必须 stateless，或把 actor/conversation/high-water/read-set/input digest 全部纳入 cache key；任一 mismatch 都丢弃 cache 并返回新 session id；
-- runtime 自动 history、tool state 与 primary branch session 不得进入下一 turn；重启/takeover 必须从同一 pinned facts 重建出相同实际 input digest；
-- 用后端重启 E2E 验证普通追问、编辑和 Evidence Answer 连续性。
+- `MySqlTurnContextAdapter` 只读取 `message_sequence <= attempt.contextMessageHighWater` 的 committed canonical messages，并限制 recent turns；`ConversationContextSummary` 从 pinned high-water 与 recent turns 纯函数重建，固定 digest、最新 turn 截断长度和 summary 上限。
+- existing `ContextReadSet` 仍由 fenced-CAS 固定 membership、summary、Profile 与 exact Memory recall pins；takeover 先按 checkpoint/read-set 重建，revoked/失效 pin 继续 fail closed。查询结果先复制为可逆列表，避免恢复时因不可变 JDBC 返回值导致反转失败。
+- `DefaultTurnRouteComputer` 为 Router 与 Demand projection 绑定同一 server-owned `TurnKey + ContextReadSet digest`，各自保留 projection digest；`TurnClassificationService` 和两个模型 adapter 对未绑定、跨 turn 或跨 read-set 输入直接拒绝。
+- `ModelInputBinding` schema 1 将 TurnKey、read-set digest、model input digest、rendered-input digest 与 canonical rendered input 组成 envelope。`ToolFreeChatModelInvoker` 每次用 fresh tool-free session，runtime 自动 history、tool state 和 primary branch session 不会流入下一 turn。
+- Plain generation/response 同样从 attempt/read-set 派生 binding。重启/接管的 contract test 验证相同 pinned facts 产生相同 summary/envelope，fresh session id 变化不会改变实际模型输入；完整真实进程重启 E2E 留作部署环境验收，不在本票据内引入运行中事件流恢复。
+- 本票据无需数据库 schema 变更：复用已有 canonical message、`context_message_high_water` 与 durable read-set checkpoint，因此没有新增或执行 migration。
 
 本票据只解决模型 Context 重建，不承担运行中事件流恢复。活动 turn 的 v1 恢复合同由 `turn-execution-control` 提供：RUNNING 查询、terminal replay，以及过期租约接管。
 

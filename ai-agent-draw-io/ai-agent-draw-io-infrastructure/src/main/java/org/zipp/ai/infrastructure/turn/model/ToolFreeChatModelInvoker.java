@@ -2,6 +2,7 @@ package org.zipp.ai.infrastructure.turn.model;
 
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.application.turn.ModelInputBinding;
 
 import java.util.List;
 import java.util.Objects;
@@ -25,8 +26,9 @@ public final class ToolFreeChatModelInvoker {
         }
     }
 
-    public String invoke(String prompt) {
-        String request = required(prompt, "prompt");
+    public String invoke(ModelInputBinding binding, String renderedInput) {
+        Objects.requireNonNull(binding, "binding");
+        String request = binding.envelope(required(renderedInput, "renderedInput"));
         String sessionId = chat.createSession(agentId, systemUserId);
         ChatCommandEntity command = ChatCommandEntity.builder()
                 .agentId(agentId)

@@ -17,4 +17,9 @@ public record PlainGenerationRequest(
             throw new IllegalArgumentException("plain generation request values must not be null");
         }
     }
+
+    public ModelInputBinding modelInputBinding() {
+        return ModelInputBinding.bound(
+                attempt.key(), readSet.digest(), ModelInputBinding.digestOf(plan.action().name(), plan.instruction()));
+    }
 }

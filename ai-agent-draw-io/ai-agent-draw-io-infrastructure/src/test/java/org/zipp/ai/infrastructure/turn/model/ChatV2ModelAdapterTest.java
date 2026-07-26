@@ -3,6 +3,8 @@ package org.zipp.ai.infrastructure.turn.model;
 import com.google.adk.events.Event;
 import io.reactivex.rxjava3.core.Flowable;
 import org.junit.jupiter.api.Test;
+import org.zipp.ai.application.turn.ModelInputBinding;
+import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.classification.OutputIntent;
 import org.zipp.ai.application.turn.classification.RouterContextView;
 import org.zipp.ai.application.turn.classification.SemanticAction;
@@ -30,6 +32,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ChatV2ModelAdapterTest {
 
     @Test
+    void modelInvokerRebuildsTheSameEnvelopeOnFreshSessions() {
+        RecordingChat chat = new RecordingChat("{}");
+        ToolFreeChatModelInvoker invoker = new ToolFreeChatModelInvoker(chat, "300023", "test-router");
+        ModelInputBinding binding = binding(ModelInputBinding.digestOf("router-projection"));
+
+        invoker.invoke(binding, "canonical rendered input");
+        String firstEnvelope = chat.lastText;
+        invoker.invoke(binding, "canonical rendered input");
+
+        assertEquals(2, chat.createSessionCalls);
+        assertEquals(2, chat.sessionIds.size());
+        assertFalse(chat.sessionIds.get(0).equals(chat.sessionIds.get(1)));
+        assertEquals(firstEnvelope, chat.lastText);
+        assertTrue(chat.lastText.contains("MODEL_INPUT_SCHEMA_VERSION"));
+        assertTrue(chat.lastText.contains("TURN_KEY_CONVERSATION"));
+        assertTrue(chat.lastText.contains("CONTEXT_READ_SET_DIGEST"));
+        assertTrue(chat.lastText.contains("RENDERED_INPUT_DIGEST"));
+    }
+
+    @Test
     void semanticRouterUsesFreshToolFreeInvocationAndStrictOutput() {
         RecordingChat chat = new RecordingChat(
                 "{\"action\":\"CREATE\",\"outputIntent\":\"DRAWING\","
@@ -38,12 +60,14 @@ class ChatV2ModelAdapterTest {
         ChatSemanticIntentRouterAdapter adapter = new ChatSemanticIntentRouterAdapter(
                 new ToolFreeChatModelInvoker(chat, "300023", "test-router"));
 
+        SemanticRouterInput routerInput = new SemanticRouterInput(
+                new CurrentInstruction("draw a flowchart"),
+                new RouterContextView(true, false, 1, true, true,
+                        "three nodes", List.of("previous"), "summary", "chartbook-1",
+                        "blue", "", "", List.of(), "", List.of("short labels")));
+        routerInput = routerInput.withModelInputBinding(binding(routerInput.inputDigest()));
         SemanticIntentReady ready = assertInstanceOf(SemanticIntentReady.class,
-                adapter.route(new SemanticRouterInput(
-                        new CurrentInstruction("draw a flowchart"),
-                        new RouterContextView(true, false, 1, true, true,
-                                "three nodes", List.of("previous"), "summary", "chartbook-1",
-                                "blue", "", "", List.of(), "", List.of("short labels")))));
+                adapter.route(routerInput));
 
         assertEquals(SemanticAction.CREATE, ready.intent().action());
         assertEquals(OutputIntent.DRAWING, ready.intent().outputIntent());
@@ -63,11 +87,13 @@ class ChatV2ModelAdapterTest {
         ChatSemanticIntentRouterAdapter adapter = new ChatSemanticIntentRouterAdapter(
                 new ToolFreeChatModelInvoker(chat, "300023", "test-router"));
 
+        SemanticRouterInput routerInput = new SemanticRouterInput(
+                new CurrentInstruction("draw"),
+                new RouterContextView(false, false, 0, false, false));
+        routerInput = routerInput.withModelInputBinding(binding(routerInput.inputDigest()));
         assertEquals("V2_SEMANTIC_ROUTER_OUTPUT_INVALID",
                 ((org.zipp.ai.application.turn.classification.SemanticIntentUnavailable)
-                        adapter.route(new SemanticRouterInput(
-                                new CurrentInstruction("draw"),
-                                new RouterContextView(false, false, 0, false, false)))).code());
+                        adapter.route(routerInput)).code());
     }
 
     @Test
@@ -77,6 +103,7 @@ class ChatV2ModelAdapterTest {
                 instruction,
                 List.of(new org.zipp.ai.application.turn.OpaqueConversationFileRef("file-1")),
                 Optional.of("chartbook-1"), Set.of("first"));
+        demandInput = demandInput.withModelInputBinding(binding(demandInput.inputDigest()));
         RecordingChat chat = new RecordingChat(
                 "{\"demandKind\":\"CURRENT_MESSAGE_ATTACHMENTS_REQUIRED\","
                         + "\"confidence\":\"HIGH\",\"safeReason\":\"use the attached file\","
@@ -92,7 +119,8 @@ class ChatV2ModelAdapterTest {
                 adapter.interpret(new RestrictedSourceDemandInput(
                         instruction,
                         List.of(new org.zipp.ai.application.turn.OpaqueConversationFileRef("file-1")),
-                        Optional.of("chartbook-1"), Set.of("first"))));
+                        Optional.of("chartbook-1"), Set.of("first"))
+                        .withModelInputBinding(binding(demandInput.inputDigest()))));
 
         assertEquals("file-1", ((org.zipp.ai.application.turn.demand.TypedSourceDemandProposal)
                 ready.proposal()).attachmentRefs().get(0));
@@ -114,10 +142,11 @@ class ChatV2ModelAdapterTest {
         ChatSourceDemandInterpreterAdapter adapter = new ChatSourceDemandInterpreterAdapter(
                 new ToolFreeChatModelInvoker(chat, "300024", "test-demand"));
 
+        RestrictedSourceDemandInput input = new RestrictedSourceDemandInput(
+                new CurrentInstruction("draw"), List.of(), Optional.empty(), Set.of());
         SourceDemandInterpreterUnavailable unavailable = assertInstanceOf(
                 SourceDemandInterpreterUnavailable.class,
-                adapter.interpret(new RestrictedSourceDemandInput(
-                        new CurrentInstruction("draw"), List.of(), Optional.empty(), Set.of())));
+                adapter.interpret(input.withModelInputBinding(binding(input.inputDigest()))));
         assertEquals("V2_SOURCE_DEMAND_OUTPUT_INVALID", unavailable.code());
     }
 
@@ -126,6 +155,7 @@ class ChatV2ModelAdapterTest {
         CurrentInstruction instruction = new CurrentInstruction("draw a flow");
         RestrictedSourceDemandInput input = new RestrictedSourceDemandInput(
                 instruction, List.of(), Optional.empty(), Set.of());
+        input = input.withModelInputBinding(binding(input.inputDigest()));
         RecordingChat chat = new RecordingChat(
                 "{\"demandKind\":\"NO_SOURCE\",\"confidence\":\"HIGH\","
                         + "\"safeReason\":\"plain\",\"attachmentRefs\":[],"
@@ -155,6 +185,7 @@ class ChatV2ModelAdapterTest {
         private final String response;
         private String lastText;
         private int createSessionCalls;
+        private final List<String> sessionIds = new java.util.ArrayList<>();
         private boolean toolFree = true;
 
         private RecordingChat(String response) {
@@ -174,7 +205,9 @@ class ChatV2ModelAdapterTest {
         @Override
         public String createSession(String agentId, String userId) {
             createSessionCalls++;
-            return "fresh-session";
+            String sessionId = "fresh-session-" + createSessionCalls;
+            sessionIds.add(sessionId);
+            return sessionId;
         }
 
         @Override
@@ -202,5 +235,11 @@ class ChatV2ModelAdapterTest {
             lastText = command.getTexts().get(0).getMessage();
             return List.of(response);
         }
+    }
+
+    private static ModelInputBinding binding(String inputDigest) {
+        return ModelInputBinding.bound(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "a".repeat(64), inputDigest);
     }
 }

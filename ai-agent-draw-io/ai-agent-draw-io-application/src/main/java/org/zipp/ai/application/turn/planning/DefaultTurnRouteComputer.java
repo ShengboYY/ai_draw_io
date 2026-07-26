@@ -1,6 +1,7 @@
 package org.zipp.ai.application.turn.planning;
 
 import org.zipp.ai.application.turn.FencedAttempt;
+import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.application.turn.TurnFailureCode;
 import org.zipp.ai.application.turn.TurnInputBindingDigestCalculator;
 import org.zipp.ai.application.turn.UserTurnCommand;
@@ -59,8 +60,15 @@ public final class DefaultTurnRouteComputer implements TurnRouteComputer {
             return unavailable(TurnFailureCode.STALE_ATTEMPT.name());
         }
 
-        TurnClassificationOutcome classified = classification.classify(
-                routerProjector.forRouter(context), demandInputFactory.create(context));
+        var projectedRouter = routerProjector.forRouter(context);
+        var projectedDemand = demandInputFactory.create(context);
+        // Both model calls use one server-owned TurnKey/read-set pair, while retaining separate
+        // projection digests so a fresh session cannot reuse the other model's input.
+        var routerInput = projectedRouter.withModelInputBinding(ModelInputBinding.bound(
+                attempt.key(), readSet.digest(), projectedRouter.inputDigest()));
+        var demandInput = projectedDemand.withModelInputBinding(ModelInputBinding.bound(
+                attempt.key(), readSet.digest(), projectedDemand.inputDigest()));
+        TurnClassificationOutcome classified = classification.classify(routerInput, demandInput);
         if (classified instanceof TurnClassificationReady ready) {
             PrePlanOutcome prePlan = prePlanner.plan(
                     ready.classification(), readSet.digest(), attempt.inputBindingDigest());

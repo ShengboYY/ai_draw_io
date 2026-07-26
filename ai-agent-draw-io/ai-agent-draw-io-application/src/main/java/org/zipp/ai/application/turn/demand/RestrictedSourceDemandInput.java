@@ -1,6 +1,7 @@
 package org.zipp.ai.application.turn.demand;
 
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
+import org.zipp.ai.application.turn.ModelInputBinding;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -18,7 +19,8 @@ public record RestrictedSourceDemandInput(
         List<OpaqueConversationFileRef> currentMessageAttachments,
         Optional<String> chartbookMembership,
         Set<String> activeClarificationLabels,
-        String attachmentBindingDigest
+        String attachmentBindingDigest,
+        ModelInputBinding modelInputBinding
 ) {
 
     /** Compatibility constructor for callers that only have opaque attachment refs. */
@@ -29,13 +31,33 @@ public record RestrictedSourceDemandInput(
             Set<String> activeClarificationLabels
     ) {
         this(instruction, currentMessageAttachments, chartbookMembership, activeClarificationLabels,
-                digestOf(currentMessageAttachments));
+                digestOf(currentMessageAttachments), ModelInputBinding.unbound());
+    }
+
+    public RestrictedSourceDemandInput(
+            CurrentInstruction instruction,
+            List<OpaqueConversationFileRef> currentMessageAttachments,
+            Optional<String> chartbookMembership,
+            Set<String> activeClarificationLabels,
+            String attachmentBindingDigest
+    ) {
+        this(instruction, currentMessageAttachments, chartbookMembership, activeClarificationLabels,
+                attachmentBindingDigest, ModelInputBinding.unbound());
+    }
+
+    public RestrictedSourceDemandInput withModelInputBinding(ModelInputBinding binding) {
+        return new RestrictedSourceDemandInput(
+                instruction, currentMessageAttachments, chartbookMembership,
+                activeClarificationLabels, attachmentBindingDigest, binding);
     }
 
     public RestrictedSourceDemandInput {
         if (instruction == null || chartbookMembership == null || activeClarificationLabels == null
                 || attachmentBindingDigest == null || attachmentBindingDigest.isBlank()) {
             throw new IllegalArgumentException("restricted demand input values must not be null");
+        }
+        if (modelInputBinding == null) {
+            throw new IllegalArgumentException("model input binding must not be null");
         }
         currentMessageAttachments = List.copyOf(
                 currentMessageAttachments == null ? List.of() : currentMessageAttachments);

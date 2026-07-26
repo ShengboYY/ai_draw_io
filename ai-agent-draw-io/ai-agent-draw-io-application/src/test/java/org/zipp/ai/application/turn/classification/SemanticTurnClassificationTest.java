@@ -1,7 +1,9 @@
 package org.zipp.ai.application.turn.classification;
 
 import org.junit.jupiter.api.Test;
+import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
+import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.demand.Confidence;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.demand.CurrentInstructionSpan;
@@ -102,6 +104,27 @@ class SemanticTurnClassificationTest {
         assertEquals("CLASSIFICATION_INPUT_DIGEST_MISMATCH", unavailable.code());
     }
 
+    @Test
+    void routerAndDemandMustShareThePinnedReadSetIdentity() {
+        CurrentInstruction instruction = new CurrentInstruction("draw a flow");
+        SemanticRouterInput router = routerInput(instruction);
+        RestrictedSourceDemandInput demand = input(instruction, Optional.empty())
+                .withModelInputBinding(ModelInputBinding.bound(
+                        new TurnKey("owner-1", "conversation-1", "turn-1"),
+                        "b".repeat(64), input(instruction, Optional.empty()).inputDigest()));
+
+        TurnClassificationUnavailable unavailable = assertInstanceOf(
+                TurnClassificationUnavailable.class,
+                service(
+                        new SemanticIntentReady(new SemanticIntent(
+                                SemanticAction.CREATE, OutputIntent.DRAWING,
+                                TargetNeed.NOT_REQUIRED, "flowchart", "none")),
+                        new SourceDemandProposalReady(noSource(demand)))
+                        .classify(router, demand));
+
+        assertEquals("CLASSIFICATION_MODEL_INPUT_BINDING_INVALID", unavailable.code());
+    }
+
     private TurnClassificationService service(
             SemanticIntentOutcome intent,
             SourceDemandProposalOutcome proposal
@@ -114,7 +137,11 @@ class SemanticTurnClassificationTest {
     }
 
     private SemanticRouterInput routerInput(CurrentInstruction instruction) {
-        return new SemanticRouterInput(instruction, new RouterContextView(true, false, 0, false, false));
+        SemanticRouterInput input = new SemanticRouterInput(
+                instruction, new RouterContextView(true, false, 0, false, false));
+        return input.withModelInputBinding(ModelInputBinding.bound(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "a".repeat(64), input.inputDigest()));
     }
 
     private RestrictedSourceDemandInput input(
@@ -122,8 +149,11 @@ class SemanticTurnClassificationTest {
             Optional<String> membership,
             OpaqueConversationFileRef... attachments
     ) {
-        return new RestrictedSourceDemandInput(
+        RestrictedSourceDemandInput input = new RestrictedSourceDemandInput(
                 instruction, List.of(attachments), membership, Set.of());
+        return input.withModelInputBinding(ModelInputBinding.bound(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "a".repeat(64), input.inputDigest()));
     }
 
     private NoSourceDemandProposal noSource(RestrictedSourceDemandInput input) {

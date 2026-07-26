@@ -27,6 +27,7 @@ import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextReadSetMaterializerPort;
 import org.zipp.ai.application.turn.context.ContextSlice;
 import org.zipp.ai.application.turn.context.ContextSlicePin;
+import org.zipp.ai.application.turn.context.ConversationContextSummary;
 import org.zipp.ai.application.turn.context.ConversationContext;
 import org.zipp.ai.application.turn.context.CurrentMessageAttachmentView;
 import org.zipp.ai.application.turn.context.CurrentMessageAttachmentsContext;
@@ -343,12 +344,12 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             FencedAttempt attempt,
             UserTurnCommand command
     ) {
-        List<ConversationMessageRow> rows = jdbc.query(
+        List<ConversationMessageRow> rows = new ArrayList<>(jdbc.query(
                 SELECT_RECENT_MESSAGES,
                 (resultSet, rowNum) -> new ConversationMessageRow(
                         resultSet.getString("role"), resultSet.getString("content")),
                 attempt.key().ownerKey(), command.diagramId(), attempt.key().canonicalConversationId(),
-                attempt.contextMessageHighWater());
+                attempt.contextMessageHighWater()));
         if (rows.isEmpty()) {
             return new AbsentContext<>("NO_CANONICAL_MESSAGES_AT_HIGH_WATER");
         }
@@ -360,7 +361,9 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
         if (recentTurns.isEmpty()) {
             return new AbsentContext<>("NO_NONEMPTY_CANONICAL_MESSAGES_AT_HIGH_WATER");
         }
-        return new AvailableContext<>(new ConversationContext(recentTurns, ""),
+        return new AvailableContext<>(new ConversationContext(
+                recentTurns, ConversationContextSummary.rebuild(
+                        recentTurns, attempt.contextMessageHighWater())),
                 "diagram_conversation_message.canonical_high_water");
     }
 
