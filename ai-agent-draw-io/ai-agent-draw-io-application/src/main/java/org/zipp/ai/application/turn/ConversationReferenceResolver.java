@@ -23,17 +23,32 @@ public final class ConversationReferenceResolver {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(command, "command");
 
-        String reference = command.conversationReference();
+        return resolve(catalog, actor, command.conversationReference(), command.diagramId());
+    }
+
+    /** Resolves control-plane references without manufacturing a user-turn command. */
+    public ConversationRef resolve(
+            ConversationCatalogPort catalog,
+            AuthenticatedActor actor,
+            String conversationReference,
+            String diagramId
+    ) {
+        Objects.requireNonNull(catalog, "catalog");
+        Objects.requireNonNull(actor, "actor");
+        ContractValues.requiredText(conversationReference, "conversationReference");
+        ContractValues.requiredText(diagramId, "diagramId");
+
+        String reference = conversationReference;
         if (DEFAULT_REFERENCE.equals(reference)) {
-            return requireResolved(catalog.findOrCreateDefault(actor, command.diagramId()));
+            return requireResolved(catalog.findOrCreateDefault(actor, diagramId));
         }
         if (reference.startsWith(CANONICAL_PREFIX)) {
             return requireResolved(catalog.requireActiveBinding(
-                    actor, suffix(reference, CANONICAL_PREFIX), command.diagramId()));
+                    actor, suffix(reference, CANONICAL_PREFIX), diagramId));
         }
         if (reference.startsWith(LEGACY_PREFIX)) {
             return requireResolved(catalog.resolveLegacyAlias(
-                    actor, suffix(reference, LEGACY_PREFIX), command.diagramId()));
+                    actor, suffix(reference, LEGACY_PREFIX), diagramId));
         }
         throw new IllegalArgumentException("CONVERSATION_REFERENCE_AMBIGUOUS");
     }
