@@ -1,6 +1,7 @@
 package org.zipp.ai.application.turn.planning;
 
 import org.zipp.ai.application.turn.PlainDrawPlan;
+import org.zipp.ai.application.turn.PlainResponsePlan;
 import org.zipp.ai.application.turn.classification.SemanticIntent;
 import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
 import org.zipp.ai.application.turn.demand.DemandResolutionReason;
@@ -12,6 +13,7 @@ import java.util.List;
 
 public sealed interface PrePlanOutcome
         permits PrePlanOutcome.SourceFreeReady,
+        PrePlanOutcome.SourceFreeResponseReady,
         PrePlanOutcome.SourcePlanningRequired,
         PrePlanOutcome.NeedsClarification,
         PrePlanOutcome.Unsupported,
@@ -26,6 +28,21 @@ public sealed interface PrePlanOutcome
         public SourceFreeReady {
             if (plan == null || lineage == null) {
                 throw new IllegalArgumentException("source-free plan values must not be null");
+            }
+            PlanningContractValues.digest(contextReadSetDigest, "contextReadSetDigest");
+            PlanningContractValues.digest(inputBindingDigest, "inputBindingDigest");
+        }
+    }
+
+    record SourceFreeResponseReady(
+            PlainResponsePlan plan,
+            PlanningLineageFingerprint lineage,
+            String contextReadSetDigest,
+            String inputBindingDigest
+    ) implements PrePlanOutcome {
+        public SourceFreeResponseReady {
+            if (plan == null || lineage == null) {
+                throw new IllegalArgumentException("source-free response plan values must not be null");
             }
             PlanningContractValues.digest(contextReadSetDigest, "contextReadSetDigest");
             PlanningContractValues.digest(inputBindingDigest, "inputBindingDigest");

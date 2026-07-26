@@ -6,6 +6,8 @@ import com.alibaba.fastjson.JSONObject;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.PlainDrawAction;
 import org.zipp.ai.application.turn.PlainDrawPlan;
+import org.zipp.ai.application.turn.PlainResponseKind;
+import org.zipp.ai.application.turn.PlainResponsePlan;
 import org.zipp.ai.application.turn.checkpoint.EncodedTurnRouteDecision;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCheckpoint;
 import org.zipp.ai.application.turn.checkpoint.TurnRouteDecisionCodec;
@@ -47,6 +49,12 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
             common(root, "PLAIN", value.contextReadSetDigest(), value.inputBindingDigest(),
                     value.lineage());
             root.put("action", value.plan().action().name());
+            root.put("instruction", value.plan().instruction());
+        } else if (decision instanceof TurnRouteDecision.Response response) {
+            PrePlanOutcome.SourceFreeResponseReady value = response.value();
+            common(root, "PLAIN_RESPONSE", value.contextReadSetDigest(), value.inputBindingDigest(),
+                    value.lineage());
+            root.put("responseKind", value.plan().kind().name());
             root.put("instruction", value.plan().instruction());
         } else if (decision instanceof TurnRouteDecision.SourcePlanning sourcePlanning) {
             PrePlanOutcome.SourcePlanningRequired value = sourcePlanning.value();
@@ -100,6 +108,7 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
         String inputDigest = text(root, "inputBindingDigest", 64);
         return switch (route) {
             case "PLAIN" -> decodePlain(root, lineage, contextDigest, inputDigest);
+            case "PLAIN_RESPONSE" -> decodeResponse(root, lineage, contextDigest, inputDigest);
             case "SOURCE_PLANNING" -> decodeSourcePlanning(root, lineage, contextDigest, inputDigest);
             case "CLARIFICATION" -> decodeClarification(root, lineage, contextDigest, inputDigest);
             case "UNSUPPORTED" -> new TurnRouteDecision.Unsupported(new PrePlanOutcome.Unsupported(
@@ -143,6 +152,19 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
         ResolvedSourceDemand demand = new ResolvedSourceDemand(accepted, reasons(root));
         return new TurnRouteDecision.SourcePlanning(new PrePlanOutcome.SourcePlanningRequired(
                 intent, demand, accepted, lineage, contextDigest, inputDigest));
+    }
+
+    private TurnRouteDecision decodeResponse(
+            JSONObject root,
+            PlanningLineageFingerprint lineage,
+            String contextDigest,
+            String inputDigest
+    ) {
+        return new TurnRouteDecision.Response(new PrePlanOutcome.SourceFreeResponseReady(
+                new PlainResponsePlan(
+                        PlainResponseKind.valueOf(text(root, "responseKind", 32)),
+                        text(root, "instruction", 16_000)),
+                lineage, contextDigest, inputDigest));
     }
 
     private TurnRouteDecision decodeClarification(

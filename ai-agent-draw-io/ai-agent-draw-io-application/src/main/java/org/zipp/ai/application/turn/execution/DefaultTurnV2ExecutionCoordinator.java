@@ -2,6 +2,7 @@ package org.zipp.ai.application.turn.execution;
 
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
+import org.zipp.ai.application.turn.PlainResponseHandler;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.TurnFailureCode;
@@ -12,20 +13,22 @@ import org.zipp.ai.application.turn.planning.TurnRouteDecision;
 import java.util.Objects;
 
 /**
- * Isolated V2 execution seam. It is deliberately Plain-only until the source-aware handlers
- * acquire their own typed plans, snapshots, and strong commit ports.
+ * Isolated V2 execution seam. It dispatches only source-free drawing and response plans until
+ * source-aware handlers acquire their own typed plans, snapshots, and strong commit ports.
  */
 public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionCoordinator {
 
     private final TurnV2PreHandlerCoordinator preHandler;
     private final PlainDrawingHandler plain;
+    private final PlainResponseHandler response;
     private final TurnAttemptExecutionStatePort executionState;
 
     public DefaultTurnV2ExecutionCoordinator(
             TurnV2PreHandlerCoordinator preHandler,
             PlainDrawingHandler plain
     ) {
-        this(preHandler, plain, ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active());
+        this(preHandler, plain, null,
+                ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active());
     }
 
     public DefaultTurnV2ExecutionCoordinator(
@@ -33,8 +36,27 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
             PlainDrawingHandler plain,
             TurnAttemptExecutionStatePort executionState
     ) {
+        this(preHandler, plain, null, executionState);
+    }
+
+    public DefaultTurnV2ExecutionCoordinator(
+            TurnV2PreHandlerCoordinator preHandler,
+            PlainDrawingHandler plain,
+            PlainResponseHandler response
+    ) {
+        this(preHandler, plain, response,
+                ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active());
+    }
+
+    public DefaultTurnV2ExecutionCoordinator(
+            TurnV2PreHandlerCoordinator preHandler,
+            PlainDrawingHandler plain,
+            PlainResponseHandler response,
+            TurnAttemptExecutionStatePort executionState
+    ) {
         this.preHandler = Objects.requireNonNull(preHandler, "preHandler");
         this.plain = Objects.requireNonNull(plain, "plain");
+        this.response = response;
         this.executionState = Objects.requireNonNull(executionState, "executionState");
     }
 
@@ -58,6 +80,15 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
         }
         if (ready.decision() instanceof TurnRouteDecision.Plain) {
             return new TurnV2ExecutionOutcome.Committed(plain.execute(ready, events));
+        }
+        if (ready.decision() instanceof TurnRouteDecision.Response responseDecision
+                && response != null) {
+            return new TurnV2ExecutionOutcome.Committed(response.execute(
+                    attempt,
+                    ready.context(),
+                    ready.readSet(),
+                    responseDecision.value().plan(),
+                    events));
         }
         return new TurnV2ExecutionOutcome.NotDispatched(
                 ready.decision(), nonPlainCode(ready.decision()));
@@ -86,6 +117,9 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
     private String nonPlainCode(TurnRouteDecision decision) {
         if (decision instanceof TurnRouteDecision.SourcePlanning) {
             return "SOURCE_AWARE_HANDLER_NOT_AVAILABLE";
+        }
+        if (decision instanceof TurnRouteDecision.Response) {
+            return "PLAIN_RESPONSE_HANDLER_NOT_AVAILABLE";
         }
         if (decision instanceof TurnRouteDecision.Clarification) {
             // M1 has no durable clarification authority; reject explicitly until M4 adds it.

@@ -11,6 +11,9 @@ public final class DefaultTurnRouteDispatcher implements TurnRouteDispatcher {
         if (outcome instanceof PrePlanOutcome.SourceFreeReady ready) {
             return new TurnRouteDecision.Plain(ready);
         }
+        if (outcome instanceof PrePlanOutcome.SourceFreeResponseReady response) {
+            return new TurnRouteDecision.Response(response);
+        }
         if (outcome instanceof PrePlanOutcome.SourcePlanningRequired sourcePlanning) {
             return new TurnRouteDecision.SourcePlanning(sourcePlanning);
         }

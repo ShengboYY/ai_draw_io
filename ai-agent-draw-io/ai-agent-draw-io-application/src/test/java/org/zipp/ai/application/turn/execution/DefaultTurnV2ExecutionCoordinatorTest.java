@@ -10,6 +10,10 @@ import org.zipp.ai.application.turn.PlainDrawPlan;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
 import org.zipp.ai.application.turn.PlainExecutionProfile;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
+import org.zipp.ai.application.turn.PlainResponseGenerationResult;
+import org.zipp.ai.application.turn.PlainResponseHandler;
+import org.zipp.ai.application.turn.PlainResponseKind;
+import org.zipp.ai.application.turn.PlainResponsePlan;
 import org.zipp.ai.application.turn.TurnDeclarations;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnEventSink;
@@ -70,6 +74,41 @@ class DefaultTurnV2ExecutionCoordinatorTest {
 
         TurnV2ExecutionOutcome.Committed committed = assertInstanceOf(
                 TurnV2ExecutionOutcome.Committed.class, outcome);
+        assertInstanceOf(FencedCommitOutcome.Committed.class, committed.outcome());
+        assertEquals(1, generations.get());
+        assertEquals(1, commits.get());
+    }
+
+    @Test
+    void dispatchesSourceFreeResponseRoutesToTheResponseHandler() {
+        UserTurnCommand command = command("review the diagram");
+        FencedAttempt attempt = attempt(command);
+        BaseTurnContext context = context(command);
+        ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
+        AtomicInteger generations = new AtomicInteger();
+        AtomicInteger commits = new AtomicInteger();
+        PlainDrawingHandler plain = unusedPlainHandler();
+        PlainResponseHandler response = new PlainResponseHandler(
+                (request, events) -> {
+                    generations.incrementAndGet();
+                    return new PlainResponseGenerationResult("reviewed", "response-1");
+                },
+                commit -> {
+                    commits.incrementAndGet();
+                    return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
+                            TurnStatus.COMPLETED, "COMPLETED", "response", commit.payloadRef(), "{}"));
+                },
+                PlainExecutionProfile.m2SourceFree());
+
+        TurnV2ExecutionOutcome.Committed committed = assertInstanceOf(
+                TurnV2ExecutionOutcome.Committed.class,
+                new DefaultTurnV2ExecutionCoordinator(
+                        (ignoredAttempt, ignoredCommand) -> ready(
+                                attempt, context, readSet, responseDecision(readSet, attempt),
+                                checkpoint(readSet, attempt)),
+                        plain,
+                        response).execute(attempt, command, ignoredEvents()));
+
         assertInstanceOf(FencedCommitOutcome.Committed.class, committed.outcome());
         assertEquals(1, generations.get());
         assertEquals(1, commits.get());
@@ -186,6 +225,22 @@ class DefaultTurnV2ExecutionCoordinatorTest {
                 new PlanningLineageFingerprint("b".repeat(64)),
                 readSet.digest(),
                 attempt.inputBindingDigest()));
+    }
+
+    private static TurnRouteDecision responseDecision(ContextReadSet readSet, FencedAttempt attempt) {
+        return new TurnRouteDecision.Response(new PrePlanOutcome.SourceFreeResponseReady(
+                new PlainResponsePlan(PlainResponseKind.REVIEW, "review the diagram"),
+                new PlanningLineageFingerprint("b".repeat(64)),
+                readSet.digest(),
+                attempt.inputBindingDigest()));
+    }
+
+    private static PlainDrawingHandler unusedPlainHandler() {
+        return new PlainDrawingHandler(
+                (request, events) -> new PlainGenerationResult("unused", "<mxGraphModel/>", "unused"),
+                commit -> new FencedCommitOutcome.Rejected("unused"),
+                new org.zipp.ai.application.turn.PlainRuntimeRegistry(),
+                PlainExecutionProfile.m2SourceFree());
     }
 
     private static TurnDecisionCheckpoint checkpoint(ContextReadSet readSet, FencedAttempt attempt) {

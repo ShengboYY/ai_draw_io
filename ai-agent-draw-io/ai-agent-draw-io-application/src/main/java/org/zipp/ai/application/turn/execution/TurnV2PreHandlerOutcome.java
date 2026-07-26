@@ -52,6 +52,9 @@ public sealed interface TurnV2PreHandlerOutcome
             if (decision instanceof TurnRouteDecision.Plain value) {
                 return value.value().contextReadSetDigest();
             }
+            if (decision instanceof TurnRouteDecision.Response value) {
+                return value.value().contextReadSetDigest();
+            }
             if (decision instanceof TurnRouteDecision.SourcePlanning value) {
                 return value.value().contextReadSetDigest();
             }
@@ -66,6 +69,9 @@ public sealed interface TurnV2PreHandlerOutcome
 
         private static String decisionInputDigest(TurnRouteDecision decision) {
             if (decision instanceof TurnRouteDecision.Plain value) {
+                return value.value().inputBindingDigest();
+            }
+            if (decision instanceof TurnRouteDecision.Response value) {
                 return value.value().inputBindingDigest();
             }
             if (decision instanceof TurnRouteDecision.SourcePlanning value) {

@@ -3,6 +3,8 @@ package org.zipp.ai.infrastructure.adapter.repository;
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.application.turn.PlainDrawAction;
 import org.zipp.ai.application.turn.PlainDrawPlan;
+import org.zipp.ai.application.turn.PlainResponseKind;
+import org.zipp.ai.application.turn.PlainResponsePlan;
 import org.zipp.ai.application.turn.checkpoint.EncodedTurnRouteDecision;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCheckpoint;
 import org.zipp.ai.application.turn.classification.OutputIntent;
@@ -35,6 +37,18 @@ class FastjsonTurnRouteDecisionCodecTest {
         TurnRouteDecision original = new TurnRouteDecision.Plain(
                 new PrePlanOutcome.SourceFreeReady(
                         new PlainDrawPlan(PlainDrawAction.CREATE, "draw a flow"),
+                        new PlanningLineageFingerprint("c".repeat(64)),
+                        CONTEXT_DIGEST,
+                        INPUT_DIGEST));
+
+        assertEquals(original, decode(original));
+    }
+
+    @Test
+    void roundTripsSourceFreeResponseRoute() {
+        TurnRouteDecision original = new TurnRouteDecision.Response(
+                new PrePlanOutcome.SourceFreeResponseReady(
+                        new PlainResponsePlan(PlainResponseKind.REVIEW, "review the diagram"),
                         new PlanningLineageFingerprint("c".repeat(64)),
                         CONTEXT_DIGEST,
                         INPUT_DIGEST));

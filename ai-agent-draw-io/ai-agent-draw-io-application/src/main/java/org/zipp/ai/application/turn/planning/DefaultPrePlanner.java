@@ -5,6 +5,10 @@ import org.zipp.ai.application.turn.classification.PlainDrawPlanDecision;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanFactory;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanReady;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanRejected;
+import org.zipp.ai.application.turn.classification.PlainResponsePlanDecision;
+import org.zipp.ai.application.turn.classification.PlainResponsePlanFactory;
+import org.zipp.ai.application.turn.classification.PlainResponsePlanReady;
+import org.zipp.ai.application.turn.classification.PlainResponsePlanRejected;
 import org.zipp.ai.application.turn.classification.TurnClassification;
 import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
 import org.zipp.ai.application.turn.demand.AmbiguousSourceDemand;
@@ -20,15 +24,24 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Deterministic boundary before Probe: it either returns a closed Plain plan or preserves a
- * typed source-planning requirement. It never reads availability or executes source I/O.
+ * Deterministic boundary before Probe: it returns a closed source-free draw/response plan or
+ * preserves a typed source-planning requirement. It never reads availability or executes source I/O.
  */
 public final class DefaultPrePlanner {
 
     private final PlainDrawPlanFactory plainPlans;
+    private final PlainResponsePlanFactory responsePlans;
 
     public DefaultPrePlanner(PlainDrawPlanFactory plainPlans) {
+        this(plainPlans, new PlainResponsePlanFactory());
+    }
+
+    public DefaultPrePlanner(
+            PlainDrawPlanFactory plainPlans,
+            PlainResponsePlanFactory responsePlans
+    ) {
         this.plainPlans = Objects.requireNonNull(plainPlans, "plainPlans");
+        this.responsePlans = Objects.requireNonNull(responsePlans, "responsePlans");
     }
 
     public PrePlanOutcome plan(
@@ -55,6 +68,16 @@ public final class DefaultPrePlanner {
         }
 
         if (resolved.decision() instanceof NoSourceDemand) {
+            PlainResponsePlanDecision response = responsePlans.create(classification);
+            if (response instanceof PlainResponsePlanReady ready) {
+                return new PrePlanOutcome.SourceFreeResponseReady(
+                        ready.plan(), lineage, contextReadSetDigest, inputBindingDigest);
+            }
+            if (isResponseAction(classification)) {
+                return new PrePlanOutcome.Unsupported(
+                        ((PlainResponsePlanRejected) response).code(), lineage,
+                        contextReadSetDigest, inputBindingDigest);
+            }
             PlainDrawPlanDecision decision = plainPlans.create(classification);
             if (decision instanceof PlainDrawPlanReady ready) {
                 return new PrePlanOutcome.SourceFreeReady(
@@ -76,6 +99,13 @@ public final class DefaultPrePlanner {
                         List.of(new DemandResolutionReason(
                                 4, org.zipp.ai.application.turn.demand.DemandResolutionCode.CLARIFICATION_REQUIRED))),
                 lineage, contextReadSetDigest, inputBindingDigest);
+    }
+
+    private boolean isResponseAction(TurnClassification classification) {
+        return switch (classification.intent().action()) {
+            case ANSWER, REVIEW, DIRECT_REPLY -> true;
+            default -> false;
+        };
     }
 
     private PrePlanOutcome.Unavailable unavailable(

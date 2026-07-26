@@ -562,6 +562,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片新增隔离的 `ChatPlainResponseAdapter`：使用 fresh tool-free session，将 bounded Canvas/Conversation/Profile/Memory 与 `PlainResponsePlan` 投影为 `PLAIN_SOURCE_FREE_RESPONSE_V1`，明确省略 current-message attachment metadata，严格只接受 `assistantMessage` 与 `payloadRef` 两个 JSON 字段，并将模型不可用/输出非法映射为 typed unavailable/invalid。adapter 默认由 `zipp.turn.v2.plain-response.enabled=true` 才注册；app composition 另外支持 response-only profile，避免响应路径依赖绘图端口。新增 3 项 adapter contract tests 与 response-only wiring regression，完整 Maven reactor 通过（1655 项，0 failures，9 skipped）；本切片没有新增或执行 migration，production V2 assignment 仍未改变。
 
+本切片把 response/review seam 接入 isolated pre-plan/execution：`PlainResponsePlanFactory` 只在 `NoSourceDemand` 下接受 `ANSWER/TEXT`、`REVIEW/REVIEW` 与 `DIRECT_REPLY/TEXT`，生成带 lineage、context digest 和 input binding 的 `SourceFreeResponseReady`；`TurnRouteDecision`、versioned Fastjson checkpoint codec 与 `TurnV2PreHandlerOutcome` 均覆盖该新分支。`DefaultTurnV2ExecutionCoordinator` 在 handler 存在时调用 `PlainResponseHandler` 和 `ResponseTurnCommitPort`，否则 typed `PLAIN_RESPONSE_HANDLER_NOT_AVAILABLE`，不伪造终态。新增 planner/coordinator/codec contract tests，仍未改变 production assignment，也没有新增或执行 migration。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。

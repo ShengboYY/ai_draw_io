@@ -2,6 +2,7 @@ package org.zipp.ai.application.turn.planning;
 
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.application.turn.PlainDrawAction;
+import org.zipp.ai.application.turn.PlainResponseKind;
 import org.zipp.ai.application.turn.classification.OutputIntent;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanFactory;
 import org.zipp.ai.application.turn.classification.SemanticAction;
@@ -70,6 +71,22 @@ class PrePlannerContractTest {
     }
 
     @Test
+    void noSourceAnswerBecomesTheSourceFreeResponseRoute() {
+        TurnClassification classification = classification(
+                new SemanticIntent(SemanticAction.ANSWER, OutputIntent.TEXT,
+                        TargetNeed.NOT_REQUIRED, "unknown", "none"),
+                new ResolvedSourceDemand(new NoSourceDemand(), List.of()));
+
+        PrePlanOutcome.SourceFreeResponseReady ready = assertInstanceOf(
+                PrePlanOutcome.SourceFreeResponseReady.class,
+                new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
+                        classification, CONTEXT_DIGEST, INPUT_DIGEST));
+        assertEquals(PlainResponseKind.ANSWER, ready.plan().kind());
+        assertInstanceOf(TurnRouteDecision.Response.class,
+                new DefaultTurnRouteDispatcher().dispatch(ready));
+    }
+
+    @Test
     void clarificationAndUnavailableRemainNonPlainRoutes() {
         TurnClassification clarification = classification(
                 new SemanticIntent(SemanticAction.CREATE, OutputIntent.DRAWING,
@@ -91,7 +108,7 @@ class PrePlannerContractTest {
     @Test
     void unsupportedNoSourceActionIsNotSilentlyDowngraded() {
         TurnClassification classification = classification(
-                new SemanticIntent(SemanticAction.ANSWER, OutputIntent.TEXT,
+                new SemanticIntent(SemanticAction.ANSWER, OutputIntent.REVIEW,
                         TargetNeed.NOT_REQUIRED, "unknown", "none"),
                 new ResolvedSourceDemand(new NoSourceDemand(), List.of()));
 
@@ -99,7 +116,7 @@ class PrePlannerContractTest {
                 PrePlanOutcome.Unsupported.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
                         classification, CONTEXT_DIGEST, INPUT_DIGEST));
-        assertEquals("PLAIN_ACTION_UNSUPPORTED", unsupported.code());
+        assertEquals("PLAIN_RESPONSE_ACTION_UNSUPPORTED", unsupported.code());
     }
 
     private TurnClassification classification(
