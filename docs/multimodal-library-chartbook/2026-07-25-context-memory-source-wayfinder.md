@@ -484,7 +484,7 @@ retirement 发布永久禁用 `LEGACY/V2_CANARY` 新 assignment；旧配置启�
 ## docs-reconciliation: Reconcile Superseded Source Semantics
 
 Blocked by: formal-contract-adr
-Status: open
+Status: resolved
 Type: Task
 
 ### Question
@@ -493,11 +493,11 @@ Type: Task
 
 ### Answer
 
-Pending. 处理根目录 `CONTEXT.md`、2026-07-18 PRD、2026-07-19 Technical Design、2026-07-23 Completion Plan 和 2026-07-24 Source Chain Redesign 中冲突的段落。
+已完成五份旧文档的规范收口：根目录 `CONTEXT.md`、2026-07-18 PRD、2026-07-19 Technical Design、2026-07-23 Completion Plan 和 2026-07-24 Source Chain Redesign 均增加 ADR 0013 的 superseded precedence 标记；冲突章节额外标为历史语义/历史顺序。
 
-旧文档仍可保留 owner/scope、lifecycle/retention、citation persistence 与 target resolution。
+保留内容明确限定为 owner/scope、lifecycle/retention、citation persistence、ingestion、security 与 target resolution。已显式废止 Personal Library AUTO、per-message source selection/checkbox、旧 `SourceMode`、Router 前置 Source Probe/snapshot、断流取消产品 turn 和无 atomic claim 的 turn sequencing；新实现统一遵循 assignment → claim/binding → Base Context → typed demand/plan → 条件 source I/O，disconnect 只 detach。
 
-必须显式废止 Personal Library AUTO、per-message selection、旧 SourceMode、前置 snapshot、断流即取消和无 claim 的 turn sequencing。
+本票只修改文档与本地图状态，没有数据库 schema 变化，也没有执行 migration；`git diff --check` 与文档标记/链接存在性检查通过。
 
 ## source-free-v2-path: Isolate The M2 Source-Free Path
 

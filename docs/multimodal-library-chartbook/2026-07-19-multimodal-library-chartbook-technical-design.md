@@ -12,6 +12,8 @@
 >
 > 目标读者：后端、前端、AI/RAG、测试、运维与安全开发人员
 
+> **规范覆盖（2026-07-26）**：本文仍可复用 Material owner/scope、processing/lifecycle、citation persistence、target resolution、security 与 ingestion 约束；turn/source sequencing 和 transport 语义不再是实现依据，统一以 [ADR 0013](../adr/0013-freeze-turn-context-source-execution-contract.md) 与 [Wayfinder](./2026-07-25-context-memory-source-wayfinder.md) 为准。本文中旧的 `SourceMode`/`AUTO`/`EXPLICIT` UI、Personal Library 自动扩展、Router 前置 Source Probe/snapshot、未 claim 即调用 Router/LLM，以及 disconnect 触发 cancellation 的段落均为历史设计，不能直接实现。新合同要求先 assignment/atomic claim 与 message binding，再构造 Base Context 和 typed plan；snapshot 只在 source-aware plan 后冻结；sync/stream 共享 executor，断流只 detach。
+
 ## 1. 文档结论
 
 首版采用“现有 Spring 应用负责在线编排 + 新增独立摄取 Worker 负责不可信文件处理 + S3 保存原件与全文派生物 + MySQL 作为业务事实源 + Pinecone 保存可重建向量投影”的结构。该方案不迁移现有数据库，不新增常驻消息中间件，不把检索、多模态或 Pinecone 变成普通文本绘图的启动依赖。
@@ -857,7 +859,9 @@ parameters = {input_type: query, truncate: NONE}
 
 ## 10. 在线 RAG、路由与 Evidence Bundle
 
-### 10.1 固定安全顺序
+### 10.1 固定安全顺序（历史顺序，已被 ADR 0013 取代）
+
+> 本节原有“Request Probe → Intent Router → 建立权限”的顺序仅作历史记录。新实现必须先完成 sticky assignment、V2 atomic claim、唯一 user message/attachment binding 和 Base Context，再并行执行 Semantic Router 与 restricted-input Demand Interpreter；source snapshot 后置到 source-aware plan。
 
 ```mermaid
 sequenceDiagram
@@ -1409,7 +1413,9 @@ GET /v1/diagrams/{diagramId}/cells/{cellId}/citations?canvasVersion=current
 
 ## 12. API 与流式协议
 
-### 12.1 ChatRequestDTO 扩展
+### 12.1 ChatRequestDTO 扩展（兼容历史字段，非规范 source contract）
+
+> 本节的 `sourceMode`、`selectedVersionIds` 等字段不能作为新产品 source action 或授权依据。兼容 DTO 只能保留 untrusted declaration；current-message attachment binding 由服务端 claim 原子建立，来源范围由 typed Resolver/Planner 决定。
 
 ```json
 {
@@ -1537,7 +1543,9 @@ degraded
 - `source_partial_ready` 携带 gap 摘要和允许的 action；只有新用户 action 才继续。
 - 浏览器 AbortController 取消 run；服务端 cancellation callback 必须释放等待订阅和 read leases，但不得取消 ingestion job。
 
-#### Stop 与最终提交的竞态栅栏
+#### Stop 与最终提交的竞态栅栏（旧回答级取消模型，turn 语义以 ADR 0013 为准）
+
+> 本节关于“浏览器断开即 cancellation callback”的描述已被取代：transport disconnect、writer/serialization failure 只 detach subscriber；只有显式 cancel 或 server deadline 才能进入 attempt-scoped durable CAS。保留其中关于最终提交原子性和竞态测试的约束。
 
 仅取消内存 Future 不足以保证“停止后无回答/改图”。证据路径创建 `grounded_run_control(state=RUNNING,generation=N)`：
 

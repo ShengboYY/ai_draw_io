@@ -14,6 +14,8 @@
 > 不再选择来源，服务端自动使用 Conversation、Diagram 与 Chartbook
 > 作用域，文件管理统一进入 Files 面板。
 
+> **进一步规范覆盖（2026-07-26）**：本文的资料产品、owner/scope、lifecycle/retention、citation persistence 与 target-resolution 内容仍可参考；R3/R3.1 以外任何涉及 `AUTO/EXPLICIT/EXPLICIT_ONLY/NONE`、Personal Library 自动检索、Router 前置 snapshot、断流取消或无 claim 执行顺序的段落也已被 [ADR 0013](../adr/0013-freeze-turn-context-source-execution-contract.md) 取代。新实现顺序和阶段门槛以 [Wayfinder](./2026-07-25-context-memory-source-wayfinder.md) 为准：assignment → atomic claim/binding → Base Context → typed demand/plan → 条件 source I/O；普通 Plain path 必须 zero source call，disconnect 只 detach。
+
 ## 1. 项目与本功能简介
 
 本项目是一个以自然语言驱动 Draw.io 画布创建、修改、检查和问答的 AI 绘图系统。此次多模态扩展的目标不是简单增加“文件上传”，而是建立完整的资料产品和可追溯绘图能力：
@@ -763,7 +765,9 @@ full frontend tests                            211 passed; 2 pre-existing admin 
 npm run build                                 blocked by isolated environment unable to fetch Google Fonts
 ```
 
-### R3：Draw.io 会话附件与资料选择器
+> **历史实施记录标记**：以下 R3/R3.1 不再是待实现清单；其中的来源选择器、SourceMode、selected version 与 request-scoped pre-router snapshot 不能复活。保留其对上传生命周期、兼容字段和历史迁移证据的记录价值。
+
+### R3：Draw.io 会话附件与资料选择器（历史方案，已废止）
 
 状态（2026-07-23）：历史实现已完成；其中资料选择器、来源模式和每消息
 payload 声明已在 2026-07-24 新方案 P5/P6 中删除。保留以下内容仅用于追溯。
@@ -803,7 +807,7 @@ Trigger and infrastructure compilation       passed
 feat: add drawio attachments and source selection
 ```
 
-### R3.1：会话资料池、当前选择集与请求级来源快照
+### R3.1：会话资料池、当前选择集与请求级来源快照（历史方案，已废止）
 
 状态（2026-07-23）：请求级来源快照仍有效；“当前选择集”和客户端 opaque
 ID 声明已在 2026-07-24 新方案 P6 中移除。部署前仍需执行

@@ -10,6 +10,8 @@
 >
 > 文档边界：描述产品需求、行为规则、首版范围和验收口径；具体技术实现方案在独立技术开发文档中研究与设计。
 
+> **规范覆盖（2026-07-26）**：本文仍是产品范围、owner/scope、lifecycle/retention、citation persistence 与 target resolution 的历史需求基线。其 turn/source sequencing 与来源选择语义已被 [ADR 0013](../adr/0013-freeze-turn-context-source-execution-contract.md) 取代；实现顺序以 [Wayfinder](./2026-07-25-context-memory-source-wayfinder.md) 为准。本文中旧的 `AUTO/EXPLICIT/EXPLICIT_ONLY/NONE`、逐消息 source selection、Personal Library 自动纳入、Router 前置 Source Probe/snapshot、断流取消产品 turn 和无 claim 的执行顺序均不得继续实现。当前合同改用 current-message attachment binding、typed source demand、Resolver/Pre-Planner、条件 Probe、source-aware plan 后 snapshot，以及 disconnect-only detach；Required fail closed，Optional fallback 必须由 Planner 签发。
+
 ## 1. 文档目的
 
 本文档整理本次会话中已经确认的多模态、资料库、图表册、检索、引用追踪、版本管理和降级需求，作为后续技术方案与实施拆分的产品依据。
@@ -322,7 +324,9 @@
 | FR-DE-010 | 永久删除后，历史图表及引用关系保持可查看，但引用只保留不可恢复内容的墓碑：引用 ID、资料/版本不透明 ID、版本序号、删除时间和“来源不可用”状态；原文件名、摘录、页码/区域、预览及其他资料内容必须删除。 |
 | FR-DE-011 | 永久删除资料不自动改写已生成的图表内容；用户若需清除图表中已经生成的内容，应另行编辑或删除图表。 |
 
-### 8.7 自动引用与指定引用
+> **历史章节标记**：以下来源模式和“用户选择资料”要求只保留为旧产品讨论记录。它们与 ADR 0013 冲突的部分不再验收；普通任务的 zero-source 约束、Project AUTO 不包含 Personal Library、Direct current-attachment authority 和 strict grounding 以 ADR 0013 为准。
+
+### 8.7 自动引用与指定引用（历史语义，已被 ADR 0013 取代）
 
 产品支持两种并存的资料使用方式：
 
@@ -366,7 +370,9 @@
 
 该顺序表示候选优先级，不意味着每次都必须逐层查询。系统应在已有高质量证据足够时停止扩展。
 
-### 8.8 意图识别、检索路由与安全顺序
+### 8.8 意图识别、检索路由与安全顺序（历史顺序，已被 ADR 0013 取代）
+
+> 本节的“意图识别前 Source/Canvas Probe”和“先建立来源权限再路由”顺序已废止。新顺序为 sticky assignment → atomic claim/binding → Base Context → Semantic Router 与 restricted-input Demand Interpreter → Resolver/Pre-Planner → 条件 Probe → typed Planner → source snapshot。
 
 检索路由器位于意图识别之后；在意图识别前只允许进行轻量的资料探测。
 

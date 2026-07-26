@@ -14,6 +14,8 @@
 >
 > 决策记录：[ADR 0012：持久索引 Chartbook 证据并保持 Conversation 证据临时](../adr/0012-persist-chartbook-evidence-and-keep-conversation-evidence-temporary.md)
 
+> **规范覆盖（2026-07-26）**：本文继续作为 Conversation Files、Chartbook scope、lifecycle、index eligibility、citation 与 Direct exact-artifact 的参考；但 turn admission、claim/fence、source demand、requiredness/fallback、snapshot timing 和 disconnect/cancel 以 [ADR 0013](../adr/0013-freeze-turn-context-source-execution-contract.md) 为唯一规范。本文若出现 `Request Probe → Router`、旧 `SourceMode` 或 pre-router snapshot 的实现顺序，应按 ADR 0013 改写为 assignment → atomic claim/binding → Base Context → Router || restricted-input Demand Interpreter → Resolver/Pre-Planner → conditional Probe → typed Planner → snapshot。Personal Library 不属于 Project/Chartbook AUTO，断流只 detach。
+
 ## 1. 介绍
 
 本项目通过自然语言和资料帮助用户创建、编辑和验证 Draw.io 图表。随着文件上传、RAG、图片直转、Chartbook 和引用能力逐步加入，当前实现已经具备大量底层能力，但文件的产品语义仍沿用了早期技术实现：
@@ -372,7 +374,7 @@ INDEX_FAILED
 
 ## 8. 目标请求链路
 
-### 8.1 总体链路
+### 8.1 总体链路（执行顺序以 ADR 0013 为准）
 
 ```mermaid
 flowchart TD
@@ -394,7 +396,7 @@ flowchart TD
     K --> X["Atomic canvas + citation commit"]
 ```
 
-### 8.2 Intent Router
+### 8.2 Intent Router（执行顺序以 ADR 0013 为准）
 
 Router 可以继续使用 LLM 识别：
 
@@ -411,7 +413,7 @@ Router 不能决定：
 - 扩大到其他 Chartbook 或整个 Library；
 - 跳过 source snapshot、read lease 或引用约束。
 
-### 8.3 Trusted Source Probe
+### 8.3 Trusted Source Probe（仅保留为条件 Probe；不可前置于 Router/claim）
 
 Probe 从服务器事实构造：
 
