@@ -232,7 +232,7 @@ application/HTTP identity contract 与 application composition 回归通过；�
 ## turn-execution-control: Implement Claim, Fence, Status And Cancellation
 
 Blocked by: conversation-identity-foundation
-Status: in progress
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -365,6 +365,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 本补充处理 M1 review 的 release gates：旧 Router 单测恢复 `DIRECT` intent hint，`TaskSourcePlanner` 在没有可用 candidate 时明确 fail-closed 为 `DIRECT_SOURCE_MISSING`；application boundary test 改为读取实际 reactor POM，校验允许的反向依赖集合与 DAG 无环；`TurnApplicationCompositionConfig` 由 `turn-engine.lifecycle.enabled` 控制且默认关闭，避免 migration release 未完成时启动 durable claim/lifecycle graph。新增 `release-20260729.manifest` 与对应 migration image，按依赖顺序打包 2026-07-26 至 2026-07-28 的三份既有 M1 SQL，并在部署文档中要求 migration 成功后才开启 lifecycle；本补充没有新增 schema DDL，也没有执行生产 migration。
 
 本补充修复 2026-07-26 review 的三个 P0 与四个 P1：Direct/Direct+Retrieval 在缺少可用 candidate 或 source resolution 失败时保留 required 语义并返回 typed `DIRECT_SOURCE_MISSING`，不再降级为 Plain/Retrieval；`AttemptLease` 将 heartbeat budget 固定为相对 expiry 的一半并测试严格早于 expiry；takeover recovery SQL 使用真实 schema 的 `diagram_conversation_message.user_id`，并新增可选的真实 MySQL schema-backed recovery test。重复 current-turn attachment 在 `TurnDeclarations` admission 前校验；M1 暂不接受 `V2_CANARY`，避免 canary 标记实际执行 Legacy；clarification 在 durable authority 尚未实现前以 `CLARIFICATION_DEFERRED` rejected terminal 明确收口；CI 的 PR build 与 main publish 都显式构建 `Dockerfile.20260729`，以 commit SHA tag 推送 migration image 并发布 digest。以上没有新增 schema DDL；20260729 migration 已在本地 MySQL 执行并重复运行验证幂等，未执行生产 migration。
+
+本轮完成控制面的最终验收并关闭本票据：application M1 定向回归 114/114、trigger transport/control 23/23、domain source-planning 及边界 300/300、infrastructure M1 定向回归 56/56 全部通过；其中 `MySqlTurnAttemptInputRecoverySchemaTest` 使用本地 Docker MySQL 的真实 schema 与密码执行通过，确认 recovery 查询使用生产列名 `diagram_conversation_message.user_id`。全 reactor 曾受本机 JDK 23 Mockito attach、旧 `ApiTest` 空测试，以及受网络隔离影响的 Pinecone live evaluation 阻断；这些不属于本票据的生命周期控制失败。`turn-engine.lifecycle.enabled` 仍保持默认关闭，必须在生产按 `release-20260729.manifest` 完成 migration task 后再开启；生产 HTTP/legacy assignment 切入与 V2 cohort 仍不在 M1 本票据范围内。
 
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
