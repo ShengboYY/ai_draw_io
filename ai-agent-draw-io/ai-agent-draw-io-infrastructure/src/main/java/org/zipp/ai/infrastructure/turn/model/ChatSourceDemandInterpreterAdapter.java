@@ -32,20 +32,36 @@ import java.util.Set;
 public final class ChatSourceDemandInterpreterAdapter implements SourceDemandInterpreterPort {
 
     private static final Set<String> FIELDS = Set.of(
-            "demandKind", "confidence", "safeReason", "attachmentRefs", "relevanceQuery", "spans");
+            "demandKind", "confidence", "safeReason", "attachmentRefs", "relevanceQuery",
+            "inputDigest", "modelVersion", "policyVersion", "spans");
     private static final Set<String> SPAN_FIELDS = Set.of("start", "end", "digest");
     private final ToolFreeChatModelInvoker model;
+    private final String modelVersion;
+    private final String policyVersion;
     private final RestrictedSourceDemandPromptRenderer renderer = new RestrictedSourceDemandPromptRenderer();
 
     public ChatSourceDemandInterpreterAdapter(
             IChatService chat,
-            @Value("${zipp.turn.v2.source-demand-agent-id:300024}") String agentId
+            @Value("${zipp.turn.v2.source-demand-agent-id:300024}") String agentId,
+            @Value("${zipp.turn.v2.source-demand-model-version:m2-demand-model}") String modelVersion,
+            @Value("${zipp.turn.v2.source-demand-policy-version:m2-demand-policy}") String policyVersion
     ) {
-        this(new ToolFreeChatModelInvoker(chat, agentId, "v2-source-demand-interpreter"));
+        this(new ToolFreeChatModelInvoker(chat, agentId, "v2-source-demand-interpreter"),
+                modelVersion, policyVersion);
     }
 
     ChatSourceDemandInterpreterAdapter(ToolFreeChatModelInvoker model) {
+        this(model, "m2-demand-model", "m2-demand-policy");
+    }
+
+    ChatSourceDemandInterpreterAdapter(
+            ToolFreeChatModelInvoker model,
+            String modelVersion,
+            String policyVersion
+    ) {
         this.model = model;
+        this.modelVersion = requiredText(modelVersion, "modelVersion");
+        this.policyVersion = requiredText(policyVersion, "policyVersion");
     }
 
     @Override
@@ -60,13 +76,13 @@ public final class ChatSourceDemandInterpreterAdapter implements SourceDemandInt
             return new SourceDemandInterpreterUnavailable("V2_SOURCE_DEMAND_MODEL_UNAVAILABLE");
         }
         try {
-            return new SourceDemandProposalReady(parse(output));
+            return new SourceDemandProposalReady(parse(output, input));
         } catch (RuntimeException exception) {
             return new SourceDemandInterpreterUnavailable("V2_SOURCE_DEMAND_OUTPUT_INVALID");
         }
     }
 
-    private SourceDemandProposal parse(String output) {
+    private SourceDemandProposal parse(String output, RestrictedSourceDemandInput input) {
         JSONObject root = JSON.parseObject(output);
         if (root == null || !root.keySet().equals(FIELDS)) {
             throw new IllegalArgumentException("source demand output fields are not exact");
@@ -76,8 +92,18 @@ public final class ChatSourceDemandInterpreterAdapter implements SourceDemandInt
         String safeReason = text(root, "safeReason", 512);
         List<CurrentInstructionSpan> spans = spans(root.getJSONArray("spans"));
         Optional<String> relevanceQuery = optionalText(root, "relevanceQuery", 1_000);
+        String inputDigest = text(root, "inputDigest", 128);
+        String proposalModelVersion = text(root, "modelVersion", 128);
+        String proposalPolicyVersion = text(root, "policyVersion", 128);
+        if (!input.inputDigest().equals(inputDigest)
+                || !modelVersion.equals(proposalModelVersion)
+                || !policyVersion.equals(proposalPolicyVersion)) {
+            throw new IllegalArgumentException("source demand proposal binding is stale");
+        }
         List<String> attachmentRefs = strings(root.getJSONArray("attachmentRefs"));
-        ProposalEvidence evidence = new ProposalEvidence(spans, confidence, relevanceQuery);
+        ProposalEvidence evidence = new ProposalEvidence(
+                spans, confidence, relevanceQuery, inputDigest,
+                proposalModelVersion, proposalPolicyVersion);
         return switch (kind) {
             case "NO_SOURCE" -> new NoSourceDemandProposal(evidence, safeReason);
             case "AMBIGUOUS" -> new AmbiguousSourceDemandProposal(evidence, safeReason);
@@ -141,6 +167,13 @@ public final class ChatSourceDemandInterpreterAdapter implements SourceDemandInt
     private String text(JSONObject root, String field, int limit) {
         String value = root.getString(field);
         if (value == null || value.isBlank() || value.length() > limit) {
+            throw new IllegalArgumentException(field + " is invalid");
+        }
+        return value.trim();
+    }
+
+    private String requiredText(String value, String field) {
+        if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " is invalid");
         }
         return value.trim();

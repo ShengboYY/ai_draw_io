@@ -73,10 +73,16 @@ class ChatV2ModelAdapterTest {
     @Test
     void demandInterpreterReceivesOnlyRestrictedInputAndReturnsProposal() {
         CurrentInstruction instruction = new CurrentInstruction("use the attached specification");
+        RestrictedSourceDemandInput demandInput = new RestrictedSourceDemandInput(
+                instruction,
+                List.of(new org.zipp.ai.application.turn.OpaqueConversationFileRef("file-1")),
+                Optional.of("chartbook-1"), Set.of("first"));
         RecordingChat chat = new RecordingChat(
                 "{\"demandKind\":\"CURRENT_MESSAGE_ATTACHMENTS_REQUIRED\","
                         + "\"confidence\":\"HIGH\",\"safeReason\":\"use the attached file\","
                         + "\"attachmentRefs\":[\"file-1\"],\"relevanceQuery\":null,"
+                        + "\"inputDigest\":\"" + demandInput.inputDigest() + "\","
+                        + "\"modelVersion\":\"m2-demand-model\",\"policyVersion\":\"m2-demand-policy\","
                         + "\"spans\":[{\"start\":0,\"end\":25,\"digest\":\""
                         + instruction.spanDigest(0, 25) + "\"}]}");
         ChatSourceDemandInterpreterAdapter adapter = new ChatSourceDemandInterpreterAdapter(
@@ -95,6 +101,8 @@ class ChatV2ModelAdapterTest {
         assertFalse(chat.lastText.contains("CONVERSATION_DATA"));
         assertFalse(chat.lastText.contains("PROFILE_DATA"));
         assertFalse(chat.lastText.contains("SOURCE_BODY"));
+        assertTrue(chat.lastText.contains("INPUT_DIGEST_DATA"));
+        assertTrue(chat.lastText.contains(demandInput.inputDigest()));
     }
 
     @Test
@@ -110,6 +118,27 @@ class ChatV2ModelAdapterTest {
                 SourceDemandInterpreterUnavailable.class,
                 adapter.interpret(new RestrictedSourceDemandInput(
                         new CurrentInstruction("draw"), List.of(), Optional.empty(), Set.of())));
+        assertEquals("V2_SOURCE_DEMAND_OUTPUT_INVALID", unavailable.code());
+    }
+
+    @Test
+    void demandInterpreterRejectsProposalBoundToAnotherInput() {
+        CurrentInstruction instruction = new CurrentInstruction("draw a flow");
+        RestrictedSourceDemandInput input = new RestrictedSourceDemandInput(
+                instruction, List.of(), Optional.empty(), Set.of());
+        RecordingChat chat = new RecordingChat(
+                "{\"demandKind\":\"NO_SOURCE\",\"confidence\":\"HIGH\","
+                        + "\"safeReason\":\"plain\",\"attachmentRefs\":[],"
+                        + "\"relevanceQuery\":null,\"inputDigest\":\"" + "0".repeat(64) + "\","
+                        + "\"modelVersion\":\"m2-demand-model\",\"policyVersion\":\"m2-demand-policy\","
+                        + "\"spans\":[{\"start\":0,\"end\":" + instruction.value().length()
+                        + ",\"digest\":\""
+                        + instruction.spanDigest(0, instruction.value().length()) + "\"}]}");
+        ChatSourceDemandInterpreterAdapter adapter = new ChatSourceDemandInterpreterAdapter(
+                new ToolFreeChatModelInvoker(chat, "300024", "test-demand"));
+
+        SourceDemandInterpreterUnavailable unavailable = assertInstanceOf(
+                SourceDemandInterpreterUnavailable.class, adapter.interpret(input));
         assertEquals("V2_SOURCE_DEMAND_OUTPUT_INVALID", unavailable.code());
     }
 

@@ -132,7 +132,8 @@ class PrePlannerContractTest {
                                 List.of(new CurrentInstructionSpan(0, instruction.value().length(),
                                         instruction.spanDigest(0, instruction.value().length()))),
                                 Confidence.HIGH,
-                                java.util.Optional.empty()),
+                                java.util.Optional.empty(), "c".repeat(64),
+                                "m2-demand-model", "m2-demand-policy"),
                         "test"),
                 resolution);
     }

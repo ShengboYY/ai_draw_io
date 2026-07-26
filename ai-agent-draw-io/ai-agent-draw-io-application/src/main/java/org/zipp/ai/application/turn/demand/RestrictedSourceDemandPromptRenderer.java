@@ -17,8 +17,9 @@ public final class RestrictedSourceDemandPromptRenderer {
                 input.chartbookMembership().orElse("NONE"));
         append(prompt, "ACTIVE_CLARIFICATION_LABELS_DATA",
                 input.activeClarificationLabels().toString());
+        append(prompt, "INPUT_DIGEST_DATA", input.inputDigest());
         prompt.append("\nReturn one JSON object only with demandKind, confidence, safeReason, "
-                + "attachmentRefs, relevanceQuery, and spans.");
+                + "attachmentRefs, relevanceQuery, inputDigest, modelVersion, policyVersion, and spans.");
         return prompt.toString();
     }
 

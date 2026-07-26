@@ -7,12 +7,18 @@ import java.util.Optional;
 public record ProposalEvidence(
         List<CurrentInstructionSpan> spans,
         Confidence confidence,
-        Optional<String> relevanceQuery
+        Optional<String> relevanceQuery,
+        String inputDigest,
+        String modelVersion,
+        String policyVersion
 ) {
 
     public ProposalEvidence {
         spans = List.copyOf(spans == null ? List.of() : spans);
-        if (confidence == null || relevanceQuery == null) {
+        if (confidence == null || relevanceQuery == null
+                || inputDigest == null || inputDigest.isBlank()
+                || modelVersion == null || modelVersion.isBlank()
+                || policyVersion == null || policyVersion.isBlank()) {
             throw new IllegalArgumentException("evidence values must not be null");
         }
         relevanceQuery = relevanceQuery.map(String::trim);

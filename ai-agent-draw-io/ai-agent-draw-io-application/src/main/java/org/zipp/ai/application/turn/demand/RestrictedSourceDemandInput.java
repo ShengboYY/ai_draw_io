@@ -43,6 +43,36 @@ public record RestrictedSourceDemandInput(
         activeClarificationLabels = Set.copyOf(activeClarificationLabels);
     }
 
+    /** Digest of every fact visible to the restricted interpreter, in stable order. */
+    public String inputDigest() {
+        StringBuilder canonical = new StringBuilder();
+        append(canonical, "instruction", instruction.digest());
+        append(canonical, "attachments", currentMessageAttachments.stream()
+                .map(OpaqueConversationFileRef::value).toList().toString());
+        append(canonical, "membership", chartbookMembership.orElse(""));
+        append(canonical, "clarifications", activeClarificationLabels.stream().sorted().toList().toString());
+        append(canonical, "attachmentBinding", attachmentBindingDigest);
+        return sha256(canonical.toString());
+    }
+
+    private void append(StringBuilder target, String name, String value) {
+        target.append(name).append('=').append(value.length()).append(':').append(value).append('\n');
+    }
+
+    private String sha256(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder result = new StringBuilder(digest.length * 2);
+            for (byte item : digest) {
+                result.append(String.format("%02x", item));
+            }
+            return result.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
+    }
+
     private static String digestOf(List<OpaqueConversationFileRef> attachments) {
         String canonical = (attachments == null ? List.<OpaqueConversationFileRef>of() : attachments)
                 .stream().map(value -> value == null ? "<null>" : value.value()).toList().toString();

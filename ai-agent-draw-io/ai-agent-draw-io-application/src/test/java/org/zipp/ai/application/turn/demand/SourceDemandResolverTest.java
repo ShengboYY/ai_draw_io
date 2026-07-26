@@ -52,10 +52,11 @@ class SourceDemandResolverTest {
     @Test
     void optionalDiscoveryWithoutChartbookUsesSignedPlainFallback() {
         RestrictedSourceDemandInput input = input("draw a login flow", List.of(), Optional.empty());
+        ProposalEvidence evidence = evidence(input, Optional.of("login flow"));
         SourceDemandResolution result = resolver.resolve(
                 new TypedSourceDemandProposal(
                         SourceDemandKind.OPTIONAL_DISCOVERY,
-                        List.of(), "login flow", evidence(input), "可选检查相关资料"),
+                        List.of(), "login flow", evidence, "可选检查相关资料"),
                 input,
                 policy);
 
@@ -72,12 +73,36 @@ class SourceDemandResolverTest {
         ProposalEvidence forged = new ProposalEvidence(
                 List.of(new CurrentInstructionSpan(0, other.value().length(), other.spanDigest(0, other.value().length()))),
                 Confidence.HIGH,
-                Optional.empty());
+                Optional.empty(), input.inputDigest(), policy.modelVersion(), policy.policyVersion());
 
         SourceDemandUnavailable unavailable = assertInstanceOf(
                 SourceDemandUnavailable.class,
                 resolver.resolve(new NoSourceDemandProposal(forged, "plain"), input, policy));
         assertEquals("SOURCE_DEMAND_EVIDENCE_INVALID", unavailable.code());
+    }
+
+    @Test
+    void staleInputDigestCannotBecomeAResolvedDemand() {
+        RestrictedSourceDemandInput input = input("draw a login flow", List.of(), Optional.empty());
+        ProposalEvidence stale = new ProposalEvidence(
+                evidence(input).spans(), Confidence.HIGH, Optional.empty(),
+                "f".repeat(64), policy.modelVersion(), policy.policyVersion());
+
+        SourceDemandUnavailable unavailable = assertInstanceOf(SourceDemandUnavailable.class,
+                resolver.resolve(new NoSourceDemandProposal(stale, "plain"), input, policy));
+        assertEquals("SOURCE_DEMAND_INPUT_DIGEST_INVALID", unavailable.code());
+    }
+
+    @Test
+    void proposalFromAnotherModelOrPolicyVersionCannotBeResolved() {
+        RestrictedSourceDemandInput input = input("draw a login flow", List.of(), Optional.empty());
+        ProposalEvidence stale = new ProposalEvidence(
+                evidence(input).spans(), Confidence.HIGH, Optional.empty(), input.inputDigest(),
+                "old-model", policy.policyVersion());
+
+        SourceDemandUnavailable unavailable = assertInstanceOf(SourceDemandUnavailable.class,
+                resolver.resolve(new NoSourceDemandProposal(stale, "plain"), input, policy));
+        assertEquals("SOURCE_DEMAND_POLICY_VERSION_INVALID", unavailable.code());
     }
 
     private RestrictedSourceDemandInput input(
@@ -90,11 +115,18 @@ class SourceDemandResolverTest {
     }
 
     private ProposalEvidence evidence(RestrictedSourceDemandInput input) {
+        return evidence(input, Optional.empty());
+    }
+
+    private ProposalEvidence evidence(
+            RestrictedSourceDemandInput input,
+            Optional<String> relevanceQuery
+    ) {
         CurrentInstruction instruction = input.instruction();
         return new ProposalEvidence(
                 List.of(new CurrentInstructionSpan(
                         0, instruction.value().length(), instruction.spanDigest(0, instruction.value().length()))),
                 Confidence.HIGH,
-                Optional.empty());
+                relevanceQuery, input.inputDigest(), policy.modelVersion(), policy.policyVersion());
     }
 }

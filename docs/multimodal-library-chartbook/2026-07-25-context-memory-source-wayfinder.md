@@ -595,7 +595,7 @@ M6 前不建立 Plain-only production cohort。这样 Router 的多语言误判�
 ## source-execution-plan: Build The Deterministic Source State Machine
 
 Blocked by: source-free-v2-path, context-envelope
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -604,7 +604,14 @@ Type: Prototype
 
 ### Answer
 
-Pending. 设计应包含：
+确定性 pre-probe 状态机已收口；以下设计约束已经落到 application/infrastructure contract，source I/O 仍由后续 source-aware tickets 接入：
+
+- proposal 绑定完整 restricted-input digest、model version、policy version；Resolver 校验 current-instruction evidence、message attachment binding、referent/query 一致性和 pinned policy，stale/invalid 输入均 typed fail closed。
+- DefaultPrePlanner 只产出 SourceFreeReady、SourceFreeResponseReady、SourcePlanningRequired、NeedsClarification、Unsupported 或 Unavailable；DefaultTurnRouteDispatcher 只做纯类型路由，不访问 Probe、Snapshot、Evidence 或 source body。
+- PlanningLineageFingerprint 纳入 pinned Context/Input digest 及 demand provenance；TurnDecisionCheckpoint 继续负责 first-writer CAS、retry/restart/takeover 的唯一 decision authority。
+- ChatSourceDemandInterpreterAdapter 使用 fresh tool-free session、严格 JSON fields，并在 adapter 与 Resolver 两层校验 proposal binding；模型输出 stale/unknown/invalid 时 typed unavailable。
+
+本票验证的是 pre-probe 确定性边界，不声称已经实现 Probe、typed source-aware Planner、clarification durable authority、snapshot freeze 或 Direct/Composite strong commit；这些由 optional-enrichment、direct-composite-hardening 与 source-aware-commit-seams 继续完成。application source-demand/classification/planner 定向测试 15/15、infrastructure V2 model adapter 6/6 通过；没有新增或执行数据库 migration，production assignment 仍保持 legacy。
 
 - Semantic Router 给出 action/target/follow-up；restricted-input Demand Interpreter 独立给出 `SourceDemandProposal`；
 - 两个 port 在 Base Context pin 后可以并行执行，但使用不同 renderer；

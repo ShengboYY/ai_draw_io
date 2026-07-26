@@ -6,8 +6,13 @@ import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
 import org.zipp.ai.application.turn.demand.AmbiguousSourceDemand;
 import org.zipp.ai.application.turn.demand.DemandResolutionReason;
 import org.zipp.ai.application.turn.demand.NoSourceDemand;
+import org.zipp.ai.application.turn.demand.NoSourceDemandProposal;
+import org.zipp.ai.application.turn.demand.AmbiguousSourceDemandProposal;
+import org.zipp.ai.application.turn.demand.ProposalEvidence;
 import org.zipp.ai.application.turn.demand.ResolvedSourceDemand;
 import org.zipp.ai.application.turn.demand.SourceDemandDecision;
+import org.zipp.ai.application.turn.demand.SourceDemandProposal;
+import org.zipp.ai.application.turn.demand.TypedSourceDemandProposal;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -40,6 +45,10 @@ public final class PlanningLineageFingerprintCalculator {
         field(canonical, "targetNeed", intent.targetNeed().name());
         field(canonical, "diagramType", intent.diagramType());
         field(canonical, "skillName", intent.skillName());
+        ProposalEvidence evidence = evidenceOf(classification.demandProposal());
+        field(canonical, "demandInputDigest", evidence.inputDigest());
+        field(canonical, "demandModelVersion", evidence.modelVersion());
+        field(canonical, "demandPolicyVersion", evidence.policyVersion());
         field(canonical, "decision", decisionValue(classification.demandResolution()));
         if (classification.demandResolution() instanceof ResolvedSourceDemand resolved) {
             for (DemandResolutionReason reason : resolved.reasons()) {
@@ -47,6 +56,16 @@ public final class PlanningLineageFingerprintCalculator {
             }
         }
         return new PlanningLineageFingerprint(sha256(canonical.toString()));
+    }
+
+    private static ProposalEvidence evidenceOf(SourceDemandProposal proposal) {
+        if (proposal instanceof NoSourceDemandProposal value) {
+            return value.evidence();
+        }
+        if (proposal instanceof TypedSourceDemandProposal value) {
+            return value.evidence();
+        }
+        return ((AmbiguousSourceDemandProposal) proposal).evidence();
     }
 
     private static String decisionValue(org.zipp.ai.application.turn.demand.SourceDemandResolution resolution) {

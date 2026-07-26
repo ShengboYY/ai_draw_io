@@ -24,10 +24,20 @@ public final class SourceDemandResolver {
         if (!evidenceMatchesInstruction(evidence, input.instruction())) {
             return new SourceDemandUnavailable("SOURCE_DEMAND_EVIDENCE_INVALID", Duration.ZERO);
         }
+        if (!input.inputDigest().equals(evidence.inputDigest())) {
+            return new SourceDemandUnavailable("SOURCE_DEMAND_INPUT_DIGEST_INVALID", Duration.ZERO);
+        }
+        if (!policy.modelVersion().equals(evidence.modelVersion())
+                || !policy.policyVersion().equals(evidence.policyVersion())) {
+            return new SourceDemandUnavailable("SOURCE_DEMAND_POLICY_VERSION_INVALID", Duration.ZERO);
+        }
 
         List<DemandResolutionReason> verified = List.of(
                 new DemandResolutionReason(2, DemandResolutionCode.CURRENT_INSTRUCTION_EVIDENCE_VERIFIED));
         if (proposal instanceof NoSourceDemandProposal noSource) {
+            if (noSource.evidence().relevanceQuery().isPresent()) {
+                return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
+            }
             if (!policy.acceptedNoSourceConfidence().contains(noSource.evidence().confidence())) {
                 return clarification("LOW_CONFIDENCE", DemandResolutionCode.LOW_CONFIDENCE);
             }
@@ -43,7 +53,14 @@ public final class SourceDemandResolver {
         }
 
         TypedSourceDemandProposal typed = (TypedSourceDemandProposal) proposal;
+        if (!typed.evidence().relevanceQuery().equals(
+                java.util.Optional.ofNullable(typed.relevanceQuery()))) {
+            return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
+        }
         if (typed.kind() == SourceDemandKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED) {
+            if (typed.relevanceQuery() != null) {
+                return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
+            }
             if (!policy.acceptedRequiredConfidence().contains(typed.evidence().confidence())) {
                 return clarification("REQUIRED_CONFIDENCE", DemandResolutionCode.LOW_CONFIDENCE);
             }
@@ -61,6 +78,9 @@ public final class SourceDemandResolver {
                             new DemandResolutionReason(4, DemandResolutionCode.REQUIRED_PROPOSAL_ACCEPTED)));
         }
 
+        if (!typed.attachmentRefs().isEmpty()) {
+            return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
+        }
         if (!policy.acceptedOptionalConfidence().contains(typed.evidence().confidence())) {
             return clarification("OPTIONAL_CONFIDENCE", DemandResolutionCode.LOW_CONFIDENCE);
         }

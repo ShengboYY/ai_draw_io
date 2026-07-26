@@ -33,7 +33,7 @@ class SemanticTurnClassificationTest {
                 SemanticAction.CREATE, OutputIntent.DRAWING, TargetNeed.NOT_REQUIRED, "flowchart", "none");
         TurnClassificationOutcome outcome = service(
                 new SemanticIntentReady(intent),
-                new SourceDemandProposalReady(noSource(instruction)))
+                new SourceDemandProposalReady(noSource(demandInput)))
                 .classify(routerInput(instruction), demandInput);
 
         TurnClassificationReady ready = assertInstanceOf(TurnClassificationReady.class, outcome);
@@ -50,7 +50,7 @@ class SemanticTurnClassificationTest {
                 instruction, Optional.of("chartbook-1"), new OpaqueConversationFileRef("file-1"));
         TypedSourceDemandProposal proposal = new TypedSourceDemandProposal(
                 SourceDemandKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED,
-                List.of("file-1"), null, evidence(instruction), "use attachment");
+                List.of("file-1"), null, evidence(demandInput), "use attachment");
         TurnClassificationReady ready = assertInstanceOf(TurnClassificationReady.class,
                 service(
                         new SemanticIntentReady(new SemanticIntent(
@@ -70,7 +70,7 @@ class SemanticTurnClassificationTest {
         int[] interpreterCalls = {0};
         SourceDemandInterpreterPort interpreter = input -> {
             interpreterCalls[0]++;
-            return new SourceDemandProposalReady(noSource(input.instruction()));
+            return new SourceDemandProposalReady(noSource(input));
         };
         TurnClassificationService service = new TurnClassificationService(
                 input -> new SemanticIntentUnavailable("ROUTER_UNAVAILABLE"),
@@ -96,7 +96,7 @@ class SemanticTurnClassificationTest {
                         new SemanticIntentReady(new SemanticIntent(
                                 SemanticAction.CREATE, OutputIntent.DRAWING,
                                 TargetNeed.NOT_REQUIRED, "flowchart", "none")),
-                        new SourceDemandProposalReady(noSource(demandInstruction)))
+                        new SourceDemandProposalReady(noSource(input(demandInstruction, Optional.empty()))))
                         .classify(routerInput(routerInstruction), input(demandInstruction, Optional.empty())));
 
         assertEquals("CLASSIFICATION_INPUT_DIGEST_MISMATCH", unavailable.code());
@@ -126,16 +126,19 @@ class SemanticTurnClassificationTest {
                 instruction, List.of(attachments), membership, Set.of());
     }
 
-    private NoSourceDemandProposal noSource(CurrentInstruction instruction) {
-        return new NoSourceDemandProposal(evidence(instruction), "plain");
+    private NoSourceDemandProposal noSource(RestrictedSourceDemandInput input) {
+        return new NoSourceDemandProposal(evidence(input), "plain");
     }
 
-    private ProposalEvidence evidence(CurrentInstruction instruction) {
+    private ProposalEvidence evidence(RestrictedSourceDemandInput input) {
+        CurrentInstruction instruction = input.instruction();
         return new ProposalEvidence(
                 List.of(new CurrentInstructionSpan(
                         0, instruction.value().length(),
                         instruction.spanDigest(0, instruction.value().length()))),
                 Confidence.HIGH,
-                Optional.empty());
+                Optional.empty(), input.inputDigest(),
+                DemandResolutionPolicy.m2Default().modelVersion(),
+                DemandResolutionPolicy.m2Default().policyVersion());
     }
 }
