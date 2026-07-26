@@ -161,6 +161,7 @@ type Message = {
   }>;
   contextReceipts?: ReturnType<typeof buildContextReceipts>;
   citationReceipt?: ReturnType<typeof buildCitationReceipt>;
+  attachments?: Array<{ uploadId: string; fileName: string; state: ConversationAttachment['state'] }>;
   timestamp: number;
 };
 
@@ -2141,10 +2142,17 @@ function DrawioPageContent() {
 
     setIsSending(true);
 
+    // Freeze the composer selection for this message before any asynchronous request work starts.
+    const turnAttachments = conversationAttachments.map(attachment => ({
+      uploadId: attachment.uploadId,
+      fileName: attachment.fileName,
+      state: attachment.state,
+    }));
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: displayContent,
+      attachments: turnAttachments,
       timestamp: Date.now()
     };
     
@@ -2453,7 +2461,7 @@ function DrawioPageContent() {
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
           directClarifications: options.directClarifications,
           directConfirmationSourceVersionId: options.directConfirmationSourceVersionId,
-          currentTurnAttachmentRefs: conversationAttachments.map(attachment => attachment.uploadId),
+          currentTurnAttachmentRefs: turnAttachments.map(attachment => attachment.uploadId),
           memoryChartbookId: filesChartbook?.chartbookId,
           selectedLibraryVersionIds: librarySelections.map(selection => selection.versionId),
           selectedCellIds: selectedCellsRef.current?.cellIds,
@@ -2463,9 +2471,6 @@ function DrawioPageContent() {
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined,
           conversationMessages: messages,
       });
-      // Uploads remain in the conversation catalog, but must not silently bind to the next turn.
-      setConversationAttachments([]);
-
       type ReviewStreamOutcome = {
         decision?: string;
         visualReviewRunId?: string;
@@ -2955,7 +2960,7 @@ function DrawioPageContent() {
                 ? { kind: 'CHARTBOOK', label: filesChartbook.name }
                 : { kind: 'STANDALONE' },
               attachments: [
-                ...conversationAttachments.map(attachment => ({
+                ...turnAttachments.map(attachment => ({
                   label: attachment.fileName,
                   state: attachment.state,
                 })),
@@ -3600,6 +3605,8 @@ function DrawioPageContent() {
           }
         }
       );
+      // Clear only after the request has reached the server; a network failure keeps the composer intact.
+      setConversationAttachments([]);
 
       streamAbortRef.current = controller;
 
@@ -4438,6 +4445,19 @@ function DrawioPageContent() {
                             ) : (
                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                             )}
+                          </div>
+                        )}
+
+                        {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                          <div className="flex max-w-full flex-wrap justify-end gap-1.5">
+                            {msg.attachments.map(attachment => (
+                              <span
+                                key={attachment.uploadId}
+                                className="rounded-full border border-zinc-500 bg-zinc-600 px-2 py-1 text-[11px] text-zinc-100"
+                              >
+                                {attachment.fileName}
+                              </span>
+                            ))}
                           </div>
                         )}
 

@@ -16,6 +16,12 @@ public interface IDiagramConversationMapper {
                                                               @Param("diagramId") String diagramId,
                                                               @Param("scopeKeys") List<String> scopeKeys);
 
+    DiagramConversationMessagePO selectAssistantMessageByTurn(
+            @Param("userId") String userId,
+            @Param("diagramId") String diagramId,
+            @Param("conversationId") String conversationId,
+            @Param("turnId") String turnId);
+
     int upsertMessage(DiagramConversationMessagePO message);
 
     int deleteByUserId(@Param("userId") String userId);

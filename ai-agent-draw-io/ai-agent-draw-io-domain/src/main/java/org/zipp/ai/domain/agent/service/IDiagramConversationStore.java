@@ -4,6 +4,7 @@ import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMes
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public interface IDiagramConversationStore {
 
@@ -15,6 +16,12 @@ public interface IDiagramConversationStore {
     default List<DiagramConversationMessage> listMessages(
             String userId, String diagramId, String conversationReference) {
         return listMessages(userId, diagramId);
+    }
+
+    /** Reads one durable assistant record without re-resolving a legacy alias. */
+    default Optional<DiagramConversationMessage> findAssistantMessage(
+            String userId, String diagramId, String canonicalConversationId, String turnId) {
+        return Optional.empty();
     }
 
     default void saveMessages(List<DiagramConversationMessage> messages) {

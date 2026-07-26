@@ -88,7 +88,7 @@ class MySqlTurnAttemptInputRecoveryAdapterTest {
                         1,
                         new MemoryWriteRuleVersion("memory-rule-v1"),
                         new MatchedInstructionSpan("remember this decision"),
-                        new MemoryWriteSemanticDigest("sha256:memory")));
+                        new MemoryWriteSemanticDigest("sha256:memory"), "chartbook-1"));
         return new UserTurnCommand(
                 "turn-1", "conversation-1", "diagram-1", "client-1", "draw a box", null, declarations);
     }

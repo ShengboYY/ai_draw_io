@@ -25,6 +25,7 @@ final class MemoryWriteDeclarationJsonCodec {
                     .put("ruleVersion", remember.ruleVersion().value())
                     .put("matchedSpan", remember.matchedSpan().value())
                     .put("digest", remember.digest().value())
+                    .put("chartbookId", remember.chartbookId())
                     .toString();
         } catch (RuntimeException e) {
             throw new IllegalArgumentException("memory write declaration cannot be encoded", e);
@@ -44,7 +45,8 @@ final class MemoryWriteDeclarationJsonCodec {
                     node.path("schemaVersion").asInt(),
                     new MemoryWriteRuleVersion(node.path("ruleVersion").asText()),
                     new MatchedInstructionSpan(node.path("matchedSpan").asText()),
-                    new MemoryWriteSemanticDigest(node.path("digest").asText())
+                    new MemoryWriteSemanticDigest(node.path("digest").asText()),
+                    node.path("chartbookId").asText()
             );
         } catch (Exception e) {
             throw new IllegalStateException("persisted memory write declaration is unavailable", e);

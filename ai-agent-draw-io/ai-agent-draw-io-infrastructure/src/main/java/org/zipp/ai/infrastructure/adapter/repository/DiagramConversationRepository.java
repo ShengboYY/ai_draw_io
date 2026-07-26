@@ -11,6 +11,7 @@ import org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO;
 import javax.annotation.Resource;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
@@ -44,6 +45,17 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
         return rows.stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<DiagramConversationMessage> findAssistantMessage(
+            String userId, String diagramId, String canonicalConversationId, String turnId) {
+        if (isBlank(userId) || isBlank(diagramId) || isBlank(canonicalConversationId) || isBlank(turnId)) {
+            return Optional.empty();
+        }
+        // Admission already resolved this immutable scope; never resolve a legacy alias a second time.
+        return Optional.ofNullable(diagramConversationMapper.selectAssistantMessageByTurn(
+                userId, diagramId, canonicalConversationId, turnId)).map(this::toDomain);
     }
 
     @Override

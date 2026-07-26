@@ -45,7 +45,8 @@ public final class TurnRequestFingerprintCalculator {
         return remember.schemaVersion() + "|"
                 + remember.ruleVersion().value() + "|"
                 + remember.matchedSpan().value() + "|"
-                + remember.digest().value();
+                + remember.digest().value() + "|"
+                + remember.chartbookId();
     }
 
     private static void append(StringBuilder canonical, String field, String value) {

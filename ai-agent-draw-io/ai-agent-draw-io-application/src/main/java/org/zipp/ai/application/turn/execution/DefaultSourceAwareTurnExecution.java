@@ -5,6 +5,7 @@ import org.zipp.ai.application.turn.EvidenceAnswerTurnHandler;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.GroundedTurnHandler;
 import org.zipp.ai.application.turn.OptionalEnrichmentFallbackHandler;
+import org.zipp.ai.application.turn.OptionalPrimaryBranchScope;
 import org.zipp.ai.application.turn.SourceAwarePreparedExecution;
 import org.zipp.ai.application.turn.SourceAwarePreparationPort;
 import org.zipp.ai.application.turn.SourceExecutionBindingOutcome;
@@ -14,7 +15,10 @@ import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.planning.DirectCompositePlanner;
+import org.zipp.ai.application.turn.planning.FallbackReason;
 import org.zipp.ai.application.turn.planning.OptionalEnrichmentPlanner;
+import org.zipp.ai.application.turn.planning.OptionalEvidenceOutcome;
+import org.zipp.ai.application.turn.planning.OptionalRetrievalDrawPlan;
 import org.zipp.ai.application.turn.planning.PrePlanOutcome;
 import org.zipp.ai.application.turn.planning.SourcePlanDecision;
 import org.zipp.ai.application.turn.planning.SourceProbeCommand;
@@ -83,13 +87,14 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
 
         PrePlanOutcome.SourcePlanningRequired required = sourcePlanning.value();
         SourceProbeCommand probeCommand;
+        SourcePlanDecision plan = null;
         SourceAwarePreparedExecution sourceExecution;
         try {
             probeCommand = SourceProbeCommand.from(required);
             SourceProbeOutcome probeOutcome = probe.probe(probeCommand, new SourceProbeContext(
                     "USER", attempt.key().ownerKey(), prepared.context().request().diagramId(),
                     required.turn().canonicalConversationId(), required.turn().turnId()));
-            SourcePlanDecision plan = plan(probeCommand, probeOutcome);
+            plan = plan(probeCommand, probeOutcome);
             if (plan instanceof SourcePlanDecision.ProbeFallbackReady fallback) {
                 if (optionalFallback.isEmpty()) {
                     return rejected(prepared.decision(), "OPTIONAL_FALLBACK_HANDLER_NOT_AVAILABLE");
@@ -109,6 +114,10 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
                             attempt, prepared.context(), prepared.readSet(), probeCommand, plan,
                             required.intent().outputIntent()));
             if (!(preparedSource instanceof SourceAwarePreparationPort.Outcome.Ready ready)) {
+                if (plan instanceof SourcePlanDecision.OptionalRetrievalReady optionalReady) {
+                    return optionalPreparationFallback(attempt, prepared, optionalReady.plan(),
+                            ((SourceAwarePreparationPort.Outcome.Rejected) preparedSource).code(), events);
+                }
                 return rejected(prepared.decision(),
                         ((SourceAwarePreparationPort.Outcome.Rejected) preparedSource).code());
             }
@@ -132,11 +141,50 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             sourceExecution = ready.execution();
         } catch (RuntimeException failure) {
             // Source probing/preparation must not turn a required source request into a plain draw.
+            if (plan instanceof SourcePlanDecision.OptionalRetrievalReady optionalReady) {
+                return optionalPreparationFallback(attempt, prepared, optionalReady.plan(),
+                        "SOURCE_AWARE_PREPARATION_FAILED", events);
+            }
             return rejected(prepared.decision(), "SOURCE_AWARE_PREPARATION_FAILED");
         }
         // Handler/model failures remain execution failures and are handled by the outer attempt
         // supervisor; only capability gaps above become a durable route rejection.
         return dispatch(attempt, prepared, sourceExecution, events);
+    }
+
+    private TurnV2ExecutionOutcome optionalPreparationFallback(
+            FencedAttempt attempt,
+            TurnV2PreHandlerOutcome.Ready prepared,
+            OptionalRetrievalDrawPlan plan,
+            String preparationCode,
+            TurnEventSink events
+    ) {
+        if (optionalFallback.isEmpty()) {
+            return rejected(prepared.decision(), "OPTIONAL_FALLBACK_HANDLER_NOT_AVAILABLE");
+        }
+        FallbackReason reason = fallbackReason(preparationCode);
+        if (reason == null) {
+            return rejected(prepared.decision(), preparationCode);
+        }
+        return committed(optionalFallback.get().executeEvidenceFallback(
+                attempt, prepared.context(), prepared.readSet(), plan,
+                new OptionalEvidenceOutcome.FallbackEligible(reason),
+                OptionalPrimaryBranchScope.none(), events));
+    }
+
+    private FallbackReason fallbackReason(String preparationCode) {
+        if ("SOURCE_SNAPSHOT_NOT_FOUND".equals(preparationCode)) {
+            return FallbackReason.SNAPSHOT_DEPENDENCY_UNAVAILABLE;
+        }
+        if (preparationCode != null && preparationCode.contains("INSUFFICIENT")) {
+            return FallbackReason.EVIDENCE_INSUFFICIENT;
+        }
+        if (preparationCode != null && (preparationCode.startsWith("EVIDENCE_PREPARATION_")
+                || "SOURCE_AWARE_PREPARATION_FAILED".equals(preparationCode)
+                || "RETRIEVAL_SOURCE_NOT_BOUND".equals(preparationCode))) {
+            return FallbackReason.RETRIEVAL_DEPENDENCY_FAILURE;
+        }
+        return null;
     }
 
     private SourcePlanDecision plan(SourceProbeCommand command, SourceProbeOutcome outcome) {

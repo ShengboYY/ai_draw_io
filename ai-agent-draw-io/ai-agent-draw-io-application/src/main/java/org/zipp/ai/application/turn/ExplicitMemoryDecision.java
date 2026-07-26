@@ -4,7 +4,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Parses the only explicit v1 Memory language action; ordinary chat never creates Memory. */
 public record ExplicitMemoryDecision(
@@ -14,7 +17,12 @@ public record ExplicitMemoryDecision(
         RememberDecisionDeclaration declaration
 ) {
 
-    private static final String PREFIX = "记住这个决定：";
+    private static final List<PhraseRule> PHRASE_RULES = List.of(
+            new PhraseRule("MEMORY_V1_EXPLICIT_ZH_20260726",
+                    Pattern.compile("^(?:请\\s*)?记住这个决定(?:\\s*[:：]\\s*|\\s+)(.+)$")),
+            new PhraseRule("MEMORY_V1_EXPLICIT_EN_20260726",
+                    Pattern.compile("^remember this decision(?:\\s*:\\s*|\\s+)(.+)$",
+                            Pattern.CASE_INSENSITIVE)));
 
     public ExplicitMemoryDecision {
         ContractValues.requiredText(decisionKey, "decisionKey");
@@ -26,24 +34,32 @@ public record ExplicitMemoryDecision(
     }
 
     public static Optional<ExplicitMemoryDecision> fromUserContent(String content) {
+        return fromUserContent(content, null);
+    }
+
+    /** Parses a versioned explicit phrase and binds it before the turn is admitted. */
+    public static Optional<ExplicitMemoryDecision> fromUserContent(String content, String chartbookId) {
         String normalized = content == null ? "" : content.trim();
-        if (!normalized.startsWith(PREFIX)) {
-            return Optional.empty();
+        if (chartbookId == null || chartbookId.isBlank()) return Optional.empty();
+        for (PhraseRule rule : PHRASE_RULES) {
+            Matcher matcher = rule.pattern().matcher(normalized);
+            if (!matcher.matches()) continue;
+            String text = matcher.group(1).trim();
+            if (text.isEmpty()) return Optional.empty();
+            String span = matcher.group(0).substring(0,
+                    matcher.group(0).length() - matcher.group(1).length()).trim();
+            return Optional.of(new ExplicitMemoryDecision(
+                    "remembered-decision",
+                    "all",
+                    text,
+                    new RememberDecisionDeclaration(
+                            1,
+                            new MemoryWriteRuleVersion(rule.version()),
+                            new MatchedInstructionSpan(span),
+                            new MemoryWriteSemanticDigest(digest(text)),
+                            chartbookId)));
         }
-        String text = normalized.substring(PREFIX.length()).trim();
-        if (text.isEmpty()) {
-            return Optional.empty();
-        }
-        String digest = digest(text);
-        return Optional.of(new ExplicitMemoryDecision(
-                "remembered-decision",
-                "all",
-                text,
-                new RememberDecisionDeclaration(
-                        1,
-                        new MemoryWriteRuleVersion("MEMORY_V1_EXPLICIT_LANGUAGE"),
-                        new MatchedInstructionSpan(PREFIX),
-                        new MemoryWriteSemanticDigest(digest))));
+        return Optional.empty();
     }
 
     public String declarationDigest() {
@@ -65,5 +81,8 @@ public record ExplicitMemoryDecision(
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
+    }
+
+    private record PhraseRule(String version, Pattern pattern) {
     }
 }

@@ -27,7 +27,7 @@ class TurnInputBindingJsonCodecTest {
                         1,
                         new MemoryWriteRuleVersion("memory-rule-v1"),
                         new MatchedInstructionSpan("remember this decision"),
-                        new MemoryWriteSemanticDigest("sha256:memory")));
+                        new MemoryWriteSemanticDigest("sha256:memory"), "chartbook-1"));
 
         TurnInputBindingJsonCodec codec = new TurnInputBindingJsonCodec();
 

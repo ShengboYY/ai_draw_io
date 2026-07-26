@@ -118,7 +118,7 @@ class TurnContractTest {
                                 1,
                                 new MemoryWriteRuleVersion("rule-1"),
                                 new MatchedInstructionSpan("span-1"),
-                                new MemoryWriteSemanticDigest("digest-1"))));
+                                new MemoryWriteSemanticDigest("digest-1"), "chartbook-1")));
 
         assertEquals(
                 TurnRequestFingerprintCalculator.current(first),

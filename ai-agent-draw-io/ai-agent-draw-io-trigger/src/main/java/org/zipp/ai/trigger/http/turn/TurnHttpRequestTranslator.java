@@ -29,7 +29,7 @@ public final class TurnHttpRequestTranslator {
                 required(request.content(), "content"),
                 request.runtimeSessionId(),
                 declarations(request.currentTurnAttachmentRefs(), request.clarificationId(),
-                        request.legacySelectedSourceIds(), request.content()));
+                        request.legacySelectedSourceIds(), request.content(), null));
     }
 
     /**
@@ -53,14 +53,15 @@ public final class TurnHttpRequestTranslator {
                 required(request.getMessage(), "content"),
                 sessionId,
                 declarations(request.getCurrentTurnAttachmentRefs(), null,
-                        request.getSelectedLibraryVersionIds(), request.getMessage()));
+                        request.getSelectedLibraryVersionIds(), request.getMessage(), request.getMemoryChartbookId()));
     }
 
     private TurnDeclarations declarations(
             List<String> attachmentRefs,
             String clarificationId,
             List<String> legacySources,
-            String requestContent
+            String requestContent,
+            String memoryChartbookId
     ) {
         List<OpaqueConversationFileRef> attachments = attachmentRefs == null
                 ? List.of()
@@ -78,7 +79,7 @@ public final class TurnHttpRequestTranslator {
                         ? new NoClarificationReply()
                         : new ReplyToClarification(new ClarificationId(clarificationId)),
                 sources,
-                ExplicitMemoryDecision.fromUserContent(requestContent)
+                ExplicitMemoryDecision.fromUserContent(requestContent, memoryChartbookId)
                         .<org.zipp.ai.application.turn.MemoryWriteDeclaration>map(
                                 ExplicitMemoryDecision::declaration)
                         .orElseGet(org.zipp.ai.application.turn.NoMemoryWrite::new));

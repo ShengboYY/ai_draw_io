@@ -72,6 +72,7 @@ class TurnHttpRequestTranslatorTest {
         request.setResponseMessageId("client-1");
         request.setDiagramId("diagram-1");
         request.setMessage("记住这个决定：所有服务使用事件命名约定");
+        request.setMemoryChartbookId("chartbook-1");
 
         UserTurnCommand command = new TurnHttpRequestTranslator().translateLegacy(request);
 

@@ -45,6 +45,7 @@ public final class TurnAttemptExecutionRunner {
     private final LongSupplier monotonicNanos;
     private final TurnAttemptCancellationRegistry cancellationRegistry;
     private final TurnLifecycleTracePort trace;
+    private final TurnCompletedHook completedHook;
 
     public TurnAttemptExecutionRunner(
             TurnV2TurnExecutor executor,
@@ -53,7 +54,7 @@ public final class TurnAttemptExecutionRunner {
             ScheduledExecutorService scheduler
     ) {
         this(executor, heartbeat, executionExecutor, scheduler, System::nanoTime, null,
-                NoopTurnLifecycleTracePort.INSTANCE);
+                NoopTurnLifecycleTracePort.INSTANCE, TurnCompletedHook.NOOP);
     }
 
     public TurnAttemptExecutionRunner(
@@ -64,7 +65,7 @@ public final class TurnAttemptExecutionRunner {
             TurnLifecycleTracePort trace
     ) {
         this(executor, heartbeat, executionExecutor, scheduler,
-                System::nanoTime, null, trace);
+                System::nanoTime, null, trace, TurnCompletedHook.NOOP);
     }
 
     public TurnAttemptExecutionRunner(
@@ -75,7 +76,8 @@ public final class TurnAttemptExecutionRunner {
             TurnAttemptCancellationRegistry cancellationRegistry
     ) {
         this(executor, heartbeat, executionExecutor, scheduler,
-                System::nanoTime, cancellationRegistry, NoopTurnLifecycleTracePort.INSTANCE);
+                System::nanoTime, cancellationRegistry, NoopTurnLifecycleTracePort.INSTANCE,
+                TurnCompletedHook.NOOP);
     }
 
     public TurnAttemptExecutionRunner(
@@ -87,7 +89,20 @@ public final class TurnAttemptExecutionRunner {
             TurnLifecycleTracePort trace
     ) {
         this(executor, heartbeat, executionExecutor, scheduler,
-                System::nanoTime, cancellationRegistry, trace);
+                System::nanoTime, cancellationRegistry, trace, TurnCompletedHook.NOOP);
+    }
+
+    public TurnAttemptExecutionRunner(
+            TurnV2TurnExecutor executor,
+            TurnAttemptLeaseSupervisor heartbeat,
+            Executor executionExecutor,
+            ScheduledExecutorService scheduler,
+            TurnAttemptCancellationRegistry cancellationRegistry,
+            TurnLifecycleTracePort trace,
+            TurnCompletedHook completedHook
+    ) {
+        this(executor, heartbeat, executionExecutor, scheduler,
+                System::nanoTime, cancellationRegistry, trace, completedHook);
     }
 
     TurnAttemptExecutionRunner(
@@ -98,7 +113,7 @@ public final class TurnAttemptExecutionRunner {
             LongSupplier monotonicNanos
     ) {
         this(executor, heartbeat, executionExecutor, scheduler, monotonicNanos, null,
-                NoopTurnLifecycleTracePort.INSTANCE);
+                NoopTurnLifecycleTracePort.INSTANCE, TurnCompletedHook.NOOP);
     }
 
     TurnAttemptExecutionRunner(
@@ -110,6 +125,20 @@ public final class TurnAttemptExecutionRunner {
             TurnAttemptCancellationRegistry cancellationRegistry,
             TurnLifecycleTracePort trace
     ) {
+        this(executor, heartbeat, executionExecutor, scheduler, monotonicNanos,
+                cancellationRegistry, trace, TurnCompletedHook.NOOP);
+    }
+
+    TurnAttemptExecutionRunner(
+            TurnV2TurnExecutor executor,
+            TurnAttemptLeaseSupervisor heartbeat,
+            Executor executionExecutor,
+            ScheduledExecutorService scheduler,
+            LongSupplier monotonicNanos,
+            TurnAttemptCancellationRegistry cancellationRegistry,
+            TurnLifecycleTracePort trace,
+            TurnCompletedHook completedHook
+    ) {
         this.executor = Objects.requireNonNull(executor, "executor");
         this.heartbeat = Objects.requireNonNull(heartbeat, "heartbeat");
         this.executionExecutor = Objects.requireNonNull(executionExecutor, "executionExecutor");
@@ -117,6 +146,7 @@ public final class TurnAttemptExecutionRunner {
         this.monotonicNanos = Objects.requireNonNull(monotonicNanos, "monotonicNanos");
         this.cancellationRegistry = cancellationRegistry;
         this.trace = Objects.requireNonNull(trace, "trace");
+        this.completedHook = Objects.requireNonNull(completedHook, "completedHook");
     }
 
     public TurnHandle start(
@@ -464,7 +494,21 @@ public final class TurnAttemptExecutionRunner {
                 task.cancel(interruptExecution);
             }
             traceCompletion(tracedAttempt, result);
+            runCompletedHook(tracedAttempt, result);
             completion.complete(result);
+        }
+
+        private void runCompletedHook(FencedAttempt attempt, TurnAttemptCompletion result) {
+            if (!(result instanceof TurnAttemptCompletion.PersistedTerminal terminal)
+                    || terminal.outcome().status() != org.zipp.ai.application.turn.TurnStatus.COMPLETED) {
+                return;
+            }
+            try {
+                // A post-completion proposal is best-effort and must not alter the committed turn result.
+                completedHook.afterCompleted(attempt, command);
+            } catch (RuntimeException ignored) {
+                // The durable turn remains successful even if an optional pending proposal cannot be stored.
+            }
         }
 
         private void traceCompletion(FencedAttempt attempt, TurnAttemptCompletion result) {

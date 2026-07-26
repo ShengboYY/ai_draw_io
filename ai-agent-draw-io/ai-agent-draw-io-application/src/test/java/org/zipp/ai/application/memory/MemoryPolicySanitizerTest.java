@@ -19,7 +19,7 @@ class MemoryPolicySanitizerTest {
     private static final TurnKey TURN = new TurnKey("owner-1", "conversation-1", "turn-1");
     private static final RememberDecisionDeclaration DECLARATION = new RememberDecisionDeclaration(
             1, new MemoryWriteRuleVersion("MEMORY_V1"), new MatchedInstructionSpan("remember this"),
-            new MemoryWriteSemanticDigest("semantic-1"));
+            new MemoryWriteSemanticDigest("semantic-1"), "chartbook-1");
 
     @Test
     void onlyExplicitConfirmedDecisionCanBeSanitized() {

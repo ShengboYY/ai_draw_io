@@ -12,17 +12,13 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.ConversationReferenceResolver;
-import org.zipp.ai.application.turn.ExplicitMemoryDecision;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
 import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
-import org.zipp.ai.application.memory.MemoryProposalCommand;
-import org.zipp.ai.application.memory.MemoryProposalService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
-import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.api.dto.ChatResponseDTO;
@@ -55,7 +51,6 @@ public final class LegacyTurnV2IngressBridge {
     private final TurnHttpControlAdapter control;
     private final ICanvasStateStore canvases;
     private final IDiagramConversationStore messages;
-    private final ObjectProvider<MemoryProposalService> memoryProposals;
     private final long timeoutMillis;
 
     public LegacyTurnV2IngressBridge(
@@ -63,14 +58,12 @@ public final class LegacyTurnV2IngressBridge {
             TurnHttpControlAdapter control,
             ICanvasStateStore canvases,
             IDiagramConversationStore messages,
-            ObjectProvider<MemoryProposalService> memoryProposals,
             @Value("${turn-engine.http.v1-v2-bridge.timeout-millis:60000}") long timeoutMillis
     ) {
         this.delivery = Objects.requireNonNull(delivery, "delivery");
         this.control = Objects.requireNonNull(control, "control");
         this.canvases = Objects.requireNonNull(canvases, "canvases");
         this.messages = Objects.requireNonNull(messages, "messages");
-        this.memoryProposals = Objects.requireNonNull(memoryProposals, "memoryProposals");
         if (timeoutMillis < 1_000L) {
             throw new IllegalArgumentException("timeoutMillis must be at least one second");
         }
@@ -163,37 +156,7 @@ public final class LegacyTurnV2IngressBridge {
         } else {
             return new BridgeResult(null, null, submissionCode(submission));
         }
-        proposeExplicitMemory(request, canonical, key, terminal);
-        return terminalResult(ownerKey, canonical, terminal);
-    }
-
-    private void proposeExplicitMemory(
-            ChatRequestDTO request,
-            TurnHttpRequest canonical,
-            TurnKey turn,
-            PersistedTurnOutcome terminal
-    ) {
-        if (terminal.status() != TurnStatus.COMPLETED
-                || request.getMemoryChartbookId() == null || request.getMemoryChartbookId().isBlank()) {
-            return;
-        }
-        ExplicitMemoryDecision.fromUserContent(canonical.content()).ifPresent(decision -> {
-            MemoryProposalService service = memoryProposals.getIfAvailable();
-            if (service == null) {
-                return;
-            }
-            // Proposal failure must not rewrite a successfully committed turn response.
-            service.propose(new MemoryProposalCommand(
-                    turn,
-                    request.getMemoryChartbookId(),
-                    canonical.diagramId(),
-                    decision.candidateId(turn),
-                    decision.declarationDigest(),
-                    decision.declaration(),
-                    decision.decisionKey(),
-                    decision.applicabilityStage(),
-                    decision.canonicalText()));
-        });
+        return terminalResult(ownerKey, canonical, key, terminal);
     }
 
     private TurnKey submissionKey(TurnSubmission submission) {
@@ -240,32 +203,30 @@ public final class LegacyTurnV2IngressBridge {
     private BridgeResult terminalResult(
             String ownerKey,
             TurnHttpRequest canonical,
+            TurnKey key,
             PersistedTurnOutcome terminal
     ) {
         if (terminal.status() != TurnStatus.COMPLETED) {
             return new BridgeResult(null, null, terminal.terminalCode());
         }
-        DiagramConversationMessage assistant = messages.listMessages(
-                        ownerKey, canonical.diagramId(), canonical.conversationReference())
-                .stream()
-                .filter(message -> "agent".equalsIgnoreCase(message.getRole()))
-                .filter(message -> canonical.turnId().equals(message.getTurnId()))
-                .reduce((first, second) -> second)
+        String assistantMessage = messages.findAssistantMessage(
+                        ownerKey, canonical.diagramId(), key.canonicalConversationId(), key.turnId())
+                .map(message -> message.getContent())
                 .orElse(null);
-        if (assistant == null) {
+        if (assistantMessage == null) {
             return new BridgeResult(null, null, "TURN_TERMINAL_MESSAGE_UNAVAILABLE");
         }
         JSONObject payload = JSON.parseObject(terminal.terminalPayloadJson());
         Long canvasVersion = payload == null ? null : payload.getLong("canvasVersionAfter");
         if (canvasVersion == null) {
-            return new BridgeResult(null, assistant.getContent(), null);
+            return new BridgeResult(null, assistantMessage, null);
         }
         CanvasState canvas = canvases.find(ownerKey, canonical.diagramId()).orElse(null);
         if (canvas == null || canvas.getVersion() != canvasVersion) {
             // Never substitute a later canvas for the one committed by this turn.
             return new BridgeResult(null, null, "TURN_TERMINAL_CANVAS_UNAVAILABLE");
         }
-        return new BridgeResult(canvas, assistant.getContent(), null);
+        return new BridgeResult(canvas, assistantMessage, null);
     }
 
     private TurnHttpRequest canonicalRequest(ChatRequestDTO request, String requestId, String runId) {

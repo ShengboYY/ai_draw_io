@@ -47,6 +47,9 @@ import org.zipp.ai.application.turn.execution.TurnV2PreHandlerCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
+import org.zipp.ai.application.turn.execution.TurnCompletedHook;
+import org.zipp.ai.application.memory.MemoryProposalService;
+import org.zipp.ai.application.memory.MemoryTurnCompletedHook;
 import org.zipp.ai.application.turn.execution.TurnAttemptRecoveryCoordinator;
 import org.zipp.ai.application.turn.execution.SourceAwareTurnExecution;
 import org.zipp.ai.application.turn.planning.DirectCompositePlanner;
@@ -279,11 +282,15 @@ public class TurnV2ExecutionCompositionConfig {
             @Qualifier("threadPoolExecutor") ThreadPoolExecutor executionExecutor,
             ScheduledExecutorService scheduler,
             TurnAttemptCancellationRegistry cancellationRegistry,
-            ObjectProvider<TurnLifecycleTracePort> trace
+            ObjectProvider<TurnLifecycleTracePort> trace,
+            ObjectProvider<MemoryProposalService> memoryProposals
     ) {
         return new TurnAttemptExecutionRunner(
                 executor, heartbeat, executionExecutor, scheduler, cancellationRegistry,
-                trace.getIfAvailable(() -> org.zipp.ai.application.turn.NoopTurnLifecycleTracePort.INSTANCE));
+                trace.getIfAvailable(() -> org.zipp.ai.application.turn.NoopTurnLifecycleTracePort.INSTANCE),
+                memoryProposals.getIfAvailable() == null
+                        ? TurnCompletedHook.NOOP
+                        : new MemoryTurnCompletedHook(memoryProposals.getIfAvailable()));
     }
 
     @Bean

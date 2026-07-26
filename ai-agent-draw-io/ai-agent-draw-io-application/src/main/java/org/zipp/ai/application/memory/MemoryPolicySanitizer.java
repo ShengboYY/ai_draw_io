@@ -36,6 +36,9 @@ public final class MemoryPolicySanitizer {
         if (!remember.digest().value().equals(command.declarationDigest())) {
             return new SanitizationOutcome.Rejected("MEMORY_DECLARATION_DIGEST_CONFLICT");
         }
+        if (!remember.chartbookId().equals(command.chartbookId())) {
+            return new SanitizationOutcome.Rejected("MEMORY_CHARTBOOK_TARGET_CONFLICT");
+        }
         if (!KEY.matcher(command.decisionKey()).matches()) {
             return new SanitizationOutcome.Rejected("MEMORY_DECISION_KEY_INVALID");
         }

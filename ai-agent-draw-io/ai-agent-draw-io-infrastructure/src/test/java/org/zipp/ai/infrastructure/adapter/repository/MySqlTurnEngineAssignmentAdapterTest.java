@@ -103,7 +103,7 @@ class MySqlTurnEngineAssignmentAdapterTest {
                 1,
                 new MemoryWriteRuleVersion("rule-1"),
                 new MatchedInstructionSpan("remember this"),
-                new MemoryWriteSemanticDigest("digest-1"));
+                new MemoryWriteSemanticDigest("digest-1"), "chartbook-1");
 
         AdmissionWriteOutcome.Rejected rejected = assertInstanceOf(
                 AdmissionWriteOutcome.Rejected.class,
