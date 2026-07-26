@@ -352,6 +352,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 control transport 的 HTTP disposition contract：status 的 available outcome 为 `200 OK`，terminal decoder unavailable 为 `503 Service Unavailable`；explicit cancel 的 persisted winner 与 already-terminal replay 为 `200 OK`，terminal unavailable/readiness rejection 为 `503`，fence/race rejection 为 `409`，owner/not-found rejection 统一为 `404` 以避免泄露 durable turn。`TurnHttpControlAdapter` 保留原始 sealed outcome，并额外提供 `statusResponse`/`cancelResponse`；新增 control mapper matrix 与 canonical adapter tests，未接入 legacy controller、serving route 或 production assignment，本切片没有新增或执行 migration。
 
+本切片接入 feature-gated V2 HTTP boundary：`TurnV2HttpController` 提供 `POST /api/v2/turns`、`GET /api/v2/turns/{turnId}/status` 与 `POST /api/v2/turns/{turnId}/cancel`，通过 `CurrentOwnerHttpResolver` 构造 owner-fenced `AuthenticatedActor`，并复用 delivery/control adapters 的既有 disposition。`turn-engine.http.v2.enabled` 缺省关闭，未开启时 controller 不注册；没有修改 `/api/v1` legacy controller、assignment selection 或数据库 schema。测试覆盖 owner 不来自 request body、status/cancel HTTP code 以及 feature flag annotation contract。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
