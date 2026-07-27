@@ -1,6 +1,7 @@
 package org.zipp.ai.trigger.http.service;
 
 import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -16,6 +17,8 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
@@ -26,9 +29,10 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvid
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewGrounding;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
-import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.VisualRepairContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewGroundingGuard;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualRepairBriefComposer;
@@ -70,9 +74,11 @@ public class CanvasVisualReviewOrchestrator {
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
     @Resource
+    private AgentDebugTraceService agentDebugTraceService;
+    @Resource
     private VisualReviewRolloutPolicy visualReviewRolloutPolicy;
-    @Value("${zipp.visual-review.drawer-agent-id:300000}")
-    private String drawerAgentId = "300000";
+    @Value("${zipp.visual-review.repair-agent-id:300029}")
+    private String repairAgentId = "300029";
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
     // The reviewer proposes targets; this guard alone translates grounded targets into mutation authority.
     private final CanvasVisualReviewGroundingGuard groundingGuard = new CanvasVisualReviewGroundingGuard();
@@ -121,17 +127,17 @@ public class CanvasVisualReviewOrchestrator {
             CanvasReviewImageValidator.ValidatedImage after = imageValidator.validate(request.getAfterImageDataUrl());
             List<CanvasVisualReviewEvidence> supplemental = validateSupplementalEvidence(request);
             CanvasVisualReviewStage stage = CanvasVisualReviewStage.valueOf(request.getStage());
-            DrawerContinuation continuation = review(
+            VisualRepairContinuation continuation = review(
                     ownerId, visualReviewRunId, request, emitter, before, after, supplemental, stage);
             if (continuation == null) return;
-            // The continuation owns a separate run while reusing the original Drawer agent and session.
-            log.info("[visual-review-loop] event=drawer_continuation reviewRunId={} repairRunId={} sourceRunId={} parentRunId={} repairRound={} diagramId={} expectedVersion={} expectedHash={} authorizedCells={}",
+            // The dedicated repair agent owns a separate run linked to the reviewed source mutation.
+            log.info("[visual-review-loop] event=visual_repair_continuation reviewRunId={} repairRunId={} sourceRunId={} parentRunId={} repairRound={} diagramId={} expectedVersion={} expectedHash={} authorizedCells={}",
                     logValue(visualReviewRunId), logValue(continuation.request().getRunId()),
                     logValue(continuation.request().getSourceRunId()), logValue(continuation.request().getParentRunId()),
                     continuation.request().getVisualRepairRound(), logValue(continuation.request().getDiagramId()),
                     continuation.request().getExpectedVersion(), logValue(continuation.request().getExpectedContentHash()),
                     continuation.context().authorization().allowedCellIds().size());
-            agentConversationService.continueDrawing(
+            agentConversationService.continueVisualRepair(
                     continuation.request(), continuation.context(), emitter);
         } catch (IllegalArgumentException e) {
             log.warn("[visual-review-loop] event=rejected reviewRunId={} errorClass={}",
@@ -147,7 +153,7 @@ public class CanvasVisualReviewOrchestrator {
         }
     }
 
-    private DrawerContinuation review(String ownerId,
+    private VisualRepairContinuation review(String ownerId,
                                       String visualReviewRunId,
                                       CanvasVisualReviewRequestDTO request,
                                       ResponseBodyEmitter emitter,
@@ -183,6 +189,10 @@ public class CanvasVisualReviewOrchestrator {
                         logValue(request.getParentRunId()), logValue(request.getDiagramId()),
                         visualRepairRound(request), request.getExpectedVersion(),
                         logValue(request.getExpectedContentHash()), verifiedLineage);
+                Map<String, Object> lineage = baseMetadata(request);
+                lineage.put("verified", verifiedLineage);
+                recordReviewEvent(run, "visual_review_lineage_verified",
+                        verifiedLineage ? "SUCCESS" : "FAILED", lineage);
                 if (!verifiedLineage) {
                     throw new IllegalArgumentException("invalid_visual_repair_lineage");
                 }
@@ -193,10 +203,22 @@ public class CanvasVisualReviewOrchestrator {
             verifiedUserPlatformQuotaService.consumeIfNeeded(ownerId, null);
             CanvasAnalysis analysis = canvasAnalyzer.analyze(reviewedState.getCurrentXml(), diagramType(request, reviewedState));
             sendReviewStarted(emitter, visualReviewRunId, request, before, after, supplemental);
+            log.info("[visual-review-loop] event=provider_start reviewRunId={} sourceRunId={} stage={} repairRound={} reviewer={}",
+                    logValue(visualReviewRunId), logValue(request.getSourceRunId()), request.getStage(),
+                    visualRepairRound(request), logValue(visualReviewer.version()));
             long startedNanos = System.nanoTime();
             CanvasVisualReviewResult result = visualReviewer.review(
                     command(request, reviewedState, stage, analysis, supplemental));
             long reviewLatencyMs = (System.nanoTime() - startedNanos) / 1_000_000;
+            Map<String, Object> providerCompleted = baseMetadata(request);
+            providerCompleted.put("latencyMs", reviewLatencyMs);
+            providerCompleted.put("available", result != null && result.isAvailable());
+            providerCompleted.put("issueCount", result == null ? 0 : result.safeIssues().size());
+            recordReviewEvent(run, "visual_review_provider_completed", "SUCCESS", providerCompleted);
+            log.info("[visual-review-loop] event=provider_complete reviewRunId={} sourceRunId={} stage={} repairRound={} available={} issues={} latencyMs={}",
+                    logValue(visualReviewRunId), logValue(request.getSourceRunId()), request.getStage(),
+                    visualRepairRound(request), result != null && result.isAvailable(),
+                    result == null ? 0 : result.safeIssues().size(), reviewLatencyMs);
 
             // Reject results for a canvas that changed while pixels were being reviewed.
             CanvasState latestState = canvasStateStore.find(ownerId, request.getDiagramId()).orElse(null);
@@ -219,6 +241,15 @@ public class CanvasVisualReviewOrchestrator {
                     grounding.nodeCount(), grounding.edgeCount(), grounding.returnedTargetCount(),
                     grounding.validTargetCount(), grounding.invalidTargetCount(),
                     grounding.hasConflict() ? logValue(grounding.conflictReason()) : "none");
+            Map<String, Object> groundingMetadata = baseMetadata(request);
+            groundingMetadata.put("manifestNodeCount", grounding.nodeCount());
+            groundingMetadata.put("manifestEdgeCount", grounding.edgeCount());
+            groundingMetadata.put("returnedTargetCount", grounding.returnedTargetCount());
+            groundingMetadata.put("validTargetCount", grounding.validTargetCount());
+            groundingMetadata.put("invalidTargetCount", grounding.invalidTargetCount());
+            groundingMetadata.put("groundingConflict", grounding.hasConflict());
+            recordReviewEvent(run, "visual_review_grounded",
+                    grounding.hasConflict() ? "FAILED" : "SUCCESS", groundingMetadata);
             boolean shadow = Boolean.TRUE.equals(request.getShadow());
             int nextRepairRound = visualRepairRound(request) + 1;
             boolean autoRepairEligible = autoRepairEnabled(ownerId, request, nextRepairRound);
@@ -256,6 +287,13 @@ public class CanvasVisualReviewOrchestrator {
                 log.info("[visual-review-loop] event=repair_claim reviewRunId={} sourceRunId={} diagramId={} repairRound={} granted={}",
                         logValue(visualReviewRunId), logValue(request.getSourceRunId()),
                         logValue(request.getDiagramId()), nextRepairRound, claimed);
+                Map<String, Object> claimMetadata = baseMetadata(request);
+                claimMetadata.put("repairRunId", repairRunId);
+                claimMetadata.put("nextRepairRound", nextRepairRound);
+                claimMetadata.put("granted", claimed);
+                recordReviewEvent(run,
+                        claimed ? "visual_repair_claimed" : "visual_repair_claim_rejected",
+                        claimed ? "SUCCESS" : "FAILED", claimMetadata);
                 if (!claimed) {
                     // Missing ownership and replayed source runs both fail closed without mutating the canvas.
                     decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
@@ -306,13 +344,22 @@ public class CanvasVisualReviewOrchestrator {
             completed.put("autoRepairAttempted", true);
             completed.put("repairRunId", repair.getRunId());
             recordReviewEvent(run, "visual_review_completed", "SUCCESS", completed);
-            return new DrawerContinuation(
+            Map<String, Object> prepared = baseMetadata(request);
+            prepared.put("repairRunId", repair.getRunId());
+            prepared.put("repairAgentId", repair.getAgentId());
+            prepared.put("nextRepairRound", repair.getVisualRepairRound());
+            prepared.put("authorizedCellCount", authorization.allowedCellIds().size());
+            recordReviewEvent(run, "visual_repair_prepared", "SUCCESS", prepared);
+            return new VisualRepairContinuation(
                     repair,
-                    new DrawerContinuationContext(
+                    new VisualRepairContext(
                             diagramType(request, latestState),
                             authorization));
         } catch (Exception e) {
             failure = e;
+            Map<String, Object> failed = baseMetadata(request);
+            failed.put("errorClass", e.getClass().getSimpleName());
+            recordReviewEvent(run, "visual_review_failed", "FAILED", failed);
             throw e;
         } finally {
             telemetryService().completeRun(run, failure);
@@ -424,7 +471,25 @@ public class CanvasVisualReviewOrchestrator {
                                    String eventType,
                                    String status,
                                    Map<String, ?> metadata) {
-        telemetryService().recordTraceEvent(run.getContext(), eventType, "visual_review", status, metadata);
+        AgentTraceEvent event = telemetryService().recordTraceEvent(
+                run.getContext(), eventType, "visual_review", status, metadata);
+        if (agentDebugTraceService == null || event == null) {
+            return;
+        }
+        try {
+            // Persist the already-sanitized event envelope under the span shown by Trace Analysis.
+            agentDebugTraceService.captureSpanPayload(
+                    run.getContext().userId(), run.getContext().runId(), event.getId(),
+                    DebugTracePayloadKind.OUTPUT, "application/json",
+                    JSON.toJSONString(Map.of(
+                            "eventType", event.getEventType(),
+                            "phase", event.getPhase(),
+                            "status", event.getStatus(),
+                            "metadataJson", event.getMetadataJson())));
+        } catch (Exception e) {
+            log.warn("[visual-review-loop] event=trace_payload_failed reviewRunId={} traceEventId={} errorClass={}",
+                    logValue(run.getContext().runId()), logValue(event.getId()), e.getClass().getSimpleName());
+        }
     }
 
     private AgentUsageTelemetryService telemetryService() {
@@ -444,8 +509,8 @@ public class CanvasVisualReviewOrchestrator {
                 ownerId, request == null ? null : request.getDiagramId(), nextRepairRound);
     }
 
-    private record DrawerContinuation(ChatRequestDTO request,
-                                      DrawerContinuationContext context) {
+    private record VisualRepairContinuation(ChatRequestDTO request,
+                                            VisualRepairContext context) {
     }
 
     private record CanvasPage(String pageId, String pageName) {
@@ -628,8 +693,8 @@ public class CanvasVisualReviewOrchestrator {
                                          CanvasVisualReviewResult result) {
         ChatRequestDTO repair = new ChatRequestDTO();
         repair.setUserId(ownerId);
-        // Repair authority is server-owned; never let a client select an agent with broader tools.
-        repair.setAgentId(drawerAgentId);
+        // Repair authority is server-owned; the dedicated agent physically exposes only local repair tools.
+        repair.setAgentId(repairAgentId);
         repair.setSessionId(request.getSessionId());
         repair.setModelCredentialId(request.getModelCredentialId());
         repair.setRequestId("repair_req_" + UUID.randomUUID());

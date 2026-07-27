@@ -21,7 +21,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewComm
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
-import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.VisualRepairContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
@@ -96,7 +96,7 @@ public class AgentConversationService {
     private static final int MAX_DETERMINISTIC_REPAIR_ROUNDS = 3;
     private static final int MAX_VISUAL_CONTINUATION_DETERMINISTIC_REPAIR_ROUNDS = 0;
     private static final int MAX_BUFFERED_STREAM_CAPTURE_CHARS = 64_000;
-    private static final String DRAWER_CONTINUATION_REASON = "production_visual_review_continuation";
+    private static final String VISUAL_REPAIR_REASON = "production_visual_repair";
 
     @Resource
     private IChatService chatService;
@@ -372,25 +372,23 @@ public class AgentConversationService {
         stream(requestDTO, emitter, null, "chat_stream", null);
     }
 
-    public void continueDrawing(ChatRequestDTO requestDTO,
-                                DrawerContinuationContext continuation,
-                                ResponseBodyEmitter emitter) {
-        log.info("[drawer-continuation] event=start runId={} sourceRunId={} parentRunId={} repairRound={} diagramId={} expectedVersion={} expectedHash={}",
+    public void continueVisualRepair(ChatRequestDTO requestDTO,
+                                     VisualRepairContext context,
+                                     ResponseBodyEmitter emitter) {
+        log.info("[visual-repair-agent] event=start runId={} sourceRunId={} parentRunId={} repairRound={} diagramId={} expectedVersion={} expectedHash={}",
                 logValue(requestDTO.getRunId()), logValue(requestDTO.getSourceRunId()),
                 logValue(requestDTO.getParentRunId()), requestDTO.getVisualRepairRound(),
                 logValue(requestDTO.getDiagramId()), requestDTO.getExpectedVersion(),
                 logValue(requestDTO.getExpectedContentHash()));
-        // Visual review is feedback on an already-routed task. Continue the same Drawer loop without
-        // asking the intent model to reinterpret the server-authored feedback as a new user request.
+        // Visual repair is server-authored continuation work; never reinterpret it as a new user request.
         IntentRoutingResult continuationRoute = new IntentRoutingResult();
-        // Keep the established edit route for prompt context; the continuation policy exposes both
-        // local repair tools so the Drawer can select the smallest operation from the review evidence.
+        // The edit route supplies current-canvas context while the dedicated agent remains tool-restricted.
         continuationRoute.setRouteType("edit_existing");
-        continuationRoute.setDiagramType(continuation.diagramType());
+        continuationRoute.setDiagramType(context.diagramType());
         continuationRoute.setSkillName("none");
-        continuationRoute.setReason(DRAWER_CONTINUATION_REASON);
-        stream(requestDTO, emitter, continuationRoute, "drawer_continuation_stream",
-                new CanvasMutationIntent(CanvasMutationPurpose.VLM_REPAIR, continuation.authorization()));
+        continuationRoute.setReason(VISUAL_REPAIR_REASON);
+        stream(requestDTO, emitter, continuationRoute, "visual_repair_stream",
+                new CanvasMutationIntent(CanvasMutationPurpose.VLM_REPAIR, context.authorization()));
     }
 
     private void stream(ChatRequestDTO requestDTO,
@@ -398,6 +396,9 @@ public class AgentConversationService {
                         IntentRoutingResult forcedRoutingResult,
                         String operation,
                         CanvasMutationIntent mutationIntent) {
+        final boolean visualRepairRun = forcedRoutingResult != null
+                && mutationIntent != null
+                && mutationIntent.purpose() == CanvasMutationPurpose.VLM_REPAIR;
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
                 requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), operation,
@@ -442,6 +443,13 @@ public class AgentConversationService {
         try {
             recordLifecycleEvent(runScope, "HTTP_REQUEST_RECEIVED", "request", "SUCCESS",
                     requestMetadata(requestDTO, true));
+            if (visualRepairRun) {
+                Map<String, Object> started = requestMetadata(requestDTO, true);
+                started.put("agentId", StringUtils.defaultString(requestDTO.getAgentId()));
+                started.put("authorizedCellCount", mutationIntent.authorization().allowedCellIds().size());
+                started.put("authorizedFieldCount", mutationIntent.authorization().allowedFields().size());
+                recordLifecycleEvent(runScope, "VISUAL_REPAIR_STARTED", "visual_repair", "SUCCESS", started);
+            }
             streamResponseWriter.sendMeta(emitter, runScope.getContext().requestId(), runScope.getContext().runId());
             recordLifecycleEvent(runScope, "STREAM_META_SENT", "stream", "SUCCESS",
                     Map.of("metaOnly", true));
@@ -735,10 +743,6 @@ public class AgentConversationService {
             final AtomicBoolean finalFirstStreamOutputRecorded = firstStreamOutputRecorded;
             final BoundedTextCapture finalStreamOutputCapture = streamOutputCapture;
             final long finalStreamStartedNanos = streamStartedNanos;
-            // Mutation intent is constructed by this service, unlike model-authored routing fields.
-            final boolean drawerContinuation = forcedRoutingResult != null
-                    && mutationIntent != null
-                    && mutationIntent.purpose() == CanvasMutationPurpose.VLM_REPAIR;
             PreparedEvidence preparedEvidence = preparedEvidenceRef.get();
             DirectAndRetrievalEvidenceComposer.Outcome.Ready preparedComposition = compositionRef.get();
             EvidenceAccessContext evidenceAccess = preparedComposition != null
@@ -747,7 +751,7 @@ public class AgentConversationService {
                             ? null : EvidenceAccessContext.from(preparedEvidence.bundle(), true));
             final RoutedDrawMessage routedMessage = buildRoutedDrawMessage(
                     currentRequest, routingResult, maxRepairRounds,
-                    currentRequest.getUserId(), currentRequest.getSkills(), drawerContinuation, evidenceAccess);
+                    currentRequest.getUserId(), currentRequest.getSkills(), visualRepairRun, evidenceAccess);
             Object routedTracePayload = evidenceAccess == null
                     ? traceField("message", routedMessage.message())
                     : groundedPromptTrace(routedMessage.message(), evidenceAccess);
@@ -784,6 +788,19 @@ public class AgentConversationService {
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
             DrawioToolAccessContext.applyToolPolicy(
                     runScope.getContext().runId(), routedMessage.toolPolicy());
+            if (visualRepairRun) {
+                Map<String, Object> ready = new LinkedHashMap<>();
+                ready.put("sourceRunId", StringUtils.defaultString(currentRequest.getSourceRunId()));
+                ready.put("parentRunId", StringUtils.defaultString(currentRequest.getParentRunId()));
+                ready.put("visualRepairRound", currentRequest.getVisualRepairRound());
+                ready.put("allowedTools", routedMessage.toolPolicy().initialTools());
+                recordLifecycleEvent(runScope, "VISUAL_REPAIR_AGENT_READY",
+                        "visual_repair", "SUCCESS", ready);
+                log.info("[visual-repair-agent] event=ready runId={} sourceRunId={} parentRunId={} repairRound={} allowedTools={}",
+                        logValue(runScope.getContext().runId()), logValue(currentRequest.getSourceRunId()),
+                        logValue(currentRequest.getParentRunId()), currentRequest.getVisualRepairRound(),
+                        routedMessage.toolPolicy().initialTools());
+            }
             final AgentUsageTelemetryService.RunScope finalRunScope = runScope;
             final AgentUsageTelemetryService.StepScope finalDrawingStep = drawingStep;
 
@@ -819,11 +836,30 @@ public class AgentConversationService {
                                             MutationOutcome outcome = mutationOutcome(event);
                                             if (outcome != MutationOutcome.NONE) {
                                                 int rounds = mutationRounds.incrementAndGet();
-                                                recordLifecycleEvent(finalRunScope, "DRAWING_MUTATION", "drawing", "SUCCESS",
-                                                        Map.of(
-                                                                "round", rounds,
-                                                                "retryCount", Math.max(0, rounds - 1),
-                                                                "outcome", outcome.name()));
+                                                Map<String, Object> mutationMetadata = new LinkedHashMap<>();
+                                                mutationMetadata.put("round", rounds);
+                                                mutationMetadata.put("retryCount", Math.max(0, rounds - 1));
+                                                mutationMetadata.put("outcome", outcome.name());
+                                                if (visualRepairRun) {
+                                                    mutationMetadata.put("sourceRunId",
+                                                            StringUtils.defaultString(currentRequest.getSourceRunId()));
+                                                    mutationMetadata.put("parentRunId",
+                                                            StringUtils.defaultString(currentRequest.getParentRunId()));
+                                                    mutationMetadata.put("visualRepairRound",
+                                                            currentRequest.getVisualRepairRound());
+                                                }
+                                                recordLifecycleEvent(finalRunScope,
+                                                        visualRepairRun
+                                                                ? "VISUAL_REPAIR_CANDIDATE_READY"
+                                                                : "DRAWING_MUTATION",
+                                                        "drawing", "SUCCESS", mutationMetadata);
+                                                if (visualRepairRun) {
+                                                    log.info("[visual-repair-agent] event=candidate_ready runId={} sourceRunId={} parentRunId={} repairRound={} outcome={}",
+                                                            logValue(finalRunScope.getContext().runId()),
+                                                            logValue(currentRequest.getSourceRunId()),
+                                                            logValue(currentRequest.getParentRunId()),
+                                                            currentRequest.getVisualRepairRound(), outcome);
+                                                }
                                                 boolean budgetSpent = rounds >= maxRepairRounds + 1;
                                                 if (outcome == MutationOutcome.CLEAN || budgetSpent || maxRepairRounds == 0) {
                                                     flushAuthorBuffers(emitter, authorBuffers);
@@ -2196,9 +2232,9 @@ public class AgentConversationService {
                                                      int maxDeterministicRepairRounds,
                                                      String ownerId,
                                                      List<String> userSkills,
-                                                     boolean drawerContinuation) {
+                                                     boolean visualRepairContinuation) {
         return buildRoutedDrawMessage(requestDTO, routingResult, maxDeterministicRepairRounds,
-                ownerId, userSkills, drawerContinuation, null);
+                ownerId, userSkills, visualRepairContinuation, null);
     }
 
     private RoutedDrawMessage buildRoutedDrawMessage(ChatRequestDTO requestDTO,
@@ -2206,7 +2242,7 @@ public class AgentConversationService {
                                                      int maxDeterministicRepairRounds,
                                                      String ownerId,
                                                      List<String> userSkills,
-                                                     boolean drawerContinuation,
+                                                     boolean visualRepairContinuation,
                                                      EvidenceAccessContext evidenceAccess) {
         requestDTO = requestWithStoredCanvas(requestDTO);
         com.alibaba.fastjson.JSONObject routingJson = new com.alibaba.fastjson.JSONObject();
@@ -2215,7 +2251,7 @@ public class AgentConversationService {
         routingJson.put("skillName", routingResult.getSkillName());
         routingJson.put("reason", routingResult.getReason());
         routingJson.put("maxRepairRounds", maxDeterministicRepairRounds);
-        DrawioToolAccessContext.ToolPolicy toolPolicy = toolPolicyFor(routingResult, drawerContinuation);
+        DrawioToolAccessContext.ToolPolicy toolPolicy = toolPolicyFor(routingResult, visualRepairContinuation);
         routingJson.put("allowedTools", toolPolicy.initialTools());
         routingJson.put("repairTools", toolPolicy.repairTools());
         routingJson.put("skillTools", DrawioSkillToolNames.SKILL_LOOKUP_TOOL_NAMES);
@@ -2315,12 +2351,12 @@ public class AgentConversationService {
     }
 
     private DrawioToolAccessContext.ToolPolicy toolPolicyFor(IntentRoutingResult routingResult,
-                                                             boolean drawerContinuation) {
-        if (drawerContinuation) {
-            // Reviewer feedback returns to the Drawer, which chooses the smallest suitable local tool.
+                                                             boolean visualRepairContinuation) {
+        if (visualRepairContinuation) {
+            // One structured batch is the only mutation surface for the dedicated repair agent.
             return DrawioToolAccessContext.ToolPolicy.of(
-                    List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM),
-                    List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM));
+                    List.of(DrawioCanvasToolNames.APPLY_VISUAL_REPAIR),
+                    List.of(DrawioCanvasToolNames.APPLY_VISUAL_REPAIR));
         }
         String routeType = StringUtils.defaultString(routingResult.getRouteType());
         return switch (routeType) {

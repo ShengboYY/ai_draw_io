@@ -12,10 +12,12 @@ import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentRegisterVO;
 import org.zipp.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.VisualRepairMcpService;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -61,10 +63,7 @@ public class AgentNodeAdkToolRegistrationTest {
 
     @Test
     public void shouldFilterAdkToolsPerAgentAllowedTools() throws Exception {
-        ToolCallback[] callbacks = MethodToolCallbackProvider.builder()
-                .toolObjects(new DrawioCanvasMcpService())
-                .build()
-                .getToolCallbacks();
+        ToolCallback[] callbacks = allCanvasCallbacks();
         DefaultArmoryFactory.DynamicContext context = new DefaultArmoryFactory.DynamicContext();
         context.setChatModel(new FakeChatModel());
         context.setValue(ChatModelNode.TOOL_CALLBACKS_CONTEXT_KEY, List.of(callbacks));
@@ -76,7 +75,7 @@ public class AgentNodeAdkToolRegistrationTest {
         assertEquals(Set.of("create_diagram", "modify_diagram", "optimize_diagram"), toolNames(draftAgent));
 
         LlmAgent repairAgent = (LlmAgent) context.getAgentGroup().get("agent_repair_drawer");
-        assertEquals(Set.of("modify_diagram", "optimize_diagram"), toolNames(repairAgent));
+        assertEquals(Set.of("apply_visual_repair"), toolNames(repairAgent));
         assertFalse(repairAgent.tools().stream().anyMatch(tool -> "create_diagram".equals(tool.name())));
     }
 
@@ -108,7 +107,7 @@ public class AgentNodeAdkToolRegistrationTest {
         repairAgent.setDescription("Repairs reviewed diagrams");
         repairAgent.setInstruction("Use review repair tools only");
         repairAgent.setOutputKey("draft_diagram");
-        repairAgent.setAllowedTools(List.of("modify_diagram", "optimize_diagram"));
+        repairAgent.setAllowedTools(List.of("apply_visual_repair"));
 
         module.setAgents(List.of(draftAgent, repairAgent));
         config.setModule(module);
@@ -117,6 +116,18 @@ public class AgentNodeAdkToolRegistrationTest {
 
     private Set<String> toolNames(LlmAgent agent) {
         return agent.tools().stream().map(tool -> tool.name()).collect(Collectors.toSet());
+    }
+
+    private ToolCallback[] allCanvasCallbacks() {
+        ToolCallback[] canvas = MethodToolCallbackProvider.builder()
+                .toolObjects(new DrawioCanvasMcpService())
+                .build()
+                .getToolCallbacks();
+        ToolCallback[] visualRepair = MethodToolCallbackProvider.builder()
+                .toolObjects(new VisualRepairMcpService())
+                .build()
+                .getToolCallbacks();
+        return Stream.concat(Stream.of(canvas), Stream.of(visualRepair)).toArray(ToolCallback[]::new);
     }
 
     private static class TestableAgentNode extends AgentNode {

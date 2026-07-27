@@ -39,10 +39,10 @@ public class CanvasVisualRepairBriefComposer {
                     .append("\n");
         }
         brief.append("Constraints:\n")
-                .append("- Make one bounded repair.\n")
+                .append("- Make one apply_visual_repair call containing one to three bounded operations.\n")
                 .append("- Preserve every unmentioned id, label, relationship, geometry, and style.\n")
-                .append("- Use modify_diagram for precise cell patches or optimize_diagram for non-semantic layout/routing.\n")
-                .append("- Never call create_diagram; stop after one saved mutation.");
+                .append("- Use only grounded SET_GEOMETRY, SET_STYLE, REROUTE_EDGE, RECONNECT_EDGE, ALIGN_CELLS, or DISTRIBUTE_CELLS actions.\n")
+                .append("- Never submit XML or call a general drawing tool; stop after one saved mutation.");
         return brief.toString();
     }
 

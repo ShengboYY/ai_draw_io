@@ -8,6 +8,7 @@ public final class DrawioCanvasToolNames {
     public static final String CREATE_DIAGRAM = "create_diagram";
     public static final String MODIFY_DIAGRAM = "modify_diagram";
     public static final String OPTIMIZE_DIAGRAM = "optimize_diagram";
+    public static final String APPLY_VISUAL_REPAIR = "apply_visual_repair";
     public static final String PATCH_CELLS = "patch_cells";
     public static final String NO_SAFE_CANDIDATE = "no_safe_candidate";
 
@@ -21,7 +22,8 @@ public final class DrawioCanvasToolNames {
     public static final List<String> CONSOLIDATED_TOOL_NAMES = List.of(
             CREATE_DIAGRAM,
             MODIFY_DIAGRAM,
-            OPTIMIZE_DIAGRAM
+            OPTIMIZE_DIAGRAM,
+            APPLY_VISUAL_REPAIR
     );
 
     public static final Set<String> DRAWING_RESULT_TOOL_NAMES = Set.of(
@@ -31,6 +33,7 @@ public final class DrawioCanvasToolNames {
             APPEND_DIAGRAM,
             EDIT_DIAGRAM,
             OPTIMIZE_DIAGRAM,
+            APPLY_VISUAL_REPAIR,
             UPDATE_CELLS,
             ROUTE_EDGES,
             CONTINUE_DIAGRAM
@@ -41,7 +44,8 @@ public final class DrawioCanvasToolNames {
             EDIT_DIAGRAM,
             UPDATE_CELLS,
             ROUTE_EDGES,
-            OPTIMIZE_DIAGRAM
+            OPTIMIZE_DIAGRAM,
+            APPLY_VISUAL_REPAIR
     );
 
     private DrawioCanvasToolNames() {

@@ -14,7 +14,7 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasField;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
-import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.VisualRepairContext;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
@@ -181,9 +181,9 @@ public class CanvasVisualReviewOrchestratorTest {
                 .build();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -271,15 +271,15 @@ public class CanvasVisualReviewOrchestratorTest {
     }
 
     @Test
-    public void repairDecisionContinuesTheOriginalDrawerLoop() throws Exception {
+    public void repairDecisionUsesTheDedicatedVisualRepairAgent() throws Exception {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
-                assertEquals("300000", request.getAgentId());
+                assertEquals("300029", request.getAgentId());
                 assertEquals("session-1", request.getSessionId());
                 assertEquals("source-run", request.getSourceRunId());
                 assertEquals("aru_visual_repair", request.getParentRunId());
@@ -329,16 +329,22 @@ public class CanvasVisualReviewOrchestratorTest {
                 .findFirst().orElseThrow().getMetadataJson();
         assertTrue(metadata.contains("\"autoRepairAttempted\":true"));
         assertTrue(metadata.contains("aru_repair_"));
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "visual_repair_claimed".equals(event.getEventType())
+                        && event.getMetadataJson().contains("\"granted\":true")));
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "visual_repair_prepared".equals(event.getEventType())
+                        && event.getMetadataJson().contains("\"repairAgentId\":\"300029\"")));
     }
 
     @Test
-    public void edgeFindingThatTargetsOnlyANodeNeverContinuesTheDrawer() throws Exception {
+    public void edgeFindingThatTargetsOnlyANodeNeverStartsVisualRepair() throws Exception {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -376,20 +382,20 @@ public class CanvasVisualReviewOrchestratorTest {
     }
 
     @Test
-    public void postRepairPolicyCanContinueDrawerForSecondRepair() throws Exception {
+    public void postRepairPolicyCanStartASecondVisualRepair() throws Exception {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
                 assertEquals("source-run", request.getSourceRunId());
                 assertEquals("aru_visual_post_repair", request.getParentRunId());
                 assertEquals(Integer.valueOf(2), request.getVisualRepairRound());
                 assertEquals(Long.valueOf(8L), request.getExpectedVersion());
                 assertEquals(Set.of("3"), continuation.authorization().allowedCellIds());
-                assertEquals(Set.of(CanvasField.STYLE, CanvasField.WAYPOINTS),
+                assertEquals(Set.of(CanvasField.STYLE, CanvasField.WAYPOINTS, CanvasField.SOURCE_TARGET),
                         continuation.authorization().allowedFields());
             }
         };
@@ -430,9 +436,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -464,9 +470,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -575,9 +581,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -679,9 +685,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -718,9 +724,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -758,9 +764,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void continueDrawing(ChatRequestDTO request,
-                                        DrawerContinuationContext continuation,
-                                        ResponseBodyEmitter emitter) {
+            public void continueVisualRepair(ChatRequestDTO request,
+                                             VisualRepairContext continuation,
+                                             ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -816,6 +822,10 @@ public class CanvasVisualReviewOrchestratorTest {
         assertEquals("SUCCESS", telemetryStore.runs.get(0).getStatus());
         assertTrue(telemetryStore.traceEvents.stream()
                 .anyMatch(event -> "visual_review_started".equals(event.getEventType())));
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "visual_review_provider_completed".equals(event.getEventType())));
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "visual_review_grounded".equals(event.getEventType())));
         String completed = telemetryStore.traceEvents.stream()
                 .filter(event -> "visual_review_completed".equals(event.getEventType()))
                 .findFirst().orElseThrow().getMetadataJson();

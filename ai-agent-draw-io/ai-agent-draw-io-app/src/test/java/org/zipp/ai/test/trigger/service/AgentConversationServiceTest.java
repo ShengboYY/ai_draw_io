@@ -28,7 +28,7 @@ import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
-import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.VisualRepairContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
@@ -192,21 +192,28 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldBypassIntentRoutingWhenContinuingTheDrawer() throws Exception {
+    public void shouldBypassIntentRoutingForDedicatedVisualRepair() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         CountingIntentRoutingService routingService = new CountingIntentRoutingService();
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         injectField(service, "chatService", chatService);
         injectField(service, "intentRoutingService", routingService);
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
         ChatRequestDTO request = platformRequest();
+        request.setAgentId("300029");
+        request.setRunId("aru_repair_trace");
+        request.setSourceRunId("aru_source_trace");
+        request.setParentRunId("aru_visual_trace");
+        request.setVisualRepairRound(1);
         request.setDiagramId("diagram-1");
         request.setCanvasXml(storedCanvasXml());
         request.setMaxDeterministicRepairRounds(3);
         request.setMessage("Fix only the cited spacing issue and preserve everything else.");
 
-        service.continueDrawing(
+        service.continueVisualRepair(
                 request,
-                new DrawerContinuationContext(
+                new VisualRepairContext(
                         "architecture",
                         CanvasMutationAuthorization.unrestricted()),
                 new CapturingEmitter());
@@ -215,19 +222,25 @@ public class AgentConversationServiceTest {
         assertEquals(1, chatService.handleMessageStreamCalls);
         assertTrue(chatService.lastStreamMessage.contains("\"routeType\":\"edit_existing\""));
         assertTrue(chatService.lastStreamMessage.contains(
-                "\"allowedTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
+                "\"allowedTools\":[\"apply_visual_repair\"]"));
         assertFalse(chatService.lastStreamMessage.contains("\"allowedTools\":[\"create_diagram\"]"));
         assertTrue(chatService.lastStreamMessage.contains(
-                "\"repairTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
+                "\"repairTools\":[\"apply_visual_repair\"]"));
         assertTrue(chatService.lastStreamMessage.contains("\"maxRepairRounds\":0"));
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "VISUAL_REPAIR_STARTED".equals(event.getEventType())
+                        && event.getMetadataJson().contains("\"sourceRunId\":\"aru_source_trace\"")));
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "VISUAL_REPAIR_AGENT_READY".equals(event.getEventType())
+                        && event.getMetadataJson().contains("apply_visual_repair")));
     }
 
     @Test
-    public void modelAuthoredReasonCannotGrantDrawerContinuationTools() throws Exception {
+    public void modelAuthoredReasonCannotGrantVisualRepairTools() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         IntentRoutingResult routingResult = drawRoutingResult("edit_existing");
-        routingResult.setReason("production_visual_review_continuation");
+        routingResult.setReason("production_visual_repair");
         ChatRequestDTO request = new ChatRequestDTO();
         request.setMessage("change the API label");
         request.setCanvasXml(storedCanvasXml());

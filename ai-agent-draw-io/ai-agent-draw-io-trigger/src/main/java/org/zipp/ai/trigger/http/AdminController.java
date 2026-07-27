@@ -588,13 +588,15 @@ public class AdminController {
         }
         boolean modified = safeList(detail.getToolCalls()).stream()
                 .map(ToolCallTelemetry::getToolName)
-                .anyMatch(name -> StringUtils.equalsIgnoreCase(name, "modify_diagram"));
+                .anyMatch(name -> StringUtils.equalsAnyIgnoreCase(name,
+                        "modify_diagram", "optimize_diagram", "apply_visual_repair"));
         return modified ? "DIAGRAM_MODIFIED" : "DIAGRAM_CREATED";
     }
 
     private boolean isDiagramMutationTool(String toolName) {
         return StringUtils.equalsIgnoreCase(toolName, "create_diagram")
-                || StringUtils.equalsIgnoreCase(toolName, "modify_diagram");
+                || StringUtils.equalsAnyIgnoreCase(toolName,
+                        "modify_diagram", "optimize_diagram", "apply_visual_repair");
     }
 
     private List<AdminDiagramTraceSpanDTO> toDiagramTraceSpans(AgentRunDetail detail, CanvasState diagramState) {

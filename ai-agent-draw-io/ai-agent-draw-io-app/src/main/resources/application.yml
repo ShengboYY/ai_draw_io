@@ -180,7 +180,7 @@ zipp:
     rollout-percent: ${ZIPP_VISUAL_REVIEW_ROLLOUT_PERCENT:100}
     round-1-rollout-percent: ${ZIPP_VISUAL_REVIEW_ROUND_1_ROLLOUT_PERCENT:100}
     round-2-rollout-percent: ${ZIPP_VISUAL_REVIEW_ROUND_2_ROLLOUT_PERCENT:100}
-    drawer-agent-id: ${ZIPP_VISUAL_REVIEW_DRAWER_AGENT_ID:300000}
+    repair-agent-id: ${ZIPP_VISUAL_REPAIR_AGENT_ID:300029}
     # Allow slow image reviews while staying below the 120-second streaming response timeout.
     timeout-ms: ${ZIPP_VISUAL_REVIEW_TIMEOUT_MS:60000}
     model-version: ${VLM_MODEL:${LLM_MODEL:gpt-5.5}}

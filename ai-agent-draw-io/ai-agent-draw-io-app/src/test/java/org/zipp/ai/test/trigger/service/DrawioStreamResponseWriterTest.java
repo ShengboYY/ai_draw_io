@@ -11,6 +11,7 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
 import org.zipp.ai.domain.citation.service.CitationGuard;
@@ -447,16 +448,25 @@ public class DrawioStreamResponseWriterTest {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
-        injectCanvasStateStore(writer, canvasStateStore);
-        injectTelemetryService(writer, new AgentUsageTelemetryService(
-                new FakeAgentUsageTelemetryStore(), Clock.systemUTC(),
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService telemetryService = new AgentUsageTelemetryService(
+                telemetryStore, Clock.systemUTC(),
                 AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
-                new AgentTelemetryMetrics(registry)));
+                new AgentTelemetryMetrics(registry));
+        injectCanvasStateStore(writer, canvasStateStore);
+        injectTelemetryService(writer, telemetryService);
         CapturingEmitter emitter = new CapturingEmitter();
-        writer.setCanvasStateContext(
-                emitter, "alice", "diagram-1", 3L, null, "flowchart",
-                CanvasMutationPurpose.VLM_REPAIR, CanvasMutationAuthorization.unrestricted(),
-                1, "aru_repair", "ars_drawing");
+        AgentUsageTelemetryService.RunScope traceRun = telemetryService.startRun(
+                "aru_repair", "request-1", "alice", "300029", "session-1",
+                "visual_repair_stream", "diagram-1", AgentUsageTelemetryService.PLATFORM,
+                null, "openai", "test-model");
+        try (AgentUsageTelemetryContext.Scope ignored =
+                     AgentUsageTelemetryContext.bind(traceRun.getContext())) {
+            writer.setCanvasStateContext(
+                    emitter, "alice", "diagram-1", 3L, null, "flowchart",
+                    CanvasMutationPurpose.VLM_REPAIR, CanvasMutationAuthorization.unrestricted(),
+                    1, "aru_repair", "ars_drawing");
+        }
 
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
@@ -467,6 +477,12 @@ public class DrawioStreamResponseWriterTest {
                 .tag("purpose", "vlm_repair").tag("status", "rejected_scope_violation")
                 .tag("reason", "scope_violation").tag("repair_round", "1")
                 .counter().count(), 0.001D);
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "CANVAS_MUTATION_EVALUATED".equals(event.getEventType())
+                        && "ars_drawing".equals(event.getParentId())
+                        && "FAILED".equals(event.getStatus())
+                        && event.getMetadataJson().contains("\"purpose\":\"VLM_REPAIR\"")
+                        && event.getMetadataJson().contains("\"status\":\"REJECTED_SCOPE_VIOLATION\"")));
     }
 
     @Test

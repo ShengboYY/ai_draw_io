@@ -1,5 +1,6 @@
 package org.zipp.ai.trigger.http.service;
 
+import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,8 @@ import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationCommand;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationDecision;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationPurpose;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationStatus;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
@@ -21,6 +24,8 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResu
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
+import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.citation.model.valobj.CitationBinding;
 import org.zipp.ai.domain.citation.model.valobj.StatementKind;
@@ -38,7 +43,9 @@ import org.zipp.ai.api.dto.ChatResponseDTO;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -53,6 +60,8 @@ public class DrawioStreamResponseWriter {
     private CanvasMutationGate canvasMutationGate;
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
+    @Resource
+    private AgentDebugTraceService agentDebugTraceService;
     @Autowired(required = false)
     private CanvasCommitModule canvasCommitModule;
     private final ConcurrentMap<String, StringBuilder> fallbackContinuationBuffers = new ConcurrentHashMap<>();
@@ -716,9 +725,13 @@ public class DrawioStreamResponseWriter {
         if (emitter == null || StringUtils.isBlank(userId) || StringUtils.isBlank(diagramId)) {
             return;
         }
+        AgentUsageTelemetryContext.RunContext traceContext = AgentUsageTelemetryContext.current()
+                .map(context -> StringUtils.isBlank(spanId) ? context : context.withSpan(spanId))
+                .orElse(null);
         canvasStateContextByEmitter.put(emitter, new CanvasStateContext(
                 userId, diagramId, expectedVersion, expectedContentHash,
-                DiagramType.from(diagramType), purpose, authorization, visualRepairRound, runId, spanId));
+                DiagramType.from(diagramType), purpose, authorization, visualRepairRound,
+                runId, spanId, traceContext));
     }
 
     private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
@@ -786,32 +799,33 @@ public class DrawioStreamResponseWriter {
                     recordDiagramSnapshot(context, saveResult, null);
                 } else {
                     CanvasMutationDecision decision = canvasMutationGate.evaluate(mutationCommand);
-                CanvasState savedState = decision.saveResult() == null ? null : decision.saveResult().getState();
-                // One line per final candidate is enough to reconstruct save, reject, and stale outcomes.
-                log.info("[canvas-mutation] event=evaluated runId={} spanId={} purpose={} diagramId={} expectedVersion={} status={} reason={} changedCells={} savedVersion={} savedHash={}",
-                        logValue(context.runId()), logValue(context.spanId()), context.purpose(), logValue(context.diagramId()),
-                        context.expectedVersion(), decision.status(), decision.rejectionReason(),
-                        decision.changedCellIds().size(), savedState == null ? null : savedState.getVersion(),
-                        savedState == null ? "" : savedState.getContentHash());
-                if (agentUsageTelemetryService != null) {
-                    agentUsageTelemetryService.recordCanvasMutation(
-                            context.purpose() == null ? "UNKNOWN" : context.purpose().name(),
-                            decision.status().name(),
-                            decision.rejectionReason() == null ? "NONE" : decision.rejectionReason().name(),
-                            context.visualRepairRound() == null ? 0 : context.visualRepairRound());
-                }
-                if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
-                    sendVersionConflict(emitter, phase, context, decision.currentState());
-                    return;
-                }
-                if (decision.status() != CanvasMutationStatus.ACCEPTED
-                        && decision.status() != CanvasMutationStatus.ACCEPTED_WITH_NOTES) {
-                    sendMutationRejected(emitter, phase, context, decision);
-                    return;
-                }
-                xml = decision.resultingXml();
-                saveResult = decision.saveResult();
-                recordDiagramSnapshot(context, saveResult, decision.changedCellIds().size());
+                    CanvasState savedState = decision.saveResult() == null ? null : decision.saveResult().getState();
+                    // One line per final candidate is enough to reconstruct save, reject, and stale outcomes.
+                    log.info("[canvas-mutation] event=evaluated runId={} spanId={} purpose={} diagramId={} expectedVersion={} status={} reason={} changedCells={} savedVersion={} savedHash={}",
+                            logValue(context.runId()), logValue(context.spanId()), context.purpose(), logValue(context.diagramId()),
+                            context.expectedVersion(), decision.status(), decision.rejectionReason(),
+                            decision.changedCellIds().size(), savedState == null ? null : savedState.getVersion(),
+                            savedState == null ? "" : savedState.getContentHash());
+                    recordMutationTrace(context, decision, savedState);
+                    if (agentUsageTelemetryService != null) {
+                        agentUsageTelemetryService.recordCanvasMutation(
+                                context.purpose() == null ? "UNKNOWN" : context.purpose().name(),
+                                decision.status().name(),
+                                decision.rejectionReason() == null ? "NONE" : decision.rejectionReason().name(),
+                                context.visualRepairRound() == null ? 0 : context.visualRepairRound());
+                    }
+                    if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
+                        sendVersionConflict(emitter, phase, context, decision.currentState());
+                        return;
+                    }
+                    if (decision.status() != CanvasMutationStatus.ACCEPTED
+                            && decision.status() != CanvasMutationStatus.ACCEPTED_WITH_NOTES) {
+                        sendMutationRejected(emitter, phase, context, decision);
+                        return;
+                    }
+                    xml = decision.resultingXml();
+                    saveResult = decision.saveResult();
+                    recordDiagramSnapshot(context, saveResult, decision.changedCellIds().size());
                 }
             }
             currentCanvasByEmitter.put(emitter, xml);
@@ -846,6 +860,49 @@ public class DrawioStreamResponseWriter {
         String summary = result.getStatus() == null ? null : result.getStatus().name();
         agentUsageTelemetryService.recordDiagramSnapshot(
                 context.runId(), context.spanId(), saved, summary, changedCellCount);
+    }
+
+    private void recordMutationTrace(CanvasStateContext context,
+                                     CanvasMutationDecision decision,
+                                     CanvasState savedState) {
+        if (agentUsageTelemetryService == null || context == null || context.traceContext() == null
+                || decision == null) {
+            return;
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("purpose", context.purpose() == null ? "UNKNOWN" : context.purpose().name());
+        metadata.put("diagramId", context.diagramId());
+        metadata.put("visualRepairRound", context.visualRepairRound() == null ? 0 : context.visualRepairRound());
+        metadata.put("expectedVersion", context.expectedVersion());
+        metadata.put("status", decision.status().name());
+        metadata.put("reason", decision.rejectionReason() == null
+                ? "NONE" : decision.rejectionReason().name());
+        metadata.put("changedCellCount", decision.changedCellIds().size());
+        metadata.put("savedVersion", savedState == null ? null : savedState.getVersion());
+        metadata.put("savedCanvasHash", savedState == null
+                ? "" : StringUtils.defaultString(savedState.getContentHash()));
+        boolean accepted = decision.status() == CanvasMutationStatus.ACCEPTED
+                || decision.status() == CanvasMutationStatus.ACCEPTED_WITH_NOTES;
+        AgentTraceEvent event = agentUsageTelemetryService.recordTraceEvent(
+                context.traceContext(), "CANVAS_MUTATION_EVALUATED", "mutation_gate",
+                accepted ? "SUCCESS" : "FAILED", metadata);
+        if (agentDebugTraceService == null || event == null) {
+            return;
+        }
+        try {
+            // Use the Trace Event id so the inspector can load this gate decision directly.
+            agentDebugTraceService.captureSpanPayload(
+                    context.traceContext().userId(), context.traceContext().runId(), event.getId(),
+                    DebugTracePayloadKind.OUTPUT, "application/json",
+                    JSON.toJSONString(Map.of(
+                            "eventType", event.getEventType(),
+                            "phase", event.getPhase(),
+                            "status", event.getStatus(),
+                            "metadataJson", event.getMetadataJson())));
+        } catch (Exception e) {
+            log.warn("[canvas-mutation] event=trace_payload_failed runId={} traceEventId={} errorClass={}",
+                    logValue(context.runId()), logValue(event.getId()), e.getClass().getSimpleName());
+        }
     }
 
     private void appendCanvasStateMetadata(com.alibaba.fastjson.JSONObject chunk,
@@ -1342,7 +1399,8 @@ public class DrawioStreamResponseWriter {
                                       CanvasMutationAuthorization authorization,
                                       Integer visualRepairRound,
                                       String runId,
-                                      String spanId) {
+                                      String spanId,
+                                      AgentUsageTelemetryContext.RunContext traceContext) {
     }
 
     private record EvidenceCommitContext(EvidenceAccessContext evidenceAccess,

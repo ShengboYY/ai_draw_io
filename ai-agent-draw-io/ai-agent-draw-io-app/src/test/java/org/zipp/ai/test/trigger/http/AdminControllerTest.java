@@ -620,7 +620,7 @@ public class AdminControllerTest {
                 .runId("aru_findings")
                 .userId("usr_user")
                 .phase("drawing")
-                .toolName("modify_diagram")
+                .toolName("apply_visual_repair")
                 .status("FAILED")
                 .errorClass("DrawioToolError")
                 .latencyMs(65_000L)
@@ -654,6 +654,12 @@ public class AdminControllerTest {
         assertEquals("ERROR", toolFailed.getSeverity());
         assertEquals("atc_fail", toolFailed.getSpanId());
         assertEquals("diag_findings", toolFailed.getDiagramId());
+        assertEquals("DIAGRAM_MODIFIED", response.getData().getSummary().getOutcome());
+        AdminDiagramTraceSpanDTO repairTool = response.getData().getSpans().stream()
+                .filter(span -> "apply_visual_repair".equals(span.getToolName()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("diag_findings", repairTool.getDiagramEffect().getDiagramId());
     }
 
     @Test
