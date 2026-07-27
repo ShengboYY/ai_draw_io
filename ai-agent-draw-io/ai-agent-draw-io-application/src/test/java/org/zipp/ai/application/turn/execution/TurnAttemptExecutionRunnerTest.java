@@ -181,11 +181,10 @@ class TurnAttemptExecutionRunnerTest {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         ExecutorService execution = Executors.newSingleThreadExecutor();
         try {
-            CountDownLatch entered = new CountDownLatch(1);
             CountDownLatch release = new CountDownLatch(1);
             AtomicInteger deadlineCalls = new AtomicInteger();
             TurnV2TurnExecutor executor = executor((accepted, command, events) -> {
-                entered.countDown();
+                // A zero deadline may win before dispatch; if dispatch wins, keep it from completing first.
                 release.await(1, TimeUnit.SECONDS);
                 return new TurnAttemptCompletion.AttemptSelfAborted(
                         new TurnStatusRef(accepted.key()), "LATE_EXECUTOR_RESULT");
@@ -203,7 +202,6 @@ class TurnAttemptExecutionRunnerTest {
 
             TurnHandle handle = runner.start(
                     accepted(false), command(), ignored -> { }, Duration.ZERO, deadlines);
-            assertTrue(entered.await(1, TimeUnit.SECONDS));
             TurnAttemptCompletion.PersistedTerminal completion = assertInstanceOf(
                     TurnAttemptCompletion.PersistedTerminal.class,
                     handle.completion().toCompletableFuture().get(1, TimeUnit.SECONDS));
