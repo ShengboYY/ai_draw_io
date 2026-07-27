@@ -143,12 +143,11 @@ class TurnAttemptExecutionRunnerTest {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         ExecutorService execution = Executors.newSingleThreadExecutor();
         try {
-            CountDownLatch entered = new CountDownLatch(1);
             CountDownLatch release = new CountDownLatch(1);
             AtomicInteger drains = new AtomicInteger();
             TurnStatusRef status = new TurnStatusRef(attempt().key());
             TurnV2TurnExecutor executor = executor((accepted, command, events) -> {
-                entered.countDown();
+                // An immediately due heartbeat may win before dispatch; block only if dispatch wins.
                 release.await(1, TimeUnit.SECONDS);
                 return new TurnAttemptCompletion.AttemptSelfAborted(
                         new TurnStatusRef(accepted.key()), "LATE_EXECUTOR_RESULT");
@@ -162,7 +161,6 @@ class TurnAttemptExecutionRunnerTest {
                     executor, supervisor, execution, scheduler);
 
             TurnHandle handle = runner.start(accepted(true), command(), ignored -> { });
-            assertTrue(entered.await(1, TimeUnit.SECONDS));
             TurnAttemptCompletion.AttemptOwnershipLost completion = assertInstanceOf(
                     TurnAttemptCompletion.AttemptOwnershipLost.class,
                     handle.completion().toCompletableFuture().get(1, TimeUnit.SECONDS));
