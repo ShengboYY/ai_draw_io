@@ -1,7 +1,7 @@
 package org.zipp.ai.config;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.turn.checkpoint.DefaultTurnDecisionCoordinator;
@@ -23,14 +23,7 @@ import org.zipp.ai.application.turn.planning.TurnRouteDispatcher;
 
 /** Composes the checkpointed pre-probe planner graph without assigning production V2 turns. */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnBean({
-        SemanticRouterContextProjector.class,
-        RestrictedSourceDemandInputFactory.class,
-        TurnClassificationService.class,
-        TurnDecisionCheckpointQueryPort.class,
-        TurnDecisionCheckpointCommitPort.class,
-        TurnRouteDecisionCodec.class
-})
+@ConditionalOnProperty(name = "turn-engine.execution.enabled", havingValue = "true")
 public class TurnPlannerCompositionConfig {
 
     @Bean

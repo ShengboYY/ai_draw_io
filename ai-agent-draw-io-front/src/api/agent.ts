@@ -410,7 +410,14 @@ const openNdjsonStream = async ({
         });
         if (!response.ok) {
             const errorText = await response.text();
-            onError(new Error(`HTTP error! status: ${response.status}, message: ${errorText}`));
+            let serverCode = '';
+            try {
+                const payload = JSON.parse(errorText) as { code?: unknown };
+                serverCode = typeof payload.code === 'string' ? payload.code : '';
+            } catch {
+                // Non-JSON error bodies are intentionally not copied into the visible chat.
+            }
+            onError(new Error(`HTTP_${response.status}${serverCode ? `:${serverCode}` : ''}`));
             return controller;
         }
 

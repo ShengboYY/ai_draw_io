@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.zipp.ai.application.turn.execution.TurnAttemptCompletion;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
+import org.zipp.ai.application.turn.execution.TurnHandle;
 import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 
 import java.time.Duration;
@@ -11,9 +12,11 @@ import java.time.Instant;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class DefaultTurnDeliveryExecutorTest {
 
@@ -62,10 +65,55 @@ class DefaultTurnDeliveryExecutorTest {
             DiagramTurnFacade facade = (actor, command, events) -> accepted;
             DefaultTurnDeliveryExecutor delivery = new DefaultTurnDeliveryExecutor(facade, runner);
 
-            TurnSubmission result = delivery.execute(
+            TurnDeliveryExecution execution = delivery.executeTracked(
                     new AuthenticatedActor("owner-1", "cohort-1"), command(), event -> { });
+            TurnSubmission result = execution.submission();
+            TurnHandle handle = execution.handle();
 
             assertSame(accepted, result);
+            assertNotNull(handle);
+            assertNotNull(handle.completion().toCompletableFuture().getNow(null));
+            assertEquals(1, executions.get());
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    void resolvesTheAttemptRunnerWhenTheRequestExecutes() {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            AtomicInteger executions = new AtomicInteger();
+            TurnV2TurnExecutor v2Executor = new TurnV2TurnExecutor() {
+                @Override
+                public TurnAttemptCompletion execute(
+                        TurnSubmission.ExecutionAccepted accepted,
+                        UserTurnCommand command,
+                        TurnEventSink events
+                ) {
+                    executions.incrementAndGet();
+                    return new TurnAttemptCompletion.PersistedTerminal(
+                            new PersistedTurnOutcome(TurnStatus.COMPLETED, "DONE", "plain", null, "{}"));
+                }
+
+                @Override
+                public void disableWritesAndDrain(FencedAttempt attempt) {
+                    // Lease loss is outside this lazy-composition regression test.
+                }
+            };
+            TurnAttemptLeaseSupervisor heartbeat = new TurnAttemptLeaseSupervisor(
+                    ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(Duration.ofSeconds(30)),
+                    v2Executor);
+            AtomicReference<TurnAttemptExecutionRunner> runner = new AtomicReference<>();
+            DiagramTurnFacade facade = (actor, command, events) -> accepted();
+            DefaultTurnDeliveryExecutor delivery =
+                    new DefaultTurnDeliveryExecutor(facade, runner::get);
+            runner.set(new TurnAttemptExecutionRunner(
+                    v2Executor, heartbeat, Runnable::run, scheduler));
+
+            delivery.execute(
+                    new AuthenticatedActor("owner-1", "cohort-1"), command(), event -> { });
+
             assertEquals(1, executions.get());
         } finally {
             scheduler.shutdownNow();

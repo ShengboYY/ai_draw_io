@@ -13,6 +13,7 @@ type BuildDrawioChatRequestPayloadInput = {
   agentId: string;
   userId: string;
   sessionId: string;
+  clientMessageId?: string;
   responseMessageId?: string;
   userMessage: string;
   diagramId?: string;
@@ -81,6 +82,7 @@ export const buildDrawioChatRequestPayload = ({
   agentId,
   userId,
   sessionId,
+  clientMessageId,
   responseMessageId,
   diagramId,
   expectedVersion,
@@ -122,6 +124,7 @@ export const buildDrawioChatRequestPayload = ({
     userId,
     sessionId,
     requestId: newRequestId(),
+    ...(clientMessageId && { clientMessageId }),
     ...(responseMessageId && { responseMessageId }),
     ...(diagramId && { diagramId }),
     ...(expectedVersion !== undefined && { expectedVersion }),

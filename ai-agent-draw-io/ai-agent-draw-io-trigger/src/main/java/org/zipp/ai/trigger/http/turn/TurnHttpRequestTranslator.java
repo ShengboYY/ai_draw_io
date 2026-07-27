@@ -14,9 +14,7 @@ import org.zipp.ai.application.turn.UserTurnCommand;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Compatibility-only HTTP mapper. It maps fields and never resolves owners, files, or sources.
- */
+/** HTTP mapper that maps fields and never resolves owners, files, or sources. */
 public final class TurnHttpRequestTranslator {
 
     public UserTurnCommand translate(TurnHttpRequest request) {
@@ -34,10 +32,10 @@ public final class TurnHttpRequestTranslator {
     }
 
     /**
-     * Maps the legacy ChatRequestDTO without trusting its userId, canvas, history, or source
+     * Maps the product ChatRequestDTO without trusting its userId, canvas, history, or source
      * fields. Selected library versions remain explicitly untrusted compatibility declarations.
      */
-    public UserTurnCommand translateLegacy(ChatRequestDTO request) {
+    public UserTurnCommand translateProductChat(ChatRequestDTO request) {
         Objects.requireNonNull(request, "request");
         String sessionId = request.getSessionId();
         String conversationReference = blank(sessionId)
@@ -45,7 +43,8 @@ public final class TurnHttpRequestTranslator {
                 : canonicalizeLegacyReference(sessionId);
         String turnId = firstPresent(request.getRequestId(), request.getRunId(),
                 request.getResponseMessageId());
-        String clientMessageId = firstPresent(request.getResponseMessageId(), request.getRequestId(), turnId);
+        String clientMessageId = firstPresent(
+                request.getClientMessageId(), request.getResponseMessageId(), request.getRequestId(), turnId);
         return new UserTurnCommand(
                 required(turnId, "turnId"),
                 conversationReference,

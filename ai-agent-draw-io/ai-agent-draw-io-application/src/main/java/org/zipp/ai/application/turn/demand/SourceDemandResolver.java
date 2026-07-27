@@ -38,12 +38,6 @@ public final class SourceDemandResolver {
             if (noSource.evidence().relevanceQuery().isPresent()) {
                 return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
             }
-            if (!policy.acceptedNoSourceConfidence().contains(noSource.evidence().confidence())) {
-                return clarification("LOW_CONFIDENCE", DemandResolutionCode.LOW_CONFIDENCE);
-            }
-            if (!input.activeClarificationLabels().isEmpty()) {
-                return clarification("ACTIVE_CLARIFICATION", DemandResolutionCode.CLARIFICATION_REQUIRED);
-            }
             return new ResolvedSourceDemand(
                     new NoSourceDemand(),
                     append(verified, new DemandResolutionReason(9, DemandResolutionCode.PLAIN_ONLY_ACTION)));
@@ -61,11 +55,8 @@ public final class SourceDemandResolver {
             if (!validAttachmentQuery(typed)) {
                 return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
             }
-            if (!policy.acceptedRequiredConfidence().contains(typed.evidence().confidence())) {
-                return clarification("REQUIRED_CONFIDENCE", DemandResolutionCode.LOW_CONFIDENCE);
-            }
             if (typed.attachmentRefs().isEmpty()
-                    || !input.currentMessageAttachments().stream()
+                    || !input.eligibleAttachmentRefs().stream()
                     .map(value -> value.value())
                     .toList()
                     .containsAll(typed.attachmentRefs())) {
@@ -89,9 +80,6 @@ public final class SourceDemandResolver {
 
         if (!typed.attachmentRefs().isEmpty()) {
             return new SourceDemandUnavailable("SOURCE_DEMAND_REFERENT_INVALID", Duration.ZERO);
-        }
-        if (!policy.acceptedOptionalConfidence().contains(typed.evidence().confidence())) {
-            return clarification("OPTIONAL_CONFIDENCE", DemandResolutionCode.LOW_CONFIDENCE);
         }
         if (typed.relevanceQuery() == null || typed.relevanceQuery().isBlank()) {
             return clarification("RELEVANCE_QUERY", DemandResolutionCode.CLARIFICATION_REQUIRED);
@@ -122,10 +110,12 @@ public final class SourceDemandResolver {
     }
 
     private boolean validAttachmentQuery(TypedSourceDemandProposal proposal) {
-        if (isComposite(proposal.kind())) {
-            return proposal.relevanceQuery() != null && !proposal.relevanceQuery().isBlank();
+        // Direct reads consume the bound file as-is; every retrieval branch needs a query.
+        if (proposal.kind() == SourceDemandKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED
+                || proposal.kind() == SourceDemandKind.CURRENT_MESSAGE_DIRECT_REQUIRED) {
+            return proposal.relevanceQuery() == null;
         }
-        return proposal.relevanceQuery() == null;
+        return proposal.relevanceQuery() != null && !proposal.relevanceQuery().isBlank();
     }
 
     private ProposalEvidence evidenceOf(SourceDemandProposal proposal) {

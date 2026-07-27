@@ -62,12 +62,11 @@ public final class DefaultTurnRouteComputer implements TurnRouteComputer {
 
         var projectedRouter = routerProjector.forRouter(context);
         var projectedDemand = demandInputFactory.create(context);
-        // Both model calls use one server-owned TurnKey/read-set pair, while retaining separate
-        // projection digests so a fresh session cannot reuse the other model's input.
-        var routerInput = projectedRouter.withModelInputBinding(ModelInputBinding.bound(
-                attempt.key(), readSet.digest(), projectedRouter.inputDigest()));
-        var demandInput = projectedDemand.withModelInputBinding(ModelInputBinding.bound(
-                attempt.key(), readSet.digest(), projectedDemand.inputDigest()));
+        // The router sees only opaque source metadata. Authorization and source I/O remain later.
+        var combinedRouter = projectedRouter.withSourceContext(projectedDemand);
+        var routerInput = combinedRouter.withModelInputBinding(ModelInputBinding.bound(
+                attempt.key(), readSet.digest(), combinedRouter.inputDigest()));
+        var demandInput = projectedDemand;
         TurnClassificationOutcome classified = classification.classify(routerInput, demandInput);
         if (classified instanceof TurnClassificationReady ready) {
             PrePlanOutcome prePlan = prePlanner.plan(

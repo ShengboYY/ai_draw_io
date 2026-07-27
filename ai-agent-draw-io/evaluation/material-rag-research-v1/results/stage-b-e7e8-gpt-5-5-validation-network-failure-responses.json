@@ -1,0 +1,88 @@
+{
+  "responses": [
+    {
+      "taskId": "stgb-val-01",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-02",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-03",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-04",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-05",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-06",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-07",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-08",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-09",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-10",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-11",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    {
+      "taskId": "stgb-val-12",
+      "xml": "",
+      "citations": [],
+      "httpStatus": 0,
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    }
+  ]
+}

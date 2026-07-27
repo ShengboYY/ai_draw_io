@@ -139,9 +139,14 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
-    void readyOutcomeUsesBatchLeaseAndClosesItWithTheRun() {
+    void hybridSummaryCanUseTextFromAVisualCapableDocumentAndClosesItsLease() {
         AtomicInteger leaseCloses = new AtomicInteger();
-        AuthorizedSource ready = source("READY", false);
+        java.util.concurrent.atomic.AtomicReference<List<String>> observedQueries =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        // A PDF may expose both text and visual artifacts; a summary may use its text alone.
+        AuthorizedSource ready = new AuthorizedSource("material-1", "version-1", "revision-1",
+                MaterialScopeType.LIBRARY, MaterialScopeType.PERSONAL_LIBRARY_KEY,
+                "READY", false, true, true, true);
         CandidateRef lexicalCandidate = new CandidateRef("chunk-1", "TEXT", 1.0);
         CandidateRef secondLexicalCandidate = new CandidateRef("chunk-2", "TEXT", 0.9);
         StoredArtifact artifact = new StoredArtifact("retrieval/chunk-1.txt", "s3-version-1",
@@ -164,24 +169,37 @@ class EvidencePreparationModuleTest {
             }
         };
         EvidencePreparationModule module = new DefaultEvidencePreparationModule(catalog,
-                (queries, sources, route, limit) -> List.of(lexicalCandidate, secondLexicalCandidate),
+                (queries, sources, route, limit) -> {
+                    observedQueries.set(queries);
+                    return List.of(lexicalCandidate, secondLexicalCandidate);
+                },
                 Optional.of((texts, inputType) -> List.of(new float[]{1.0f})),
                 Optional.of(emptyVectorIndex()),
                 (ownerType, ownerKey) -> "opaque-tenant",
                 (owner, runId, sources) -> leaseCloses::incrementAndGet,
                 (candidate, maximumBytes) -> candidate.chunkId().equals("chunk-1")
-                        ? "Agile uses iterative planning, short delivery cycles, continuous stakeholder "
+                        ? "This Agile report describes iterative planning, short delivery cycles, continuous stakeholder "
                                 + "feedback, review, adaptation, and recurring retrospectives."
                         : "Agile delivery also includes backlog prioritization, iteration review, risk controls, "
                                 + "team roles, feedback loops, and continuous improvement practices.",
                 (owner, diagramId) -> Optional.empty(), ForkJoinPool.commonPool());
         RunResourceDomain resources = new RunResourceDomain();
 
-        PreparationOutcome outcome = module.prepare(command("总结 Agile 流程", "REQUIRED",
-                        SourceMode.EXPLICIT_ONLY), resources, EvidenceProgressListener.NOOP,
+        EvidencePreparationCommand summaryCommand = new EvidencePreparationCommand(
+                owner, "diagram-1", "conversation-1", "request-1", "run-1",
+                "请把这个 report 总结成图",
+                new CanvasProbe(false, 0, 0, null, "", 0, List.of(), false, false),
+                ValidatedSelection.empty(), SourceMode.EXPLICIT_ONLY, null, List.of("version-1"),
+                "REQUIRED", "NONE", "NONE", false,
+                "Summarize the attached agile practice report into a diagram");
+
+        PreparationOutcome outcome = module.prepare(summaryCommand, resources, EvidenceProgressListener.NOOP,
                 CancellationSignal.NEVER).toCompletableFuture().join();
 
-        PreparationOutcome.Ready readyOutcome = assertInstanceOf(PreparationOutcome.Ready.class, outcome);
+        PreparationOutcome.Ready readyOutcome = assertInstanceOf(
+                PreparationOutcome.Ready.class, outcome, outcome.toString());
+        assertEquals("Summarize the attached agile practice report into a diagram",
+                observedQueries.get().get(0));
         assertEquals(2, readyOutcome.preparedEvidence().bundle().items().size());
         assertFalse(readyOutcome.preparedEvidence().bundle().items().get(0).text().contains("s3-version-1"));
         resources.closeExactlyOnce(CloseReason.COMPLETED);
@@ -330,42 +348,6 @@ class EvidencePreparationModuleTest {
         PreparationOutcome.InsufficientEvidence insufficient =
                 assertInstanceOf(PreparationOutcome.InsufficientEvidence.class, outcome);
         assertEquals(List.of("VISUAL_OBSERVATION_GAP"), insufficient.gaps());
-    }
-
-    @Test
-    void hybridRouteFailsClosedWhenVisualSourceHasNoAuthorizedVisualCandidate() {
-        AuthorizedSource ready = new AuthorizedSource("material-1", "version-1", "revision-1",
-                MaterialScopeType.LIBRARY, MaterialScopeType.PERSONAL_LIBRARY_KEY,
-                "READY", false, true, true, true);
-        StoredArtifact textArtifact = new StoredArtifact("retrieval/chunk.txt", "text-version",
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                256, "text/plain");
-        AuthorizedCandidate text = new AuthorizedCandidate("chunk-text", "evidence-text",
-                "material-1", "version-1", "revision-1", "TEXT", 1, 0.95,
-                textArtifact, "Workflow guide");
-        EvidenceCatalog catalog = new EvidenceCatalog() {
-            @Override public SourceResolution resolveSources(EvidencePreparationCommand command) {
-                return new SourceResolution(SourceMode.EXPLICIT_ONLY, List.of(ready), List.of());
-            }
-            @Override public List<CandidateRef> resolveVectorCandidates(List<String> vectorIds,
-                                                                         AuthorizedSourceSet sources) {
-                return List.of();
-            }
-            @Override public List<AuthorizedCandidate> reauthorize(List<String> chunkIds,
-                                                                   AuthorizedSourceSet sources, int limit) {
-                return List.of(text);
-            }
-        };
-
-        PreparationOutcome outcome = moduleWithCompletedDenseLane(catalog,
-                List.of(new CandidateRef("chunk-text", "TEXT", 1.0)))
-                .prepare(command("总结整份流程图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
-                        new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
-                .toCompletableFuture().join();
-
-        PreparationOutcome.InsufficientEvidence insufficient =
-                assertInstanceOf(PreparationOutcome.InsufficientEvidence.class, outcome);
-        assertEquals(List.of("VISUAL_VERIFICATION_REQUIRED"), insufficient.gaps());
     }
 
     @Test

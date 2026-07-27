@@ -85,12 +85,29 @@ class PrePlannerContractTest {
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
                         TURN, classification, CONTEXT_DIGEST, INPUT_DIGEST));
         assertEquals(PlainResponseKind.ANSWER, ready.plan().kind());
+        assertEquals(false, ready.plan().includeCanvasContext());
         assertInstanceOf(TurnRouteDecision.Response.class,
                 new DefaultTurnRouteDispatcher().dispatch(ready));
     }
 
     @Test
-    void clarificationAndUnavailableRemainNonPlainRoutes() {
+    void questionAboutTheCurrentDiagramReadsCanvasWithoutMutatingIt() {
+        TurnClassification classification = classification(
+                new SemanticIntent(SemanticAction.ANSWER, OutputIntent.TEXT,
+                        TargetNeed.CANVAS_REQUIRED, "flowchart", "none"),
+                new ResolvedSourceDemand(new NoSourceDemand(), List.of()));
+
+        PrePlanOutcome.SourceFreeResponseReady ready = assertInstanceOf(
+                PrePlanOutcome.SourceFreeResponseReady.class,
+                new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
+                        TURN, classification, CONTEXT_DIGEST, INPUT_DIGEST));
+
+        assertEquals(PlainResponseKind.ANSWER, ready.plan().kind());
+        assertEquals(true, ready.plan().includeCanvasContext());
+    }
+
+    @Test
+    void clarificationBecomesANormalResponseWhileUnavailableStillStops() {
         TurnClassification clarification = classification(
                 new SemanticIntent(SemanticAction.CREATE, OutputIntent.DRAWING,
                         TargetNeed.NOT_REQUIRED, "flowchart", "none"),
@@ -100,9 +117,11 @@ class PrePlannerContractTest {
                         TargetNeed.NOT_REQUIRED, "flowchart", "none"),
                 new SourceDemandUnavailable("DEMAND_MODEL_DOWN", Duration.ofSeconds(1)));
 
-        assertInstanceOf(PrePlanOutcome.NeedsClarification.class,
+        PrePlanOutcome.SourceFreeResponseReady response = assertInstanceOf(
+                PrePlanOutcome.SourceFreeResponseReady.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
                         TURN, clarification, CONTEXT_DIGEST, INPUT_DIGEST));
+        assertEquals(PlainResponseKind.DIRECT_REPLY, response.plan().kind());
         assertInstanceOf(PrePlanOutcome.Unavailable.class,
                 new DefaultPrePlanner(new PlainDrawPlanFactory()).plan(
                         TURN, unavailable, CONTEXT_DIGEST, INPUT_DIGEST));

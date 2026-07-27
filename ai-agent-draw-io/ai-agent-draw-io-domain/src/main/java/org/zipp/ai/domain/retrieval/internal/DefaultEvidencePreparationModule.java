@@ -226,9 +226,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 return insufficient(command, "NO_AUTHORIZED_EXACT_SOURCE");
             }
             boolean routeRequiresVisual = route == RetrievalRoute.VISUAL
-                    || route == RetrievalRoute.VISUAL_EXACT
-                    || (route == RetrievalRoute.HYBRID
-                    && sources.sources().stream().anyMatch(AuthorizedSource::hasVisual));
+                    || route == RetrievalRoute.VISUAL_EXACT;
             List<CandidateRef> existing = target.cellIds().isEmpty() ? List.of() : callWithinDeadline(
                     () -> catalog.existingTargetCandidates(command.diagramId(),
                             command.canvasProbe().serverCanvasVersion(), target.cellIds(), sources, 12),
@@ -240,7 +238,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                         target, existingChunkIds, resources, progress, cancellation, deadline, new ArrayList<>());
                 if (existingOnly != null) return existingOnly;
             }
-            List<String> queries = planQueries(command.userMessage(), target.labels());
+            List<String> queries = planQueries(command.retrievalQuery(), target.labels());
             progress.onProgress("RETRIEVAL", 0, 2);
 
             List<String> diagnostics = Collections.synchronizedList(new ArrayList<>());

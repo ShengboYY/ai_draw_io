@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.PlainExecutionProfile;
 import org.zipp.ai.application.turn.PlainResponseGenerationPort;
@@ -12,12 +11,13 @@ import org.zipp.ai.application.turn.PlainResponseGenerationRequest;
 import org.zipp.ai.application.turn.PlainResponseGenerationResult;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 
-/** Tool-free source-free response adapter; disabled by default until the V2 response path is enabled. */
+/** Tool-free source-free response adapter used by the V2 response path. */
 @Component
-@ConditionalOnProperty(name = "zipp.turn.v2.plain-response.enabled", havingValue = "true")
 public final class ChatPlainResponseAdapter implements PlainResponseGenerationPort {
 
     private static final Set<String> FIELDS = Set.of("assistantMessage", "payloadRef");
@@ -43,32 +43,46 @@ public final class ChatPlainResponseAdapter implements PlainResponseGenerationPo
     @Override
     public PlainResponseGenerationResult generate(
             PlainResponseGenerationRequest request,
-            TurnEventSink events
+            TurnEventSink events,
+            CancellationSignal cancellation
     ) {
         if (request == null || events == null) {
             throw new IllegalArgumentException("plain response request and events are required");
         }
         final String output;
         try {
-            output = model.invoke(request.modelInputBinding(), renderer.render(request));
+            output = model.invoke(request.modelInputBinding(), renderer.render(request), cancellation);
+        } catch (CancellationException exception) {
+            throw exception;
         } catch (RuntimeException exception) {
             throw new IllegalStateException("V2_PLAIN_RESPONSE_MODEL_UNAVAILABLE", exception);
         }
         try {
-            return parse(output);
+            return parse(output, request);
         } catch (RuntimeException exception) {
             throw new IllegalStateException("V2_PLAIN_RESPONSE_MODEL_OUTPUT_INVALID", exception);
         }
     }
 
-    private PlainResponseGenerationResult parse(String output) {
+    private PlainResponseGenerationResult parse(
+            String output,
+            PlainResponseGenerationRequest request
+    ) {
         JSONObject root = JSON.parseObject(output);
         if (root == null || !root.keySet().equals(FIELDS)) {
             throw new IllegalArgumentException("plain response output fields are not exact");
         }
+        String payloadRef = root.getString("payloadRef");
+        if (payloadRef == null || payloadRef.isBlank()) {
+            // A response identifier is server metadata; a harmless model omission must not fail
+            // an otherwise valid clarification or answer.
+            payloadRef = "response-" + request.attempt().key().turnId();
+        } else if (payloadRef.length() > MAX_PAYLOAD_REF_LENGTH) {
+            throw new IllegalArgumentException("payloadRef is invalid");
+        }
         return new PlainResponseGenerationResult(
                 bounded(root, "assistantMessage", MAX_ASSISTANT_MESSAGE_LENGTH),
-                bounded(root, "payloadRef", MAX_PAYLOAD_REF_LENGTH));
+                payloadRef);
     }
 
     private String bounded(JSONObject root, String field, int limit) {

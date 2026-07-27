@@ -156,16 +156,16 @@ class DefaultDiagramTurnFacadeTest {
                         ignored -> new AdmissionWriteOutcome.Reused(legacy),
                         new OpenAdmissionBarrier()),
                 ignored -> {
-                    throw new AssertionError("Legacy handoff must not create a V2 attempt");
+                    throw new AssertionError("Historical Legacy assignment must not create a V2 attempt");
                 },
                 new OpenAdmissionBarrier());
 
-        TurnSubmission.LegacyHandoff handoff = assertInstanceOf(
-                TurnSubmission.LegacyHandoff.class,
+        TurnSubmission.LegacyAssignmentPinned pinned = assertInstanceOf(
+                TurnSubmission.LegacyAssignmentPinned.class,
                 facade.execute(new AuthenticatedActor("owner-1", "cohort-1"),
                         command("conversation:conversation-1"), ignored -> { }));
 
-        assertEquals(legacy.key(), handoff.key());
+        assertEquals(legacy.key(), pinned.key());
     }
 
     @Test
@@ -301,6 +301,48 @@ class DefaultDiagramTurnFacadeTest {
                 catalog,
                 new AuthenticatedActor("owner-1", "cohort-1"),
                 command("session-1")));
+    }
+
+    @Test
+    void resolverBindsMatchingRuntimeSessionBeforeTurnAdmission() {
+        ConversationRef conversation = activeConversation();
+        AtomicReference<String> boundAlias = new AtomicReference<>();
+        ConversationCatalogPort catalog = new ConversationCatalogPort() {
+            @Override
+            public ConversationRef findOrCreateDefault(AuthenticatedActor actor, String diagramId) {
+                throw new AssertionError("plain default lookup must not be used");
+            }
+
+            @Override
+            public ConversationRef findOrCreateDefaultForLegacySession(
+                    AuthenticatedActor actor, String legacySessionId, String diagramId
+            ) {
+                boundAlias.set(legacySessionId);
+                return conversation;
+            }
+
+            @Override
+            public ConversationRef requireActiveBinding(
+                    AuthenticatedActor actor, String conversationId, String diagramId
+            ) {
+                throw new AssertionError("canonical lookup must not be used");
+            }
+
+            @Override
+            public ConversationRef resolveLegacyAlias(
+                    AuthenticatedActor actor, String legacySessionId, String diagramId
+            ) {
+                throw new AssertionError("a newly issued runtime session must be bound first");
+            }
+        };
+
+        assertEquals(
+                conversation,
+                new ConversationReferenceResolver().resolve(
+                        catalog,
+                        new AuthenticatedActor("owner-1", "cohort-1"),
+                        command("legacy:runtime-1")));
+        assertEquals("runtime-1", boundAlias.get());
     }
 
     @Test

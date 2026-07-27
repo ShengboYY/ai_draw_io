@@ -6,21 +6,14 @@ import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.demand.Confidence;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
-import org.zipp.ai.application.turn.demand.CurrentInstructionSpan;
 import org.zipp.ai.application.turn.demand.DemandResolutionPolicy;
-import org.zipp.ai.application.turn.demand.NoSourceDemandProposal;
-import org.zipp.ai.application.turn.demand.ProposalEvidence;
 import org.zipp.ai.application.turn.demand.RestrictedSourceDemandInput;
-import org.zipp.ai.application.turn.demand.SourceDemandInterpreterPort;
-import org.zipp.ai.application.turn.demand.SourceDemandProposalOutcome;
-import org.zipp.ai.application.turn.demand.SourceDemandProposalReady;
 import org.zipp.ai.application.turn.demand.SourceDemandResolver;
-import org.zipp.ai.application.turn.demand.SourceDemandKind;
-import org.zipp.ai.application.turn.demand.TypedSourceDemandProposal;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -28,38 +21,55 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class SemanticTurnClassificationTest {
 
     @Test
-    void plainClassificationProducesPlainPlanOnlyAfterDemandResolution() {
+    void oneRouterCallProducesAPlainPlanAfterDeterministicPolicy() {
         CurrentInstruction instruction = new CurrentInstruction("draw a login flow");
-        RestrictedSourceDemandInput demandInput = input(instruction, Optional.empty());
+        RestrictedSourceDemandInput sourceInput = sourceInput(instruction, Optional.empty());
+        AtomicInteger routerCalls = new AtomicInteger();
         SemanticIntent intent = new SemanticIntent(
-                SemanticAction.CREATE, OutputIntent.DRAWING, TargetNeed.NOT_REQUIRED, "flowchart", "none");
-        TurnClassificationOutcome outcome = service(
-                new SemanticIntentReady(intent),
-                new SourceDemandProposalReady(noSource(demandInput)))
-                .classify(routerInput(instruction), demandInput);
+                SemanticAction.CREATE,
+                OutputIntent.DRAWING,
+                TargetNeed.NOT_REQUIRED,
+                "flowchart",
+                "none",
+                SemanticSourceIntent.none());
+
+        TurnClassificationOutcome outcome = service(input -> {
+            routerCalls.incrementAndGet();
+            return new SemanticIntentReady(intent);
+        }).classify(routerInput(instruction, sourceInput), sourceInput);
 
         TurnClassificationReady ready = assertInstanceOf(TurnClassificationReady.class, outcome);
         PlainDrawPlanReady plan = assertInstanceOf(
                 PlainDrawPlanReady.class, new PlainDrawPlanFactory().create(ready.classification()));
         assertEquals(org.zipp.ai.application.turn.PlainDrawAction.CREATE, plan.plan().action());
         assertEquals("draw a login flow", plan.plan().instruction());
+        assertEquals(1, routerCalls.get());
     }
 
     @Test
-    void acceptedSourceDemandCannotEnterPlainPlan() {
+    void requiredAttachmentIntentCannotEnterPlainPlan() {
         CurrentInstruction instruction = new CurrentInstruction("use the attached specification");
-        RestrictedSourceDemandInput demandInput = input(
-                instruction, Optional.of("chartbook-1"), new OpaqueConversationFileRef("file-1"));
-        TypedSourceDemandProposal proposal = new TypedSourceDemandProposal(
-                SourceDemandKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED,
-                List.of("file-1"), null, evidence(demandInput), "use attachment");
-        TurnClassificationReady ready = assertInstanceOf(TurnClassificationReady.class,
-                service(
-                        new SemanticIntentReady(new SemanticIntent(
-                                SemanticAction.EDIT, OutputIntent.DRAWING,
-                                TargetNeed.CANVAS_REQUIRED, "flowchart", "none")),
-                        new SourceDemandProposalReady(proposal))
-                        .classify(routerInput(instruction), demandInput));
+        RestrictedSourceDemandInput sourceInput = sourceInput(
+                instruction,
+                Optional.of("chartbook-1"),
+                new OpaqueConversationFileRef("file-1"));
+        SemanticIntent intent = new SemanticIntent(
+                SemanticAction.EDIT,
+                OutputIntent.DRAWING,
+                TargetNeed.CANVAS_REQUIRED,
+                "flowchart",
+                "none",
+                new SemanticSourceIntent(
+                        SourceIntentKind.CURRENT_MESSAGE_ATTACHMENTS_REQUIRED,
+                        Confidence.HIGH,
+                        List.of("file-1"),
+                        null,
+                        "Use the current attachment."));
+
+        TurnClassificationReady ready = assertInstanceOf(
+                TurnClassificationReady.class,
+                service(input -> new SemanticIntentReady(intent))
+                        .classify(routerInput(instruction, sourceInput), sourceInput));
 
         PlainDrawPlanRejected rejected = assertInstanceOf(
                 PlainDrawPlanRejected.class, new PlainDrawPlanFactory().create(ready.classification()));
@@ -67,108 +77,122 @@ class SemanticTurnClassificationTest {
     }
 
     @Test
-    void routerUnavailableStopsBeforeDemandInterpreter() {
-        CurrentInstruction instruction = new CurrentInstruction("draw");
-        int[] interpreterCalls = {0};
-        SourceDemandInterpreterPort interpreter = input -> {
-            interpreterCalls[0]++;
-            return new SourceDemandProposalReady(noSource(input));
-        };
-        TurnClassificationService service = new TurnClassificationService(
-                input -> new SemanticIntentUnavailable("ROUTER_UNAVAILABLE"),
-                interpreter,
-                new SourceDemandResolver(),
-                DemandResolutionPolicy.m2Default());
+    void missingReferencedAttachmentBecomesClarificationWithoutSourceIo() {
+        CurrentInstruction instruction = new CurrentInstruction("use the attachment");
+        RestrictedSourceDemandInput sourceInput = sourceInput(instruction, Optional.empty());
+        SemanticIntent intent = new SemanticIntent(
+                SemanticAction.CREATE,
+                OutputIntent.DRAWING,
+                TargetNeed.NOT_REQUIRED,
+                "flowchart",
+                "none",
+                new SemanticSourceIntent(
+                        SourceIntentKind.CURRENT_MESSAGE_DIRECT_REQUIRED,
+                        Confidence.HIGH,
+                        List.of(),
+                        null,
+                        "The user refers to a missing attachment."));
 
-        TurnClassificationUnavailable unavailable = assertInstanceOf(
-                TurnClassificationUnavailable.class,
-                service.classify(routerInput(instruction), input(instruction, Optional.empty())));
+        TurnClassificationReady ready = assertInstanceOf(
+                TurnClassificationReady.class,
+                service(input -> new SemanticIntentReady(intent))
+                        .classify(routerInput(instruction, sourceInput), sourceInput));
 
-        assertEquals("ROUTER_UNAVAILABLE", unavailable.code());
-        assertEquals(0, interpreterCalls[0]);
+        assertInstanceOf(
+                org.zipp.ai.application.turn.demand.NeedsSourceClarification.class,
+                ready.classification().demandResolution());
     }
 
     @Test
-    void routerAndDemandMustUseTheSamePinnedInstructionDigest() {
-        CurrentInstruction routerInstruction = new CurrentInstruction("draw a flow");
-        CurrentInstruction demandInstruction = new CurrentInstruction("use a file");
+    void routerFailureDoesNotInvokeASecondModel() {
+        CurrentInstruction instruction = new CurrentInstruction("draw");
+        RestrictedSourceDemandInput sourceInput = sourceInput(instruction, Optional.empty());
+        AtomicInteger routerCalls = new AtomicInteger();
+
         TurnClassificationUnavailable unavailable = assertInstanceOf(
                 TurnClassificationUnavailable.class,
-                service(
-                        new SemanticIntentReady(new SemanticIntent(
-                                SemanticAction.CREATE, OutputIntent.DRAWING,
-                                TargetNeed.NOT_REQUIRED, "flowchart", "none")),
-                        new SourceDemandProposalReady(noSource(input(demandInstruction, Optional.empty()))))
-                        .classify(routerInput(routerInstruction), input(demandInstruction, Optional.empty())));
+                service(input -> {
+                    routerCalls.incrementAndGet();
+                    return new SemanticIntentUnavailable("ROUTER_UNAVAILABLE");
+                }).classify(routerInput(instruction, sourceInput), sourceInput));
+
+        assertEquals("ROUTER_UNAVAILABLE", unavailable.code());
+        assertEquals(1, routerCalls.get());
+    }
+
+    @Test
+    void routerAndSourcePolicyMustUseTheSameInstruction() {
+        CurrentInstruction routerInstruction = new CurrentInstruction("draw a flow");
+        RestrictedSourceDemandInput routerSource =
+                sourceInput(routerInstruction, Optional.empty());
+        RestrictedSourceDemandInput differentSource =
+                sourceInput(new CurrentInstruction("use a file"), Optional.empty());
+
+        TurnClassificationUnavailable unavailable = assertInstanceOf(
+                TurnClassificationUnavailable.class,
+                service(input -> new SemanticIntentReady(new SemanticIntent(
+                        SemanticAction.CREATE,
+                        OutputIntent.DRAWING,
+                        TargetNeed.NOT_REQUIRED,
+                        "flowchart",
+                        "none")))
+                        .classify(routerInput(routerInstruction, routerSource), differentSource));
 
         assertEquals("CLASSIFICATION_INPUT_DIGEST_MISMATCH", unavailable.code());
     }
 
     @Test
-    void routerAndDemandMustShareThePinnedReadSetIdentity() {
-        CurrentInstruction instruction = new CurrentInstruction("draw a flow");
-        SemanticRouterInput router = routerInput(instruction);
-        RestrictedSourceDemandInput demand = input(instruction, Optional.empty())
-                .withModelInputBinding(ModelInputBinding.bound(
-                        new TurnKey("owner-1", "conversation-1", "turn-1"),
-                        "b".repeat(64), input(instruction, Optional.empty()).inputDigest()));
+    void routerCannotInventADifferentAttachmentProjection() {
+        CurrentInstruction instruction = new CurrentInstruction("use this image");
+        RestrictedSourceDemandInput sourceInput = sourceInput(
+                instruction,
+                Optional.empty(),
+                new OpaqueConversationFileRef("file-1"));
+        RestrictedSourceDemandInput differentSource = sourceInput(
+                instruction,
+                Optional.empty(),
+                new OpaqueConversationFileRef("file-2"));
 
         TurnClassificationUnavailable unavailable = assertInstanceOf(
                 TurnClassificationUnavailable.class,
-                service(
-                        new SemanticIntentReady(new SemanticIntent(
-                                SemanticAction.CREATE, OutputIntent.DRAWING,
-                                TargetNeed.NOT_REQUIRED, "flowchart", "none")),
-                        new SourceDemandProposalReady(noSource(demand)))
-                        .classify(router, demand));
+                service(input -> new SemanticIntentReady(new SemanticIntent(
+                        SemanticAction.CREATE,
+                        OutputIntent.DRAWING,
+                        TargetNeed.NOT_REQUIRED,
+                        "flowchart",
+                        "none")))
+                        .classify(routerInput(instruction, sourceInput), differentSource));
 
         assertEquals("CLASSIFICATION_MODEL_INPUT_BINDING_INVALID", unavailable.code());
     }
 
-    private TurnClassificationService service(
-            SemanticIntentOutcome intent,
-            SourceDemandProposalOutcome proposal
-    ) {
+    private TurnClassificationService service(SemanticIntentRouterPort router) {
         return new TurnClassificationService(
-                input -> intent,
-                input -> proposal,
+                router,
                 new SourceDemandResolver(),
                 DemandResolutionPolicy.m2Default());
     }
 
-    private SemanticRouterInput routerInput(CurrentInstruction instruction) {
+    private SemanticRouterInput routerInput(
+            CurrentInstruction instruction,
+            RestrictedSourceDemandInput sourceInput
+    ) {
         SemanticRouterInput input = new SemanticRouterInput(
-                instruction, new RouterContextView(true, false, 0, false, false));
+                instruction,
+                new RouterContextView(true, false, 0, false, false))
+                .withSourceContext(sourceInput);
         return input.withModelInputBinding(ModelInputBinding.bound(
                 new TurnKey("owner-1", "conversation-1", "turn-1"),
-                "a".repeat(64), input.inputDigest()));
+                "a".repeat(64),
+                input.inputDigest()));
     }
 
-    private RestrictedSourceDemandInput input(
+    private RestrictedSourceDemandInput sourceInput(
             CurrentInstruction instruction,
             Optional<String> membership,
             OpaqueConversationFileRef... attachments
     ) {
-        RestrictedSourceDemandInput input = new RestrictedSourceDemandInput(
+        return new RestrictedSourceDemandInput(
                 instruction, List.of(attachments), membership, Set.of());
-        return input.withModelInputBinding(ModelInputBinding.bound(
-                new TurnKey("owner-1", "conversation-1", "turn-1"),
-                "a".repeat(64), input.inputDigest()));
-    }
-
-    private NoSourceDemandProposal noSource(RestrictedSourceDemandInput input) {
-        return new NoSourceDemandProposal(evidence(input), "plain");
-    }
-
-    private ProposalEvidence evidence(RestrictedSourceDemandInput input) {
-        CurrentInstruction instruction = input.instruction();
-        return new ProposalEvidence(
-                List.of(new CurrentInstructionSpan(
-                        0, instruction.value().length(),
-                        instruction.spanDigest(0, instruction.value().length()))),
-                Confidence.HIGH,
-                Optional.empty(), input.inputDigest(),
-                DemandResolutionPolicy.m2Default().modelVersion(),
-                DemandResolutionPolicy.m2Default().policyVersion());
     }
 }

@@ -15,8 +15,11 @@ import org.zipp.ai.application.turn.checkpoint.TurnRouteDecisionCodec;
 import org.zipp.ai.application.turn.classification.OutputIntent;
 import org.zipp.ai.application.turn.classification.SemanticAction;
 import org.zipp.ai.application.turn.classification.SemanticIntent;
+import org.zipp.ai.application.turn.classification.SemanticSourceIntent;
+import org.zipp.ai.application.turn.classification.SourceIntentKind;
 import org.zipp.ai.application.turn.classification.TargetNeed;
 import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
+import org.zipp.ai.application.turn.demand.Confidence;
 import org.zipp.ai.application.turn.demand.DemandResolutionCode;
 import org.zipp.ai.application.turn.demand.DemandResolutionReason;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
@@ -38,7 +41,7 @@ import java.util.Set;
 public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCodec {
 
     private static final String KIND = "TURN_ROUTE_V1";
-    private static final int VERSION = 2;
+    private static final int VERSION = 4;
     @Override
     public EncodedTurnRouteDecision encode(TurnRouteDecision decision) {
         if (decision == null) {
@@ -58,6 +61,8 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
                     value.lineage());
             root.put("responseKind", value.plan().kind().name());
             root.put("instruction", value.plan().instruction());
+            // Persist the projection decision so retries use the same Canvas context boundary.
+            root.put("includeCanvasContext", value.plan().includeCanvasContext());
         } else if (decision instanceof TurnRouteDecision.SourcePlanning sourcePlanning) {
             PrePlanOutcome.SourcePlanningRequired value = sourcePlanning.value();
             common(root, "SOURCE_PLANNING", value.contextReadSetDigest(), value.inputBindingDigest(),
@@ -67,6 +72,14 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
             root.put("targetNeed", value.intent().targetNeed().name());
             root.put("diagramType", value.intent().diagramType());
             root.put("skillName", value.intent().skillName());
+            root.put("sourceIntent", value.intent().sourceIntent().kind().name());
+            root.put("sourceConfidence", value.intent().sourceIntent().confidence().name());
+            root.put("semanticAttachmentRefs",
+                    new JSONArray(value.intent().sourceIntent().attachmentRefs()));
+            root.put("semanticRelevanceQuery",
+                    value.intent().sourceIntent().relevanceQuery() == null
+                            ? "" : value.intent().sourceIntent().relevanceQuery());
+            root.put("sourceReason", value.intent().sourceIntent().safeReason());
             root.put("instruction", value.instruction().value());
             root.put("ownerKey", value.turn().ownerKey());
             root.put("conversationId", value.turn().canonicalConversationId());
@@ -148,18 +161,27 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
         if (root.getIntValue("version") < 2) {
             throw new IllegalArgumentException("source planning checkpoint TurnKey is unavailable");
         }
-        SemanticIntent intent = new SemanticIntent(
-                SemanticAction.valueOf(text(root, "action", 32)),
-                OutputIntent.valueOf(text(root, "outputIntent", 32)),
-                TargetNeed.valueOf(text(root, "targetNeed", 32)),
-                text(root, "diagramType", 128),
-                text(root, "skillName", 256));
         List<String> attachmentRefs = strings(root.getJSONArray("attachmentRefs"), 16, 256);
         String relevanceQuery = text(root, "relevanceQuery", 1_000);
         AcceptedSourceDemand accepted = new AcceptedSourceDemand(
                 SourceDemandKind.valueOf(text(root, "demandKind", 64)),
                 attachmentRefs,
                 relevanceQuery.isBlank() ? null : relevanceQuery);
+        SemanticSourceIntent sourceIntent = root.getIntValue("version") >= 3
+                ? new SemanticSourceIntent(
+                        SourceIntentKind.valueOf(text(root, "sourceIntent", 96)),
+                        Confidence.valueOf(text(root, "sourceConfidence", 32)),
+                        strings(root.getJSONArray("semanticAttachmentRefs"), 16, 512),
+                        nullableText(root, "semanticRelevanceQuery", 2_000),
+                        text(root, "sourceReason", 512))
+                : SemanticSourceIntent.none();
+        SemanticIntent intent = new SemanticIntent(
+                SemanticAction.valueOf(text(root, "action", 32)),
+                OutputIntent.valueOf(text(root, "outputIntent", 32)),
+                TargetNeed.valueOf(text(root, "targetNeed", 32)),
+                text(root, "diagramType", 128),
+                text(root, "skillName", 256),
+                sourceIntent);
         ResolvedSourceDemand demand = new ResolvedSourceDemand(accepted, reasons(root));
         return new TurnRouteDecision.SourcePlanning(new PrePlanOutcome.SourcePlanningRequired(
                 new TurnKey(
@@ -179,7 +201,9 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
         return new TurnRouteDecision.Response(new PrePlanOutcome.SourceFreeResponseReady(
                 new PlainResponsePlan(
                         PlainResponseKind.valueOf(text(root, "responseKind", 32)),
-                        text(root, "instruction", 16_000)),
+                        text(root, "instruction", 16_000),
+                        root.getIntValue("version") >= 4
+                                && root.getBooleanValue("includeCanvasContext")),
                 lineage, contextDigest, inputDigest));
     }
 
@@ -217,6 +241,17 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
             result.add(reason);
         }
         return result;
+    }
+
+    private String nullableText(JSONObject root, String field, int maxLength) {
+        String value = root.getString(field);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        if (value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " is too long");
+        }
+        return value;
     }
 
     private List<DemandResolutionReason> reasons(JSONObject root) {

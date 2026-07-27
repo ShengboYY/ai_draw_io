@@ -3,6 +3,8 @@ package org.zipp.ai.infrastructure.adapter.repository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.AuthenticatedActor;
+import org.zipp.ai.application.turn.ConversationCatalogPort;
+import org.zipp.ai.application.turn.ConversationRef;
 import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.ingestion.model.valobj.UploadTarget;
 import org.zipp.ai.domain.ingestion.port.UploadScopeAuthorizer;
@@ -16,16 +18,24 @@ public class MySqlUploadScopeAuthorizer implements UploadScopeAuthorizer {
 
     private final IUploadSessionMapper mapper;
     private final MySqlConversationScopeKeyResolver conversationScopes;
+    private final ConversationCatalogPort conversationCatalog;
 
     public MySqlUploadScopeAuthorizer(IUploadSessionMapper mapper) {
-        this(mapper, null);
+        this(mapper, null, null);
+    }
+
+    public MySqlUploadScopeAuthorizer(IUploadSessionMapper mapper,
+                                      MySqlConversationScopeKeyResolver conversationScopes) {
+        this(mapper, conversationScopes, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public MySqlUploadScopeAuthorizer(IUploadSessionMapper mapper,
-                                      MySqlConversationScopeKeyResolver conversationScopes) {
+                                      MySqlConversationScopeKeyResolver conversationScopes,
+                                      ConversationCatalogPort conversationCatalog) {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.conversationScopes = conversationScopes;
+        this.conversationCatalog = conversationCatalog;
     }
 
     @Override
@@ -34,9 +44,36 @@ public class MySqlUploadScopeAuthorizer implements UploadScopeAuthorizer {
         if (target == null || target.scopeType() != MaterialScopeType.CONVERSATION || conversationScopes == null) {
             return target;
         }
-        String canonical = conversationScopes.newWriteScopeKey(
-                new AuthenticatedActor(ownerKey, ownerKey), target.scopeKey(), contextDiagramId);
+        AuthenticatedActor actor = new AuthenticatedActor(ownerKey, ownerKey);
+        String canonical;
+        try {
+            canonical = conversationScopes.newWriteScopeKey(actor, target.scopeKey(), contextDiagramId);
+        } catch (IllegalStateException unresolved) {
+            canonical = provisionNewSessionAlias(actor, target.scopeKey(), contextDiagramId, unresolved).id();
+        }
         return new UploadTarget(target.scopeType(), canonical, target.retentionClass());
+    }
+
+    private ConversationRef provisionNewSessionAlias(
+            AuthenticatedActor actor,
+            String rawReference,
+            String diagramId,
+            IllegalStateException unresolved
+    ) {
+        if (conversationCatalog == null || isBlank(diagramId)) {
+            throw unresolved;
+        }
+        if ("CONVERSATION_DEFAULT_UNRESOLVED".equals(unresolved.getMessage())
+                && "default".equals(rawReference)) {
+            return conversationCatalog.findOrCreateDefault(actor, diagramId);
+        }
+        if (!"CONVERSATION_SCOPE_REFERENCE_UNRESOLVED".equals(unresolved.getMessage())
+                || rawReference.startsWith("conv_")) {
+            throw unresolved;
+        }
+        // Runtime sessions are accepted only after the catalog locks an active diagram
+        // owned by this actor; canonical-looking stale IDs remain fail-closed.
+        return conversationCatalog.findOrCreateDefaultForLegacySession(actor, rawReference, diagramId);
     }
 
     @Override

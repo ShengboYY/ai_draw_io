@@ -4,18 +4,17 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.GroundedGenerationPort;
 import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 import org.zipp.ai.infrastructure.adapter.repository.MySqlEvidencePreparationStore;
 
 import java.util.Set;
 
 /** Tool-free grounded drawing adapter backed by durable prepared evidence. */
 @Component
-@ConditionalOnProperty(name = "zipp.turn.v2.grounded-generation.enabled", havingValue = "true")
 public final class ChatGroundedGenerationAdapter implements GroundedGenerationPort {
 
     private static final Set<String> FIELDS = Set.of(
@@ -35,7 +34,7 @@ public final class ChatGroundedGenerationAdapter implements GroundedGenerationPo
     }
 
     @Override
-    public Result generate(Request request) {
+    public Result generate(Request request, CancellationSignal cancellation) {
         MySqlEvidencePreparationStore.Prepared prepared = preparations.find(
                         request.attempt(), request.preparedEvidenceRef())
                 .orElseThrow(() -> new IllegalStateException("GROUNDED_PREPARATION_NOT_FOUND"));
@@ -43,10 +42,11 @@ public final class ChatGroundedGenerationAdapter implements GroundedGenerationPo
             throw new IllegalStateException("GROUNDED_PREPARATION_BINDING_MISMATCH");
         }
         String rendered = renderer.render(request.context(), prepared.preparedRef(),
-                prepared.manifestDigest(), prepared.items(), true);
+                prepared.manifestDigest(), prepared.items(), true,
+                request.includeCanvasContext());
         String output = model.invoke(ModelInputBinding.bound(
                 request.attempt().key(), request.readSet().digest(),
-                request.attempt().inputBindingDigest()), rendered);
+                request.attempt().inputBindingDigest()), rendered, cancellation);
         JSONObject root = JSON.parseObject(output);
         if (root == null || !root.keySet().equals(FIELDS)) {
             throw new IllegalStateException("V2_GROUNDED_MODEL_OUTPUT_INVALID");

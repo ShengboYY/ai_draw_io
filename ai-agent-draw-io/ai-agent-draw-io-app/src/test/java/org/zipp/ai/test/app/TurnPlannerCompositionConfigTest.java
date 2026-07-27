@@ -18,6 +18,7 @@ class TurnPlannerCompositionConfigTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(org.zipp.ai.config.TurnPlannerCompositionConfig.class)
+            .withPropertyValues("turn-engine.execution.enabled=true")
             .withBean(SemanticRouterContextProjector.class, () -> mock(SemanticRouterContextProjector.class))
             .withBean(RestrictedSourceDemandInputFactory.class,
                     () -> mock(RestrictedSourceDemandInputFactory.class))

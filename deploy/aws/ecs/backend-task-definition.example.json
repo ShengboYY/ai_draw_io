@@ -122,11 +122,23 @@
         },
         {
           "name": "ZIPP_VISUAL_REVIEW_ENABLED",
-          "value": "false"
+          "value": "true"
         },
         {
           "name": "ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED",
-          "value": "false"
+          "value": "true"
+        },
+        {
+          "name": "ZIPP_VISUAL_REVIEW_ROLLOUT_PERCENT",
+          "value": "100"
+        },
+        {
+          "name": "ZIPP_VISUAL_REVIEW_ROUND_1_ROLLOUT_PERCENT",
+          "value": "100"
+        },
+        {
+          "name": "ZIPP_VISUAL_REVIEW_ROUND_2_ROLLOUT_PERCENT",
+          "value": "100"
         },
         {
           "name": "ZIPP_VISUAL_REVIEW_DRAWER_AGENT_ID",

@@ -260,18 +260,18 @@ public class AgentUsageTelemetryService {
         metrics.recordTargetedEdgeRouter(version, outcome);
     }
 
-    public void recordTraceEvent(AgentUsageTelemetryContext.RunContext context,
-                                 String eventType,
-                                 String phase,
-                                 String status,
-                                 Map<String, ?> metadata) {
+    public AgentTraceEvent recordTraceEvent(AgentUsageTelemetryContext.RunContext context,
+                                            String eventType,
+                                            String phase,
+                                            String status,
+                                            Map<String, ?> metadata) {
         if (context == null || StringUtils.isBlank(eventType)) {
-            return;
+            return null;
         }
         Instant occurredAt = clock.instant();
         long sequenceNo = context.nextSequenceNo();
         String metadataJson = sanitizedMetadataJson(metadata);
-        safeStore(() -> telemetryStore.insertTraceEvent(AgentTraceEvent.builder()
+        AgentTraceEvent event = AgentTraceEvent.builder()
                 .id("ate_" + UUID.randomUUID())
                 .runId(context.runId())
                 .parentId(parentSpanId(context))
@@ -283,7 +283,9 @@ public class AgentUsageTelemetryService {
                 .status(StringUtils.defaultIfBlank(StringUtils.left(status, 24), SUCCESS))
                 .metadataJson(metadataJson)
                 .occurredAt(occurredAt)
-                .build()), context.userId());
+                .build();
+        safeStore(() -> telemetryStore.insertTraceEvent(event), context.userId());
+        return event;
     }
 
     public void recordDiagramSnapshot(String runId,

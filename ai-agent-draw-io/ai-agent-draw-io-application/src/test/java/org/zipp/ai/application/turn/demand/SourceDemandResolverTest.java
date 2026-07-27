@@ -26,6 +26,23 @@ class SourceDemandResolverTest {
     }
 
     @Test
+    void availableAttachmentMetadataDoesNotForceAPlainRequestIntoSourcePlanning() {
+        RestrictedSourceDemandInput input = input(
+                "draw a login flow",
+                List.of(new OpaqueConversationFileRef("recent-image")),
+                Optional.empty());
+
+        ResolvedSourceDemand resolved = assertInstanceOf(
+                ResolvedSourceDemand.class,
+                resolver.resolve(
+                        new NoSourceDemandProposal(evidence(input), "普通画图"),
+                        input,
+                        policy));
+
+        assertInstanceOf(NoSourceDemand.class, resolved.decision());
+    }
+
+    @Test
     void currentAttachmentDemandRequiresTheSameMessageBinding() {
         RestrictedSourceDemandInput input = input(
                 "use this attachment", List.of(new OpaqueConversationFileRef("file-1")), Optional.empty());
@@ -47,6 +64,61 @@ class SourceDemandResolverTest {
         NeedsSourceClarification clarification = assertInstanceOf(
                 NeedsSourceClarification.class, unbound);
         assertEquals("ATTACHMENT_REFERENT", clarification.kind());
+    }
+
+    @Test
+    void confidenceDoesNotAddASecondConfirmationGateAfterReferentsAreBound() {
+        RestrictedSourceDemandInput input = input(
+                "请帮我还原一下",
+                List.of(new OpaqueConversationFileRef("file-1")),
+                Optional.empty());
+        ProposalEvidence medium = evidence(input, Optional.empty(), Confidence.MEDIUM);
+
+        ResolvedSourceDemand resolved = assertInstanceOf(
+                ResolvedSourceDemand.class,
+                resolver.resolve(
+                        new TypedSourceDemandProposal(
+                                SourceDemandKind.CURRENT_MESSAGE_DIRECT_REQUIRED,
+                                List.of("file-1"), null, medium, "按当前图片还原"),
+                        input,
+                        policy));
+        AcceptedSourceDemand accepted =
+                assertInstanceOf(AcceptedSourceDemand.class, resolved.decision());
+        assertEquals(List.of("file-1"), accepted.attachmentRefs());
+
+        ProposalEvidence retrievalEvidence =
+                evidence(input, Optional.of("总结当前附件"), Confidence.MEDIUM);
+        ResolvedSourceDemand retrieval = assertInstanceOf(
+                ResolvedSourceDemand.class,
+                resolver.resolve(
+                        new TypedSourceDemandProposal(
+                                SourceDemandKind.CURRENT_MESSAGE_RETRIEVAL_REQUIRED,
+                                List.of("file-1"), "总结当前附件",
+                                retrievalEvidence, "检索当前附件"),
+                        input,
+                        policy));
+        AcceptedSourceDemand acceptedRetrieval =
+                assertInstanceOf(AcceptedSourceDemand.class, retrieval.decision());
+        assertEquals("总结当前附件", acceptedRetrieval.relevanceQuery());
+
+        RestrictedSourceDemandInput multipleInput = input(
+                "还原这些附件",
+                List.of(
+                        new OpaqueConversationFileRef("file-1"),
+                        new OpaqueConversationFileRef("file-2")),
+                Optional.empty());
+        ResolvedSourceDemand multiple = assertInstanceOf(
+                ResolvedSourceDemand.class,
+                resolver.resolve(
+                        new TypedSourceDemandProposal(
+                                SourceDemandKind.CURRENT_MESSAGE_DIRECT_REQUIRED,
+                                List.of("file-1", "file-2"),
+                                null,
+                                evidence(multipleInput, Optional.empty(), Confidence.MEDIUM),
+                                "按当前图片还原"),
+                        multipleInput,
+                        policy));
+        assertInstanceOf(AcceptedSourceDemand.class, multiple.decision());
     }
 
     @Test
@@ -198,11 +270,19 @@ class SourceDemandResolverTest {
             RestrictedSourceDemandInput input,
             Optional<String> relevanceQuery
     ) {
+        return evidence(input, relevanceQuery, Confidence.HIGH);
+    }
+
+    private ProposalEvidence evidence(
+            RestrictedSourceDemandInput input,
+            Optional<String> relevanceQuery,
+            Confidence confidence
+    ) {
         CurrentInstruction instruction = input.instruction();
         return new ProposalEvidence(
                 List.of(new CurrentInstructionSpan(
                         0, instruction.value().length(), instruction.spanDigest(0, instruction.value().length()))),
-                Confidence.HIGH,
+                confidence,
                 relevanceQuery, input.inputDigest(), policy.modelVersion(), policy.policyVersion());
     }
 }

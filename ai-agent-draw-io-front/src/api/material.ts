@@ -31,7 +31,8 @@ type MaterialClientOptions = {
   sleep?: (milliseconds: number) => Promise<void>;
 };
 
-const terminalUploadStates = new Set(['READY', 'PARTIAL_READY', 'FAILED', 'REJECTED', 'CANCELLED']);
+// UploadSession reports SUCCEEDED after its processing revision has been published.
+const terminalUploadStates = new Set(['SUCCEEDED', 'READY', 'PARTIAL_READY', 'FAILED', 'REJECTED', 'CANCELLED']);
 
 export const createMaterialClient = (options: MaterialClientOptions) => {
   const fetchImplementation = options.fetch || globalThis.fetch.bind(globalThis);

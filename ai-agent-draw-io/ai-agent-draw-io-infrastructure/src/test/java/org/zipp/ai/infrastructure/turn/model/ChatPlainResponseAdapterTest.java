@@ -44,6 +44,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChatPlainResponseAdapterTest {
 
+    private static final String CANVAS_XML = """
+            <mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
+            <mxCell id="node-1" value="Login" vertex="1" parent="1">
+            <mxGeometry x="20" y="20" width="120" height="60" as="geometry"/>
+            </mxCell></root></mxGraphModel>
+            """;
+
     @Test
     void responseUsesFreshToolFreeSessionAndOmitsAttachmentMetadata() {
         RecordingChat chat = new RecordingChat(
@@ -59,6 +66,12 @@ class ChatPlainResponseAdapterTest {
         assertTrue(chat.lastText.contains("PLAIN_SOURCE_FREE_RESPONSE_V1"));
         assertTrue(chat.lastText.contains("RESPONSE_KIND: REVIEW"));
         assertTrue(chat.lastText.contains("CURRENT_MESSAGE_ATTACHMENTS: OMITTED_BY_SOURCE_FREE_CONTRACT"));
+        assertTrue(chat.lastText.contains("CANVAS_XML_DATA:"));
+        assertTrue(chat.lastText.contains(
+                "nodeCount and edgeCount are authoritative server-derived facts"));
+        assertTrue(chat.lastText.contains(CANVAS_XML.trim()));
+        assertTrue(chat.lastText.indexOf("CONVERSATION_DATA:")
+                < chat.lastText.indexOf("CANVAS_DATA:"));
         assertFalse(chat.lastText.contains("private-spec.pdf"));
         assertFalse(chat.lastText.contains("attachment-secret"));
     }
@@ -75,6 +88,20 @@ class ChatPlainResponseAdapterTest {
                 () -> adapter.generate(request(), event -> { }));
 
         assertEquals("V2_PLAIN_RESPONSE_MODEL_OUTPUT_INVALID", failure.getMessage());
+    }
+
+    @Test
+    void missingModelPayloadRefUsesStableServerOwnedReference() {
+        RecordingChat chat = new RecordingChat(
+                "{\"assistantMessage\":\"please attach the referenced image\","
+                        + "\"payloadRef\":null}");
+        ChatPlainResponseAdapter adapter = new ChatPlainResponseAdapter(
+                new ToolFreeChatModelInvoker(chat, "300025", "test-plain-response"));
+
+        PlainResponseGenerationResult result = adapter.generate(request(), event -> { });
+
+        assertEquals("please attach the referenced image", result.assistantMessage());
+        assertEquals("response-turn-1", result.payloadRef());
     }
 
     @Test
@@ -105,8 +132,8 @@ class ChatPlainResponseAdapterTest {
                                         new OpaqueConversationFileRef("file-1"),
                                         "application/pdf", "private-spec.pdf"))), "attachments"),
                         new AbsentContext<>("no clarification"),
-                        new AvailableContext<>(new TrustedCanvasContext(true, 2, 1,
-                                "two nodes and one edge"), "canvas"),
+                        new AvailableContext<>(new TrustedCanvasContext(
+                                1, 0, "one node", 2, "canvas-hash", CANVAS_XML), "canvas"),
                         new AvailableContext<>(new ValidatedSelectionContext(false, 0), "selection"),
                         new AvailableContext<>(new ConversationContext(
                                 List.of("previous turn"), "previous summary"), "conversation"),
@@ -118,7 +145,7 @@ class ChatPlainResponseAdapterTest {
                                 "memory"),
                         new ContextDiagnostics(List.of())),
                 readSet(),
-                new PlainResponsePlan(PlainResponseKind.REVIEW, "review the diagram"),
+                new PlainResponsePlan(PlainResponseKind.REVIEW, "review the diagram", true),
                 PlainExecutionProfile.m2SourceFree());
     }
 

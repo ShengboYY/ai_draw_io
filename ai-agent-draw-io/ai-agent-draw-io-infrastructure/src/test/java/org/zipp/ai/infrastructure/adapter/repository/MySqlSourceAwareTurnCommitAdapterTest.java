@@ -23,6 +23,9 @@ import org.zipp.ai.application.turn.planning.SourcePlanIdentity;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -41,6 +44,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MySqlSourceAwareTurnCommitAdapterTest {
 
+    private static final String NON_EMPTY_CANVAS = """
+            <mxGraphModel><root>
+              <mxCell id="0"/>
+              <mxCell id="1" parent="0"/>
+              <mxCell id="node-1" value="Step" vertex="1" parent="1">
+                <mxGeometry x="20" y="20" width="120" height="60" as="geometry"/>
+              </mxCell>
+            </root></mxGraphModel>
+            """;
+
     @Test
     void directWritesCanvasProvenancePinMessageAndTerminalWithoutCitation() {
         StubJdbc jdbc = readyJdbc();
@@ -51,10 +64,58 @@ class MySqlSourceAwareTurnCommitAdapterTest {
 
         assertInstanceOf(FencedCommitOutcome.Committed.class, outcome);
         assertEquals(7, jdbc.updates.size());
+        assertTrue(jdbc.updates.get(0).contains("summary, analysis_json"));
         assertTrue(jdbc.containsUpdate("INSERT INTO diagram_visual_provenance"));
         assertTrue(jdbc.containsUpdate("INSERT INTO direct_source_usage_pin"));
         assertFalse(jdbc.containsUpdate("INSERT INTO source_citation"));
         assertTrue(jdbc.updates.get(6).contains("UPDATE turn_execution"));
+    }
+
+    @Test
+    void directCommitAcceptsTheDigestPinnedForAnExistingCanvas() {
+        StubJdbc jdbc = readyJdbc();
+        jdbc.canvas.put("version", 2L);
+        jdbc.canvas.put("content_hash", "canvas-hash");
+        jdbc.canvas.put("summary", "blank canvas");
+        jdbc.canvas.put("analysis_json", "{\"nodeCount\":0,\"edgeCount\":0}");
+
+        FencedCommitOutcome outcome =
+                new MySqlSourceAwareTurnCommitAdapter(jdbc.proxy())
+                        .commit(directCommand(
+                                2,
+                                digest("canvas", "diagram-1", "2", "canvas-hash",
+                                        "blank canvas", "{\"nodeCount\":0,\"edgeCount\":0}")));
+
+        assertInstanceOf(FencedCommitOutcome.Committed.class, outcome);
+        assertTrue(jdbc.updates.get(0).contains("UPDATE diagram_canvas_state"));
+        assertTrue(jdbc.updates.get(0).contains("summary = ?, analysis_json = ?"));
+    }
+
+    @Test
+    void directEmptyModelResponseCannotOverwriteCanvas() {
+        StubJdbc jdbc = readyJdbc();
+
+        DirectTurnCommit empty = new DirectTurnCommit(
+                attempt(),
+                binding(),
+                "diagram-1",
+                0,
+                "",
+                "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/></root></mxGraphModel>",
+                "direct done",
+                "payload-direct-empty",
+                new DirectVisualProvenance(
+                        "provenance-1",
+                        "source-identity-1",
+                        DirectCandidateOrigin.CURRENT_MESSAGE_ATTACHMENT,
+                        "observation-1"));
+
+        FencedCommitOutcome.Rejected rejected = assertInstanceOf(
+                FencedCommitOutcome.Rejected.class,
+                new MySqlSourceAwareTurnCommitAdapter(jdbc.proxy()).commit(empty));
+
+        assertEquals("CANVAS_EMPTY_CANDIDATE", rejected.code());
+        assertEquals(List.of(), jdbc.updates);
     }
 
     @Test
@@ -148,13 +209,17 @@ class MySqlSourceAwareTurnCommitAdapterTest {
     }
 
     private DirectTurnCommit directCommand() {
+        return directCommand(0, "");
+    }
+
+    private DirectTurnCommit directCommand(long expectedCanvasVersion, String expectedCanvasDigest) {
         return new DirectTurnCommit(
                 attempt(),
                 binding(),
                 "diagram-1",
-                0,
-                "",
-                "<mxGraphModel/>",
+                expectedCanvasVersion,
+                expectedCanvasDigest,
+                NON_EMPTY_CANVAS,
                 "direct done",
                 "payload-direct",
                 new DirectVisualProvenance(
@@ -164,6 +229,27 @@ class MySqlSourceAwareTurnCommitAdapterTest {
                         "observation-1"));
     }
 
+    private static String digest(String... values) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (String value : values) {
+                String normalized = value == null ? "" : value;
+                byte[] bytes = normalized.getBytes(StandardCharsets.UTF_8);
+                digest.update(Integer.toString(bytes.length).getBytes(StandardCharsets.UTF_8));
+                digest.update((byte) ':');
+                digest.update(bytes);
+                digest.update((byte) '|');
+            }
+            StringBuilder result = new StringBuilder(64);
+            for (byte value : digest.digest()) {
+                result.append(String.format("%02x", value));
+            }
+            return result.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
+        }
+    }
+
     private GroundedTurnCommit groundedCommand() {
         return new GroundedTurnCommit(
                 attempt(),
@@ -171,7 +257,7 @@ class MySqlSourceAwareTurnCommitAdapterTest {
                 "diagram-1",
                 0,
                 "",
-                "<mxGraphModel/>",
+                NON_EMPTY_CANVAS,
                 "grounded done",
                 "payload-grounded",
                 manifest(),

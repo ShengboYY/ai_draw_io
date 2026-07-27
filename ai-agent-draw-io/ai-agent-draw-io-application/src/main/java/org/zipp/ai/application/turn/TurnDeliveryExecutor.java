@@ -13,4 +13,16 @@ public interface TurnDeliveryExecutor {
             UserTurnCommand command,
             TurnEventSink events
     );
+
+    /**
+     * Returns the local execution handle when this delivery call starts a new attempt. Existing
+     * implementations remain source-compatible and may return a submission-only receipt.
+     */
+    default TurnDeliveryExecution executeTracked(
+            AuthenticatedActor actor,
+            UserTurnCommand command,
+            TurnEventSink events
+    ) {
+        return new TurnDeliveryExecution(execute(actor, command, events), null);
+    }
 }

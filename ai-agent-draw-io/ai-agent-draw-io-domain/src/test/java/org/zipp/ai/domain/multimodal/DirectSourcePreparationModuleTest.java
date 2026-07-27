@@ -64,7 +64,7 @@ class DirectSourcePreparationModuleTest {
     }
 
     @Test
-    void preservesConfirmationBoundaryFromConversion() {
+    void lowConfidenceRecognitionDoesNotInterruptDirectPreparation() {
         AtomicBoolean leaseClosed = new AtomicBoolean();
         DirectSourcePreparationModule module = module(
                 (request, resources, cancellation) ->
@@ -76,15 +76,13 @@ class DirectSourcePreparationModuleTest {
         DirectSourceOutcome outcome = module.prepare(command(), resources,
                 null, CancellationSignal.NEVER).toCompletableFuture().join();
 
-        DirectSourceOutcome.NeedsConfirmation confirmation =
-                assertInstanceOf(DirectSourceOutcome.NeedsConfirmation.class, outcome);
-        assertEquals(List.of("LOW_CONFIDENCE_EDGE:a-to-b"), confirmation.reasons());
+        assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
         resources.close();
         assertTrue(leaseClosed.get());
     }
 
     @Test
-    void projectorCannotBypassTheCanonicalConfirmationBoundary() {
+    void projectorReceivesBestEffortGraphAfterCanonicalTopologyValidation() {
         int[] conversions = {0};
         DirectSourcePreparationModule module = new DefaultDirectSourcePreparationModule(
                 (request, resources, cancellation) ->
@@ -101,8 +99,8 @@ class DirectSourcePreparationModuleTest {
         DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
                 null, CancellationSignal.NEVER).toCompletableFuture().join();
 
-        assertInstanceOf(DirectSourceOutcome.NeedsConfirmation.class, outcome);
-        assertEquals(0, conversions[0]);
+        assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
+        assertEquals(1, conversions[0]);
     }
 
     @Test
@@ -411,45 +409,24 @@ class DirectSourcePreparationModuleTest {
     }
 
     @Test
-    void turnsFreeTextObservationGapIntoAConfirmableReasonCode() {
+    void retriesAnIncompleteDiagramObservationWithoutRequestingUserConfirmation() {
         String gapText = "arrow direction unclear";
-        String reasonCode = "OBSERVATION_GAP:"
-                + DirectObservationFingerprint.of(gapText).substring(0, 24);
         int[] observations = {0};
         VisualObservationModule observer = (request, resources, cancellation) -> {
             observations[0]++;
-            if (observations[0] == 1) {
-                return java.util.concurrent.CompletableFuture.completedFuture(
-                        new VisualObservationOutcome.Gap(List.of(gapText)));
-            }
-            assertTrue(request.question().contains(reasonCode + "=ACCEPT_OBSERVED"));
             return java.util.concurrent.CompletableFuture.completedFuture(
-                    new VisualObservationOutcome.DiagramVerified(graph(0.94)));
+                    new VisualObservationOutcome.Gap(List.of(gapText)));
         };
         DirectSourcePreparationModule module = module(
                 observer, readySources(), new AtomicBoolean(), Optional.of(artifact));
 
-        DirectSourceOutcome.NeedsConfirmation first =
-                assertInstanceOf(DirectSourceOutcome.NeedsConfirmation.class,
+        DirectSourceOutcome.Unavailable unavailable =
+                assertInstanceOf(DirectSourceOutcome.Unavailable.class,
                         module.prepare(command(), new RunResourceDomain(), null,
                                 CancellationSignal.NEVER).toCompletableFuture().join());
-        assertEquals(List.of(reasonCode), first.reasons());
-        assertEquals(gapText, first.observedValues().get(reasonCode));
 
-        DirectSourceCommand clarified = new DirectSourceCommand(
-                new CatalogOwner(OwnerType.USER, "alice"),
-                "request-1", "run-1", "diagram-1", "conversation-1", "upload-1",
-                List.of("selected-version-1"), SourceMode.EXPLICIT_ONLY,
-                "Reconstruct the uploaded diagram",
-                "version-1",
-                List.of(new DirectClarification(
-                        reasonCode,
-                        DirectClarification.Resolution.ACCEPT_OBSERVED,
-                        DirectObservationFingerprint.of(gapText))),
-                null);
-        assertInstanceOf(DirectSourceOutcome.Prepared.class,
-                module.prepare(clarified, new RunResourceDomain(), null,
-                        CancellationSignal.NEVER).toCompletableFuture().join());
+        assertEquals("VISUAL_DIAGRAM_OBSERVATION_INCOMPLETE", unavailable.reason());
+        assertEquals(2, observations[0]);
     }
 
     @Test

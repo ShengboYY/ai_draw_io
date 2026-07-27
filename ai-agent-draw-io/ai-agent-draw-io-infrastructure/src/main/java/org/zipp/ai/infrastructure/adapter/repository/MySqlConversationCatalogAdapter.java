@@ -1,20 +1,23 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.ConversationCatalogPort;
 import org.zipp.ai.application.turn.ConversationRef;
+import org.zipp.ai.application.turn.ConversationScopeKeys;
 import org.zipp.ai.application.turn.ConversationStatus;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Canonical conversation lookup; legacy aliases are never synthesized from caller input. */
+/** Canonical conversation lookup and owner-fenced runtime-session compatibility binding. */
 @Repository
 public class MySqlConversationCatalogAdapter implements ConversationCatalogPort {
+
+    private static final int MAX_LEGACY_SESSION_ID_LENGTH = 128;
 
     private static final String SELECT_ACTIVE_DEFAULT = """
             SELECT c.id, c.owner_key, c.diagram_id, c.status
@@ -49,10 +52,25 @@ public class MySqlConversationCatalogAdapter implements ConversationCatalogPort 
             INSERT INTO conversation (id, owner_key, diagram_id, status, version)
             VALUES (?, ?, ?, 'ACTIVE', 0)
             """;
+    private static final String SELECT_ALIAS_CONVERSATION_ID = """
+            SELECT conversation_id
+            FROM conversation_legacy_alias
+            WHERE owner_key = ? AND legacy_session_id = ?
+            """;
+    private static final String COUNT_CONVERSATION_ALIASES = """
+            SELECT COUNT(*)
+            FROM conversation_legacy_alias
+            WHERE owner_key = ? AND conversation_id = ?
+            """;
+    private static final String INSERT_LEGACY_ALIAS = """
+            INSERT IGNORE INTO conversation_legacy_alias
+                (owner_key, conversation_id, legacy_session_id)
+            VALUES (?, ?, ?)
+            """;
 
-    private final JdbcTemplate jdbc;
+    private final JdbcOperations jdbc;
 
-    public MySqlConversationCatalogAdapter(JdbcTemplate jdbc) {
+    public MySqlConversationCatalogAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
@@ -75,6 +93,46 @@ public class MySqlConversationCatalogAdapter implements ConversationCatalogPort 
             throw new IllegalStateException("CONVERSATION_CREATE_NOT_VISIBLE");
         }
         return created;
+    }
+
+    @Override
+    @Transactional
+    public ConversationRef findOrCreateDefaultForLegacySession(
+            AuthenticatedActor actor,
+            String legacySessionId,
+            String diagramId
+    ) {
+        Objects.requireNonNull(actor, "actor");
+        requireText(legacySessionId, "legacySessionId");
+        requireText(diagramId, "diagramId");
+        if (legacySessionId.length() > MAX_LEGACY_SESSION_ID_LENGTH) {
+            throw new IllegalArgumentException("legacySessionId is too long");
+        }
+
+        // findOrCreateDefault locks the owned diagram for this transaction. That lock
+        // serializes alias-count checks and prevents two uploads from exceeding the bound.
+        ConversationRef conversation = findOrCreateDefault(actor, diagramId);
+        String existingConversationId = findAliasConversationId(actor.ownerKey(), legacySessionId);
+        if (existingConversationId != null) {
+            if (!conversation.id().equals(existingConversationId)) {
+                throw new IllegalStateException("LEGACY_CONVERSATION_ALIAS_CONFLICT");
+            }
+            return conversation;
+        }
+
+        int aliasCount = countAliases(actor.ownerKey(), conversation.id());
+        if (aliasCount >= ConversationScopeKeys.MAX_LEGACY_ALIASES) {
+            throw new IllegalStateException("CONVERSATION_SCOPE_ALIAS_LIMIT_EXCEEDED");
+        }
+        jdbc.update(INSERT_LEGACY_ALIAS, actor.ownerKey(), conversation.id(), legacySessionId);
+
+        // INSERT IGNORE may lose a cross-diagram race on the owner-scoped alias key.
+        // Re-read and accept only the intended immutable binding.
+        String persistedConversationId = findAliasConversationId(actor.ownerKey(), legacySessionId);
+        if (!conversation.id().equals(persistedConversationId)) {
+            throw new IllegalStateException("LEGACY_CONVERSATION_ALIAS_CONFLICT");
+        }
+        return conversation;
     }
 
     @Override
@@ -116,6 +174,25 @@ public class MySqlConversationCatalogAdapter implements ConversationCatalogPort 
                 rs.getString("diagram_id"),
                 ConversationStatus.valueOf(rs.getString("status"))), args);
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private String findAliasConversationId(String ownerKey, String legacySessionId) {
+        List<String> rows = jdbc.query(
+                SELECT_ALIAS_CONVERSATION_ID,
+                (rs, rowNum) -> rs.getString("conversation_id"),
+                ownerKey, legacySessionId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private int countAliases(String ownerKey, String conversationId) {
+        List<Integer> rows = jdbc.query(
+                COUNT_CONVERSATION_ALIASES,
+                (rs, rowNum) -> rs.getInt(1),
+                ownerKey, conversationId);
+        if (rows.size() != 1) {
+            throw new IllegalStateException("CONVERSATION_SCOPE_ALIAS_COUNT_UNAVAILABLE");
+        }
+        return rows.get(0);
     }
 
     private static void requireText(String value, String field) {

@@ -9,6 +9,7 @@ import java.util.List;
 public class DiagramConversationMessageDTO {
 
     private String clientMessageId;
+    private String turnId;
     private String sessionId;
     private String role;
     private String content;

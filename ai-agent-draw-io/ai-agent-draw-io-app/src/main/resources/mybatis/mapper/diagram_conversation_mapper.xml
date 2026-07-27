@@ -98,14 +98,47 @@
         ORDER BY a.message_id ASC, a.attachment_order ASC
     </select>
 
-    <insert id="upsertMessage" parameterType="org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO">
+    <insert id="upsertMessage"
+            parameterType="org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO"
+            useGeneratedKeys="true"
+            keyProperty="id">
         <!-- Stable client message IDs are immutable; retries may observe but never rewrite text
              that could already be bound to durable answer citations. -->
         INSERT INTO diagram_conversation_message
             (diagram_id, turn_id, conversation_id, user_id, session_id, client_message_id, role, content)
         VALUES
             (#{diagramId}, #{turnId}, #{conversationId}, #{userId}, #{sessionId}, #{clientMessageId}, #{role}, #{content})
-        ON DUPLICATE KEY UPDATE client_message_id = client_message_id
+        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), client_message_id = client_message_id
+    </insert>
+
+    <insert id="insertMessageAttachment">
+        <!-- Legacy persistence may bind only an upload owned by the same canonical conversation.
+             V2 continues to use its atomic claim boundary and reaches this statement only on retry. -->
+        INSERT INTO conversation_message_attachment (
+            owner_key, conversation_id, message_id, turn_id, attachment_order,
+            conversation_file_ref, attachment_status_at_bind
+        )
+        SELECT
+            m.user_id,
+            m.conversation_id,
+            m.id,
+            COALESCE(NULLIF(m.turn_id, ''), CONCAT('legacy-message-', m.id)),
+            #{attachmentOrder},
+            u.id,
+            u.state
+        FROM diagram_conversation_message m
+        INNER JOIN material_upload_session u
+            ON u.id = #{fileRef}
+            AND u.owner_key = m.user_id
+            AND u.target_scope_type = 'CONVERSATION'
+            AND u.target_scope_key = m.conversation_id
+            AND u.state IN ('CREATED', 'OBJECT_VERSION_PINNED', 'PROCESSING', 'SUCCEEDED')
+        WHERE m.id = #{messageId}
+          AND m.user_id = #{userId}
+          AND m.diagram_id = #{diagramId}
+          AND LOWER(m.role) = 'user'
+          AND m.conversation_id IS NOT NULL
+        ON DUPLICATE KEY UPDATE conversation_file_ref = conversation_file_ref
     </insert>
 
     <delete id="deleteByUserId">

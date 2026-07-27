@@ -1,6 +1,8 @@
 package org.zipp.ai.application.turn.planning;
 
 import org.zipp.ai.application.turn.PlainDrawPlan;
+import org.zipp.ai.application.turn.PlainResponseKind;
+import org.zipp.ai.application.turn.PlainResponsePlan;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanDecision;
 import org.zipp.ai.application.turn.classification.PlainDrawPlanFactory;
@@ -12,8 +14,6 @@ import org.zipp.ai.application.turn.classification.PlainResponsePlanReady;
 import org.zipp.ai.application.turn.classification.PlainResponsePlanRejected;
 import org.zipp.ai.application.turn.classification.TurnClassification;
 import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
-import org.zipp.ai.application.turn.demand.AmbiguousSourceDemand;
-import org.zipp.ai.application.turn.demand.DemandResolutionReason;
 import org.zipp.ai.application.turn.demand.NeedsSourceClarification;
 import org.zipp.ai.application.turn.demand.NoSourceDemand;
 import org.zipp.ai.application.turn.demand.ResolvedSourceDemand;
@@ -21,7 +21,6 @@ import org.zipp.ai.application.turn.demand.SourceDemandResolution;
 import org.zipp.ai.application.turn.demand.SourceDemandUnavailable;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -62,8 +61,16 @@ public final class DefaultPrePlanner {
                     contextReadSetDigest, inputBindingDigest);
         }
         if (resolution instanceof NeedsSourceClarification clarification) {
-            return new PrePlanOutcome.NeedsClarification(
-                    clarification, lineage, contextReadSetDigest, inputBindingDigest);
+            // Missing or ambiguous source input is a normal assistant response, not a failed turn.
+            return new PrePlanOutcome.SourceFreeResponseReady(
+                    new PlainResponsePlan(
+                            PlainResponseKind.DIRECT_REPLY,
+                            clarificationInstruction(
+                                    clarification.kind(),
+                                    classification.instruction().value())),
+                    lineage,
+                    contextReadSetDigest,
+                    inputBindingDigest);
         }
         if (!(resolution instanceof ResolvedSourceDemand resolved)) {
             return unavailable("SOURCE_DEMAND_RESOLUTION_UNAVAILABLE", lineage,
@@ -112,13 +119,32 @@ public final class DefaultPrePlanner {
                     resolved, accepted, lineage,
                     contextReadSetDigest, inputBindingDigest);
         }
-        AmbiguousSourceDemand ambiguous = (AmbiguousSourceDemand) resolved.decision();
-        return new PrePlanOutcome.NeedsClarification(
-                new NeedsSourceClarification(
-                        "AMBIGUOUS_SOURCE_DEMAND",
-                        List.of(new DemandResolutionReason(
-                                4, org.zipp.ai.application.turn.demand.DemandResolutionCode.CLARIFICATION_REQUIRED))),
-                lineage, contextReadSetDigest, inputBindingDigest);
+        return new PrePlanOutcome.SourceFreeResponseReady(
+                new PlainResponsePlan(
+                        PlainResponseKind.DIRECT_REPLY,
+                        clarificationInstruction(
+                                "AMBIGUOUS_SOURCE_DEMAND",
+                                classification.instruction().value())),
+                lineage,
+                contextReadSetDigest,
+                inputBindingDigest);
+    }
+
+    private String clarificationInstruction(String kind, String originalInstruction) {
+        return switch (kind) {
+            case "ATTACHMENT_REFERENT" ->
+                    "Briefly ask the user to attach the image or PDF required by this request. "
+                            + "Do not claim that a file was inspected. Original request: "
+                            + originalInstruction;
+            case "COMPOSITE_RETRIEVAL_SCOPE" ->
+                    "Briefly ask the user which project or Chartbook documents must be used. "
+                            + "Do not answer from general knowledge. Original request: "
+                            + originalInstruction;
+            default ->
+                    "Briefly ask one concrete question that identifies the missing source. "
+                            + "Do not claim that any source was inspected. Original request: "
+                            + originalInstruction;
+        };
     }
 
     private boolean isResponseAction(TurnClassification classification) {

@@ -35,6 +35,7 @@ import org.zipp.ai.domain.agent.service.armory.matter.tool.DrawioToolAccessConte
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
@@ -1151,12 +1152,39 @@ public class AgentConversationService {
             return;
         }
         try {
-            telemetryService().recordTraceEvent(runScope.getContext(), eventType, phase, status, metadata);
+            AgentTraceEvent event = telemetryService().recordTraceEvent(
+                    runScope.getContext(), eventType, phase, status, metadata);
+            captureLifecycleEventPayload(runScope, event);
         } catch (Exception e) {
             // Trace lifecycle metadata is best-effort and must not change chat behavior.
             log.warn("Trace lifecycle event failed. userId:{} runId:{} eventType:{}",
                     SecretLogSanitizer.maskCapability(runScope.getContext().userId()),
                     runScope.getContext().runId(), eventType, e);
+        }
+    }
+
+    private void captureLifecycleEventPayload(AgentUsageTelemetryService.RunScope runScope, AgentTraceEvent event) {
+        if (agentDebugTraceService == null || runScope == null || runScope.getContext() == null || event == null) {
+            return;
+        }
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("eventType", event.getEventType());
+        output.put("phase", event.getPhase());
+        output.put("status", event.getStatus());
+        output.put("metadataJson", event.getMetadataJson());
+        try {
+            // Event metadata is already sanitized and must be attached to the EVENT id shown by the inspector.
+            agentDebugTraceService.captureSpanPayload(
+                    runScope.getContext().userId(),
+                    runScope.getContext().runId(),
+                    event.getId(),
+                    DebugTracePayloadKind.OUTPUT,
+                    "application/json",
+                    JSON.toJSONString(output));
+        } catch (Exception e) {
+            log.warn("Debug lifecycle payload capture failed. userId:{} runId:{} spanId:{}",
+                    SecretLogSanitizer.maskCapability(runScope.getContext().userId()),
+                    runScope.getContext().runId(), event.getId(), e);
         }
     }
 
@@ -1489,11 +1517,12 @@ public class AgentConversationService {
                                                     EvidenceProgressListener progress,
                                                     CancellationSignal cancellation,
                                                     AtomicReference<PreparedEvidence> preparedEvidenceRef) {
+        // Source infrastructure is irrelevant to ordinary drawing and must not make it unavailable.
+        if (!shouldPrepareEvidence(requestDTO, routing)) return null;
         if (sourceSnapshot != null && sourceSnapshot.resolutionFailed()) {
             return evidenceResponse("source_resolution_failed",
                     "无法固定本轮资料来源，已安全停止请求，请稍后重试。 / Could not freeze this request's sources; retry later.");
         }
-        if (!shouldPrepareEvidence(requestDTO, routing)) return null;
         boolean strict = isStrictEvidenceRequest(requestDTO, routing);
         String evidenceNeed = StringUtils.defaultIfBlank(routing.getEvidenceNeed(), "NONE")
                 .trim().toUpperCase(java.util.Locale.ROOT);

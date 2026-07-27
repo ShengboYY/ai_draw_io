@@ -37,9 +37,11 @@ public class MySqlDirectPreparationStore {
             """;
 
     private final JdbcOperations jdbc;
+    private final MySqlTurnAttemptFenceGuard attemptFence;
 
     public MySqlDirectPreparationStore(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.attemptFence = new MySqlTurnAttemptFenceGuard(jdbc);
     }
 
     @Transactional
@@ -47,6 +49,8 @@ public class MySqlDirectPreparationStore {
                      String sourceSnapshotRef, String observationFingerprint, String canvasXml) {
         Objects.requireNonNull(attempt, "attempt");
         Objects.requireNonNull(plan, "plan");
+        // Hold the execution-row lock through the hand-off write so takeover/cancel cannot race it.
+        attemptFence.lockActive(attempt, "DIRECT_PREPARATION_FENCE_NOT_ACTIVE");
         jdbc.update(INSERT, attempt.key().ownerKey(), attempt.key().canonicalConversationId(),
                 attempt.key().turnId(), required(preparedRef), plan.planFingerprint(),
                 required(sourceSnapshotRef), required(observationFingerprint), required(canvasXml));

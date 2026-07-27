@@ -56,12 +56,13 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
             """;
     private static final String INSERT_CANVAS = """
             INSERT INTO diagram_canvas_state
-                (diagram_id, user_id, current_xml, content_hash, version)
-            VALUES (?, ?, ?, ?, 1)
+                (diagram_id, user_id, current_xml, content_hash, summary, analysis_json, version)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
             """;
     private static final String UPDATE_CANVAS = """
             UPDATE diagram_canvas_state
-            SET current_xml = ?, content_hash = ?, version = version + 1,
+            SET current_xml = ?, content_hash = ?, summary = ?, analysis_json = ?,
+                version = version + 1,
                 updated_at = UTC_TIMESTAMP(3)
             WHERE diagram_id = ? AND user_id = ? AND version = ?
             """;
@@ -184,6 +185,12 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
     }
 
     private CanvasWriteOutcome validateAndWriteCanvas(PlainTurnCommit command, CanvasRow canvas) {
+        CanvasContextMetadata metadata = CanvasContextMetadata.fromXml(command.canvasXml());
+        // A drawing commit must contain at least one real cell. This protects every edit command,
+        // including future ones, from replacing a valid canvas with an empty model response.
+        if (!metadata.hasElements()) {
+            return new CanvasWriteOutcome.Rejected("CANVAS_EMPTY_CANDIDATE");
+        }
         boolean hasCanvas = canvas.version() != null;
         if (command.expectedCanvasVersion() == 0) {
             if (hasCanvas) {
@@ -196,7 +203,9 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
                     command.diagramId(),
                     command.attempt().key().ownerKey(),
                     command.canvasXml(),
-                    canvasHasher.hash(command.canvasXml()));
+                    canvasHasher.hash(command.canvasXml()),
+                    metadata.summary(),
+                    metadata.analysisJson());
             return new CanvasWriteOutcome.Written(0);
         }
         if (!hasCanvas || canvas.version() != command.expectedCanvasVersion()) {
@@ -210,6 +219,8 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
                 UPDATE_CANVAS,
                 command.canvasXml(),
                 canvasHasher.hash(command.canvasXml()),
+                metadata.summary(),
+                metadata.analysisJson(),
                 command.diagramId(),
                 command.attempt().key().ownerKey(),
                 command.expectedCanvasVersion());

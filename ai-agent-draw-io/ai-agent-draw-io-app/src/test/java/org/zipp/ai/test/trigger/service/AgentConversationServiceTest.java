@@ -1858,6 +1858,31 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void shouldCaptureStreamLifecyclePayloadsWithoutAnExplicitControl() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        FakeDebugTraceStore debugStore = new FakeDebugTraceStore();
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "agentDebugTraceService", new AgentDebugTraceService(debugStore, null));
+        injectField(service, "chatService", new StreamingContentChatService());
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRunId("aru_stream_lifecycle_payload");
+
+        service.stream(requestDTO, new CapturingEmitter());
+
+        String streamDoneSpanId = telemetryStore.traceEvents.stream()
+                .filter(event -> "STREAM_DONE".equals(event.getEventType()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+        // Selecting STREAM_DONE in Trace Analysis must show its persisted lifecycle result.
+        assertTrue(debugStore.captures.stream().anyMatch(capture ->
+                streamDoneSpanId.equals(capture.getSpanId())
+                        && "OUTPUT".equals(capture.getPayloadKind())));
+    }
+
+    @Test
     public void shouldCaptureAggregatedStreamOutputAgainstTheRunSpan() throws Exception {
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         FakeDebugTraceStore debugStore = new FakeDebugTraceStore();

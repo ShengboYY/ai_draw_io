@@ -23,6 +23,14 @@ public final class ConversationReferenceResolver {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(command, "command");
 
+        String runtimeSessionId = command.runtimeSessionId();
+        if (runtimeSessionId != null
+                && !runtimeSessionId.isBlank()
+                && command.conversationReference().equals(LEGACY_PREFIX + runtimeSessionId)) {
+            // Product chat issues the runtime session before its canonical conversation exists.
+            return requireResolved(catalog.findOrCreateDefaultForLegacySession(
+                    actor, runtimeSessionId, command.diagramId()));
+        }
         return resolve(catalog, actor, command.conversationReference(), command.diagramId());
     }
 

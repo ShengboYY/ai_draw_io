@@ -43,6 +43,8 @@ import org.zipp.ai.application.turn.planning.TurnRouteDecision;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -100,6 +102,31 @@ class DefaultSourceAwareTurnExecutionTest {
         assertNull(execution.fallbackReason("EVIDENCE_PREPARATION_CANCELLED"));
     }
 
+    @Test
+    void exceptionalOptionalPreparationCancellationCannotBecomePlainFallback() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        BaseTurnContext context = context(command);
+        ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
+        TurnRouteDecision.SourcePlanning decision = optionalSourceDecision(attempt, readSet);
+        TurnV2PreHandlerOutcome.Ready prepared = new TurnV2PreHandlerOutcome.Ready(
+                attempt, context, readSet, decision, checkpoint(readSet, attempt));
+
+        SourceProbePort probe = sourceProbe -> new SourceProbeOutcome.Available(
+                sourceProbe.binding(), List.of("source-v1"));
+        SourceAwarePreparationPort preparation = ignored -> {
+            throw new CompletionException(new CancellationException("provider cancelled"));
+        };
+
+        TurnV2ExecutionOutcome.NotDispatched outcome = assertInstanceOf(
+                TurnV2ExecutionOutcome.NotDispatched.class,
+                execution(probe, preparation, (ignoredAttempt, ignoredBinding) ->
+                        new SourceExecutionBindingOutcome.Pinned()).execute(
+                        attempt, command, prepared, ignored -> { }, () -> false));
+
+        assertEquals("EVIDENCE_PREPARATION_CANCELLED", outcome.code());
+    }
+
     private DefaultSourceAwareTurnExecution execution(
             SourceProbePort probe,
             SourceAwarePreparationPort preparation,
@@ -128,6 +155,25 @@ class DefaultSourceAwareTurnExecutionTest {
                 new CurrentInstruction("rebuild the attachment"),
                 new SemanticIntent(SemanticAction.CREATE, OutputIntent.DRAWING,
                         TargetNeed.NOT_REQUIRED, "unknown", "none"),
+                new ResolvedSourceDemand(accepted, List.of()),
+                accepted,
+                new PlanningLineageFingerprint("a".repeat(64)),
+                readSet.digest(),
+                attempt.inputBindingDigest());
+        return new TurnRouteDecision.SourcePlanning(required);
+    }
+
+    private TurnRouteDecision.SourcePlanning optionalSourceDecision(
+            FencedAttempt attempt,
+            ContextReadSet readSet
+    ) {
+        AcceptedSourceDemand accepted = new AcceptedSourceDemand(
+                SourceDemandKind.OPTIONAL_DISCOVERY, List.of(), "login architecture");
+        PrePlanOutcome.SourcePlanningRequired required = new PrePlanOutcome.SourcePlanningRequired(
+                attempt.key(),
+                new CurrentInstruction("draw a login flow"),
+                new SemanticIntent(SemanticAction.CREATE, OutputIntent.DRAWING,
+                        TargetNeed.NOT_REQUIRED, "flowchart", "none"),
                 new ResolvedSourceDemand(accepted, List.of()),
                 accepted,
                 new PlanningLineageFingerprint("a".repeat(64)),

@@ -53,6 +53,16 @@ test('dense single-page evidence adds high-resolution detail tiles', () => {
   });
 });
 
+test('moderate flowcharts add detail tiles so long retry lanes remain traceable', () => {
+  const plan = buildVisualReviewEvidencePlan({
+    canvasXml: '<mxGraphModel/>',
+    nodeCount: 14,
+    edgeCount: 17,
+  });
+
+  assert.equal(plan.detailTiles, true);
+});
+
 test('single-page evidence preserves small text with high-resolution detail tiles', () => {
   const plan = buildVisualReviewEvidencePlan({
     canvasXml: '<mxGraphModel><mxCell style="rounded=1;fontSize=9;"/></mxGraphModel>',

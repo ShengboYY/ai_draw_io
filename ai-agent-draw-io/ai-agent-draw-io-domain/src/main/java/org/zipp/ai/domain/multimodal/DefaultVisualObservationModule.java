@@ -89,11 +89,16 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
             Set<String> allowedEvidence = new HashSet<>(
                     command.targets().stream().map(VisualObservationTarget::evidenceId).toList());
             if (command.purpose() == VisualObservationPurpose.DIAGRAM_RECONSTRUCTION) {
-                if (!response.gaps().isEmpty()) return new VisualObservationOutcome.Gap(response.gaps());
                 ObservedDiagramGraph graph = response.diagramGraph();
-                if (graph == null || !hasOnlyAllowedEvidence(graph, allowedEvidence)) {
+                if (graph == null) {
+                    return new VisualObservationOutcome.Unavailable(
+                            "VISUAL_DIAGRAM_OBSERVATION_INCOMPLETE");
+                }
+                if (!hasOnlyAllowedEvidence(graph, allowedEvidence)) {
                     return new VisualObservationOutcome.Rejected("INVALID_DIAGRAM_EVIDENCE_ANCHOR");
                 }
+                // A usable anchored graph is projected best-effort. Gaps and unresolved items are
+                // quality signals, not a reason to stop and ask about every uncertain visual detail.
                 return new VisualObservationOutcome.DiagramVerified(graph);
             }
             List<VerifiedObservation> verified = response.observations().stream()

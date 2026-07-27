@@ -24,7 +24,9 @@ public final class DefaultSemanticRouterContextProjector implements SemanticRout
         return new SemanticRouterInput(
                 base.request().instruction(),
                 new RouterContextView(
-                        canvas != null && canvas.available(),
+                        canvas != null && canvas.hasElements(),
+                        canvas == null ? 0 : canvas.nodeCount(),
+                        canvas == null ? 0 : canvas.edgeCount(),
                         selection != null && selection.available(),
                         recentTurns.size(),
                         profile != null,

@@ -1,0 +1,221 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "formal",
+  "split": "validation",
+  "gitCommit": "c98260e2",
+  "corpusLockSha256": "6920462f2401a25f5afe25cf7d20c0929b838c1aa9c60f4727ebde7a69a3d935",
+  "taskFixtureSha256": "e4e4b8aa49250df450e971b1c8ec8d683d90356ead7c79a67fb36249050a965a",
+  "promptBundlesSha256": "38fc7a2acf1a3299a8de854eda735235336f0b6c1d75928222717f3257e0688d",
+  "responsesSha256": "d54544b0d2b4122c5897077cdf69a50804859b6d1643fe8bfe716fc1162b021b",
+  "model": {
+    "provider": "OpenAI",
+    "name": "gpt-5.5",
+    "endpointFingerprint": "sha256:82141e272189210ab931267ec91313de3460102092ac4f85b284b44db52b0caf"
+  },
+  "requestParameters": {
+    "temperature": "provider-default",
+    "maxCompletionTokens": 3000,
+    "responseFormat": "json_schema:drawio_generation_response_v3",
+    "reasoningEffort": "low",
+    "imageDetail": "high"
+  },
+  "taskIds": [
+    "stgb-val-01",
+    "stgb-val-02",
+    "stgb-val-03",
+    "stgb-val-04",
+    "stgb-val-05",
+    "stgb-val-06",
+    "stgb-val-07",
+    "stgb-val-08",
+    "stgb-val-09",
+    "stgb-val-10",
+    "stgb-val-11",
+    "stgb-val-12"
+  ],
+  "calls": [
+    {
+      "taskId": "stgb-val-01",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "79bc4cdcac3735a779642e07be8192d18b6b3234654e32e1ce92f51bf48ea7d4",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 33
+    },
+    {
+      "taskId": "stgb-val-02",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "b30aef5df3c4616dd61f87670801b7b96b6d430db8494bfbaa1ecdb9c31f5699",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    },
+    {
+      "taskId": "stgb-val-03",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "3886f0b1c0c4b786d5b8cda8db7a4edfd6c1063b5a1646173b4ca58db8088ea7",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    },
+    {
+      "taskId": "stgb-val-04",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "7d5ac057482ee0987f81272252eb27e50d01ed5ae6f063eb26af49517b9e0f81",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    },
+    {
+      "taskId": "stgb-val-05",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "18f9180a21f5f1a7ac3063ba5d96c202ebf1c7dad16a92365a2759a160c4226a",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    },
+    {
+      "taskId": "stgb-val-06",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "094781f29f392f34b24c58854196ca6674ae8dc545273a20e46fe60f230f72ba",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    },
+    {
+      "taskId": "stgb-val-07",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "e3c1f97a865dce0b66bef7440162355bc3e71592c5dfc6bc73f2cdc418881277",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    },
+    {
+      "taskId": "stgb-val-08",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "9d7214b547f2bb2e69d868ac1c13da11ee3748803d9ee13eb04c373342a57bc3",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 3
+    },
+    {
+      "taskId": "stgb-val-09",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "a3d5c7aa2850dde8cefc760cd31c880094c1a176f86e30f18f65db61b6527276",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 8
+    },
+    {
+      "taskId": "stgb-val-10",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "afba8ee0389f66736b945a592efda72771c101070ac56ff52482bb79d15fe49a",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    },
+    {
+      "taskId": "stgb-val-11",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "fb4ac20582ba9c731df67fbf7223ec02bb513c798f1285eb9fd522e493fe64bf",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    },
+    {
+      "taskId": "stgb-val-12",
+      "status": "error",
+      "attempts": 1,
+      "httpStatus": 0,
+      "requestId": "unavailable",
+      "promptSha256": "6543524691ca67dc654b6e3d6d5f1ed796ce143a456ba7d33ceab73132ce0e98",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0
+      },
+      "latencyMs": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "role": "corpusLock",
+      "path": "fixtures/generated/corpus-lock.json",
+      "sha256": "6920462f2401a25f5afe25cf7d20c0929b838c1aa9c60f4727ebde7a69a3d935"
+    },
+    {
+      "role": "taskFixture",
+      "path": "fixtures/generated/stage-b-validation/tasks.json",
+      "sha256": "e4e4b8aa49250df450e971b1c8ec8d683d90356ead7c79a67fb36249050a965a"
+    },
+    {
+      "role": "promptBundles",
+      "path": "fixtures/generated/stage-b-validation/prompt-bundles.json",
+      "sha256": "38fc7a2acf1a3299a8de854eda735235336f0b6c1d75928222717f3257e0688d"
+    },
+    {
+      "role": "hydration",
+      "path": "fixtures/generated/stage-b-validation/contexts.json",
+      "sha256": "fe2036792adf312442ec4bce62c6f0517e414ced6ec9ffb889bc797907a8b5b3"
+    },
+    {
+      "role": "responses",
+      "path": "results/stage-b-e7e8-gpt-5-5-validation-responses.json",
+      "sha256": "d54544b0d2b4122c5897077cdf69a50804859b6d1643fe8bfe716fc1162b021b"
+    }
+  ]
+}

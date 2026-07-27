@@ -1,5 +1,7 @@
 package org.zipp.ai.trigger.http;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import org.zipp.ai.api.IAgentService;
 import org.zipp.ai.api.dto.*;
 import org.zipp.ai.api.response.Response;
@@ -27,16 +29,14 @@ import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.citation.model.valobj.AnswerCitationView;
 import org.zipp.ai.domain.citation.service.CitationQueryService;
-import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.AnonymousWorkspaceClaimService;
 import org.zipp.ai.trigger.http.service.ManualCanvasCommitCoordinator;
-import org.zipp.ai.trigger.http.turn.LegacyTurnV2IngressBridge;
+import org.zipp.ai.trigger.http.turn.TurnV2ProductIngressAdapter;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
-import org.zipp.ai.types.util.SecretLogSanitizer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.MDC;
+import org.springframework.http.MediaType;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -47,6 +47,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import javax.annotation.Resource;
+import java.io.IOException;
 import java.util.Base64;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -67,13 +68,12 @@ public class AgentServiceController implements IAgentService {
     private static final int MAX_CANVAS_XML_LENGTH = 2 * 1024 * 1024;
     private static final String REQUEST_ID_HEADER = "X-Request-Id";
     private static final String RUN_ID_HEADER = "X-Agent-Run-Id";
+    private static final String V2_INGRESS_NOT_READY = "TURN_V2_PRODUCT_INGRESS_NOT_READY";
+    private static final MediaType NDJSON = MediaType.parseMediaType("application/x-ndjson");
     private static final Pattern CORRELATION_ID = Pattern.compile("^[A-Za-z0-9._:-]{8,128}$");
 
     @Resource
     private IChatService chatService;
-
-    @Resource
-    private AgentConversationService agentConversationService;
 
     @Resource
     private ICanvasStateStore canvasStateStore;
@@ -85,7 +85,7 @@ public class AgentServiceController implements IAgentService {
     private ManualCanvasCommitCoordinator manualCanvasCommitCoordinator;
 
     @Autowired(required = false)
-    private LegacyTurnV2IngressBridge legacyTurnV2IngressBridge;
+    private TurnV2ProductIngressAdapter turnV2ProductIngressAdapter;
 
     @Resource
     private IDiagramConversationStore diagramConversationStore;
@@ -502,33 +502,19 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
-        if (legacyTurnV2IngressBridge != null) {
-            LegacyTurnV2IngressBridge.ChatDispatch dispatch = legacyTurnV2IngressBridge.chat(
-                    workspaceId, requestDTO, requestId, runId);
-            if (dispatch.handled()) {
-                ChatResponseDTO responseDTO = dispatch.response();
-                responseDTO.setRequestId(requestId);
-                responseDTO.setRunId(runId);
-                writeCorrelationHeaders(httpResponse, requestId, runId);
-                return Response.<ChatResponseDTO>builder()
-                        .code(ResponseCode.SUCCESS.getCode())
-                        .info(ResponseCode.SUCCESS.getInfo())
-                        .data(responseDTO)
-                        .build();
-            }
+        if (turnV2ProductIngressAdapter == null) {
+            // Product chat is fail-closed after the Legacy executor is removed.
+            return Response.<ChatResponseDTO>builder()
+                    .code(V2_INGRESS_NOT_READY)
+                    .info(V2_INGRESS_NOT_READY)
+                    .build();
         }
-        try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
-             MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
-            log.info("智能体对话 agentId:{} userId:{} sessionId:{} requestId:{} runId:{} messageChars:{}",
-                    requestDTO.getAgentId(),
-                    SecretLogSanitizer.maskCapability(requestDTO.getUserId()),
-                    requestDTO.getSessionId(),
-                    requestId,
-                    runId,
-                    safeLength(requestDTO.getMessage()));
-            ChatResponseDTO responseDTO = agentConversationService.chat(requestDTO);
-            writeCorrelationHeaders(httpResponse, requestId, responseDTO == null ? runId : responseDTO.getRunId());
-
+        try {
+            ChatResponseDTO responseDTO = turnV2ProductIngressAdapter.chat(
+                    workspaceId, requestDTO, requestId, runId);
+            responseDTO.setRequestId(requestId);
+            responseDTO.setRunId(runId);
+            writeCorrelationHeaders(httpResponse, requestId, runId);
             return Response.<ChatResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
@@ -578,24 +564,11 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
-        if (legacyTurnV2IngressBridge != null
-                && legacyTurnV2IngressBridge.stream(workspaceId, requestDTO, requestId, runId, emitter)) {
+        if (turnV2ProductIngressAdapter == null) {
+            sendV2IngressError(emitter, V2_INGRESS_NOT_READY);
             return emitter;
         }
-        try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
-             MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
-            log.info("流式对话 agentId:{} userId:{} sessionId:{} requestId:{} runId:{} messageChars:{}",
-                    requestDTO.getAgentId(),
-                    SecretLogSanitizer.maskCapability(requestDTO.getUserId()),
-                    requestDTO.getSessionId(),
-                    requestId,
-                    runId,
-                    safeLength(requestDTO.getMessage()));
-            agentConversationService.stream(requestDTO, emitter);
-        } catch (Exception e) {
-            log.error("流式对话失败 requestId:{} runId:{}", requestId, runId, e);
-            emitter.completeWithError(e);
-        }
+        turnV2ProductIngressAdapter.stream(workspaceId, requestDTO, requestId, runId, emitter);
         return emitter;
     }
 
@@ -708,6 +681,7 @@ public class AgentServiceController implements IAgentService {
     private DiagramConversationMessageDTO toDiagramConversationMessageDTO(DiagramConversationMessage message) {
         DiagramConversationMessageDTO dto = new DiagramConversationMessageDTO();
         dto.setClientMessageId(message.getClientMessageId());
+        dto.setTurnId(message.getTurnId());
         dto.setSessionId(message.getSessionId());
         dto.setRole(message.getRole());
         dto.setContent(message.getContent());
@@ -763,6 +737,7 @@ public class AgentServiceController implements IAgentService {
                 .clientMessageId(message.getClientMessageId())
                 .role(message.getRole())
                 .content(message.getContent())
+                .attachmentRefs(message.getAttachmentRefs() == null ? List.of() : message.getAttachmentRefs())
                 .build();
     }
 
@@ -870,8 +845,21 @@ public class AgentServiceController implements IAgentService {
         response.getHeaders().set(RUN_ID_HEADER, StringUtils.defaultIfBlank(runId, ""));
     }
 
-    private int safeLength(String value) {
-        return value == null ? 0 : value.length();
+    private void sendV2IngressError(ResponseBodyEmitter emitter, String errorCode) {
+        try {
+            // Keep startup/configuration failures inside the same NDJSON contract as V2 turns.
+            JSONObject chunk = new JSONObject();
+            chunk.put("type", "error");
+            chunk.put("content", errorCode);
+            chunk.put("code", errorCode);
+            JSONObject event = new JSONObject();
+            event.put("phase", "error");
+            event.put("chunk", chunk);
+            emitter.send(JSON.toJSONString(event) + "\n", NDJSON);
+            emitter.complete();
+        } catch (IOException failure) {
+            emitter.completeWithError(failure);
+        }
     }
 
     private CurrentOwnerHttpResolver ownerHttpResolver() {

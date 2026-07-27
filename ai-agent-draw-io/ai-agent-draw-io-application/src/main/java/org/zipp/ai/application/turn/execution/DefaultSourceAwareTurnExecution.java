@@ -31,6 +31,7 @@ import org.zipp.ai.domain.retrieval.CancellationSignal;
 import java.util.Objects;
 import java.util.Optional;
 import java.time.Duration;
+import java.util.concurrent.CancellationException;
 
 /**
  * Coordinates Probe, policy planning, capability preparation, and the typed source handler. A
@@ -92,6 +93,7 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(prepared, "prepared");
         Objects.requireNonNull(events, "events");
+        cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         if (!(prepared.decision() instanceof TurnRouteDecision.SourcePlanning sourcePlanning)) {
             return new TurnV2ExecutionOutcome.NotDispatched(
                     prepared.decision(), "SOURCE_AWARE_ROUTE_REQUIRED");
@@ -112,7 +114,8 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
                     return rejected(prepared.decision(), "OPTIONAL_FALLBACK_HANDLER_NOT_AVAILABLE");
                 }
                 return committed(optionalFallback.get().executeProbeFallback(
-                        attempt, prepared.context(), prepared.readSet(), fallback, events));
+                        attempt, prepared.context(), prepared.readSet(), fallback, events,
+                        cancellation));
             }
             if (!(plan instanceof SourcePlanDecision.SourceReady sourceReady)
                     && !(plan instanceof SourcePlanDecision.DirectOnlyReady directOnlyReady)
@@ -128,7 +131,8 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             if (!(preparedSource instanceof SourceAwarePreparationPort.Outcome.Ready ready)) {
                 if (plan instanceof SourcePlanDecision.OptionalRetrievalReady optionalReady) {
                     return optionalPreparationFallback(attempt, prepared, optionalReady.plan(),
-                            ((SourceAwarePreparationPort.Outcome.Rejected) preparedSource).code(), events);
+                            ((SourceAwarePreparationPort.Outcome.Rejected) preparedSource).code(),
+                            events, cancellation);
                 }
                 return rejected(prepared.decision(),
                         ((SourceAwarePreparationPort.Outcome.Rejected) preparedSource).code());
@@ -152,16 +156,31 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             }
             sourceExecution = ready.execution();
         } catch (RuntimeException failure) {
+            if (cancellation.isCancelled() || causedByCancellation(failure)) {
+                // A durable cancellation can never be reinterpreted as Optional Plain fallback.
+                return rejected(prepared.decision(), "EVIDENCE_PREPARATION_CANCELLED");
+            }
             // Source probing/preparation must not turn a required source request into a plain draw.
             if (plan instanceof SourcePlanDecision.OptionalRetrievalReady optionalReady) {
                 return optionalPreparationFallback(attempt, prepared, optionalReady.plan(),
-                        "SOURCE_AWARE_PREPARATION_FAILED", events);
+                        "SOURCE_AWARE_PREPARATION_FAILED", events, cancellation);
             }
             return rejected(prepared.decision(), "SOURCE_AWARE_PREPARATION_FAILED");
         }
         // Handler/model failures remain execution failures and are handled by the outer attempt
         // supervisor; only capability gaps above become a durable route rejection.
-        return dispatch(attempt, prepared, sourceExecution, events);
+        return dispatch(attempt, prepared, required, sourceExecution, events, cancellation);
+    }
+
+    private boolean causedByCancellation(Throwable failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof CancellationException || current instanceof InterruptedException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return Thread.currentThread().isInterrupted();
     }
 
     private TurnV2ExecutionOutcome optionalPreparationFallback(
@@ -169,7 +188,8 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             TurnV2PreHandlerOutcome.Ready prepared,
             OptionalRetrievalDrawPlan plan,
             String preparationCode,
-            TurnEventSink events
+            TurnEventSink events,
+            CancellationSignal cancellation
     ) {
         if (optionalFallback.isEmpty()) {
             return rejected(prepared.decision(), "OPTIONAL_FALLBACK_HANDLER_NOT_AVAILABLE");
@@ -181,7 +201,7 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
         return committed(optionalFallback.get().executeEvidenceFallback(
                 attempt, prepared.context(), prepared.readSet(), plan,
                 new OptionalEvidenceOutcome.FallbackEligible(reason),
-                OptionalPrimaryBranchScope.none(), events));
+                OptionalPrimaryBranchScope.none(), events, cancellation));
     }
 
     FallbackReason fallbackReason(String preparationCode) {
@@ -214,8 +234,10 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
     private TurnV2ExecutionOutcome dispatch(
             FencedAttempt attempt,
             TurnV2PreHandlerOutcome.Ready prepared,
+            PrePlanOutcome.SourcePlanningRequired required,
             SourceAwarePreparedExecution execution,
-            TurnEventSink events
+            TurnEventSink events,
+            CancellationSignal cancellation
     ) {
         if (execution instanceof SourceAwarePreparedExecution.Direct value) {
             if (direct.isEmpty()) {
@@ -224,7 +246,7 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             return committed(direct.get().execute(
                     attempt, prepared.context(), prepared.readSet(), value.plan(),
                     value.sourceBinding(), value.artifactLeaseRef(), value.sourceIdentityRef(),
-                    value.origin(), events));
+                    value.origin(), events, cancellation));
         }
         if (execution instanceof SourceAwarePreparedExecution.Grounded value) {
             if (grounded.isEmpty()) {
@@ -233,7 +255,7 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             return committed(grounded.get().execute(
                     attempt, prepared.context(), prepared.readSet(), value.plan(),
                     value.sourceBinding(), value.preparedEvidenceRef(), value.citations(),
-                    value.directProvenance(), events));
+                    value.directProvenance(), needsCanvas(required), events, cancellation));
         }
         SourceAwarePreparedExecution.EvidenceAnswer value =
                 (SourceAwarePreparedExecution.EvidenceAnswer) execution;
@@ -242,7 +264,13 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
         }
         return committed(evidenceAnswer.get().execute(
                 attempt, prepared.context(), prepared.readSet(), value.sourceBinding(),
-                value.preparedEvidenceRef(), value.citations(), events));
+                value.preparedEvidenceRef(), value.citations(), needsCanvas(required),
+                events, cancellation));
+    }
+
+    private boolean needsCanvas(PrePlanOutcome.SourcePlanningRequired required) {
+        return required.intent().targetNeed()
+                != org.zipp.ai.application.turn.classification.TargetNeed.NOT_REQUIRED;
     }
 
     private TurnV2ExecutionOutcome committed(org.zipp.ai.application.turn.FencedCommitOutcome outcome) {

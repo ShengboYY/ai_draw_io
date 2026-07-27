@@ -1,6 +1,7 @@
 package org.zipp.ai.infrastructure.turn.model;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,9 +15,13 @@ import org.zipp.ai.application.turn.classification.SemanticIntentRouterPort;
 import org.zipp.ai.application.turn.classification.SemanticIntentUnavailable;
 import org.zipp.ai.application.turn.classification.SemanticRouterInput;
 import org.zipp.ai.application.turn.classification.SemanticRouterPromptRenderer;
+import org.zipp.ai.application.turn.classification.SemanticSourceIntent;
+import org.zipp.ai.application.turn.classification.SourceIntentKind;
 import org.zipp.ai.application.turn.classification.TargetNeed;
+import org.zipp.ai.application.turn.demand.Confidence;
 import org.zipp.ai.domain.agent.service.IChatService;
 
+import java.util.List;
 import java.util.Set;
 
 /** Concrete V2 Semantic Router adapter with a strict, tool-free model boundary. */
@@ -24,7 +29,9 @@ import java.util.Set;
 public final class ChatSemanticIntentRouterAdapter implements SemanticIntentRouterPort {
 
     private static final Set<String> FIELDS = Set.of(
-            "action", "outputIntent", "targetNeed", "diagramType", "skillName");
+            "action", "outputIntent", "targetNeed", "diagramType", "skillName",
+            "sourceIntent", "sourceConfidence", "attachmentRefs", "relevanceQuery",
+            "sourceReason");
     private final ToolFreeChatModelInvoker model;
     private final SemanticRouterPromptRenderer renderer = new SemanticRouterPromptRenderer();
 
@@ -73,7 +80,28 @@ public final class ChatSemanticIntentRouterAdapter implements SemanticIntentRout
                 OutputIntent.valueOf(required(root, "outputIntent", 64)),
                 targetNeed(required(root, "targetNeed", 64)),
                 bounded(root, "diagramType", 128),
-                bounded(root, "skillName", 256));
+                bounded(root, "skillName", 256),
+                new SemanticSourceIntent(
+                        SourceIntentKind.valueOf(required(root, "sourceIntent", 96)),
+                        Confidence.valueOf(required(root, "sourceConfidence", 32)),
+                        attachmentRefs(root),
+                        nullable(root, "relevanceQuery", 2_000),
+                        required(root, "sourceReason", 512)));
+    }
+
+    private List<String> attachmentRefs(JSONObject root) {
+        JSONArray values = root.getJSONArray("attachmentRefs");
+        if (values == null || values.size() > 32) {
+            throw new IllegalArgumentException("attachmentRefs is invalid");
+        }
+        return values.stream()
+                .map(value -> {
+                    if (!(value instanceof String ref) || ref.isBlank() || ref.length() > 512) {
+                        throw new IllegalArgumentException("attachment ref is invalid");
+                    }
+                    return ref.trim();
+                })
+                .toList();
     }
 
     private TargetNeed targetNeed(String value) {
@@ -93,6 +121,17 @@ public final class ChatSemanticIntentRouterAdapter implements SemanticIntentRout
     private String bounded(JSONObject root, String field, int limit) {
         String value = root.getString(field);
         if (value == null || value.isBlank() || value.length() > limit) {
+            throw new IllegalArgumentException(field + " is invalid");
+        }
+        return value.trim();
+    }
+
+    private String nullable(JSONObject root, String field, int limit) {
+        Object raw = root.get(field);
+        if (raw == null) {
+            return null;
+        }
+        if (!(raw instanceof String value) || value.isBlank() || value.length() > limit) {
             throw new IllegalArgumentException(field + " is invalid");
         }
         return value.trim();

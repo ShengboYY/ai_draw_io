@@ -15,6 +15,7 @@ import org.zipp.ai.application.turn.planning.TurnRouteDecision;
 import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 
 /** Bridges the durable claim result to the isolated route coordinator without changing transport. */
 public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
@@ -59,6 +60,7 @@ public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
         Objects.requireNonNull(accepted, "accepted");
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(events, "events");
+        cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         try {
             TurnV2ExecutionOutcome outcome = coordinator.execute(
                     accepted.attempt(), command, events, cancellation);
@@ -85,9 +87,15 @@ public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
                 return terminalCommit(accepted, TurnStatus.REJECTED, code, "rejection");
             }
             return mapExecutionOutcome(accepted, outcome);
-        } catch (RuntimeException ignored) {
-            // Execution errors detach this attempt; they must not become a product terminal.
-            return selfAborted(accepted, "TURN_EXECUTION_FAILED");
+        } catch (RuntimeException failure) {
+            // A claimed product turn must reach a durable terminal so the browser never waits
+            // until its transport timeout after a model or adapter failure.
+            if (cancellation.isCancelled() || causedByCancellation(failure)) {
+                return terminalCommit(
+                        accepted, TurnStatus.CANCELLED, "TURN_CANCELLED", "cancellation");
+            }
+            return terminalCommit(
+                    accepted, TurnStatus.FAILED, "TURN_EXECUTION_FAILED", "failure");
         }
     }
 
@@ -169,5 +177,16 @@ public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
     ) {
         return new TurnAttemptCompletion.AttemptSelfAborted(
                 new TurnStatusRef(accepted.key()), code);
+    }
+
+    private boolean causedByCancellation(Throwable failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof CancellationException || current instanceof InterruptedException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return Thread.currentThread().isInterrupted();
     }
 }

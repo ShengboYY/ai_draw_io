@@ -12,7 +12,8 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                                          ResolvedSourceSet resolvedSources,
                                          List<String> selectedVersionIds, String evidenceNeed,
                                          String targetNeed, String clarificationNeed,
-                                         boolean diagramReconstructionRequested) {
+                                         boolean diagramReconstructionRequested,
+                                         String retrievalQuery) {
     public EvidencePreparationCommand {
         Objects.requireNonNull(owner, "owner");
         diagramId = text(diagramId);
@@ -20,6 +21,9 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
         requestId = required(requestId, "requestId");
         runId = required(runId, "runId");
         userMessage = text(userMessage);
+        // Retrieval uses the router-pinned query; legacy callers fall back to the user message.
+        retrievalQuery = text(retrievalQuery);
+        if (retrievalQuery.isBlank()) retrievalQuery = userMessage;
         canvasProbe = canvasProbe == null ? CanvasProbe.unavailableProbe() : canvasProbe;
         selection = selection == null ? ValidatedSelection.empty() : selection;
         sourceMode = sourceMode == null ? SourceMode.AUTO : sourceMode;
@@ -41,6 +45,19 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
         if (!selectedVersionIds.isEmpty()) evidenceNeed = "REQUIRED";
     }
 
+    /** Compatibility constructor for callers that do not yet supply a router-pinned query. */
+    public EvidencePreparationCommand(CatalogOwner owner, String diagramId, String conversationId,
+                                      String requestId, String runId, String userMessage,
+                                      CanvasProbe canvasProbe, ValidatedSelection selection,
+                                      SourceMode sourceMode, ResolvedSourceSet resolvedSources,
+                                      List<String> selectedVersionIds, String evidenceNeed,
+                                      String targetNeed, String clarificationNeed,
+                                      boolean diagramReconstructionRequested) {
+        this(owner, diagramId, conversationId, requestId, runId, userMessage, canvasProbe, selection,
+                sourceMode, resolvedSources, selectedVersionIds, evidenceNeed, targetNeed,
+                clarificationNeed, diagramReconstructionRequested, userMessage);
+    }
+
     /** Compatibility constructor for callers that already supply a trusted source snapshot. */
     public EvidencePreparationCommand(CatalogOwner owner, String diagramId, String conversationId,
                                       String requestId, String runId, String userMessage,
@@ -49,7 +66,8 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                                       List<String> selectedVersionIds, String evidenceNeed,
                                       String targetNeed) {
         this(owner, diagramId, conversationId, requestId, runId, userMessage, canvasProbe, selection,
-                sourceMode, resolvedSources, selectedVersionIds, evidenceNeed, targetNeed, "NONE", false);
+                sourceMode, resolvedSources, selectedVersionIds, evidenceNeed, targetNeed, "NONE", false,
+                userMessage);
     }
 
     /** Compatibility constructor for callers that provide a structured clarification requirement. */
@@ -61,7 +79,7 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                                       String targetNeed, String clarificationNeed) {
         this(owner, diagramId, conversationId, requestId, runId, userMessage, canvasProbe, selection,
                 sourceMode, resolvedSources, selectedVersionIds, evidenceNeed, targetNeed,
-                clarificationNeed, false);
+                clarificationNeed, false, userMessage);
     }
 
     /** Compatibility constructor for a trusted snapshot that requests image topology reconstruction. */
@@ -73,7 +91,7 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                                       String targetNeed, boolean diagramReconstructionRequested) {
         this(owner, diagramId, conversationId, requestId, runId, userMessage, canvasProbe, selection,
                 sourceMode, resolvedSources, selectedVersionIds, evidenceNeed, targetNeed, "NONE",
-                diagramReconstructionRequested);
+                diagramReconstructionRequested, userMessage);
     }
 
     /** Compatibility constructor for isolated callers that still exercise the catalog seam directly. */
@@ -83,7 +101,8 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                                       SourceMode sourceMode, List<String> selectedVersionIds,
                                       String evidenceNeed, String targetNeed) {
         this(owner, diagramId, conversationId, requestId, runId, userMessage, canvasProbe, selection,
-                sourceMode, null, selectedVersionIds, evidenceNeed, targetNeed, "NONE", false);
+                sourceMode, null, selectedVersionIds, evidenceNeed, targetNeed, "NONE", false,
+                userMessage);
     }
 
     public boolean hasResolvedSources() {

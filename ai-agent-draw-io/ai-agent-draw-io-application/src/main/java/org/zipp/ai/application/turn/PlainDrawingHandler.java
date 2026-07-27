@@ -6,6 +6,7 @@ import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextSlicePin;
 import org.zipp.ai.application.turn.execution.TurnV2PreHandlerOutcome;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -52,6 +53,14 @@ public final class PlainDrawingHandler {
             TurnV2PreHandlerOutcome.Ready prepared,
             TurnEventSink events
     ) {
+        return execute(prepared, events, CancellationSignal.NEVER);
+    }
+
+    public FencedCommitOutcome execute(
+            TurnV2PreHandlerOutcome.Ready prepared,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         Objects.requireNonNull(prepared, "prepared");
         if (!(prepared.decision() instanceof TurnRouteDecision.Plain plain)) {
             throw new IllegalArgumentException("PLAIN_ROUTE_REQUIRED");
@@ -61,7 +70,8 @@ public final class PlainDrawingHandler {
                 prepared.context(),
                 prepared.readSet(),
                 plain.value().plan(),
-                events);
+                events,
+                cancellation);
     }
 
     public FencedCommitOutcome execute(
@@ -71,11 +81,23 @@ public final class PlainDrawingHandler {
             PlainDrawPlan plan,
             TurnEventSink events
     ) {
+        return execute(attempt, context, readSet, plan, events, CancellationSignal.NEVER);
+    }
+
+    public FencedCommitOutcome execute(
+            FencedAttempt attempt,
+            BaseTurnContext context,
+            ContextReadSet readSet,
+            PlainDrawPlan plan,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         Objects.requireNonNull(attempt, "attempt");
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(readSet, "readSet");
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(events, "events");
+        cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         if (!attempt.key().turnId().equals(context.request().turnId())) {
             throw new IllegalArgumentException("PLAIN_CONTEXT_TURN_MISMATCH");
         }
@@ -88,7 +110,10 @@ public final class PlainDrawingHandler {
 
         events.publish(new TurnEvent("plain_started", plan.action().name(), Instant.now()));
         PlainGenerationResult result = Objects.requireNonNull(
-                generation.generate(new PlainGenerationRequest(attempt, context, readSet, plan, profile), events),
+                generation.generate(
+                        new PlainGenerationRequest(attempt, context, readSet, plan, profile),
+                        events,
+                        cancellation),
                 "plain generation result");
         ContextSlicePin canvasPin = readSet.summary();
         long expectedCanvasVersion = canvasPin.state() == ContextPinState.PINNED

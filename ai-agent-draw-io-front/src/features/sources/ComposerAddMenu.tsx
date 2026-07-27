@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { createMaterialClient } from '@/api/material';
 import type { MaterialCatalogCard } from '@/features/materials/material-types';
@@ -18,6 +18,31 @@ type ComposerAddMenuProps = {
 };
 
 const READY_STATES = new Set(['READY', 'PARTIAL_READY', 'SUCCEEDED']);
+
+const menuIconProps = {
+  viewBox: '0 0 24 24',
+  className: 'h-[18px] w-[18px]',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.7,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+} as const;
+
+const LibraryIcon = () => (
+  <svg {...menuIconProps}>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13A2.5 2.5 0 0 1 6.5 3Z" />
+  </svg>
+);
+
+const UploadIcon = () => (
+  <svg {...menuIconProps}>
+    <path d="M12 15V4m0 0 3.5 3.5M12 4 8.5 7.5" />
+    <path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" />
+  </svg>
+);
 
 const toSelection = (item: MaterialCatalogCard): ConversationLibrarySelection | null => {
   if (!item.latestVersionId) return null;
@@ -72,6 +97,29 @@ export const ComposerAddMenu = ({
   const [error, setError] = useState('');
   const [busyVersionId, setBusyVersionId] = useState('');
   const loadRequestRef = useRef(0);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuContainerRef.current?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    // Draw.io lives in an iframe, so canvas clicks surface as parent-window blur.
+    const closeOnWindowBlur = () => setMenuOpen(false);
+    document.addEventListener('pointerdown', closeOnOutsidePointerDown);
+    document.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('blur', closeOnWindowBlur);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointerDown);
+      document.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('blur', closeOnWindowBlur);
+    };
+  }, [menuOpen]);
 
   const visibleItems = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -131,7 +179,7 @@ export const ComposerAddMenu = ({
   };
 
   return (
-    <div className="relative">
+    <div ref={menuContainerRef} className="relative">
       <button
         type="button"
         aria-label="Add files"
@@ -139,7 +187,9 @@ export const ComposerAddMenu = ({
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen(open => !open)}
         disabled={disabled}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-zinc-500 transition-colors hover:bg-stone-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+          menuOpen ? 'bg-stone-100 text-zinc-800' : 'text-zinc-500 hover:bg-stone-100 hover:text-zinc-800'
+        }`}
         title="Add files"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -148,14 +198,21 @@ export const ComposerAddMenu = ({
       </button>
 
       {menuOpen && (
-        <div role="menu" className="absolute bottom-11 left-0 z-50 w-56 rounded-2xl border border-stone-200 bg-white p-1.5 shadow-xl">
+        <div
+          role="menu"
+          aria-label="Add files"
+          className="absolute bottom-11 left-0 z-50 w-52 rounded-lg border border-stone-200/90 bg-white p-1 shadow-[0_10px_26px_rgba(24,24,27,0.13)]"
+        >
           <button
             type="button"
             role="menuitem"
             onClick={openLibrary}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm text-zinc-700 hover:bg-stone-100"
+            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:outline-none"
           >
-            Choose from Library
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-zinc-600" aria-hidden="true">
+              <LibraryIcon />
+            </span>
+            <span className="text-[13px] font-medium text-zinc-800">Choose from Library</span>
           </button>
           <button
             type="button"
@@ -164,9 +221,12 @@ export const ComposerAddMenu = ({
               setMenuOpen(false);
               onUploadFromComputer();
             }}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm text-zinc-700 hover:bg-stone-100"
+            className="mt-0.5 flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:outline-none"
           >
-            Upload from computer
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-zinc-600" aria-hidden="true">
+              <UploadIcon />
+            </span>
+            <span className="text-[13px] font-medium text-zinc-800">Upload from computer</span>
           </button>
         </div>
       )}

@@ -4,19 +4,19 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainGenerationRequest;
 import org.zipp.ai.application.turn.PlainGenerationResult;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 
 /** Tool-free Plain model adapter; disabled by default until an isolated V2 executor is enabled. */
 @Component
-@ConditionalOnProperty(name = "zipp.turn.v2.plain-generation.enabled", havingValue = "true")
 public final class ChatPlainGenerationAdapter implements PlainGenerationPort {
 
     private static final Set<String> FIELDS = Set.of("canvasXml", "assistantMessage", "payloadRef");
@@ -39,13 +39,19 @@ public final class ChatPlainGenerationAdapter implements PlainGenerationPort {
     }
 
     @Override
-    public PlainGenerationResult generate(PlainGenerationRequest request, TurnEventSink events) {
+    public PlainGenerationResult generate(
+            PlainGenerationRequest request,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         if (request == null || events == null) {
             throw new IllegalArgumentException("plain generation request and events are required");
         }
         final String output;
         try {
-            output = model.invoke(request.modelInputBinding(), renderer.render(request));
+            output = model.invoke(request.modelInputBinding(), renderer.render(request), cancellation);
+        } catch (CancellationException exception) {
+            throw exception;
         } catch (RuntimeException exception) {
             throw new IllegalStateException("V2_PLAIN_MODEL_UNAVAILABLE", exception);
         }

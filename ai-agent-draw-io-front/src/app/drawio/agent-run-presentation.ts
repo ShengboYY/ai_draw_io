@@ -2,6 +2,7 @@ export type AgentRunEventStatus = 'running' | 'done' | 'warning' | 'error';
 export type AgentRunEventTone = 'analysis' | 'drawing' | 'tool' | 'validation' | 'review';
 export type AgentRunScope = 'full' | 'local' | 'append' | 'layout' | 'review';
 export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'answer_with_evidence' | 'clarify' | 'review_only';
+export type UserExecutionStage = 'analysis' | 'preparation' | 'generation' | 'verification';
 export type VisualReviewDecision = 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
 export type VisualReviewStage = 'CURRENT_CANVAS' | 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
 
@@ -188,6 +189,61 @@ export const thinkingPhaseLabel = (routeType: string | undefined, phase: string,
       || fallbackPhaseLabels[phase]
       || fallbackPhaseLabels.thinking
 );
+
+export const projectUserExecutionStep = ({
+  phase,
+  routeType,
+  sourceUse,
+  useChinese = false,
+}: {
+  phase: string;
+  routeType?: string;
+  sourceUse?: string;
+  useChinese?: boolean;
+}): { key: UserExecutionStage; phase: UserExecutionStage; label: string } => {
+  // Many internal phases can revisit the same user-visible activity; keep this projection stable.
+  const stage: UserExecutionStage = phase === 'analyzing'
+    ? 'analysis'
+    : phase === 'retrieval' || phase === 'preparation'
+      ? 'preparation'
+      : ['reviewing', 'visual_review', 'visual_evidence', 'visual_repair', 'revising'].includes(phase)
+        ? 'verification'
+        : 'generation';
+
+  if (stage === 'analysis') {
+    return { key: stage, phase: stage, label: useChinese ? '分析请求' : 'Analyze request' };
+  }
+
+  if (stage === 'preparation') {
+    const label = sourceUse === 'RETRIEVAL'
+      ? (useChinese ? '查找资料' : 'Find relevant sources')
+      : sourceUse === 'DIRECT'
+        ? (useChinese ? '读取附件' : 'Read attachments')
+        : (useChinese ? '准备内容' : 'Prepare inputs');
+    return { key: stage, phase: stage, label };
+  }
+
+  if (stage === 'verification') {
+    return { key: stage, phase: stage, label: useChinese ? '检查结果' : 'Check result' };
+  }
+
+  const route = routeType as AgentRouteType;
+  let label: string;
+  if (phase === 'answer' || route === 'answer_only' || route === 'answer_with_evidence') {
+    label = useChinese ? '组织回答' : 'Prepare answer';
+  } else if (route === 'clarify') {
+    label = useChinese ? '准备澄清问题' : 'Prepare clarification';
+  } else if (route === 'edit_existing') {
+    label = useChinese ? '更新图表' : 'Update diagram';
+  } else if (route === 'optimize_layout') {
+    label = useChinese ? '优化图表' : 'Optimize diagram';
+  } else if (sourceUse === 'DIRECT') {
+    label = useChinese ? '重建图表' : 'Rebuild diagram';
+  } else {
+    label = useChinese ? '生成图表' : 'Generate diagram';
+  }
+  return { key: stage, phase: stage, label };
+};
 
 export const visualReviewStageLabel = (stage: VisualReviewStage | 'REPAIR', useChinese = false) => {
   if (stage === 'VERIFY_ONLY') return useChinese ? '修复后复核' : 'Final verification';

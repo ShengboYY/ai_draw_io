@@ -32,6 +32,7 @@ import org.zipp.ai.domain.retrieval.port.RequestSourceSnapshotStore;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 
 /**
  * Turns a planner-bound source identity into an owner-fenced Direct or evidence capability. The
@@ -152,11 +153,11 @@ public class MySqlSourceAwarePreparationAdapter implements SourceAwarePreparatio
                 "NONE",
                 "NONE",
                 bound.plan() instanceof SourceAwareDrawPlan.RequiredComposite
-                        || bound.plan() instanceof SourceAwareDrawPlan.OptionalComposite);
+                        || bound.plan() instanceof SourceAwareDrawPlan.OptionalComposite,
+                request.probeCommand().demand().relevanceQuery());
         RunResourceDomain resources = new RunResourceDomain();
-        PreparationOutcome outcome = module.prepare(
-                        command, resources, EvidenceProgressListener.NOOP, request.cancellation())
-                .toCompletableFuture().join();
+        PreparationOutcome outcome = awaitPreparation(
+                module, command, resources, request.cancellation());
         if (!(outcome instanceof PreparationOutcome.Ready ready)) {
             resources.closeExactlyOnce(outcome instanceof PreparationOutcome.Cancelled
                     ? CloseReason.CANCELLED : CloseReason.FAILED);
@@ -182,6 +183,35 @@ public class MySqlSourceAwarePreparationAdapter implements SourceAwarePreparatio
         } finally {
             evidence.close();
         }
+    }
+
+    static PreparationOutcome awaitPreparation(
+            EvidencePreparationModule module,
+            EvidencePreparationCommand command,
+            RunResourceDomain resources,
+            CancellationSignal cancellation
+    ) {
+        try {
+            return module.prepare(command, resources, EvidenceProgressListener.NOOP, cancellation)
+                    .toCompletableFuture().join();
+        } catch (RuntimeException failure) {
+            // The adapter owns the run scope even when a provider completes exceptionally.
+            boolean cancelled = cancellation.isCancelled() || causedByCancellation(failure);
+            resources.closeExactlyOnce(cancelled ? CloseReason.CANCELLED : CloseReason.FAILED);
+            if (cancelled) return new PreparationOutcome.Cancelled();
+            throw failure;
+        }
+    }
+
+    private static boolean causedByCancellation(Throwable failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof CancellationException || current instanceof InterruptedException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return Thread.currentThread().isInterrupted();
     }
 
     private SourceCommitBinding binding(BoundSourcePlan bound,

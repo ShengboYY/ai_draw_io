@@ -76,7 +76,7 @@ const FEATURES = [
 function BrandAppIcon({ size = 32, className = '' }: { size?: number; className?: string }) {
   return (
     <Image
-      src="/brand/freedraw-app-icon-v2.png"
+      src="/brand/freedraw-app-icon-brush.png"
       alt=""
       width={size}
       height={size}
@@ -177,9 +177,10 @@ export default function Home() {
 
       const nextVariant = hasSeenIntro || reduceMotion ? 'quick' : 'full';
       setIntroVariant(nextVariant);
+      // Leave enough time for the icon to settle before the page becomes fully visible.
       hideTimer = window.setTimeout(
         () => setShowIntro(false),
-        reduceMotion ? 0 : nextVariant === 'full' ? 1050 : 180,
+        reduceMotion ? 0 : nextVariant === 'full' ? 4300 : 850,
       );
     });
 
@@ -230,24 +231,25 @@ export default function Home() {
         .fd-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.14);border-radius:9px;border:2px solid transparent;background-clip:padding-box}
         .fd-scroll::-webkit-scrollbar-track{background:transparent}
         .fd-veil{--fd-dock-x:calc(-50vw + max(90px,calc((100vw - 1440px)/2 + 90px)));--fd-dock-y:calc(-50vh + 32px);position:fixed;inset:0;z-index:60;background:#f5f5f4;display:flex;align-items:center;justify-content:center;pointer-events:none}
-        .fd-veil-full{animation:fdVeil .22s ease .78s forwards}
-        .fd-veil-quick{animation:fdVeil .16s ease forwards}
-        .fd-scene{transform-origin:center;will-change:transform,opacity}
-        .fd-scene-full{animation:fdReveal .25s ease-out both,fdDock .55s cubic-bezier(.55,0,.2,1) .28s forwards}
+        .fd-veil-full{animation:fdVeil .6s ease 3.45s forwards}
+        .fd-veil-quick{animation:fdVeil .62s ease forwards}
+        /* Clip the PNG's faint edge matte so it blends cleanly into the intro veil. */
+        .fd-scene{display:block;background:#14161a;border-radius:24%;transform-origin:center;will-change:transform,opacity}
+        .fd-scene-full{animation:fdReveal 2s ease-out both,fdDock 1.3s cubic-bezier(.5,0,.18,1) 2.15s forwards}
         .fd-scene-quick{display:none}
         .fd-h-line{display:block;overflow:hidden}
         .fd-h-line>span{display:inline-block;transform:translateY(112%)}
         .fd-in{opacity:0}
-        .fd-intro-full .fd-title-primary{animation:fdRiseLine .52s cubic-bezier(.5,0,.15,1) .52s forwards}
-        .fd-intro-full .fd-title-secondary{animation:fdRiseLine .52s cubic-bezier(.5,0,.15,1) .61s forwards}
-        .fd-intro-full .fd-hero-copy{animation:fdRise .42s cubic-bezier(.4,0,.2,1) .7s forwards}
-        .fd-intro-full .fd-prompt-shell{animation:fdRise .42s cubic-bezier(.4,0,.2,1) .78s forwards}
-        .fd-intro-full .fd-nav-logo{opacity:0;animation:fdNavLogo .2s ease .72s forwards}
-        .fd-intro-quick .fd-title-primary{animation:fdRiseLine .28s cubic-bezier(.5,0,.15,1) forwards}
-        .fd-intro-quick .fd-title-secondary{animation:fdRiseLine .28s cubic-bezier(.5,0,.15,1) .04s forwards}
-        .fd-intro-quick .fd-hero-copy{animation:fdRise .3s cubic-bezier(.4,0,.2,1) .08s forwards}
-        .fd-intro-quick .fd-prompt-shell{animation:fdRise .3s cubic-bezier(.4,0,.2,1) .12s forwards}
-        .fd-intro-quick .fd-nav-logo{animation:fdNavLogo .15s ease forwards}
+        .fd-intro-full .fd-title-primary{animation:fdRiseLine .9s cubic-bezier(.5,0,.15,1) 3.05s forwards}
+        .fd-intro-full .fd-title-secondary{animation:fdRiseLine .9s cubic-bezier(.5,0,.15,1) 3.25s forwards}
+        .fd-intro-full .fd-hero-copy{animation:fdRise .8s cubic-bezier(.4,0,.2,1) 3.5s forwards}
+        .fd-intro-full .fd-prompt-shell{animation:fdRise .85s cubic-bezier(.4,0,.2,1) 3.72s forwards}
+        .fd-intro-full .fd-nav-logo{opacity:0;animation:fdNavLogo .45s ease 3.4s forwards}
+        .fd-intro-quick .fd-title-primary{animation:fdRiseLine .7s cubic-bezier(.5,0,.15,1) .18s forwards}
+        .fd-intro-quick .fd-title-secondary{animation:fdRiseLine .7s cubic-bezier(.5,0,.15,1) .3s forwards}
+        .fd-intro-quick .fd-hero-copy{animation:fdRise .65s cubic-bezier(.4,0,.2,1) .42s forwards}
+        .fd-intro-quick .fd-prompt-shell{animation:fdRise .7s cubic-bezier(.4,0,.2,1) .58s forwards}
+        .fd-intro-quick .fd-nav-logo{animation:fdNavLogo .4s ease .12s forwards}
         .fd-nav-signin:hover{background:rgba(0,0,0,.05)}
         .fd-btn-accent:hover{filter:brightness(1.12)}
         .fd-chip:hover{border-color:#bdbbb4;color:#17171a}
@@ -311,7 +313,7 @@ export default function Home() {
         {/* nav */}
         <div className="fd-nav" style={{ display: 'flex', alignItems: 'center', gap: 20, maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '22px 32px' }}>
           <Link className="fd-nav-logo" href="/" aria-label="FreeDraw home" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Image src="/brand/freedraw-wordmark-on-light-v2.png" alt="FreeDraw" width={116} height={20} priority />
+            <Image src="/brand/freedraw-wordmark-brush-on-light.png" alt="FreeDraw" width={116} height={20} priority />
           </Link>
           <div style={{ flex: 1 }} />
           <div className="fd-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

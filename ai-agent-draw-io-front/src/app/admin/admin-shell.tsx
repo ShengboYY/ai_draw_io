@@ -81,8 +81,8 @@ export function AdminShell({ active, children }: AdminShellProps) {
         <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-stone-200 px-4 sm:justify-center sm:px-0 lg:justify-start lg:px-5">
           <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="FreeDraw home">
             {/* Keep the full wordmark visible in the wide rail and the compact mark in the collapsed rail. */}
-            <Image src="/brand/freedraw-app-icon-v2.png" alt="" width={32} height={32} className="shrink-0 rounded-lg lg:hidden" priority />
-            <Image src="/brand/freedraw-wordmark-on-light-v2.png" alt="" width={116} height={20} className="hidden lg:block" priority />
+            <Image src="/brand/freedraw-app-icon-brush.png" alt="" width={32} height={32} className="shrink-0 rounded-lg lg:hidden" priority />
+            <Image src="/brand/freedraw-wordmark-brush-on-light.png" alt="" width={116} height={20} className="hidden lg:block" priority />
           </Link>
         </div>
 

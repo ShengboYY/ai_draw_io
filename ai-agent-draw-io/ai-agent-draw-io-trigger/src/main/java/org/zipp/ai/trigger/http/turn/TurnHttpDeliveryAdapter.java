@@ -3,6 +3,7 @@ package org.zipp.ai.trigger.http.turn;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.TurnDeliveryExecutor;
+import org.zipp.ai.application.turn.TurnDeliveryExecution;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.UserTurnCommand;
@@ -28,8 +29,10 @@ public final class TurnHttpDeliveryAdapter {
 
     public TurnHttpDeliveryResult executeSync(AuthenticatedActor actor, TurnHttpRequest request) {
         BufferingTurnEventSink sink = new BufferingTurnEventSink();
-        TurnSubmission submission = executeCanonical(actor, request, sink);
-        return new TurnHttpDeliveryResult(submission, sink.events(), sink.isDetached());
+        UserTurnCommand command = translator.translate(request);
+        TurnDeliveryExecution execution = executor.executeTracked(actor, command, sink);
+        return new TurnHttpDeliveryResult(
+                execution.submission(), sink.events(), sink.isDetached(), execution.handle());
     }
 
     /**
@@ -41,10 +44,12 @@ public final class TurnHttpDeliveryAdapter {
         return executeCanonical(actor, request, ignored -> { });
     }
 
-    public TurnHttpDeliveryResult executeLegacySync(AuthenticatedActor actor, ChatRequestDTO request) {
+    public TurnHttpDeliveryResult executeProductSync(AuthenticatedActor actor, ChatRequestDTO request) {
         BufferingTurnEventSink sink = new BufferingTurnEventSink();
-        TurnSubmission submission = executor.execute(actor, translator.translateLegacy(request), sink);
-        return new TurnHttpDeliveryResult(submission, sink.events(), sink.isDetached());
+        UserTurnCommand command = translator.translateProductChat(request);
+        TurnDeliveryExecution execution = executor.executeTracked(actor, command, sink);
+        return new TurnHttpDeliveryResult(
+                execution.submission(), sink.events(), sink.isDetached(), execution.handle());
     }
 
     public TurnSubmission executeNdjson(

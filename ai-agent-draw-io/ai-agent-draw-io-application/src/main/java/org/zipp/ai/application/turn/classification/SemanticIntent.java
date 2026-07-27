@@ -6,11 +6,24 @@ public record SemanticIntent(
         OutputIntent outputIntent,
         TargetNeed targetNeed,
         String diagramType,
-        String skillName
+        String skillName,
+        SemanticSourceIntent sourceIntent
 ) {
 
+    /** Compatibility constructor for stored decisions and source-free fixtures. */
+    public SemanticIntent(
+            SemanticAction action,
+            OutputIntent outputIntent,
+            TargetNeed targetNeed,
+            String diagramType,
+            String skillName
+    ) {
+        this(action, outputIntent, targetNeed, diagramType, skillName,
+                SemanticSourceIntent.none());
+    }
+
     public SemanticIntent {
-        if (action == null || outputIntent == null || targetNeed == null) {
+        if (action == null || outputIntent == null || targetNeed == null || sourceIntent == null) {
             throw new IllegalArgumentException("semantic intent values must not be null");
         }
         diagramType = diagramType == null ? "unknown" : diagramType;

@@ -126,7 +126,7 @@ class EvidenceDiagramReconstructionTest {
     }
 
     @Test
-    void uncertainTopologyIsNotPromotedToReconstructionEvidence() {
+    void uncertainTopologyIsProjectedBestEffortAfterTheExactImageIsSelected() {
         ObservedDiagramGraph uncertain = new ObservedDiagramGraph(
                 List.of(new ObservedDiagramGraph.Node(
                         "node-1", "Uncertain", ObservedDiagramGraph.Shape.RECTANGLE,
@@ -134,9 +134,10 @@ class EvidenceDiagramReconstructionTest {
                         "evidence-visual", 0.5)),
                 List.of(), List.of(), List.of());
 
-        assertTrue(new org.zipp.ai.domain.multimodal.DefaultImageToDiagramModule()
-                .convert(new org.zipp.ai.domain.multimodal.ImageToDiagramCommand(uncertain))
-                instanceof org.zipp.ai.domain.multimodal.ImageToDiagramOutcome.NeedsConfirmation);
+        assertInstanceOf(
+                org.zipp.ai.domain.multimodal.ImageToDiagramOutcome.Converted.class,
+                new org.zipp.ai.domain.multimodal.DefaultImageToDiagramModule()
+                        .convert(new org.zipp.ai.domain.multimodal.ImageToDiagramCommand(uncertain)));
     }
 
     @Test

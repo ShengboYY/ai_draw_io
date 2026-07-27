@@ -71,6 +71,28 @@ class RequestSourceResolutionServiceTest {
     }
 
     @Test
+    void explicitCurrentMessageAttachmentDoesNotExpandOlderConversationSources() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        RequestSourceResolutionService service =
+                new DefaultRequestSourceResolutionService(catalog, new InMemorySnapshotStore());
+        catalog.attachments = List.of(new SourceResolutionCandidate(
+                "upload-pdf", "material-pdf", "version-pdf", "revision-pdf", "PDF",
+                MaterialScopeType.CONVERSATION, "conversation-1", "READY", "SUCCEEDED",
+                true, true, false, false));
+        // This simulates an image removed from the composer but still retained as a Conversation File.
+        catalog.automatic = List.of(readableImage(
+                "version-old-image", "version-old-image", "READY", "SUCCEEDED"));
+
+        ResolvedSourceSet result = service.resolve(new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-explicit-attachment",
+                SourceMode.EXPLICIT_ONLY, List.of("upload-pdf"), List.of()));
+
+        assertEquals(List.of("version-pdf"),
+                result.sources().stream().map(ResolvedSource::versionId).toList());
+        assertEquals(0, catalog.automaticCalls);
+    }
+
+    @Test
     void snapshotsAuthoritativePendingConversationUploadsForEveryConsumer() {
         MutableResolutionPort catalog = new MutableResolutionPort();
         catalog.pendingConversationUploads = 2;
@@ -168,6 +190,7 @@ class RequestSourceResolutionServiceTest {
         private List<SourceResolutionCandidate> attachments = List.of();
         private List<SourceResolutionCandidate> automatic = List.of();
         private int explicitCalls;
+        private int automaticCalls;
         private int pendingConversationUploads;
         private int pendingCalls;
 
@@ -184,6 +207,7 @@ class RequestSourceResolutionServiceTest {
 
         @Override
         public List<SourceResolutionCandidate> resolveAutomatic(RequestSourceResolutionCommand command, int limit) {
+            automaticCalls++;
             return automatic;
         }
 

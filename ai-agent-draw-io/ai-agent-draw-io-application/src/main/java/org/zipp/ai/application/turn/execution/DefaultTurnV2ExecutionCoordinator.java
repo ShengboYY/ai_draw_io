@@ -132,6 +132,7 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
         Objects.requireNonNull(attempt, "attempt");
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(events, "events");
+        cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
 
         TurnV2PreHandlerOutcome prepared = preHandler.prepare(attempt, command);
         if (!(prepared instanceof TurnV2PreHandlerOutcome.Ready ready)) {
@@ -146,7 +147,8 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
                 return new TurnV2ExecutionOutcome.NotDispatched(
                         ready.decision(), "PLAIN_HANDLER_NOT_AVAILABLE");
             }
-            return new TurnV2ExecutionOutcome.Committed(plain.get().execute(ready, events));
+            return new TurnV2ExecutionOutcome.Committed(
+                    plain.get().execute(ready, events, cancellation));
         }
         if (ready.decision() instanceof TurnRouteDecision.Response responseDecision
                 && response.isPresent()) {
@@ -155,7 +157,8 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
                     ready.context(),
                     ready.readSet(),
                     responseDecision.value().plan(),
-                    events));
+                    events,
+                    cancellation));
         }
         if (ready.decision() instanceof TurnRouteDecision.SourcePlanning
                 && sourceAware.isPresent()) {

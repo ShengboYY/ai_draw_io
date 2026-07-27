@@ -34,6 +34,7 @@ import org.zipp.ai.application.turn.context.CurrentRequestContext;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.context.ValidatedSelectionContext;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class SourceAwareStrongCommitHandlerTest {
 
@@ -57,12 +59,21 @@ class SourceAwareStrongCommitHandlerTest {
         BoundSourcePlan plan = directPlan();
         SourceCommitBinding binding = binding(plan.identity());
         AtomicReference<DirectTurnCommit> captured = new AtomicReference<>();
+        CancellationSignal cancellation = () -> false;
+        AtomicReference<CancellationSignal> visionCancellation = new AtomicReference<>();
+        AtomicReference<CancellationSignal> generationCancellation = new AtomicReference<>();
         List<TurnEvent> events = new ArrayList<>();
         DirectTurnHandler handler = new DirectTurnHandler(
-                request -> new DirectVisionPort.Observation(
-                        "observation-ref", "observation-fingerprint"),
-                request -> new DirectGenerationPort.Result(
-                        "payload-direct", "<mxGraphModel/>", "done"),
+                (request, signal) -> {
+                    visionCancellation.set(signal);
+                    return new DirectVisionPort.Observation(
+                            "observation-ref", "observation-fingerprint");
+                },
+                (request, signal) -> {
+                    generationCancellation.set(signal);
+                    return new DirectGenerationPort.Result(
+                            "payload-direct", "<mxGraphModel/>", "done");
+                },
                 command -> {
                     captured.set(command);
                     return committed("direct", "payload-direct");
@@ -78,9 +89,13 @@ class SourceAwareStrongCommitHandlerTest {
                 binding,
                 "artifact-lease",
                 "source-identity",
-                events::add);
+                DirectCandidateOrigin.CURRENT_MESSAGE_ATTACHMENT,
+                events::add,
+                cancellation);
 
         assertInstanceOf(FencedCommitOutcome.Committed.class, outcome);
+        assertSame(cancellation, visionCancellation.get());
+        assertSame(cancellation, generationCancellation.get());
         assertEquals("source-identity", captured.get().provenance().sourceIdentityRef());
         assertEquals("observation-fingerprint",
                 captured.get().provenance().observationFingerprint());
@@ -96,7 +111,7 @@ class SourceAwareStrongCommitHandlerTest {
         ValidatedCitationManifest manifest = manifest();
         int[] commits = {0};
         GroundedTurnHandler handler = new GroundedTurnHandler(
-                request -> new GroundedGenerationPort.Result(
+                (request, cancellation) -> new GroundedGenerationPort.Result(
                         "payload-grounded",
                         "<mxGraphModel/>",
                         "done",
@@ -132,14 +147,16 @@ class SourceAwareStrongCommitHandlerTest {
         ValidatedCitationManifest manifest = manifest();
         int[] commits = {0};
         EvidenceAnswerTurnHandler handler = new EvidenceAnswerTurnHandler(
-                request -> {
+                (request, cancellation) -> {
                     assertFalse(request.aiKnowledgeAllowed());
+                    assertFalse(request.includeCanvasContext());
                     return new EvidenceAnswerGenerationPort.Result(
                             "payload-answer", "supported answer", manifest.manifestDigest());
                 },
                 command -> {
                     commits[0]++;
                     assertEquals(manifest, command.citations());
+                    assertEquals(0, command.expectedTargetCanvasVersion());
                     return committed("evidence_answer", "payload-answer");
                 },
                 new AttemptWriteGate());
@@ -148,7 +165,7 @@ class SourceAwareStrongCommitHandlerTest {
                 null, null, handler).answer(
                 attempt,
                 context(),
-                readSet(),
+                pinnedCanvasReadSet(),
                 binding,
                 "prepared-evidence",
                 manifest,
@@ -156,6 +173,33 @@ class SourceAwareStrongCommitHandlerTest {
 
         assertInstanceOf(FencedCommitOutcome.Committed.class, outcome);
         assertEquals(1, commits[0]);
+    }
+
+    @Test
+    void canvasSpecificEvidenceAnswerPinsOnlyTheCanvasItActuallyReads() {
+        FencedAttempt attempt = attempt();
+        BoundSourcePlan plan = directPlan();
+        SourceCommitBinding binding = binding(plan.identity());
+        ValidatedCitationManifest manifest = manifest();
+        EvidenceAnswerTurnHandler handler = new EvidenceAnswerTurnHandler(
+                (request, cancellation) -> {
+                    assertEquals(true, request.includeCanvasContext());
+                    return new EvidenceAnswerGenerationPort.Result(
+                            "payload-answer", "supported answer", manifest.manifestDigest());
+                },
+                command -> {
+                    assertEquals(5, command.expectedTargetCanvasVersion());
+                    assertEquals("9".repeat(64), command.expectedTargetCanvasContextDigest());
+                    return committed("evidence_answer", "payload-answer");
+                },
+                new AttemptWriteGate());
+
+        FencedCommitOutcome outcome = handler.execute(
+                attempt, context(), pinnedCanvasReadSet(), binding,
+                "prepared-evidence", manifest, true, event -> { },
+                CancellationSignal.NEVER);
+
+        assertInstanceOf(FencedCommitOutcome.Committed.class, outcome);
     }
 
     @Test
@@ -287,6 +331,20 @@ class SourceAwareStrongCommitHandlerTest {
                         ContextSlice.MEMORY, "NO_CONFIRMED_MEMORY"));
     }
 
+    private ContextReadSet pinnedCanvasReadSet() {
+        return ContextReadSet.create(
+                1,
+                2,
+                ContextSlicePin.pinned(
+                        ContextSlice.SUMMARY, "diagram-1", 5, "9".repeat(64)),
+                ContextSlicePin.absent(
+                        ContextSlice.MEMBERSHIP, "NO_ACTIVE_CHARTBOOK"),
+                ContextSlicePin.absent(
+                        ContextSlice.PROFILE, "PROFILE_NOT_AVAILABLE"),
+                ContextSlicePin.absent(
+                        ContextSlice.MEMORY, "NO_CONFIRMED_MEMORY"));
+    }
+
     /** Test-only dispatcher: it is deliberately absent from production composition. */
     private record IsolatedAllPathExecutor(
             DirectTurnHandler direct,
@@ -301,7 +359,9 @@ class SourceAwareStrongCommitHandlerTest {
                 SourceCommitBinding binding,
                 String artifactLease,
                 String sourceIdentity,
-                org.zipp.ai.application.turn.TurnEventSink events
+                DirectCandidateOrigin origin,
+                org.zipp.ai.application.turn.TurnEventSink events,
+                CancellationSignal cancellation
         ) {
             return direct.execute(
                     attempt,
@@ -311,8 +371,9 @@ class SourceAwareStrongCommitHandlerTest {
                     binding,
                     artifactLease,
                     sourceIdentity,
-                    DirectCandidateOrigin.CURRENT_MESSAGE_ATTACHMENT,
-                    events);
+                    origin,
+                    events,
+                    cancellation);
         }
 
         FencedCommitOutcome answer(

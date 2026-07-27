@@ -97,6 +97,28 @@ test('material client polls processing uploads through partial-ready', async () 
   assert.deepEqual(observed, ['PROCESSING', 'PARTIAL_READY']);
 });
 
+test('material client stops polling when the upload session succeeds', async () => {
+  let requestCount = 0;
+  const client = createMaterialClient({
+    baseUrl: 'https://app.example/api/v1',
+    csrfHeaders: async () => ({}),
+    sleep: async () => {},
+    fetch: async () => {
+      requestCount += 1;
+      // UploadSession uses SUCCEEDED after the processing revision is published.
+      return new Response(JSON.stringify({
+        code: '0000',
+        data: { uploadId: 'upl-success', state: 'SUCCEEDED' },
+      }), { status: 200 });
+    },
+  });
+
+  const terminal = await client.pollStatus('upl-success');
+
+  assert.equal(terminal.state, 'SUCCEEDED');
+  assert.equal(requestCount, 1);
+});
+
 test('material client requests details and page metadata without fetching source bytes', async () => {
   const calls = [];
   const responses = [

@@ -18,6 +18,7 @@ class ContextAssemblyCompositionConfigTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(org.zipp.ai.config.ContextAssemblyCompositionConfig.class)
+            .withPropertyValues("turn-engine.execution.enabled=true")
             .withBean(ContextReadSetQueryPort.class, () -> ignored -> new ContextReadSetLoadOutcome.Missing())
             .withBean(ContextReadSetCommitPort.class, () -> (ignored, proposal) ->
                     new ContextReadSetOutcome.Retry())

@@ -10,6 +10,7 @@ import {
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
+  projectUserExecutionStep,
   shouldShowAgentTyping,
   thinkingPhaseLabel,
   thinkingRouteLabel,
@@ -24,6 +25,43 @@ test('thinking labels follow the routed work path', () => {
   assert.equal(thinkingPhaseLabel('optimize_layout', 'reviewing'), 'Deterministic validation');
   assert.equal(thinkingPhaseLabel('answer_only', 'thinking'), 'Prepare answer');
   assert.equal(thinkingPhaseLabel(undefined, 'drawing'), 'Draw diagram');
+});
+
+test('internal phases project onto stable user-visible execution stages', () => {
+  assert.deepEqual(
+    projectUserExecutionStep({ phase: 'analyzing', routeType: 'create_new', useChinese: true }),
+    { key: 'analysis', phase: 'analysis', label: '分析请求' },
+  );
+  assert.deepEqual(
+    projectUserExecutionStep({
+      phase: 'retrieval',
+      routeType: 'create_new',
+      sourceUse: 'DIRECT_AND_RETRIEVAL',
+      useChinese: true,
+    }),
+    { key: 'preparation', phase: 'preparation', label: '准备内容' },
+  );
+  for (const phase of ['drawing', 'generating', 'thinking']) {
+    assert.deepEqual(
+      projectUserExecutionStep({
+        phase,
+        routeType: 'create_new',
+        sourceUse: 'DIRECT',
+        useChinese: true,
+      }),
+      { key: 'generation', phase: 'generation', label: '重建图表' },
+    );
+  }
+  assert.deepEqual(
+    projectUserExecutionStep({ phase: 'answer', useChinese: true }),
+    { key: 'generation', phase: 'generation', label: '组织回答' },
+  );
+  for (const phase of ['reviewing', 'visual_review', 'visual_evidence', 'visual_repair', 'revising']) {
+    assert.deepEqual(
+      projectUserExecutionStep({ phase, routeType: 'create_new', useChinese: true }),
+      { key: 'verification', phase: 'verification', label: '检查结果' },
+    );
+  }
 });
 
 test('route step describes the actual diagram type and selected skill', () => {

@@ -232,26 +232,33 @@ class DefaultTurnV2TurnExecutorTest {
     }
 
     @Test
-    void coordinatorFailureSelfAbortsWithoutSubmittingAProductTerminal() {
+    void coordinatorFailureCommitsAFailedTerminalSoDeliveryDoesNotHang() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);
         TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
         int[] commits = {0};
 
-        TurnAttemptCompletion.AttemptSelfAborted outcome = assertInstanceOf(
-                TurnAttemptCompletion.AttemptSelfAborted.class,
+        TurnAttemptCompletion.PersistedTerminal outcome = assertInstanceOf(
+                TurnAttemptCompletion.PersistedTerminal.class,
                 new DefaultTurnV2TurnExecutor(
                         (ignoredAttempt, ignoredCommand, ignoredEvents) -> {
                             throw new IllegalStateException("model unavailable");
                         },
                         commandToCommit -> {
                             commits[0]++;
-                            return new FencedCommitOutcome.Rejected("unexpected");
+                            assertEquals(TurnStatus.FAILED, commandToCommit.terminalStatus());
+                            assertEquals("TURN_EXECUTION_FAILED", commandToCommit.terminalCode());
+                            return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
+                                    TurnStatus.FAILED,
+                                    commandToCommit.terminalCode(),
+                                    commandToCommit.terminalPayloadType(),
+                                    null,
+                                    "{}"));
                         })
                         .execute(accepted, command, event -> { }));
 
-        assertEquals("TURN_EXECUTION_FAILED", outcome.code());
-        assertEquals(0, commits[0]);
+        assertEquals("TURN_EXECUTION_FAILED", outcome.outcome().terminalCode());
+        assertEquals(1, commits[0]);
     }
 
     @Test

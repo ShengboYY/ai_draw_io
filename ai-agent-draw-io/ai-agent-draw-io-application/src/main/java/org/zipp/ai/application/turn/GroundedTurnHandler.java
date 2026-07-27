@@ -5,6 +5,7 @@ import org.zipp.ai.application.turn.context.ContextPinState;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextSlicePin;
 import org.zipp.ai.application.turn.planning.BoundSourcePlan;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -38,14 +39,49 @@ public final class GroundedTurnHandler {
             Optional<DirectVisualProvenance> directProvenance,
             TurnEventSink events
     ) {
+        return execute(attempt, context, readSet, plan, sourceBinding, preparedEvidenceRef,
+                citations, directProvenance, events, CancellationSignal.NEVER);
+    }
+
+    public FencedCommitOutcome execute(
+            FencedAttempt attempt,
+            BaseTurnContext context,
+            ContextReadSet readSet,
+            BoundSourcePlan plan,
+            SourceCommitBinding sourceBinding,
+            String preparedEvidenceRef,
+            ValidatedCitationManifest citations,
+            Optional<DirectVisualProvenance> directProvenance,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
+        return execute(attempt, context, readSet, plan, sourceBinding, preparedEvidenceRef,
+                citations, directProvenance, false, events, cancellation);
+    }
+
+    public FencedCommitOutcome execute(
+            FencedAttempt attempt,
+            BaseTurnContext context,
+            ContextReadSet readSet,
+            BoundSourcePlan plan,
+            SourceCommitBinding sourceBinding,
+            String preparedEvidenceRef,
+            ValidatedCitationManifest citations,
+            Optional<DirectVisualProvenance> directProvenance,
+            boolean includeCanvasContext,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         SourceAwareHandlerChecks.requireCommon(
                 attempt, context, readSet, plan.identity(), sourceBinding);
         Objects.requireNonNull(citations, "citations");
         Objects.requireNonNull(events, "events");
+        cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         events.publish(new TurnEvent("grounded_started", "prepared", Instant.now()));
         GroundedGenerationPort.Result result = Objects.requireNonNull(
                 generation.generate(new GroundedGenerationPort.Request(
-                        attempt, context, readSet, plan, preparedEvidenceRef)),
+                        attempt, context, readSet, plan, preparedEvidenceRef,
+                        includeCanvasContext), cancellation),
                 "grounded generation");
         if (!result.citationManifestRef().equals(citations.manifestDigest())) {
             return new FencedCommitOutcome.Rejected("CITATION_MANIFEST_BINDING_MISMATCH");

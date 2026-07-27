@@ -50,7 +50,7 @@ class ImageToDiagramModuleTest {
     }
 
     @Test
-    void lowConfidenceCriticalEdgeRequiresConfirmationAndProducesNoXml() {
+    void lowConfidenceCriticalEdgeIsProjectedBestEffort() {
         ObservedDiagramGraph graph = new ObservedDiagramGraph(
                 List.of(
                         node("left", 0.10, "evidence-left"),
@@ -65,9 +65,9 @@ class ImageToDiagramModuleTest {
         ImageToDiagramOutcome outcome = new DefaultImageToDiagramModule()
                 .convert(new ImageToDiagramCommand(graph));
 
-        ImageToDiagramOutcome.NeedsConfirmation confirmation =
-                assertInstanceOf(ImageToDiagramOutcome.NeedsConfirmation.class, outcome);
-        assertEquals(List.of("LOW_CONFIDENCE_EDGE:possible"), confirmation.reasons());
+        ImageToDiagramOutcome.Converted converted =
+                assertInstanceOf(ImageToDiagramOutcome.Converted.class, outcome);
+        assertTrue(converted.mxGraphModelXml().contains("id=\"direct-edge-possible\""));
     }
 
     @Test
@@ -90,7 +90,28 @@ class ImageToDiagramModuleTest {
     }
 
     @Test
-    void directionlessAndLowConfidenceTextRequireConfirmation() {
+    void directionlessEdgeIsRenderedAsUndirectedWithoutConfirmation() {
+        ObservedDiagramGraph graph = new ObservedDiagramGraph(
+                List.of(
+                        node("left", 0.10, "evidence-left"),
+                        node("right", 0.60, "evidence-right")),
+                List.of(new ObservedDiagramGraph.Edge("undirected", "left", "right",
+                        "", ObservedDiagramGraph.EdgeDirection.NONE,
+                        ObservedDiagramGraph.LineStyle.DASHED,
+                        List.of(), "evidence-edge", 0.95)),
+                List.of(), List.of());
+
+        ImageToDiagramOutcome.Converted converted =
+                assertInstanceOf(ImageToDiagramOutcome.Converted.class,
+                        new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(graph)));
+
+        assertTrue(converted.mxGraphModelXml().contains(
+                "source=\"direct-node-left\" target=\"direct-node-right\""));
+        assertTrue(converted.mxGraphModelXml().contains("endArrow=none"));
+    }
+
+    @Test
+    void lowConfidenceTextIsProjectedBestEffortWhenEdgeIsUndirected() {
         ObservedDiagramGraph graph = new ObservedDiagramGraph(
                 List.of(
                         new ObservedDiagramGraph.Node("unclear", "Possible label",
@@ -104,52 +125,17 @@ class ImageToDiagramModuleTest {
                         List.of(), "evidence-edge", 0.95)),
                 List.of(), List.of());
 
-        ImageToDiagramOutcome.NeedsConfirmation outcome =
-                assertInstanceOf(ImageToDiagramOutcome.NeedsConfirmation.class,
-                        new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(graph)));
-
-        assertEquals(List.of("LOW_CONFIDENCE_NODE_TEXT:unclear",
-                "UNRESOLVED_EDGE_DIRECTION:unknown-direction"), outcome.reasons());
-        assertEquals("Possible label",
-                outcome.observedValues().get("LOW_CONFIDENCE_NODE_TEXT:unclear"));
-
-        ImageToDiagramOutcome.Converted confirmed =
+        ImageToDiagramOutcome.Converted outcome =
                 assertInstanceOf(ImageToDiagramOutcome.Converted.class,
-                        new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(
-                                graph,
-                                List.of(
-                                        new DirectClarification("LOW_CONFIDENCE_NODE_TEXT:unclear",
-                                                DirectClarification.Resolution.ACCEPT_OBSERVED,
-                                                DirectObservationFingerprint.of("Possible label")),
-                                        new DirectClarification(
-                                                "UNRESOLVED_EDGE_DIRECTION:unknown-direction",
-                                                DirectClarification.Resolution.REVERSE,
-                                                DirectObservationFingerprint.of(
-                                                        "unclear → right"))))));
-
-        assertTrue(confirmed.mxGraphModelXml().contains(
-                "source=\"direct-node-right\" target=\"direct-node-unclear\""));
-        assertTrue(confirmed.mxGraphModelXml().contains("endArrow=block"));
-
-        ImageToDiagramOutcome changedObservation =
-                new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(
-                        new ObservedDiagramGraph(
-                                List.of(
-                                        new ObservedDiagramGraph.Node("unclear", "Different label",
-                                                ObservedDiagramGraph.Shape.RECTANGLE,
-                                                new ObservationBounds(0.1, 0.2, 0.2, 0.1),
-                                                "", "evidence-node", 0.40),
-                                        node("right", 0.60, "evidence-right")),
-                                graph.edges(), List.of(), List.of()),
-                        List.of(new DirectClarification(
-                                "LOW_CONFIDENCE_NODE_TEXT:unclear",
-                                DirectClarification.Resolution.ACCEPT_OBSERVED,
-                                DirectObservationFingerprint.of("Possible label")))));
-        assertInstanceOf(ImageToDiagramOutcome.NeedsConfirmation.class, changedObservation);
+                        new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(graph)));
+        assertTrue(outcome.mxGraphModelXml().contains("value=\"Possible label\""));
+        assertTrue(outcome.mxGraphModelXml().contains(
+                "source=\"direct-node-unclear\" target=\"direct-node-right\""));
+        assertTrue(outcome.mxGraphModelXml().contains("endArrow=none"));
     }
 
     @Test
-    void acceptsFreeTextUnresolvedIssueThroughABoundedReasonCode() {
+    void unresolvedVisualIssueDoesNotInterruptAnOtherwiseValidProjection() {
         ObservedDiagramGraph.UnresolvedItem unresolved =
                 new ObservedDiagramGraph.UnresolvedItem(
                         new ObservationBounds(0.2, 0.2, 0.2, 0.2),
@@ -159,20 +145,8 @@ class ImageToDiagramModuleTest {
                 List.of(node("left", 0.10, "evidence-left")),
                 List.of(), List.of(), List.of(unresolved));
 
-        ImageToDiagramOutcome.NeedsConfirmation first =
-                assertInstanceOf(ImageToDiagramOutcome.NeedsConfirmation.class,
-                        new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(graph)));
-        String reasonCode = first.reasons().get(0);
-        assertTrue(reasonCode.matches("UNRESOLVED:[a-f0-9]{24}"));
-
-        ImageToDiagramOutcome confirmed =
-                new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(
-                        graph,
-                        List.of(new DirectClarification(
-                                reasonCode,
-                                DirectClarification.Resolution.ACCEPT_OBSERVED,
-                                DirectObservationFingerprint.of("Treat the arrow as forward")))));
-        assertInstanceOf(ImageToDiagramOutcome.Converted.class, confirmed);
+        assertInstanceOf(ImageToDiagramOutcome.Converted.class,
+                new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(graph)));
     }
 
     private ObservedDiagramGraph.Node node(String id, double x, String evidenceId) {

@@ -15,6 +15,7 @@ class TurnCheckpointCompositionConfigTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(org.zipp.ai.config.TurnCheckpointCompositionConfig.class)
+            .withPropertyValues("turn-engine.execution.enabled=true")
             .withBean(ContextReadSetQueryPort.class, () -> ignored -> new ContextReadSetLoadOutcome.Missing())
             .withBean(ContextReadSetCommitPort.class, () -> (ignored, proposal) ->
                     new org.zipp.ai.application.turn.context.ContextReadSetOutcome.Retry())

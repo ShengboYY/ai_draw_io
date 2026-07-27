@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS request_source_snapshot_item (
     version_id VARCHAR(64) NOT NULL,
     revision_id VARCHAR(64) NOT NULL,
     kind VARCHAR(32) NOT NULL,
-    display_name VARCHAR(255) NOT NULL DEFAULT '',
     scope_type VARCHAR(24) NOT NULL,
     scope_key VARCHAR(128) NOT NULL,
     source_state VARCHAR(24) NOT NULL,

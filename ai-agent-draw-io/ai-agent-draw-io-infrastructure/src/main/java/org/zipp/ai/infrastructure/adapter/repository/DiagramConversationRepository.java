@@ -94,8 +94,11 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
         // clientMessageId lets frontend retries overwrite the same turn instead of duplicating messages.
         messages.stream()
                 .filter(this::isValid)
-                .map(this::toPo)
-                .forEach(diagramConversationMapper::upsertMessage);
+                .forEach(message -> {
+                    DiagramConversationMessagePO stored = toPo(message);
+                    diagramConversationMapper.upsertMessage(stored);
+                    persistLegacyAttachments(stored, message.getAttachmentRefs());
+                });
     }
 
     @Override
@@ -147,6 +150,33 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
         po.setRole(message.getRole());
         po.setContent(message.getContent());
         return po;
+    }
+
+    private void persistLegacyAttachments(
+            DiagramConversationMessagePO message,
+            List<String> attachmentRefs
+    ) {
+        if (message.getId() == null
+                || !"user".equalsIgnoreCase(message.getRole())
+                || attachmentRefs == null
+                || attachmentRefs.isEmpty()) {
+            return;
+        }
+        List<String> normalizedRefs = attachmentRefs.stream()
+                .filter(ref -> ref != null && !ref.isBlank())
+                .map(String::trim)
+                .distinct()
+                .limit(16)
+                .toList();
+        for (int index = 0; index < normalizedRefs.size(); index++) {
+            // The mapper's INSERT ... SELECT is the authorization boundary; an invalid ref writes zero rows.
+            diagramConversationMapper.insertMessageAttachment(
+                    message.getUserId(),
+                    message.getDiagramId(),
+                    message.getId(),
+                    index,
+                    normalizedRefs.get(index));
+        }
     }
 
     private boolean isBlank(String value) {

@@ -311,6 +311,7 @@ export interface SaveDiagramCanvasStateRequestDTO {
 
 export interface DiagramConversationMessageDTO {
   clientMessageId: string;
+  turnId?: string;
   sessionId?: string;
   role: 'user' | 'agent';
   content: string;
@@ -348,6 +349,8 @@ export interface ChatRequestDTO {
   message: string;
   /** Client-generated id used to correlate browser request, backend logs, and stream metadata. */
   requestId?: string;
+  /** Stable id of the user message atomically committed when the turn starts. */
+  clientMessageId?: string;
   /** Stable assistant message id for atomic evidence-answer persistence. */
   responseMessageId?: string;
   /** Server-owned run id; clients only read it from responses. */

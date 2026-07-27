@@ -30,7 +30,7 @@ class PlainResponseHandlerTest {
         List<ResponseTurnCommit> commits = new ArrayList<>();
         List<String> events = new ArrayList<>();
         PlainResponseHandler handler = new PlainResponseHandler(
-                (request, sink) -> {
+                (request, sink, cancellation) -> {
                     assertEquals(PlainResponseKind.ANSWER, request.plan().kind());
                     assertEquals("m2-plain-source-free", request.profile().id());
                     return new PlainResponseGenerationResult("answer", "response-1");
@@ -58,7 +58,9 @@ class PlainResponseHandlerTest {
     void generationFailureCannotReachResponseCommit() {
         int[] commits = {0};
         PlainResponseHandler handler = new PlainResponseHandler(
-                (request, events) -> { throw new IllegalStateException("generation unavailable"); },
+                (request, events, cancellation) -> {
+                    throw new IllegalStateException("generation unavailable");
+                },
                 command -> {
                     commits[0]++;
                     return new FencedCommitOutcome.Rejected("unexpected");
@@ -79,7 +81,8 @@ class PlainResponseHandlerTest {
         gate.disableAndDrain(attempt);
         int[] commits = {0};
         PlainResponseHandler handler = new PlainResponseHandler(
-                (request, events) -> new PlainResponseGenerationResult("answer", "response-1"),
+                (request, events, cancellation) ->
+                        new PlainResponseGenerationResult("answer", "response-1"),
                 command -> {
                     commits[0]++;
                     return new FencedCommitOutcome.Rejected("unexpected");
@@ -97,7 +100,8 @@ class PlainResponseHandlerTest {
     @Test
     void legacyOrDynamicProfileCannotEnterTheSourceFreeResponseHandler() {
         assertThrows(IllegalArgumentException.class, () -> new PlainResponseHandler(
-                (request, events) -> new PlainResponseGenerationResult("answer", "response-1"),
+                (request, events, cancellation) ->
+                        new PlainResponseGenerationResult("answer", "response-1"),
                 command -> new FencedCommitOutcome.Rejected("unexpected"),
                 new PlainExecutionProfile("legacy-profile")));
     }

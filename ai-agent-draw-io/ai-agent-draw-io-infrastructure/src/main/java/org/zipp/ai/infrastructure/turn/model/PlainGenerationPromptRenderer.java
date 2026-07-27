@@ -27,12 +27,15 @@ final class PlainGenerationPromptRenderer {
                 .append("INSTRUCTION: ").append(request.plan().instruction()).append('\n')
                 .append("PLAIN_EXECUTION_PROFILE: ").append(request.profile().id()).append('\n')
                 .append("TURN_ID: ").append(context.request().turnId()).append('\n')
-                .append("DIAGRAM_ID: ").append(context.request().diagramId()).append("\n\n");
+                .append("DIAGRAM_ID: ").append(context.request().diagramId()).append('\n')
+                .append("CONTEXT_PRIORITY: current request and CANVAS_DATA override historical conversation, ")
+                .append("profile, and memory for the current canvas state.\n\n");
 
-        appendCanvas(prompt, context);
         appendConversation(prompt, context);
         appendProfile(prompt, context);
         appendMemory(prompt, context);
+        // Keep the current canvas after historical context so stale turns cannot override it.
+        appendCanvas(prompt, context, request.plan().action() != org.zipp.ai.application.turn.PlainDrawAction.CREATE);
         prompt.append("CURRENT_MESSAGE_ATTACHMENTS: OMITTED_BY_SOURCE_FREE_CONTRACT\n")
                 .append("OUTPUT_SCHEMA: {\"canvasXml\":\"<mxGraphModel>...</mxGraphModel>\",\"assistantMessage\":\"...\",\"payloadRef\":\"...\"}\n");
         return prompt.toString();
@@ -49,28 +52,45 @@ final class PlainGenerationPromptRenderer {
                 .append("INSTRUCTION: ").append(request.plan().instruction()).append('\n')
                 .append("PLAIN_EXECUTION_PROFILE: ").append(request.profile().id()).append('\n')
                 .append("TURN_ID: ").append(context.request().turnId()).append('\n')
-                .append("DIAGRAM_ID: ").append(context.request().diagramId()).append("\n\n");
+                .append("DIAGRAM_ID: ").append(context.request().diagramId()).append('\n')
+                .append("CONTEXT_PRIORITY: current request and CANVAS_DATA override historical conversation, ")
+                .append("profile, and memory for the current canvas state.\n\n");
 
-        appendCanvas(prompt, context);
         appendConversation(prompt, context);
         appendProfile(prompt, context);
         appendMemory(prompt, context);
+        // Keep the current canvas after historical context so stale turns cannot override it.
+        appendCanvas(prompt, context, request.plan().includeCanvasContext());
         prompt.append("CURRENT_MESSAGE_ATTACHMENTS: OMITTED_BY_SOURCE_FREE_CONTRACT\n")
                 .append("OUTPUT_SCHEMA: {\"assistantMessage\":\"...\",\"payloadRef\":\"...\"}\n");
         return prompt.toString();
     }
 
-    private void appendCanvas(StringBuilder prompt, BaseTurnContext context) {
+    private void appendCanvas(
+            StringBuilder prompt,
+            BaseTurnContext context,
+            boolean includeExactCanvas
+    ) {
         TrustedCanvasContext canvas = materialized(context.canvas(), TrustedCanvasContext.class);
         prompt.append("CANVAS_DATA:\n");
         if (canvas == null) {
             prompt.append("unavailable\n");
             return;
         }
-        prompt.append("available=").append(canvas.available())
+        // Counts are deterministic application facts; the model uses XML for semantic details only.
+        prompt.append("CANVAS_FACT_CONTRACT: nodeCount and edgeCount are authoritative server-derived facts. ")
+                .append("Use them verbatim for count questions; do not recount XML elements. ")
+                .append("Use canvas XML for labels, topology, geometry, and style.\n");
+        prompt.append("hasElements=").append(canvas.hasElements())
                 .append(" nodeCount=").append(canvas.nodeCount())
                 .append(" edgeCount=").append(canvas.edgeCount())
                 .append(" summary=").append(canvas.summary()).append('\n');
+        if (includeExactCanvas && canvas.hasElements()) {
+            // Canvas XML is trusted application state, not document Evidence or a RAG source.
+            prompt.append("CANVAS_XML_DATA:\n").append(canvas.canvasXml()).append('\n');
+        } else {
+            prompt.append("CANVAS_XML_DATA: OMITTED_NOT_REQUIRED\n");
+        }
     }
 
     private void appendConversation(StringBuilder prompt, BaseTurnContext context) {

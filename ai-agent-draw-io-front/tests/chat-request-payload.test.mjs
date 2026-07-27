@@ -44,6 +44,20 @@ test('buildDrawioChatRequestPayload generates a request id for request tracing',
   assert.match(request.requestId, /^[A-Za-z0-9._:-]{8,128}$/);
 });
 
+test('buildDrawioChatRequestPayload keeps user and assistant message identities distinct', () => {
+  const request = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'alice',
+    sessionId: 'session-1',
+    clientMessageId: 'user-message-1',
+    responseMessageId: 'agent-message-1',
+    userMessage: 'draw checkout flow',
+  });
+
+  assert.equal(request.clientMessageId, 'user-message-1');
+  assert.equal(request.responseMessageId, 'agent-message-1');
+});
+
 test('buildDrawioChatRequestPayload includes canvas state version fields', () => {
   const request = buildDrawioChatRequestPayload({
     agentId: '300000',

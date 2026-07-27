@@ -30,6 +30,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MySqlPlainTurnCommitAdapterTest {
 
     private static final Instant UPDATED_AT = Instant.parse("2026-07-26T00:00:00Z");
+    private static final String NON_EMPTY_CANVAS = """
+            <mxGraphModel><root>
+              <mxCell id="0"/>
+              <mxCell id="1" parent="0"/>
+              <mxCell id="node-1" value="Step" vertex="1" parent="1">
+                <mxGeometry x="20" y="20" width="120" height="60" as="geometry"/>
+              </mxCell>
+            </root></mxGraphModel>
+            """;
 
     @Test
     void terminalReplayDoesNotTouchCanvasOrMessage() {
@@ -90,6 +99,7 @@ class MySqlPlainTurnCommitAdapterTest {
         assertEquals("plain", committed.outcome().terminalPayloadType());
         assertEquals(4, jdbc.updates.size());
         assertTrue(jdbc.updates.get(0).contains("INSERT INTO diagram_canvas_state"));
+        assertTrue(jdbc.updates.get(0).contains("summary, analysis_json"));
         assertTrue(jdbc.updates.get(1).contains("UPDATE conversation"));
         assertTrue(jdbc.updates.get(2).contains("INSERT INTO diagram_conversation_message"));
         assertTrue(jdbc.updates.get(3).contains("UPDATE turn_execution"));
@@ -112,6 +122,37 @@ class MySqlPlainTurnCommitAdapterTest {
 
         assertEquals(TurnStatus.COMPLETED, committed.outcome().status());
         assertTrue(jdbc.updates.get(0).contains("UPDATE diagram_canvas_state"));
+        assertTrue(jdbc.updates.get(0).contains("summary = ?, analysis_json = ?"));
+    }
+
+    @Test
+    void emptyModelResponseCannotOverwriteCanvas() {
+        FencedAttempt attempt = attempt();
+        StubJdbc jdbc = new StubJdbc(
+                executionRow(attempt, "RUNNING", null, null),
+                values("version", 2L),
+                values("version", 2L,
+                        "content_hash", "canvas-hash",
+                        "summary", "one node",
+                        "analysis_json", "{\"nodeCount\":1,\"edgeCount\":0}"));
+
+        PlainTurnCommit empty = new PlainTurnCommit(
+                attempt,
+                PlainDrawAction.EDIT,
+                "diagram-1",
+                2,
+                digest("canvas", "diagram-1", "2", "canvas-hash",
+                        "one node", "{\"nodeCount\":1,\"edgeCount\":0}"),
+                "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/></root></mxGraphModel>",
+                "edited",
+                "payload-empty");
+
+        FencedCommitOutcome.Rejected rejected = assertInstanceOf(
+                FencedCommitOutcome.Rejected.class,
+                new MySqlPlainTurnCommitAdapter(jdbc.proxy()).commit(empty));
+
+        assertEquals("CANVAS_EMPTY_CANDIDATE", rejected.code());
+        assertEquals(List.of(), jdbc.updates);
     }
 
     private PlainTurnCommit command(FencedAttempt attempt) {
@@ -121,7 +162,7 @@ class MySqlPlainTurnCommitAdapterTest {
                 "diagram-1",
                 0,
                 "",
-                "<mxGraphModel/>",
+                NON_EMPTY_CANVAS,
                 "created",
                 "payload-1");
     }
@@ -134,7 +175,7 @@ class MySqlPlainTurnCommitAdapterTest {
                 2,
                 digest("canvas", "diagram-1", "2", "canvas-hash",
                         "two nodes and one edge", "{\"nodeCount\":2,\"edgeCount\":1}"),
-                "<mxGraphModel><root/></mxGraphModel>",
+                NON_EMPTY_CANVAS,
                 "edited",
                 "payload-2");
     }

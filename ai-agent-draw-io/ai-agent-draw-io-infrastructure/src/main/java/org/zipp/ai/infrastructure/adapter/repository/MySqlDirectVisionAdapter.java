@@ -19,6 +19,7 @@ import org.zipp.ai.domain.retrieval.port.RequestSourceSnapshotStore;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 
 /** Executes the exact-artifact visual module and durably hands its projection to Direct generation. */
 @Repository
@@ -38,7 +39,11 @@ public class MySqlDirectVisionAdapter implements DirectVisionPort {
     }
 
     @Override
-    public Observation observe(Request request) {
+    public Observation observe(Request request, CancellationSignal cancellation) {
+        cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
+        if (cancellation.isCancelled()) {
+            throw new CancellationException("DIRECT_VISION_CANCELLED");
+        }
         if (request.context() == null) {
             throw new IllegalArgumentException("DIRECT_CONTEXT_REQUIRED");
         }
@@ -57,8 +62,12 @@ public class MySqlDirectVisionAdapter implements DirectVisionPort {
         CloseReason closeReason = CloseReason.FAILED;
         try {
             DirectSourceOutcome outcome = preparation.prepare(
-                    command, resources, EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                    command, resources, EvidenceProgressListener.NOOP, cancellation)
                     .toCompletableFuture().join();
+            if (outcome instanceof DirectSourceOutcome.Cancelled) {
+                closeReason = CloseReason.CANCELLED;
+                throw new CancellationException("DIRECT_VISION_CANCELLED");
+            }
             if (!(outcome instanceof DirectSourceOutcome.Prepared prepared)) {
                 throw new IllegalStateException("DIRECT_VISION_PREPARATION_" + outcomeCode(outcome));
             }

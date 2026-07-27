@@ -184,7 +184,7 @@ export default function Login() {
       <section className="grid w-full max-w-[420px] lg:max-w-[880px] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_18px_44px_rgba(24,24,27,0.08)] lg:grid-cols-[1.02fr_1fr]">
         <div className="hidden lg:flex flex-col justify-between gap-10 bg-[#fbfaf8] px-8 py-9 lg:px-10 lg:py-11">
           <Link href="/" aria-label="FreeDraw home" className="flex items-center gap-3">
-            <Image src="/brand/freedraw-wordmark-on-light-v2.png" alt="FreeDraw" width={130} height={22} priority />
+            <Image src="/brand/freedraw-wordmark-brush-on-light.png" alt="FreeDraw" width={130} height={22} priority />
           </Link>
 
           <div className="max-w-[360px]">
@@ -200,7 +200,7 @@ export default function Login() {
         <div className="flex items-center px-6 py-7 sm:px-8 sm:py-9 lg:border-l lg:border-t-0 lg:px-10 lg:py-11">
           <div className="mx-auto w-full max-w-[340px]">
             <Link href="/" aria-label="FreeDraw home" className="mb-7 flex items-center gap-3 lg:hidden">
-              <Image src="/brand/freedraw-wordmark-on-light-v2.png" alt="FreeDraw" width={130} height={22} priority />
+              <Image src="/brand/freedraw-wordmark-brush-on-light.png" alt="FreeDraw" width={130} height={22} priority />
             </Link>
             <h2 className="m-0 text-2xl font-semibold leading-tight tracking-tight text-[#202024]">
               Welcome back

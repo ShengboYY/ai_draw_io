@@ -24,7 +24,7 @@ public final class TurnHttpSubmissionMapper {
         if (submission instanceof TurnSubmission.LegacyRetryExpired) {
             return new TurnHttpSubmissionResult(HttpStatus.GONE, submission, false);
         }
-        if (submission instanceof TurnSubmission.LegacyHandoff) {
+        if (submission instanceof TurnSubmission.LegacyAssignmentPinned) {
             return new TurnHttpSubmissionResult(HttpStatus.CONFLICT, submission, false);
         }
         if (submission instanceof TurnSubmission.IdempotencyConflict

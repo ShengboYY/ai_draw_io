@@ -31,6 +31,7 @@ import org.zipp.ai.application.turn.context.ContextReadSetMaterializerPort;
 import org.zipp.ai.application.turn.context.ContextSlice;
 import org.zipp.ai.application.turn.context.ContextSlicePin;
 import org.zipp.ai.application.turn.context.ConversationContextSummary;
+import org.zipp.ai.application.turn.context.ConversationAttachmentView;
 import org.zipp.ai.application.turn.context.ConversationContext;
 import org.zipp.ai.application.turn.context.CurrentMessageAttachmentView;
 import org.zipp.ai.application.turn.context.CurrentMessageAttachmentsContext;
@@ -159,7 +160,7 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             """;
 
     private static final String SELECT_RECENT_MESSAGES_TEMPLATE = """
-            SELECT role, content
+            SELECT id, conversation_id, role, content
             FROM diagram_conversation_message
             WHERE user_id = ? AND diagram_id = ?
               AND (conversation_id IN (%s) OR session_id IN (%s))
@@ -258,7 +259,8 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
 
             List<CurrentMessageAttachmentView> attachments = materializeAttachments(
                     valid.row(), attempt.key(), command);
-            ContextRead<ConversationContext> conversation = materializeConversation(attempt, command);
+            ContextRead<ConversationContext> conversation = materializeConversation(
+                    attempt, command, valid.row().requestMessageId());
             List<String> diagnosticCodes = new ArrayList<>(List.of(
                     "CONTEXT_BACKEND_TRANSITIONAL_LATEST_ROW",
                     "CONTEXT_MEMORY_ABSENT",
@@ -350,11 +352,16 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                 || !domain.canvasDigest().equals(pin.contentDigest())) {
             return SliceResolution.retrying();
         }
+        // current_xml is the Canvas source of truth. Stored analysis/summary columns are only
+        // derived caches and may have been written by an older mutation path.
+        CanvasContextMetadata metadata = CanvasContextMetadata.fromXml(domain.currentXml());
         return SliceResolution.exact(new AvailableContext<>(new TrustedCanvasContext(
-                domain.currentXml() != null && !domain.currentXml().isBlank(),
-                analysisCount(domain.canvasAnalysisJson(), "nodeCount"),
-                analysisCount(domain.canvasAnalysisJson(), "edgeCount"),
-                bounded(domain.canvasSummary(), CANVAS_SUMMARY_MAX_CHARS)),
+                metadata.nodeCount(),
+                metadata.edgeCount(),
+                metadata.summary(),
+                domain.canvasVersionValue(),
+                domain.canvasContentHash(),
+                domain.currentXml()),
                 pin.reference()));
     }
 
@@ -503,7 +510,8 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
 
     private ContextRead<ConversationContext> materializeConversation(
             FencedAttempt attempt,
-            UserTurnCommand command
+            UserTurnCommand command,
+            Long currentRequestMessageId
     ) {
         List<String> scopeKeys = conversationScopes == null
                 ? List.of(attempt.key().canonicalConversationId())
@@ -520,11 +528,19 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
         List<ConversationMessageRow> rows = new ArrayList<>(jdbc.query(
                 SELECT_RECENT_MESSAGES_TEMPLATE.formatted(placeholders, placeholders),
                 (resultSet, rowNum) -> new ConversationMessageRow(
-                        resultSet.getString("role"), resultSet.getString("content")),
+                        nullableLong(resultSet, "id"),
+                        resultSet.getString("conversation_id"),
+                        resultSet.getString("role"),
+                        resultSet.getString("content")),
                 queryArgs.toArray()));
         if (rows.isEmpty()) {
             return new AbsentContext<>("NO_CANONICAL_MESSAGES_AT_HIGH_WATER");
         }
+        List<ConversationAttachmentView> recentAttachments =
+                command.declarations().currentTurnAttachments().isEmpty()
+                        ? recentUserMessageAttachments(
+                                attempt, rows, scopeKeys, currentRequestMessageId)
+                        : List.of();
         Collections.reverse(rows);
         List<String> recentTurns = rows.stream()
                 .map(row -> conversationTurn(row.role(), row.content()))
@@ -535,8 +551,57 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
         }
         return new AvailableContext<>(new ConversationContext(
                 recentTurns, ConversationContextSummary.rebuild(
-                        recentTurns, attempt.contextMessageHighWater())),
+                        recentTurns, attempt.contextMessageHighWater()),
+                recentAttachments),
                 "diagram_conversation_message.canonical_high_water");
+    }
+
+    private List<ConversationAttachmentView> recentUserMessageAttachments(
+            FencedAttempt attempt,
+            List<ConversationMessageRow> messagesNewestFirst,
+            List<String> scopeKeys,
+            Long currentRequestMessageId
+    ) {
+        try {
+            for (ConversationMessageRow message : messagesNewestFirst) {
+                if (!"user".equalsIgnoreCase(message.role())
+                        || message.id() == null
+                        || message.conversationId() == null
+                        || Objects.equals(message.id(), currentRequestMessageId)) {
+                    continue;
+                }
+                java.util.LinkedHashMap<String, AttachmentRow> byReference =
+                        new java.util.LinkedHashMap<>();
+                for (String scopeKey : scopeKeys) {
+                    jdbc.query(
+                            SELECT_ATTACHMENTS,
+                            (resultSet, rowNum) -> new AttachmentRow(
+                                    resultSet.getString("conversation_file_ref"),
+                                    resultSet.getString("display_name"),
+                                    resultSet.getString("declared_mime")),
+                            attempt.key().ownerKey(),
+                            message.conversationId(),
+                            message.id(),
+                            scopeKey)
+                            .forEach(row -> byReference.putIfAbsent(row.reference(), row));
+                }
+                if (!byReference.isEmpty()) {
+                    // Only the nearest prior user message is exposed, with a hard metadata-only cap.
+                    return byReference.values().stream()
+                            .limit(8)
+                            .map(row -> new ConversationAttachmentView(
+                                    new OpaqueConversationFileRef(row.reference()),
+                                    bounded(nonBlankOr(
+                                            row.declaredMime(), "application/octet-stream"), 128),
+                                    bounded(nonBlankOr(row.displayName(), row.reference()), 256)))
+                            .toList();
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Historical metadata is optional: its failure must not break a source-free turn.
+            return List.of();
+        }
+        return List.of();
     }
 
     private String conversationTurn(String role, String content) {
@@ -663,18 +728,6 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             throw new IllegalStateException("ATTACHMENT_BINDING_DIGEST_MISSING");
         }
         return execution.attachmentBindingDigest();
-    }
-
-    private static int analysisCount(String analysisJson, String key) {
-        if (analysisJson == null || analysisJson.isBlank()) {
-            return 0;
-        }
-        try {
-            JSONObject object = JSON.parseObject(analysisJson);
-            return Math.max(0, Math.min(object.getIntValue(key), 1_000_000));
-        } catch (RuntimeException ignored) {
-            return 0;
-        }
     }
 
     private static Long nullableLong(ResultSet resultSet, String column) throws SQLException {
@@ -811,7 +864,12 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
     private record AttachmentRow(String reference, String displayName, String declaredMime) {
     }
 
-    private record ConversationMessageRow(String role, String content) {
+    private record ConversationMessageRow(
+            Long id,
+            String conversationId,
+            String role,
+            String content
+    ) {
     }
 
     private record SliceResolution<T>(ContextRead<T> value, boolean retry) {

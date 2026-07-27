@@ -98,6 +98,97 @@ class TurnAttemptRecoveryCoordinatorTest {
     }
 
     @Test
+    void recoveredAttemptRunsUnderItsOwnTelemetryRun() {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            TurnKey key = new TurnKey("owner-1", "conversation-1", "turn-1");
+            FencedAttempt attempt = attempt(key);
+            UserTurnCommand expected = new UserTurnCommand(
+                    "turn-1", "conversation-1", "diagram-1", "client-1", "draw", null,
+                    TurnDeclarations.empty());
+            AtomicBoolean boundDuringDispatch = new AtomicBoolean();
+            AtomicReference<Throwable> completedWith = new AtomicReference<>();
+            AtomicBoolean completed = new AtomicBoolean();
+            RecordingRecoveryTelemetry telemetry =
+                    new RecordingRecoveryTelemetry(completed, completedWith);
+            TurnV2TurnExecutor executor = new TurnV2TurnExecutor() {
+                @Override
+                public TurnAttemptCompletion execute(
+                        TurnSubmission.ExecutionAccepted accepted,
+                        UserTurnCommand command,
+                        TurnEventSink events
+                ) {
+                    boundDuringDispatch.set(telemetry.bound.get());
+                    return new TurnAttemptCompletion.AttemptSelfAborted(
+                            new org.zipp.ai.application.turn.TurnStatusRef(accepted.key()),
+                            "TURN_EXECUTION_FAILED");
+                }
+
+                @Override
+                public void disableWritesAndDrain(FencedAttempt ignored) {
+                }
+            };
+            TurnAttemptExecutionRunner runner = new TurnAttemptExecutionRunner(
+                    executor,
+                    new TurnAttemptLeaseSupervisor(
+                            ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(
+                                    java.time.Duration.ofSeconds(30)), executor),
+                    Runnable::run,
+                    scheduler);
+            TurnAttemptRecoveryCoordinator coordinator = new TurnAttemptRecoveryCoordinator(
+                    control(new TurnAttemptTakeoverPort.Claimed(attempt)),
+                    ignored -> new TurnAttemptInputRecoveryPort.Recovered(expected),
+                    runner,
+                    event -> { },
+                    telemetry);
+
+            TurnAttemptRecoveryOutcome.Started started = assertInstanceOf(
+                    TurnAttemptRecoveryOutcome.Started.class,
+                    coordinator.start(
+                            new AuthenticatedActor("owner-1", "cohort-1"), key, ignored -> { }));
+            started.handle().completion().toCompletableFuture().join();
+
+            // The pool captures the dispatching thread's context, so the run has to be bound before
+            // the attempt starts or the model calls it makes are unattributable.
+            assertTrue(boundDuringDispatch.get());
+            assertFalse(telemetry.bound.get());
+            assertTrue(completed.get());
+            assertEquals("TURN_EXECUTION_FAILED", completedWith.get().getMessage());
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    private static final class RecordingRecoveryTelemetry implements TurnRecoveryTelemetryPort {
+        private final AtomicBoolean bound = new AtomicBoolean();
+        private final AtomicBoolean completed;
+        private final AtomicReference<Throwable> completedWith;
+
+        private RecordingRecoveryTelemetry(AtomicBoolean completed,
+                                           AtomicReference<Throwable> completedWith) {
+            this.completed = completed;
+            this.completedWith = completedWith;
+        }
+
+        @Override
+        public TurnRecoveryRun open(FencedAttempt attempt) {
+            bound.set(true);
+            return new TurnRecoveryRun() {
+                @Override
+                public void close() {
+                    bound.set(false);
+                }
+
+                @Override
+                public void complete(Throwable failure) {
+                    completed.set(true);
+                    completedWith.set(failure);
+                }
+            };
+        }
+    }
+
+    @Test
     void realControlFacadeTracesTakeoverThroughRunnerCompletion() {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         try {

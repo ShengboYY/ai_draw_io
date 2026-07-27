@@ -30,6 +30,10 @@ public final class PlainResponsePlanFactory {
             return new PlainResponsePlanRejected("PLAIN_RESPONSE_ACTION_UNSUPPORTED");
         }
         return new PlainResponsePlanReady(
-                new PlainResponsePlan(kind, classification.instruction().value()));
+                new PlainResponsePlan(
+                        kind,
+                        classification.instruction().value(),
+                        classification.intent().targetNeed() == TargetNeed.CANVAS_REQUIRED
+                                || classification.intent().targetNeed() == TargetNeed.CANVAS_OPTIONAL));
     }
 }

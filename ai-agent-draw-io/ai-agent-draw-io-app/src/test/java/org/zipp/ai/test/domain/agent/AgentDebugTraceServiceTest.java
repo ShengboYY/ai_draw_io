@@ -46,15 +46,30 @@ public class AgentDebugTraceServiceTest {
                 traceStore,
                 new AdminAuditLogService(auditStore, clock),
                 clock,
-                new AgentTelemetryMetrics(registry));
+                new AgentTelemetryMetrics(registry),
+                false);
     }
 
     @Test
-    public void captureIsDisabledByDefault() {
-        Optional<DebugTraceCapture> captured = service.capture(
+    public void captureIsEnabledForAllRunsByDefault() {
+        AgentDebugTraceService defaultService = new AgentDebugTraceService(
+                traceStore,
+                new AdminAuditLogService(auditStore, clock),
+                clock,
+                new AgentTelemetryMetrics(registry));
+
+        Optional<DebugTraceCapture> captured = defaultService.capture(
                 "usr_alice", "aru_1", "CHAT_REQUEST", "secret prompt");
 
-        assertTrue(captured.isEmpty());
+        // Local trace analysis should work without creating a per-user or per-run control first.
+        assertTrue(captured.isPresent());
+        assertEquals(1, traceStore.captures.size());
+    }
+
+    @Test
+    public void captureCanBeDisabledUntilAScopedControlMatches() {
+        // Production can opt out of the default through ZIPP_TELEMETRY_DEBUG_PAYLOAD_CAPTURE_ENABLED=false.
+        assertTrue(service.capture("usr_alice", "aru_1", "CHAT_REQUEST", "secret prompt").isEmpty());
         assertTrue(traceStore.captures.isEmpty());
     }
 

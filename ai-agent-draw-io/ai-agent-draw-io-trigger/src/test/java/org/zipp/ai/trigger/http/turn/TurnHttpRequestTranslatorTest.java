@@ -32,7 +32,8 @@ class TurnHttpRequestTranslatorTest {
         request.setUserId("attacker");
         request.setSessionId("session-1");
         request.setRequestId("turn-1");
-        request.setResponseMessageId("client-1");
+        request.setClientMessageId("user-message-1");
+        request.setResponseMessageId("agent-message-1");
         request.setDiagramId("diagram-1");
         request.setMessage("draw");
         request.setCanvasXml("client-authoritative-canvas");
@@ -40,9 +41,10 @@ class TurnHttpRequestTranslatorTest {
         selectedVersions.setAccessible(true);
         selectedVersions.set(request, List.of("version-1"));
 
-        UserTurnCommand command = new TurnHttpRequestTranslator().translateLegacy(request);
+        UserTurnCommand command = new TurnHttpRequestTranslator().translateProductChat(request);
 
         assertEquals("legacy:session-1", command.conversationReference());
+        assertEquals("user-message-1", command.clientMessageId());
         assertEquals(List.of("version-1"), command.declarations().legacySelectedSources()
                 .stream().map(value -> value.value()).toList());
         assertEquals("session-1", command.runtimeSessionId());
@@ -59,7 +61,7 @@ class TurnHttpRequestTranslatorTest {
         request.setDiagramId("diagram-1");
         request.setMessage("draw");
 
-        UserTurnCommand command = new TurnHttpRequestTranslator().translateLegacy(request);
+        UserTurnCommand command = new TurnHttpRequestTranslator().translateProductChat(request);
 
         assertEquals("legacy:conversation:opaque-session-value", command.conversationReference());
     }
@@ -74,7 +76,7 @@ class TurnHttpRequestTranslatorTest {
         request.setMessage("记住这个决定：所有服务使用事件命名约定");
         request.setMemoryChartbookId("chartbook-1");
 
-        UserTurnCommand command = new TurnHttpRequestTranslator().translateLegacy(request);
+        UserTurnCommand command = new TurnHttpRequestTranslator().translateProductChat(request);
 
         assertEquals(RememberDecisionDeclaration.class, command.declarations().memoryWrite().getClass());
     }

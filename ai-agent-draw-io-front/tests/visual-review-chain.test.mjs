@@ -30,6 +30,17 @@ test('post-mutation review is limited to persisted mutation results', () => {
   assert.equal(canStartPostMutationReview({ version: 3, contentHash: '' }), false);
 });
 
+test('all V2 drawing capabilities use the same persisted-result review gate', () => {
+  // Agent identity does not select a second review path: every saved drawio_done is reviewed once.
+  for (const sourceAgentId of ['300025', '300021', '300027']) {
+    assert.equal(canStartPostMutationReview({
+      sourceAgentId,
+      version: 3,
+      contentHash: `sha256:${sourceAgentId}`,
+    }), true);
+  }
+});
+
 test('review requests preserve exact version, hash, stage, and before/after image roles', () => {
   const request = buildCanvasVisualReviewRequest({
     ...base,

@@ -8,6 +8,8 @@ import java.util.List;
  */
 public record RouterContextView(
         boolean canvasAvailable,
+        int canvasNodeCount,
+        int canvasEdgeCount,
         boolean selectionAvailable,
         int recentMessageCount,
         boolean profileAvailable,
@@ -33,7 +35,7 @@ public record RouterContextView(
             boolean profileAvailable,
             boolean memoryAvailable
     ) {
-        this(canvasAvailable, selectionAvailable, recentMessageCount, profileAvailable, memoryAvailable,
+        this(canvasAvailable, 0, 0, selectionAvailable, recentMessageCount, profileAvailable, memoryAvailable,
                 "", List.of(), "", "", "", "", "", List.of(), "", List.of(), List.of());
     }
 
@@ -55,15 +57,15 @@ public record RouterContextView(
             String profileDefaultStyle,
             List<String> confirmedMemoryDecisions
     ) {
-        this(canvasAvailable, selectionAvailable, recentMessageCount, profileAvailable, memoryAvailable,
+        this(canvasAvailable, 0, 0, selectionAvailable, recentMessageCount, profileAvailable, memoryAvailable,
                 canvasSummary, recentTurns, conversationSummary, chartbookMembership, profileInstructions,
                 profileGoal, profileSummary, profileGlossary, profileDefaultStyle, List.of(),
                 confirmedMemoryDecisions);
     }
 
     public RouterContextView {
-        if (recentMessageCount < 0) {
-            throw new IllegalArgumentException("recentMessageCount must not be negative");
+        if (canvasNodeCount < 0 || canvasEdgeCount < 0 || recentMessageCount < 0) {
+            throw new IllegalArgumentException("router context counts must not be negative");
         }
         canvasSummary = bounded(canvasSummary, 2_000);
         recentTurns = boundedList(recentTurns, 8, 4_000);

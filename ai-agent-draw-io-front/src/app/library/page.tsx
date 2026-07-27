@@ -81,7 +81,7 @@ export default function LibraryPage() {
     <main className="app-page min-h-screen bg-stone-50 text-zinc-800">
       <header className="border-b border-stone-200 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
         <div><Link href="/diagrams" className="text-sm font-medium text-zinc-600 hover:underline">← My diagrams</Link><h1 className="mt-1 text-2xl font-bold">Library</h1></div>
-        <Link href="/chartbooks" className="theme-btn-secondary rounded-lg px-4 py-2 text-sm">Chartbooks</Link>
+        <Link href="/diagrams#chartbooks" className="theme-btn-secondary rounded-lg px-4 py-2 text-sm">Chartbooks</Link>
       </div></header>
       <div className="mx-auto max-w-6xl space-y-6 px-5 py-7">
         {capabilityMessage && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{capabilityMessage}</div>}

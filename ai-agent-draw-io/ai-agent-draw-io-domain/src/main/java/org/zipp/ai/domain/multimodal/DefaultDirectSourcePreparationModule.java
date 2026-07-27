@@ -24,9 +24,7 @@ import org.zipp.ai.domain.retrieval.port.AuthorizedSourceSet;
 import org.zipp.ai.domain.retrieval.port.EvidenceReadLeaseCoordinator;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
@@ -155,8 +153,11 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
                 }
                 return new DirectSourceOutcome.Rejected(List.of(rejected.reason()));
             }
-            if (observation instanceof VisualObservationOutcome.Gap gap) {
-                return gapConfirmation(gap.reasons());
+            if (observation instanceof VisualObservationOutcome.Gap) {
+                // Diagram reconstruction should provide a usable graph; an observation-only gap is
+                // retried as a provider-quality failure instead of becoming a user confirmation.
+                return unavailable(DirectFailureKind.VISUAL_PROVIDER,
+                        "VISUAL_DIAGRAM_OBSERVATION_INCOMPLETE");
             }
             if (!(observation instanceof VisualObservationOutcome.DiagramVerified verified)) {
                 return unavailable(DirectFailureKind.VISUAL_PROVIDER,
@@ -173,12 +174,8 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
             ImageToDiagramCommand projectionCommand =
                     new ImageToDiagramCommand(graph, command.clarifications());
             // The trusted canonical decision prevents an injected projector from bypassing
-            // topology validation or a required user-confirmation boundary.
+            // topology validation.
             ImageToDiagramOutcome canonical = projectionRules.convert(projectionCommand);
-            if (canonical instanceof ImageToDiagramOutcome.NeedsConfirmation needs) {
-                return new DirectSourceOutcome.NeedsConfirmation(
-                        needs.reasons(), needs.observedValues());
-            }
             if (canonical instanceof ImageToDiagramOutcome.Rejected) {
                 return unavailable(DirectFailureKind.PROJECTION, "DIRECT_PROJECTION_INVALID");
             }
@@ -217,22 +214,6 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
 
     private DirectSourceOutcome.Unavailable unavailable(DirectFailureKind kind, String reason) {
         return new DirectSourceOutcome.Unavailable(kind, reason);
-    }
-
-    private DirectSourceOutcome.NeedsConfirmation gapConfirmation(List<String> reasons) {
-        Map<String, String> observedValues = new LinkedHashMap<>();
-        reasons.stream()
-                .map(reason -> reason == null ? "" : reason.trim())
-                .filter(reason -> !reason.isBlank())
-                .limit(5)
-                .forEach(reason -> {
-                    // Model prose stays display-only; the protocol receives a bounded stable code.
-                    String reasonCode = "OBSERVATION_GAP:"
-                            + DirectObservationFingerprint.of(reason).substring(0, 24);
-                    observedValues.putIfAbsent(reasonCode, reason);
-                });
-        return new DirectSourceOutcome.NeedsConfirmation(
-                List.copyOf(observedValues.keySet()), observedValues);
     }
 
     private SourceResolutionResult resolve(DirectSourceCommand command,

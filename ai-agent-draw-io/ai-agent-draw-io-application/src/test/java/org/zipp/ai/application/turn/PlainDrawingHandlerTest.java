@@ -33,7 +33,7 @@ class PlainDrawingHandlerTest {
         List<String> committedPayloads = new ArrayList<>();
         List<String> events = new ArrayList<>();
         PlainDrawingHandler handler = new PlainDrawingHandler(
-                (request, sink) -> {
+                (request, sink, cancellation) -> {
                     assertEquals(PlainDrawAction.CREATE, request.plan().action());
                     assertEquals("m2-plain-source-free", request.profile().id());
                     assertEquals("diagram-1", request.context().request().diagramId());
@@ -69,7 +69,9 @@ class PlainDrawingHandlerTest {
     void generationFailureCannotReachStrongCommit() {
         int[] commits = {0};
         PlainDrawingHandler handler = new PlainDrawingHandler(
-                (request, events) -> { throw new IllegalStateException("generation unavailable"); },
+                (request, events, cancellation) -> {
+                    throw new IllegalStateException("generation unavailable");
+                },
                 command -> {
                     commits[0]++;
                     return new FencedCommitOutcome.Rejected("unexpected");
@@ -94,7 +96,8 @@ class PlainDrawingHandlerTest {
         int[] commits = {0};
 
         PlainDrawingHandler handler = new PlainDrawingHandler(
-                (request, events) -> new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
+                (request, events, cancellation) ->
+                        new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
                 command -> {
                     commits[0]++;
                     return new FencedCommitOutcome.Rejected("unexpected");
@@ -127,7 +130,8 @@ class PlainDrawingHandlerTest {
     @Test
     void legacyOrDynamicProfileCannotEnterTheSourceFreeDrawingHandler() {
         assertThrows(IllegalArgumentException.class, () -> new PlainDrawingHandler(
-                (request, events) -> new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
+                (request, events, cancellation) ->
+                        new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
                 command -> new FencedCommitOutcome.Rejected("unexpected"),
                 new PlainRuntimeRegistry(),
                 new PlainExecutionProfile("legacy-profile")));
@@ -138,7 +142,8 @@ class PlainDrawingHandlerTest {
     void everyPlainDrawingActionUsesTheSameSourceFreeCommitSeam(PlainDrawAction action) {
         int[] commits = {0};
         PlainDrawingHandler handler = new PlainDrawingHandler(
-                (request, events) -> new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
+                (request, events, cancellation) ->
+                        new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
                 command -> {
                     commits[0]++;
                     assertEquals(action, command.action());

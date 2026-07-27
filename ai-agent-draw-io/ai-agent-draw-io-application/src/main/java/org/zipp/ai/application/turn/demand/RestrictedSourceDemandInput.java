@@ -1,7 +1,7 @@
 package org.zipp.ai.application.turn.demand;
 
-import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.ModelInputBinding;
+import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -11,12 +11,13 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Physical input boundary for demand interpretation. It deliberately excludes conversation,
+ * Physical input boundary for demand interpretation. It deliberately excludes conversation text,
  * profile, memory, source availability, file body, retrieval, and citation data.
  */
 public record RestrictedSourceDemandInput(
         CurrentInstruction instruction,
-        List<OpaqueConversationFileRef> currentMessageAttachments,
+        List<OpaqueConversationFileRef> eligibleAttachmentRefs,
+        List<SourceAttachmentCandidate> attachmentCandidates,
         Optional<String> chartbookMembership,
         Set<String> activeClarificationLabels,
         String attachmentBindingDigest,
@@ -30,7 +31,8 @@ public record RestrictedSourceDemandInput(
             Optional<String> chartbookMembership,
             Set<String> activeClarificationLabels
     ) {
-        this(instruction, currentMessageAttachments, chartbookMembership, activeClarificationLabels,
+        this(instruction, currentMessageAttachments, legacyCandidates(currentMessageAttachments),
+                chartbookMembership, activeClarificationLabels,
                 digestOf(currentMessageAttachments), ModelInputBinding.unbound());
     }
 
@@ -41,13 +43,14 @@ public record RestrictedSourceDemandInput(
             Set<String> activeClarificationLabels,
             String attachmentBindingDigest
     ) {
-        this(instruction, currentMessageAttachments, chartbookMembership, activeClarificationLabels,
+        this(instruction, currentMessageAttachments, legacyCandidates(currentMessageAttachments),
+                chartbookMembership, activeClarificationLabels,
                 attachmentBindingDigest, ModelInputBinding.unbound());
     }
 
     public RestrictedSourceDemandInput withModelInputBinding(ModelInputBinding binding) {
         return new RestrictedSourceDemandInput(
-                instruction, currentMessageAttachments, chartbookMembership,
+                instruction, eligibleAttachmentRefs, attachmentCandidates, chartbookMembership,
                 activeClarificationLabels, attachmentBindingDigest, binding);
     }
 
@@ -59,8 +62,16 @@ public record RestrictedSourceDemandInput(
         if (modelInputBinding == null) {
             throw new IllegalArgumentException("model input binding must not be null");
         }
-        currentMessageAttachments = List.copyOf(
-                currentMessageAttachments == null ? List.of() : currentMessageAttachments);
+        eligibleAttachmentRefs = List.copyOf(
+                eligibleAttachmentRefs == null ? List.of() : eligibleAttachmentRefs);
+        attachmentCandidates = List.copyOf(
+                attachmentCandidates == null ? List.of() : attachmentCandidates);
+        if (attachmentCandidates.size() > 8
+                || attachmentCandidates.stream().anyMatch(value -> value == null)
+                || !eligibleAttachmentRefs.equals(attachmentCandidates.stream()
+                .map(SourceAttachmentCandidate::reference).toList())) {
+            throw new IllegalArgumentException("attachment candidates do not match the effective allow-list");
+        }
         chartbookMembership = chartbookMembership.map(String::trim).filter(value -> !value.isBlank());
         activeClarificationLabels = Set.copyOf(activeClarificationLabels);
     }
@@ -69,12 +80,18 @@ public record RestrictedSourceDemandInput(
     public String inputDigest() {
         StringBuilder canonical = new StringBuilder();
         append(canonical, "instruction", instruction.digest());
-        append(canonical, "attachments", currentMessageAttachments.stream()
+        append(canonical, "attachments", eligibleAttachmentRefs.stream()
                 .map(OpaqueConversationFileRef::value).toList().toString());
+        append(canonical, "attachmentCandidates", attachmentCandidates.toString());
         append(canonical, "membership", chartbookMembership.orElse(""));
         append(canonical, "clarifications", activeClarificationLabels.stream().sorted().toList().toString());
         append(canonical, "attachmentBinding", attachmentBindingDigest);
         return sha256(canonical.toString());
+    }
+
+    /** Compatibility alias for callers that still use the old current-message-only terminology. */
+    public List<OpaqueConversationFileRef> currentMessageAttachments() {
+        return eligibleAttachmentRefs;
     }
 
     private void append(StringBuilder target, String name, String value) {
@@ -109,5 +126,17 @@ public record RestrictedSourceDemandInput(
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
+    }
+
+    private static List<SourceAttachmentCandidate> legacyCandidates(
+            List<OpaqueConversationFileRef> attachments
+    ) {
+        return (attachments == null ? List.<OpaqueConversationFileRef>of() : attachments).stream()
+                .map(reference -> new SourceAttachmentCandidate(
+                        reference,
+                        "application/octet-stream",
+                        reference.value(),
+                        AttachmentCandidateOrigin.CURRENT_MESSAGE))
+                .toList();
     }
 }

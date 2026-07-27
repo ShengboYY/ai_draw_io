@@ -72,12 +72,13 @@ public class MySqlSourceAwareTurnCommitAdapter
             """;
     private static final String INSERT_CANVAS = """
             INSERT INTO diagram_canvas_state
-                (diagram_id, user_id, current_xml, content_hash, version)
-            VALUES (?, ?, ?, ?, 1)
+                (diagram_id, user_id, current_xml, content_hash, summary, analysis_json, version)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
             """;
     private static final String UPDATE_CANVAS = """
             UPDATE diagram_canvas_state
-            SET current_xml = ?, content_hash = ?, version = version + 1,
+            SET current_xml = ?, content_hash = ?, summary = ?, analysis_json = ?,
+                version = version + 1,
                 updated_at = UTC_TIMESTAMP(3)
             WHERE diagram_id = ? AND user_id = ? AND version = ?
             """;
@@ -348,6 +349,11 @@ public class MySqlSourceAwareTurnCommitAdapter
         if (canvas == null) {
             throw new CommitRejectedException("DIAGRAM_NOT_ACTIVE");
         }
+        CanvasContextMetadata metadata = CanvasContextMetadata.fromXml(xml);
+        // Direct and RAG generation obey the same mutation invariant as Plain generation.
+        if (!metadata.hasElements()) {
+            throw new CommitRejectedException("CANVAS_EMPTY_CANDIDATE");
+        }
         String contentHash = canvasHasher.hash(xml);
         long versionAfter;
         if (expectedVersion == 0) {
@@ -359,7 +365,9 @@ public class MySqlSourceAwareTurnCommitAdapter
                     diagramId,
                     attempt.key().ownerKey(),
                     xml,
-                    contentHash), "CANVAS_VERSION_CONFLICT");
+                    contentHash,
+                    metadata.summary(),
+                    metadata.analysisJson()), "CANVAS_VERSION_CONFLICT");
             versionAfter = 1;
         } else {
             if (canvas.version() == null || canvas.version() != expectedVersion) {
@@ -372,6 +380,8 @@ public class MySqlSourceAwareTurnCommitAdapter
                     UPDATE_CANVAS,
                     xml,
                     contentHash,
+                    metadata.summary(),
+                    metadata.analysisJson(),
                     diagramId,
                     attempt.key().ownerKey(),
                     expectedVersion), "CANVAS_VERSION_CONFLICT");
@@ -590,13 +600,9 @@ public class MySqlSourceAwareTurnCommitAdapter
     }
 
     private String canvasDigest(String diagramId, CanvasRow canvas) {
-        return sha256(String.join(
-                "\n",
-                diagramId,
-                String.valueOf(canvas.version()),
-                Objects.toString(canvas.contentHash(), ""),
-                Objects.toString(canvas.summary(), ""),
-                Objects.toString(canvas.analysisJson(), "")));
+        // Context reads pin this exact length-prefixed digest; commits must verify the same contract.
+        return digest("canvas", diagramId, String.valueOf(canvas.version()),
+                canvas.contentHash(), canvas.summary(), canvas.analysisJson());
     }
 
     private String assistantMessageId(TurnKey key) {
@@ -612,6 +618,27 @@ public class MySqlSourceAwareTurnCommitAdapter
             StringBuilder result = new StringBuilder(64);
             for (byte item : digest) {
                 result.append(String.format("%02x", item));
+            }
+            return result.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required", exception);
+        }
+    }
+
+    private String digest(String... values) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (String value : values) {
+                String normalized = value == null ? "" : value;
+                byte[] bytes = normalized.getBytes(StandardCharsets.UTF_8);
+                digest.update(Integer.toString(bytes.length).getBytes(StandardCharsets.UTF_8));
+                digest.update((byte) ':');
+                digest.update(bytes);
+                digest.update((byte) '|');
+            }
+            StringBuilder result = new StringBuilder(64);
+            for (byte value : digest.digest()) {
+                result.append(String.format("%02x", value));
             }
             return result.toString();
         } catch (NoSuchAlgorithmException exception) {

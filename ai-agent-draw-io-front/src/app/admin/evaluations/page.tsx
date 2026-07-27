@@ -37,7 +37,7 @@ export default function AdminEvaluationsPage() {
         active="overview"
         title="Evaluation"
         description="Validate the Agent against versioned Cases and repeatable Datasets. Trace investigation lives in its own workspace."
-        action={<Link href="/admin/eval-cases/new" className="theme-btn-primary inline-flex h-10 items-center rounded-lg px-4 text-sm font-semibold">Create Case</Link>}
+        action={<Link href="/admin/eval-cases/new" className="theme-btn inline-flex h-10 items-center rounded-lg px-4 text-sm font-semibold transition">Create Case</Link>}
       />
 
       <section className="grid gap-4 md:grid-cols-3" aria-label="Evaluation getting started">

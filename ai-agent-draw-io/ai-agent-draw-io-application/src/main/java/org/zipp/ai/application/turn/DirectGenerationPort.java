@@ -3,12 +3,18 @@ package org.zipp.ai.application.turn;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.planning.BoundSourcePlan;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
-/** Fixed Direct drawing model seam; no dynamic tool registry is accepted. */
+/** Fixed Direct result seam over the server-prepared visual projection. */
 @FunctionalInterface
 public interface DirectGenerationPort {
 
-    Result generate(Request request);
+    Result generate(Request request, CancellationSignal cancellation);
+
+    /** Compatibility entry point for callers without attempt-scoped cancellation. */
+    default Result generate(Request request) {
+        return generate(request, CancellationSignal.NEVER);
+    }
 
     record Request(
             FencedAttempt attempt,

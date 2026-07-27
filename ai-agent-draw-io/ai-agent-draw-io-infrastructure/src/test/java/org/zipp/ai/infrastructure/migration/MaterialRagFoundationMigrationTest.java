@@ -13,6 +13,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MaterialRagFoundationMigrationTest {
 
     @Test
+    void requestSourceDisplayNameMigrationUpgradesExistingSnapshotTables() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-11-add-request-source-display-name.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-11-add-request-source-display-name.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("ALTER TABLE request_source_snapshot_item"));
+        assertTrue(sql.contains("ADD COLUMN display_name VARCHAR(255) NOT NULL DEFAULT '' AFTER kind"));
+    }
+
+    @Test
     void requestSourceSnapshotMigrationDefinesImmutableRunAndVersionKeys() throws Exception {
         Path migration = Path.of("docs/sql/migrations/2026-08-10-create-request-source-snapshots.sql");
         if (!Files.exists(migration)) {

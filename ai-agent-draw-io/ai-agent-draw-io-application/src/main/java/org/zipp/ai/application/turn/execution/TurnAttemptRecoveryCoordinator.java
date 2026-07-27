@@ -12,6 +12,7 @@ import org.zipp.ai.application.turn.TurnLifecycleTraceEvent;
 import org.zipp.ai.application.turn.TurnLifecycleTracePort;
 import org.zipp.ai.application.turn.TurnLifecycleTraceType;
 import org.zipp.ai.application.turn.TurnKey;
+import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnSubmission;
 import java.util.Objects;
 import java.util.function.LongSupplier;
@@ -24,6 +25,7 @@ public final class TurnAttemptRecoveryCoordinator {
     private final TurnAttemptExecutionRunner runner;
     private final LongSupplier monotonicNanos;
     private final TurnLifecycleTracePort trace;
+    private final TurnRecoveryTelemetryPort runTelemetry;
 
     public TurnAttemptRecoveryCoordinator(
             TurnControlFacade control,
@@ -42,6 +44,16 @@ public final class TurnAttemptRecoveryCoordinator {
         this(control, inputs, runner, System::nanoTime, trace);
     }
 
+    public TurnAttemptRecoveryCoordinator(
+            TurnControlFacade control,
+            TurnAttemptInputRecoveryPort inputs,
+            TurnAttemptExecutionRunner runner,
+            TurnLifecycleTracePort trace,
+            TurnRecoveryTelemetryPort runTelemetry
+    ) {
+        this(control, inputs, runner, System::nanoTime, trace, runTelemetry);
+    }
+
     TurnAttemptRecoveryCoordinator(
             TurnControlFacade control,
             TurnAttemptInputRecoveryPort inputs,
@@ -58,11 +70,23 @@ public final class TurnAttemptRecoveryCoordinator {
             LongSupplier monotonicNanos,
             TurnLifecycleTracePort trace
     ) {
+        this(control, inputs, runner, monotonicNanos, trace, TurnRecoveryTelemetryPort.NOOP);
+    }
+
+    TurnAttemptRecoveryCoordinator(
+            TurnControlFacade control,
+            TurnAttemptInputRecoveryPort inputs,
+            TurnAttemptExecutionRunner runner,
+            LongSupplier monotonicNanos,
+            TurnLifecycleTracePort trace,
+            TurnRecoveryTelemetryPort runTelemetry
+    ) {
         this.control = Objects.requireNonNull(control, "control");
         this.inputs = Objects.requireNonNull(inputs, "inputs");
         this.runner = Objects.requireNonNull(runner, "runner");
         this.monotonicNanos = Objects.requireNonNull(monotonicNanos, "monotonicNanos");
         this.trace = Objects.requireNonNull(trace, "trace");
+        this.runTelemetry = Objects.requireNonNull(runTelemetry, "runTelemetry");
     }
 
     /** Takes over only after the durable control facade grants a fresh fenced epoch. */
@@ -113,7 +137,34 @@ public final class TurnAttemptRecoveryCoordinator {
         long callStartedNanos = monotonicNanos.getAsLong();
         TurnSubmission.ExecutionAccepted accepted = new TurnSubmission.ExecutionAccepted(
                 key, attempt, new LeaseTimingAnchor(callStartedNanos, attempt.lease()));
-        TurnHandle handle = runner.start(accepted, ready.command(), events);
+        // The run must be bound before dispatch: the execution pool captures the calling thread's
+        // context, and everything the attempt models afterwards attaches to whatever it captured.
+        TurnRecoveryTelemetryPort.TurnRecoveryRun run = runTelemetry.open(attempt);
+        TurnHandle handle;
+        try (TurnRecoveryTelemetryPort.TurnRecoveryRun bound = run) {
+            handle = runner.start(accepted, ready.command(), events);
+        } catch (RuntimeException failure) {
+            run.complete(failure);
+            throw failure;
+        }
+        handle.completion().whenComplete(
+                (result, error) -> run.complete(error != null ? error : attemptFailure(result)));
         return new TurnAttemptRecoveryOutcome.Started(handle, attempt);
+    }
+
+    /** Only a COMPLETED durable terminal is a successful run; every other end state is a failure. */
+    private static Throwable attemptFailure(TurnAttemptCompletion result) {
+        if (result instanceof TurnAttemptCompletion.PersistedTerminal terminal) {
+            return terminal.outcome().status() == TurnStatus.COMPLETED
+                    ? null
+                    : new IllegalStateException(terminal.outcome().terminalCode());
+        }
+        if (result instanceof TurnAttemptCompletion.AttemptSelfAborted aborted) {
+            return new IllegalStateException(aborted.code());
+        }
+        if (result instanceof TurnAttemptCompletion.StatusOnly statusOnly) {
+            return new IllegalStateException(statusOnly.code());
+        }
+        return new IllegalStateException("TURN_ATTEMPT_OWNERSHIP_LOST");
     }
 }

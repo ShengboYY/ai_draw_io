@@ -11,6 +11,20 @@ export const DIAGRAM_FILTERS: { id: DiagramFilter; label: string }[] = [
   { id: 'illustrations', label: 'Illustrations' },
 ];
 
+// Chartbooks share the workspace tab strip but list folders instead of diagrams,
+// so they sit beside the diagram-kind filters rather than inside them.
+export const CHARTBOOKS_TAB = 'chartbooks';
+export type WorkspaceTab = DiagramFilter | typeof CHARTBOOKS_TAB;
+
+export const WORKSPACE_TABS: { id: WorkspaceTab; label: string }[] = [
+  ...DIAGRAM_FILTERS,
+  { id: CHARTBOOKS_TAB, label: 'Chartbooks' },
+];
+
+/** The chartbooks tab hides the diagram grid, so it falls back to the unfiltered diagram view. */
+export const diagramFilterForTab = (tab: WorkspaceTab): DiagramFilter =>
+  tab === CHARTBOOKS_TAB ? 'all' : tab;
+
 export const DIAGRAM_SORTS: { id: DiagramSortMode; label: string }[] = [
   { id: 'recent', label: 'recent' },
   { id: 'oldest', label: 'oldest' },

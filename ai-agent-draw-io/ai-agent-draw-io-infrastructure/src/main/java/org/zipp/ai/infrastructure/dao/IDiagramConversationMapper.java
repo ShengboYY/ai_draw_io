@@ -30,6 +30,12 @@ public interface IDiagramConversationMapper {
 
     int upsertMessage(DiagramConversationMessagePO message);
 
+    int insertMessageAttachment(@Param("userId") String userId,
+                                @Param("diagramId") String diagramId,
+                                @Param("messageId") Long messageId,
+                                @Param("attachmentOrder") int attachmentOrder,
+                                @Param("fileRef") String fileRef);
+
     int deleteByUserId(@Param("userId") String userId);
 
 }

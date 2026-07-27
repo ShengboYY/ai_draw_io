@@ -57,12 +57,18 @@ class MySqlSourceProbeAdapterTest {
         assertEquals("image-v1", direct.candidates().get(0).candidateRef());
         assertEquals("owner-1", captured.get().owner().ownerKey());
         assertEquals("diagram-1", captured.get().diagramId());
+        assertEquals(SourceMode.EXPLICIT_ONLY, captured.get().sourceMode());
     }
 
     @Test
     void returnsRoleSpecificRetrievalFactsForRequiredRetrieval() {
-        RequestSourceResolutionService resolution = command -> new ResolvedSourceSet(
-                SourceMode.AUTO, List.of(source("PDF", "text-v1", true, false)), 0, 0);
+        AtomicReference<RequestSourceResolutionCommand> captured = new AtomicReference<>();
+        RequestSourceResolutionService resolution = command -> {
+            captured.set(command);
+            return new ResolvedSourceSet(
+                    SourceMode.EXPLICIT_ONLY,
+                    List.of(source("PDF", "text-v1", true, false)), 0, 0);
+        };
         SourceProbeCommand command = command(SourceDemandKind.CURRENT_MESSAGE_RETRIEVAL_REQUIRED);
 
         SourceProbeOutcome.Available outcome = assertInstanceOf(
@@ -77,6 +83,7 @@ class MySqlSourceProbeAdapterTest {
                 RoleAvailability.RetrievalAvailable.class, availability.role());
         assertEquals("text-v1", retrieval.candidates().get(0).candidateRef());
         assertEquals(SourceRole.RETRIEVAL, retrieval.role());
+        assertEquals(SourceMode.EXPLICIT_ONLY, captured.get().sourceMode());
     }
 
     private SourceProbeCommand command(SourceDemandKind kind) {

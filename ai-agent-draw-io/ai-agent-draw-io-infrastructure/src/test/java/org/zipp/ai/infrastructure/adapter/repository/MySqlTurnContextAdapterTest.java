@@ -19,6 +19,7 @@ import org.zipp.ai.application.turn.context.ContextMaterializationOutcome;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.context.ConversationContext;
+import org.zipp.ai.application.turn.context.ConversationAttachmentView;
 import org.zipp.ai.application.turn.context.ConfirmedMemoryContext;
 import org.zipp.ai.application.turn.context.DegradedContext;
 
@@ -42,8 +43,12 @@ class MySqlTurnContextAdapterTest {
     void candidateIsPinnedAndMaterializedFromTheSameProjectionVersion() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);
+        Map<String, Object> domain = domainRow(2L, "canvas-hash", "initial");
+        // Simulate an older write path whose cached projection was never refreshed.
+        domain.put("canvas_summary", "blank canvas");
+        domain.put("canvas_analysis_json", "{\"nodeCount\":0,\"edgeCount\":0}");
         MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
-                jdbc(executionRow(attempt), domainRow(2L, "canvas-hash", "<xml>"), List.of()));
+                jdbc(executionRow(attempt), domain, List.of()));
 
         ContextCandidateLoadOutcome.Ready candidate = assertInstanceOf(
                 ContextCandidateLoadOutcome.Ready.class, adapter.loadCandidate(attempt, command));
@@ -60,6 +65,7 @@ class MySqlTurnContextAdapterTest {
                 AvailableContext.class, materialized.value().canvas());
         assertEquals(2, canvas.value().nodeCount());
         assertEquals(1, canvas.value().edgeCount());
+        assertEquals(canvasXml("initial").trim(), canvas.value().canvasXml());
         assertInstanceOf(AbsentContext.class, materialized.value().chartbook());
         assertInstanceOf(AbsentContext.class, materialized.value().memory());
     }
@@ -268,6 +274,79 @@ class MySqlTurnContextAdapterTest {
     }
 
     @Test
+    void conversationContextLoadsTheNearestPriorUserMessageAttachments() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        Map<String, Object> execution = executionRow(attempt);
+        execution.put("request_message_id", 4L);
+        ContextReadSet readSet = assertInstanceOf(
+                ContextCandidateLoadOutcome.Ready.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        execution, domainRow(2L, "canvas-hash", "<xml>"), List.of()))
+                        .loadCandidate(attempt, command)).value().readSet();
+        List<Map<String, Object>> messages = List.of(
+                values("id", 4L, "conversation_id", "conversation-1",
+                        "role", "user", "content", "use the previous image colors"),
+                values("id", 3L, "conversation_id", "conversation-1",
+                        "role", "agent", "content", "diagram created"),
+                values("id", 2L, "conversation_id", "conversation-1",
+                        "role", "user", "content", "recreate this image"));
+        List<Map<String, Object>> attachments = List.of(values(
+                "conversation_file_ref", "prior-image",
+                "display_name", "reference.png",
+                "declared_mime", "image/png"));
+
+        ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
+                ContextMaterializationOutcome.Ready.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        execution,
+                        domainRow(2L, "canvas-hash", "<xml>"),
+                        messages,
+                        attachments))
+                        .materialize(attempt, command, readSet));
+        AvailableContext<ConversationContext> conversation = assertInstanceOf(
+                AvailableContext.class, materialized.value().conversation());
+
+        assertEquals(List.of(new ConversationAttachmentView(
+                        new org.zipp.ai.application.turn.OpaqueConversationFileRef("prior-image"),
+                        "image/png",
+                        "reference.png")),
+                conversation.value().recentUserMessageAttachments());
+    }
+
+    @Test
+    void historicalAttachmentMetadataFailureDoesNotBreakAPlainTurnContext() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        Map<String, Object> execution = executionRow(attempt);
+        execution.put("request_message_id", 4L);
+        ContextReadSet readSet = assertInstanceOf(
+                ContextCandidateLoadOutcome.Ready.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        execution, domainRow(2L, "canvas-hash", "<xml>"), List.of()))
+                        .loadCandidate(attempt, command)).value().readSet();
+        List<Map<String, Object>> messages = List.of(
+                values("id", 4L, "conversation_id", "conversation-1",
+                        "role", "user", "content", "draw a plain flow"),
+                values("id", 2L, "conversation_id", "conversation-1",
+                        "role", "user", "content", "older attachment"));
+
+        ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
+                ContextMaterializationOutcome.Ready.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        execution,
+                        domainRow(2L, "canvas-hash", "<xml>"),
+                        messages,
+                        List.of(),
+                        true))
+                        .materialize(attempt, command, readSet));
+        AvailableContext<ConversationContext> conversation = assertInstanceOf(
+                AvailableContext.class, materialized.value().conversation());
+
+        assertEquals(List.of(), conversation.value().recentUserMessageAttachments());
+    }
+
+    @Test
     void expiredAttemptCannotReadAContextCandidate() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);
@@ -320,7 +399,7 @@ class MySqlTurnContextAdapterTest {
                 "diagram_chartbook_id", null,
                 "diagram_updated_at", Timestamp.from(UPDATED_AT),
                 "canvas_version", version,
-                "current_xml", currentXml,
+                "current_xml", canvasXml(currentXml),
                 "canvas_content_hash", contentHash,
                 "canvas_summary", "two nodes and one edge",
                 "canvas_analysis_json", "{\"nodeCount\":2,\"edgeCount\":1}",
@@ -328,6 +407,24 @@ class MySqlTurnContextAdapterTest {
                 "chartbook_owner_key", null,
                 "chartbook_status", null,
                 "chartbook_updated_at", null);
+    }
+
+    private static String canvasXml(String marker) {
+        return """
+                <mxGraphModel><root>
+                  <mxCell id="0"/>
+                  <mxCell id="1" parent="0"/>
+                  <mxCell id="node-1" value="%s A" vertex="1" parent="1">
+                    <mxGeometry x="20" y="20" width="120" height="60" as="geometry"/>
+                  </mxCell>
+                  <mxCell id="node-2" value="%s B" vertex="1" parent="1">
+                    <mxGeometry x="220" y="20" width="120" height="60" as="geometry"/>
+                  </mxCell>
+                  <mxCell id="edge-1" edge="1" parent="1" source="node-1" target="node-2">
+                    <mxGeometry relative="1" as="geometry"/>
+                  </mxCell>
+                </root></mxGraphModel>
+                """.formatted(marker, marker);
     }
 
     private static Map<String, Object> activeChartbookDomain() {
@@ -345,6 +442,25 @@ class MySqlTurnContextAdapterTest {
             Map<String, Object> domain,
             List<Map<String, Object>> messages
     ) {
+        return jdbc(execution, domain, messages, List.of());
+    }
+
+    private static JdbcOperations jdbc(
+            Map<String, Object> execution,
+            Map<String, Object> domain,
+            List<Map<String, Object>> messages,
+            List<Map<String, Object>> attachments
+    ) {
+        return jdbc(execution, domain, messages, attachments, false);
+    }
+
+    private static JdbcOperations jdbc(
+            Map<String, Object> execution,
+            Map<String, Object> domain,
+            List<Map<String, Object>> messages,
+            List<Map<String, Object>> attachments,
+            boolean attachmentQueryFails
+    ) {
         InvocationHandler handler = (proxy, method, args) -> {
             if ("query".equals(method.getName())) {
                 String sql = (String) args[0];
@@ -358,6 +474,13 @@ class MySqlTurnContextAdapterTest {
                 }
                 if (sql.contains("FROM diagram_conversation_message")) {
                     return messages.stream().map(row -> map(rowMapper, row)).toList();
+                }
+                if (sql.contains("FROM conversation_message_attachment")) {
+                    if (attachmentQueryFails) {
+                        throw new org.springframework.dao.TransientDataAccessResourceException(
+                                "attachment metadata unavailable");
+                    }
+                    return attachments.stream().map(row -> map(rowMapper, row)).toList();
                 }
                 throw new AssertionError("unexpected SQL: " + sql);
             }

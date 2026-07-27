@@ -273,11 +273,18 @@ public class ChatService implements IChatService {
         String appName = aiAgentRegisterVO.getAppName();
         InMemoryRunner runner = aiAgentRegisterVO.getRunner();
 
-        Flowable<Event> events = runner.runAsync(chatCommandEntity.getUserId(), chatCommandEntity.getSessionId(), content)
+        // V2 turn ports reach the runtime through this overload, so the ambient run context is the
+        // only correlation the telemetry plugin can get. Without the invocation token every LLM
+        // span and debug payload of a V2 turn is dropped as unattributable.
+        AgentUsageTelemetryContext.InvocationState invocationState = AgentUsageTelemetryContext
+                .newInvocationState(AgentUsageTelemetryContext.current().orElse(null));
+        Flowable<Event> events = runner.runAsync(chatCommandEntity.getUserId(), chatCommandEntity.getSessionId(),
+                        content, RunConfig.builder().build(), invocationState.stateDelta())
                 .doOnNext(event -> persistDraftDiagramState(runner, appName, chatCommandEntity.getUserId(), chatCommandEntity.getSessionId(), event));
 
         List<String> outputs = new ArrayList<>();
-        events.blockingForEach(event -> collectEventOutput(outputs, event));
+        events.doFinally(invocationState::close)
+                .blockingForEach(event -> collectEventOutput(outputs, event));
 
         return outputs;
     }

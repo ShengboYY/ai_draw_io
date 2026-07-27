@@ -6,7 +6,7 @@
   "corpusLockSha256": "02a82cc4cabd6a57bd4f9091f02e302107ed5bb7b91b8f2f974dabf15a9d649a",
   "taskFixtureSha256": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440",
   "promptBundlesSha256": "d4fd6cf18c526481e06c90c02180482b577bf5163f989a0979652f62f82369cf",
-  "responsesSha256": "4b436e01c915d0e6d3af6eacb5712e9e173bc88ee581076fa358f9c77f1c8dee",
+  "responsesSha256": "a5b016b5880ab4b842dab288f848864da02671d51d219ad51dcc32332cf51185",
   "model": {
     "provider": "OpenAI",
     "name": "gpt-5.5",
@@ -39,156 +39,156 @@
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_52c91bd3f1764d9491afac036b67c760",
+      "requestId": "req_71bd5e82ade9450db70535794dd96598",
       "promptSha256": "73ada2f650ee430e84ee646433a31d6616b5e03e013caacf9220248e416b56f6",
       "usage": {
         "inputTokens": 486,
-        "outputTokens": 916
+        "outputTokens": 1080
       },
-      "latencyMs": 13025
+      "latencyMs": 12436
     },
     {
       "taskId": "stagb-dev-02",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_1e53a1a8116d4446a1335ae9e5a900bb",
+      "requestId": "req_c5416a4aabc2465286504ff5114efcba",
       "promptSha256": "709895af3dea0be2f92ae2b008f1dc95a89e5326caa30360bfbe0de0e074e77d",
       "usage": {
         "inputTokens": 478,
-        "outputTokens": 1384
+        "outputTokens": 1588
       },
-      "latencyMs": 17985
+      "latencyMs": 17498
     },
     {
       "taskId": "stagb-dev-03",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_3f57857d720b4519a44be1b1a1e5ca67",
+      "requestId": "req_e2ec51cae0ab40db93e67473d29a424d",
       "promptSha256": "20ee529b275c0618f384c6d19601b695ccafe08c23c8bfaa7ce9e1ca154396f9",
       "usage": {
         "inputTokens": 337,
-        "outputTokens": 121
+        "outputTokens": 131
       },
-      "latencyMs": 2593
+      "latencyMs": 2509
     },
     {
       "taskId": "stagb-dev-04",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_69e51f999dd946b0b9aadccffef6bc7e",
+      "requestId": "req_5c864627e06049f583f19f31aef2fad4",
       "promptSha256": "dbed60cfcbe65bbb27a7b13b993ddb7779daea7e2026bec593346f2c63703dfd",
       "usage": {
         "inputTokens": 370,
-        "outputTokens": 486
+        "outputTokens": 497
       },
-      "latencyMs": 6210
+      "latencyMs": 10264
     },
     {
       "taskId": "stagb-dev-05",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_502519357e2844b8ac4ce27bce79fc97",
+      "requestId": "req_331a91f324464a5f8af47628c018ce51",
       "promptSha256": "b974a966b48008cd424cc22bbf2d8ac61d48d178197a1ce49ecaeab211bc6039",
       "usage": {
         "inputTokens": 275,
-        "outputTokens": 694
+        "outputTokens": 589
       },
-      "latencyMs": 8397
+      "latencyMs": 9299
     },
     {
       "taskId": "stagb-dev-06",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_c6b33886adff41eca2306dc4726af026",
+      "requestId": "req_f9fcbfa0a74e4ad3a94f86fdbacae0c7",
       "promptSha256": "df43508528d0ff39dd9039e292ce69738c992f2878e23351200f4805258cf649",
       "usage": {
         "inputTokens": 288,
-        "outputTokens": 1185
+        "outputTokens": 1158
       },
-      "latencyMs": 12495
+      "latencyMs": 11593
     },
     {
       "taskId": "stagb-dev-07",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_469ea33d9f244f89984fe101e4c2fcaf",
+      "requestId": "req_78466bafd6174a1ba57d875de9500ed4",
       "promptSha256": "7d6e7676217ef206630421a4989a261d9bae6357ae2bb407635e1418c754fc5b",
       "usage": {
         "inputTokens": 368,
-        "outputTokens": 975
+        "outputTokens": 1020
       },
-      "latencyMs": 10717
+      "latencyMs": 12105
     },
     {
       "taskId": "stagb-dev-08",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_036ba07c066744d58c4c6e3db3b49e9a",
+      "requestId": "req_f1ffd9897e014543afffda8d0bc4bea8",
       "promptSha256": "d1ffddc4b41c70561f2423f9871c5a35918e56156515998309dfe887ad645260",
       "usage": {
         "inputTokens": 2148,
-        "outputTokens": 1109
+        "outputTokens": 1181
       },
-      "latencyMs": 12454
+      "latencyMs": 13033
     },
     {
       "taskId": "stagb-dev-09",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_a52512b1deed419e9a3927872dfa4c2f",
+      "requestId": "req_75b8eeb42bbf4713ab588b9e90c05ea6",
       "promptSha256": "4720e33560265661a84d46e3f73da1fdd15fa54d605974b7c01bc39ffc794174",
       "usage": {
         "inputTokens": 2144,
-        "outputTokens": 933
+        "outputTokens": 995
       },
-      "latencyMs": 14612
+      "latencyMs": 14058
     },
     {
       "taskId": "stagb-dev-10",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_b71e87d250ed487384b0479f3c91f7de",
+      "requestId": "req_8d2656c9d0fd43eab7b0f8bd3ef23876",
       "promptSha256": "41cadc3c0123459410497a2a1f8fc4a984847fd78a4fd58dd7ba8ec36558b753",
       "usage": {
         "inputTokens": 335,
-        "outputTokens": 129
+        "outputTokens": 113
       },
-      "latencyMs": 4639
+      "latencyMs": 2080
     },
     {
       "taskId": "stagb-dev-11",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_f700b6cf7339496cbb0442c96884c2eb",
+      "requestId": "req_9dac0de5a1794952acb6200317ee8860",
       "promptSha256": "b76a9f37435f014e777bfb9b2ec019fe661a86d91afa4bf3fd6569c3f3857863",
       "usage": {
         "inputTokens": 375,
-        "outputTokens": 1299
+        "outputTokens": 1247
       },
-      "latencyMs": 13816
+      "latencyMs": 19033
     },
     {
       "taskId": "stagb-dev-12",
       "status": "success",
       "attempts": 1,
       "httpStatus": 200,
-      "requestId": "req_5e585bedf7814597b929c708513ee887",
+      "requestId": "req_3990bef16dca4227908d8e9cb7eb99c4",
       "promptSha256": "eecfeb46b74d4bf84555f9cd005538da8eee264ea0f8c39d206338e979a88a3e",
       "usage": {
         "inputTokens": 440,
-        "outputTokens": 499
+        "outputTokens": 586
       },
-      "latencyMs": 6948
+      "latencyMs": 10909
     }
   ],
   "artifacts": [
@@ -215,7 +215,7 @@
     {
       "role": "responses",
       "path": "results/stage-a-e7e8-gpt-5-5-development-responses.json",
-      "sha256": "4b436e01c915d0e6d3af6eacb5712e9e173bc88ee581076fa358f9c77f1c8dee"
+      "sha256": "a5b016b5880ab4b842dab288f848864da02671d51d219ad51dcc32332cf51185"
     }
   ]
 }

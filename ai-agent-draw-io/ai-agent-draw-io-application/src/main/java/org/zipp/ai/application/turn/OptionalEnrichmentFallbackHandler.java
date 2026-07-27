@@ -5,6 +5,7 @@ import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.planning.OptionalEvidenceOutcome;
 import org.zipp.ai.application.turn.planning.OptionalRetrievalDrawPlan;
 import org.zipp.ai.application.turn.planning.SourcePlanDecision;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -28,10 +29,22 @@ public final class OptionalEnrichmentFallbackHandler {
             SourcePlanDecision.ProbeFallbackReady fallback,
             TurnEventSink events
     ) {
+        return executeProbeFallback(
+                attempt, context, readSet, fallback, events, CancellationSignal.NEVER);
+    }
+
+    public FencedCommitOutcome executeProbeFallback(
+            FencedAttempt attempt,
+            BaseTurnContext context,
+            ContextReadSet readSet,
+            SourcePlanDecision.ProbeFallbackReady fallback,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         Objects.requireNonNull(fallback, "fallback");
         publishSkipped(events, fallback.reason().name(), fallback.fallback().branchId());
         return plainDrawing.execute(
-                attempt, context, readSet, fallback.fallback().plan(), events);
+                attempt, context, readSet, fallback.fallback().plan(), events, cancellation);
     }
 
     public FencedCommitOutcome executeEvidenceFallback(
@@ -42,6 +55,20 @@ public final class OptionalEnrichmentFallbackHandler {
             OptionalEvidenceOutcome.FallbackEligible fallback,
             OptionalPrimaryBranchScope primaryScope,
             TurnEventSink events
+    ) {
+        return executeEvidenceFallback(attempt, context, readSet, plan, fallback,
+                primaryScope, events, CancellationSignal.NEVER);
+    }
+
+    public FencedCommitOutcome executeEvidenceFallback(
+            FencedAttempt attempt,
+            BaseTurnContext context,
+            ContextReadSet readSet,
+            OptionalRetrievalDrawPlan plan,
+            OptionalEvidenceOutcome.FallbackEligible fallback,
+            OptionalPrimaryBranchScope primaryScope,
+            TurnEventSink events,
+            CancellationSignal cancellation
     ) {
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(fallback, "fallback");
@@ -54,7 +81,7 @@ public final class OptionalEnrichmentFallbackHandler {
         }
         publishSkipped(events, fallback.reason().name(), plan.validatedFallback().branchId());
         return plainDrawing.execute(
-                attempt, context, readSet, plan.validatedFallback().plan(), events);
+                attempt, context, readSet, plan.validatedFallback().plan(), events, cancellation);
     }
 
     private void publishSkipped(TurnEventSink events, String reason, String branchId) {

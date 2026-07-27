@@ -38,7 +38,6 @@ export type ManualAutosaveGuardInput = {
 export type ConversationDiagramShellInput = {
   diagramId?: string;
   canvasVersion?: number;
-  hasDrawableContent: boolean;
   hasConversationMessages: boolean;
 };
 
@@ -105,11 +104,9 @@ export const shouldHandleManualAutosave = ({
 export const shouldCreateConversationDiagramShell = ({
   diagramId,
   canvasVersion,
-  hasDrawableContent,
   hasConversationMessages,
 }: ConversationDiagramShellInput): boolean => (
   Boolean(diagramId?.trim())
   && hasConversationMessages
-  && !hasDrawableContent
   && !Number.isFinite(canvasVersion)
 );

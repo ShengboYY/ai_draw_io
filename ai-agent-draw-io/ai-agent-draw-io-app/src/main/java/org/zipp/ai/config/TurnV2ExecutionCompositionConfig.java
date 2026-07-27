@@ -4,6 +4,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
@@ -48,18 +49,23 @@ import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 import org.zipp.ai.application.turn.execution.TurnAttemptRecoveryCoordinator;
+import org.zipp.ai.application.turn.execution.TurnRecoveryTelemetryPort;
 import org.zipp.ai.application.turn.execution.SourceAwareTurnExecution;
 import org.zipp.ai.application.turn.planning.DirectCompositePlanner;
 import org.zipp.ai.application.turn.planning.OptionalEnrichmentPlanner;
 import org.zipp.ai.application.turn.planning.SourceProbePort;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Composes the isolated claim-to-route seam without changing production engine assignment. */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnBean({ContextAssemblyCoordinator.class, TurnDecisionCoordinator.class})
+@ConditionalOnProperty(name = "turn-engine.execution.enabled", havingValue = "true")
 public class TurnV2ExecutionCompositionConfig {
 
     @Bean
@@ -149,7 +155,8 @@ public class TurnV2ExecutionCompositionConfig {
     @ConditionalOnBean({SourceProbePort.class, SourceAwarePreparationPort.class,
             SourceExecutionBindingPort.class})
     public SourceAwareTurnExecution sourceAwareTurnExecution(
-            SourceProbePort probe,
+            @Qualifier("sourceProbePort") ObjectProvider<SourceProbePort> retrievalProbe,
+            @Qualifier("directSourceProbePort") ObjectProvider<SourceProbePort> directProbe,
             DirectCompositePlanner directPlanner,
             OptionalEnrichmentPlanner enrichmentPlanner,
             SourceAwarePreparationPort preparation,
@@ -159,6 +166,11 @@ public class TurnV2ExecutionCompositionConfig {
             ObjectProvider<EvidenceAnswerTurnHandler> evidenceAnswer,
             ObjectProvider<OptionalEnrichmentFallbackHandler> optionalFallback
     ) {
+        // Prefer the full material probe; Direct-only deployments use the equivalent local probe.
+        SourceProbePort probe = retrievalProbe.getIfAvailable(directProbe::getIfAvailable);
+        if (probe == null) {
+            throw new IllegalStateException("TURN_SOURCE_PROBE_NOT_READY");
+        }
         return new DefaultSourceAwareTurnExecution(
                 probe,
                 directPlanner,
@@ -281,8 +293,23 @@ public class TurnV2ExecutionCompositionConfig {
             TurnAttemptCancellationRegistry cancellationRegistry,
             ObjectProvider<TurnLifecycleTracePort> trace
     ) {
+        Executor telemetryAwareExecutor = task -> {
+            AgentUsageTelemetryContext.RunContext captured =
+                    AgentUsageTelemetryContext.current().orElse(null);
+            executionExecutor.execute(() -> {
+                if (captured == null) {
+                    task.run();
+                    return;
+                }
+                // The pool is shared, so bind and clear the request context around exactly one task.
+                try (AgentUsageTelemetryContext.Scope ignored =
+                             AgentUsageTelemetryContext.bind(captured)) {
+                    task.run();
+                }
+            });
+        };
         return new TurnAttemptExecutionRunner(
-                executor, heartbeat, executionExecutor, scheduler, cancellationRegistry,
+                executor, heartbeat, telemetryAwareExecutor, scheduler, cancellationRegistry,
                 trace.getIfAvailable(() ->
                         org.zipp.ai.application.turn.NoopTurnLifecycleTracePort.INSTANCE));
     }
@@ -297,12 +324,56 @@ public class TurnV2ExecutionCompositionConfig {
             TurnControlFacade control,
             TurnAttemptInputRecoveryPort inputs,
             TurnAttemptExecutionRunner runner,
-            ObjectProvider<TurnLifecycleTracePort> trace
+            ObjectProvider<TurnLifecycleTracePort> trace,
+            ObjectProvider<AgentUsageTelemetryService> telemetry
     ) {
         return new TurnAttemptRecoveryCoordinator(
                 control,
                 inputs,
                 runner,
-                trace.getIfAvailable(() -> org.zipp.ai.application.turn.NoopTurnLifecycleTracePort.INSTANCE));
+                trace.getIfAvailable(() -> org.zipp.ai.application.turn.NoopTurnLifecycleTracePort.INSTANCE),
+                recoveryTelemetry(telemetry.getIfAvailable()));
+    }
+
+    /**
+     * Gives a recovered attempt its own run so its model calls are attributable. A takeover has no
+     * request thread to inherit from, and the usage telemetry context is thread-bound.
+     */
+    private static TurnRecoveryTelemetryPort recoveryTelemetry(AgentUsageTelemetryService telemetry) {
+        if (telemetry == null) {
+            return TurnRecoveryTelemetryPort.NOOP;
+        }
+        return attempt -> {
+            AgentUsageTelemetryService.RunScope run = telemetry.startRun(
+                    null,
+                    attempt.key().turnId(),
+                    attempt.key().ownerKey(),
+                    null,
+                    attempt.key().canonicalConversationId(),
+                    "turn_recovery",
+                    null,
+                    AgentUsageTelemetryService.PLATFORM,
+                    null,
+                    "openai",
+                    "unknown");
+            AgentUsageTelemetryContext.Scope scope =
+                    AgentUsageTelemetryContext.bind(run.getContext());
+            AtomicBoolean completed = new AtomicBoolean();
+            return new TurnRecoveryTelemetryPort.TurnRecoveryRun() {
+                @Override
+                public void close() {
+                    scope.close();
+                }
+
+                @Override
+                public void complete(Throwable failure) {
+                    // The attempt can end on the execution pool, a heartbeat tick, or the deadline
+                    // scheduler; only the first of them owns the durable completion.
+                    if (completed.compareAndSet(false, true)) {
+                        telemetry.completeRun(run, failure);
+                    }
+                }
+            };
+        };
     }
 }

@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class TurnV2HttpControllerTest {
 
@@ -111,14 +112,20 @@ class TurnV2HttpControllerTest {
     }
 
     @Test
-    void realV1IngressBridgeIsDisabledUnlessCanaryIsExplicitlyEnabled() {
-        ConditionalOnProperty condition = LegacyTurnV2IngressBridge.class
+    void productV2IngressRequiresExplicitEnablement() {
+        ConditionalOnProperty condition = TurnV2ProductIngressAdapter.class
                 .getAnnotation(ConditionalOnProperty.class);
 
         assertNotNull(condition);
-        assertEquals("turn-engine.http.v1-v2-bridge.enabled", condition.name()[0]);
+        assertEquals("turn-engine.http.product-v2-ingress.enabled", condition.name()[0]);
         assertEquals("true", condition.havingValue());
         assertFalse(condition.matchIfMissing());
+    }
+
+    @Test
+    void productV2IngressDoesNotUseAnOrderDependentBeanCondition() {
+        // Constructor injection validates the V2 dependencies after all configurations are registered.
+        assertNull(TurnV2ProductIngressAdapter.class.getAnnotation(ConditionalOnBean.class));
     }
 
     static class FakeOwnerResolver extends CurrentOwnerHttpResolver {

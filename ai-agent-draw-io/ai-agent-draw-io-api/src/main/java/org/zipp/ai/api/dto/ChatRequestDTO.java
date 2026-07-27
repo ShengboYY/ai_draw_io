@@ -9,6 +9,8 @@ public class ChatRequestDTO {
     private String userId;
     private String sessionId;
     private String requestId;
+    // Stable frontend user-message id persisted atomically when the V2 turn starts.
+    private String clientMessageId;
     // Stable frontend assistant-message id used by the WP7 atomic answer transaction.
     private String responseMessageId;
     // Server-owned correlation id; controllers overwrite any client-provided value before use.

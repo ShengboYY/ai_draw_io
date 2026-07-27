@@ -1,35 +1,34 @@
 package org.zipp.ai.application.turn.classification;
 
 import org.zipp.ai.application.turn.demand.DemandResolutionPolicy;
+import org.zipp.ai.application.turn.demand.AmbiguousSourceDemandProposal;
+import org.zipp.ai.application.turn.demand.CurrentInstructionSpan;
+import org.zipp.ai.application.turn.demand.NoSourceDemandProposal;
+import org.zipp.ai.application.turn.demand.ProposalEvidence;
 import org.zipp.ai.application.turn.demand.RestrictedSourceDemandInput;
-import org.zipp.ai.application.turn.demand.SourceDemandInterpreterPort;
-import org.zipp.ai.application.turn.demand.SourceDemandInterpreterUnavailable;
-import org.zipp.ai.application.turn.demand.SourceDemandProposalOutcome;
-import org.zipp.ai.application.turn.demand.SourceDemandProposalReady;
+import org.zipp.ai.application.turn.demand.SourceDemandProposal;
 import org.zipp.ai.application.turn.demand.SourceDemandResolver;
 import org.zipp.ai.application.turn.demand.SourceDemandUnavailable;
+import org.zipp.ai.application.turn.demand.TypedSourceDemandProposal;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
- * Combines the independent router and restricted demand proposal without allowing either model
- * to bypass deterministic demand resolution.
+ * Runs one semantic model call and applies deterministic source policy to its untrusted result.
  */
 public final class TurnClassificationService {
 
     private final SemanticIntentRouterPort router;
-    private final SourceDemandInterpreterPort demandInterpreter;
     private final SourceDemandResolver demandResolver;
     private final DemandResolutionPolicy demandPolicy;
 
     public TurnClassificationService(
             SemanticIntentRouterPort router,
-            SourceDemandInterpreterPort demandInterpreter,
             SourceDemandResolver demandResolver,
             DemandResolutionPolicy demandPolicy
     ) {
         this.router = Objects.requireNonNull(router, "router");
-        this.demandInterpreter = Objects.requireNonNull(demandInterpreter, "demandInterpreter");
         this.demandResolver = Objects.requireNonNull(demandResolver, "demandResolver");
         this.demandPolicy = Objects.requireNonNull(demandPolicy, "demandPolicy");
     }
@@ -44,30 +43,58 @@ public final class TurnClassificationService {
             return new TurnClassificationUnavailable("CLASSIFICATION_INPUT_DIGEST_MISMATCH");
         }
         if (!routerInput.modelInputBinding().isBound()
-                || !demandInput.modelInputBinding().isBound()
-                || !routerInput.modelInputBinding().turnKey()
-                .equals(demandInput.modelInputBinding().turnKey())
-                || !routerInput.modelInputBinding().contextReadSetDigest()
-                .equals(demandInput.modelInputBinding().contextReadSetDigest())) {
+                || !routerInput.eligibleAttachmentRefs()
+                .equals(demandInput.eligibleAttachmentRefs())
+                || !routerInput.attachmentCandidates().equals(demandInput.attachmentCandidates())
+                || !routerInput.chartbookMembership().equals(demandInput.chartbookMembership())
+                || !routerInput.attachmentBindingDigest()
+                .equals(demandInput.attachmentBindingDigest())) {
             return new TurnClassificationUnavailable("CLASSIFICATION_MODEL_INPUT_BINDING_INVALID");
         }
 
-        SemanticIntentOutcome intentOutcome = router.route(routerInput);
+        SemanticIntentOutcome intentOutcome;
+        try {
+            intentOutcome = router.route(routerInput);
+        } catch (RuntimeException exception) {
+            return new TurnClassificationUnavailable("V2_SEMANTIC_ROUTER_UNAVAILABLE");
+        }
         if (intentOutcome instanceof SemanticIntentUnavailable unavailable) {
             return new TurnClassificationUnavailable(unavailable.code());
         }
         SemanticIntent intent = ((SemanticIntentReady) intentOutcome).intent();
-
-        SourceDemandProposalOutcome proposalOutcome = demandInterpreter.interpret(demandInput);
-        if (proposalOutcome instanceof SourceDemandInterpreterUnavailable unavailable) {
-            return new TurnClassificationUnavailable(unavailable.code());
-        }
-        SourceDemandProposalReady ready = (SourceDemandProposalReady) proposalOutcome;
-        var resolution = demandResolver.resolve(ready.proposal(), demandInput, demandPolicy);
+        SourceDemandProposal proposal = proposalFrom(intent.sourceIntent(), demandInput);
+        var resolution = demandResolver.resolve(proposal, demandInput, demandPolicy);
         if (resolution instanceof SourceDemandUnavailable unavailable) {
             return new TurnClassificationUnavailable(unavailable.code());
         }
         return new TurnClassificationReady(new TurnClassification(
-                routerInput.instruction(), intent, ready.proposal(), resolution));
+                routerInput.instruction(), intent, proposal, resolution));
+    }
+
+    private SourceDemandProposal proposalFrom(
+            SemanticSourceIntent source,
+            RestrictedSourceDemandInput input
+    ) {
+        var instruction = input.instruction();
+        var span = new CurrentInstructionSpan(
+                0, instruction.value().length(),
+                instruction.spanDigest(0, instruction.value().length()));
+        var evidence = new ProposalEvidence(
+                List.of(span),
+                source.confidence(),
+                java.util.Optional.ofNullable(source.relevanceQuery()),
+                input.inputDigest(),
+                demandPolicy.modelVersion(),
+                demandPolicy.policyVersion());
+        return switch (source.kind()) {
+            case NO_SOURCE -> new NoSourceDemandProposal(evidence, source.safeReason());
+            case AMBIGUOUS -> new AmbiguousSourceDemandProposal(evidence, source.safeReason());
+            default -> new TypedSourceDemandProposal(
+                    source.kind().demandKind(),
+                    source.attachmentRefs(),
+                    source.relevanceQuery(),
+                    evidence,
+                    source.safeReason());
+        };
     }
 }

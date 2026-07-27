@@ -2,6 +2,7 @@ package org.zipp.ai.application.turn;
 
 import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.context.ContextReadSet;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -46,11 +47,23 @@ public final class PlainResponseHandler {
             PlainResponsePlan plan,
             TurnEventSink events
     ) {
+        return execute(attempt, context, readSet, plan, events, CancellationSignal.NEVER);
+    }
+
+    public FencedCommitOutcome execute(
+            FencedAttempt attempt,
+            BaseTurnContext context,
+            ContextReadSet readSet,
+            PlainResponsePlan plan,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         Objects.requireNonNull(attempt, "attempt");
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(readSet, "readSet");
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(events, "events");
+        cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         if (!attempt.key().turnId().equals(context.request().turnId())) {
             throw new IllegalArgumentException("PLAIN_RESPONSE_CONTEXT_TURN_MISMATCH");
         }
@@ -62,7 +75,8 @@ public final class PlainResponseHandler {
         PlainResponseGenerationResult result = Objects.requireNonNull(
                 generation.generate(
                         new PlainResponseGenerationRequest(attempt, context, readSet, plan, profile),
-                        events),
+                        events,
+                        cancellation),
                 "plain response generation result");
         var permit = writeGate.tryEnter(attempt);
         if (permit.isEmpty()) {

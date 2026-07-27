@@ -6,6 +6,7 @@ import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextSlicePin;
 import org.zipp.ai.application.turn.planning.BoundSourcePlan;
 import org.zipp.ai.application.turn.planning.DirectCandidateOrigin;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -41,17 +42,34 @@ public final class DirectTurnHandler {
             DirectCandidateOrigin origin,
             TurnEventSink events
     ) {
+        return execute(attempt, context, readSet, plan, sourceBinding, artifactLeaseRef,
+                sourceIdentityRef, origin, events, CancellationSignal.NEVER);
+    }
+
+    public FencedCommitOutcome execute(
+            FencedAttempt attempt,
+            BaseTurnContext context,
+            ContextReadSet readSet,
+            BoundSourcePlan plan,
+            SourceCommitBinding sourceBinding,
+            String artifactLeaseRef,
+            String sourceIdentityRef,
+            DirectCandidateOrigin origin,
+            TurnEventSink events,
+            CancellationSignal cancellation
+    ) {
         SourceAwareHandlerChecks.requireCommon(
                 attempt, context, readSet, plan.identity(), sourceBinding);
         Objects.requireNonNull(events, "events");
+        cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         events.publish(new TurnEvent("direct_started", "prepared", Instant.now()));
         DirectVisionPort.Observation observation = Objects.requireNonNull(
                 vision.observe(new DirectVisionPort.Request(
-                        attempt, context, plan, artifactLeaseRef)),
+                        attempt, context, plan, artifactLeaseRef), cancellation),
                 "direct observation");
         DirectGenerationPort.Result result = Objects.requireNonNull(
                 generation.generate(new DirectGenerationPort.Request(
-                        attempt, context, readSet, plan, observation)),
+                        attempt, context, readSet, plan, observation), cancellation),
                 "direct generation");
         ContextSlicePin canvas = readSet.summary();
         long version = canvas.state() == ContextPinState.PINNED ? canvas.version() : 0;

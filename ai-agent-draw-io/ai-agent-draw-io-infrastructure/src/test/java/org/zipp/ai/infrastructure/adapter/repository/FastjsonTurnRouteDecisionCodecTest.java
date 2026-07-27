@@ -49,7 +49,10 @@ class FastjsonTurnRouteDecisionCodecTest {
     void roundTripsSourceFreeResponseRoute() {
         TurnRouteDecision original = new TurnRouteDecision.Response(
                 new PrePlanOutcome.SourceFreeResponseReady(
-                        new PlainResponsePlan(PlainResponseKind.REVIEW, "review the diagram"),
+                        new PlainResponsePlan(
+                                PlainResponseKind.REVIEW,
+                                "review the diagram",
+                                true),
                         new PlanningLineageFingerprint("c".repeat(64)),
                         CONTEXT_DIGEST,
                         INPUT_DIGEST));

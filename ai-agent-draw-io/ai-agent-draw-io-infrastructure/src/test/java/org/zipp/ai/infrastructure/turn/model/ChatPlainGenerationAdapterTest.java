@@ -45,6 +45,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ChatPlainGenerationAdapterTest {
 
+    private static final String CANVAS_XML = """
+            <mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
+            <mxCell id="node-1" value="Login" vertex="1" parent="1">
+            <mxGeometry x="20" y="20" width="120" height="60" as="geometry"/>
+            </mxCell></root></mxGraphModel>
+            """;
+
     @Test
     void generatesWithFreshToolFreeSessionAndOmitsAttachmentMetadata() {
         RecordingChat chat = new RecordingChat(
@@ -71,6 +78,21 @@ class ChatPlainGenerationAdapterTest {
         assertFalse(chat.lastText.contains("SOURCE_BODY"));
         assertFalse(chat.lastText.contains("private-spec.pdf"));
         assertFalse(chat.lastText.contains("attachment-secret"));
+        assertFalse(chat.lastText.contains(CANVAS_XML.trim()));
+    }
+
+    @Test
+    void editReceivesTheExactPinnedCanvasXml() {
+        RecordingChat chat = new RecordingChat(
+                "{\"canvasXml\":\"<mxGraphModel><root><mxCell id=\\\"0\\\"/></root></mxGraphModel>\","
+                        + "\"assistantMessage\":\"edited\",\"payloadRef\":\"plain-edit\"}");
+        ChatPlainGenerationAdapter adapter = new ChatPlainGenerationAdapter(
+                new ToolFreeChatModelInvoker(chat, "300025", "test-plain"));
+
+        adapter.generate(request(PlainDrawAction.EDIT), event -> { });
+
+        assertTrue(chat.lastText.contains("CANVAS_XML_DATA:"));
+        assertTrue(chat.lastText.contains(CANVAS_XML.trim()));
     }
 
     @Test
@@ -103,6 +125,10 @@ class ChatPlainGenerationAdapterTest {
     }
 
     private PlainGenerationRequest request() {
+        return request(PlainDrawAction.CREATE);
+    }
+
+    private PlainGenerationRequest request(PlainDrawAction action) {
         return new PlainGenerationRequest(
                 new FencedAttempt(
                         new TurnKey("owner-1", "conversation-1", "turn-1"),
@@ -121,8 +147,8 @@ class ChatPlainGenerationAdapterTest {
                                         new OpaqueConversationFileRef("file-1"),
                                         "application/pdf", "private-spec.pdf"))), "attachments"),
                         new AbsentContext<>("no clarification"),
-                        new AvailableContext<>(new TrustedCanvasContext(true, 2, 1,
-                                "two nodes and one edge"), "canvas"),
+                        new AvailableContext<>(new TrustedCanvasContext(
+                                1, 0, "one node", 2, "canvas-hash", CANVAS_XML), "canvas"),
                         new AvailableContext<>(new ValidatedSelectionContext(false, 0), "selection"),
                         new AvailableContext<>(new ConversationContext(
                                 List.of("previous turn"), "previous summary"), "conversation"),
@@ -135,7 +161,7 @@ class ChatPlainGenerationAdapterTest {
                                 "memory"),
                         new ContextDiagnostics(List.of())),
                 readSet(),
-                new PlainDrawPlan(PlainDrawAction.CREATE, "draw a login flow"),
+                new PlainDrawPlan(action, "draw a login flow"),
                 PlainExecutionProfile.m2SourceFree());
     }
 

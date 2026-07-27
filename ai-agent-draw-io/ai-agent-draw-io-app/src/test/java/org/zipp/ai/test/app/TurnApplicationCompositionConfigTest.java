@@ -1,8 +1,11 @@
 package org.zipp.ai.test.app;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.application.turn.AdmissionWriteOutcome;
+import org.zipp.ai.application.turn.AttemptLease;
 import org.zipp.ai.application.turn.AttemptDeadlineCancellationPort;
 import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.CancelTurnOutcome;
@@ -10,13 +13,17 @@ import org.zipp.ai.application.turn.ConversationCatalogPort;
 import org.zipp.ai.application.turn.ConversationRef;
 import org.zipp.ai.application.turn.ConversationStatus;
 import org.zipp.ai.application.turn.DeadlineCancelOutcome;
+import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.ExplicitTurnCancellationPort;
+import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.InstanceBootId;
 import org.zipp.ai.application.turn.InstanceLockOutcome;
+import org.zipp.ai.application.turn.LeaseTimingAnchor;
 import org.zipp.ai.application.turn.LegacyRetryExpiryPort;
 import org.zipp.ai.application.turn.MigrationModeSwitchCommand;
 import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
 import org.zipp.ai.application.turn.MigrationStateSnapshot;
+import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.SingleActiveInstanceLock;
 import org.zipp.ai.application.turn.StartupOrphanReconciler;
 import org.zipp.ai.application.turn.TurnEngineAssignmentCommand;
@@ -29,28 +36,50 @@ import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusQueryPort;
 import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
+import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.TurnStatusView;
 import org.zipp.ai.application.turn.TurnStartCommand;
 import org.zipp.ai.application.turn.TurnStartCommitPort;
 import org.zipp.ai.application.turn.TurnStartOutcome;
+import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.execution.TurnAttemptCompletion;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
+import org.zipp.ai.application.turn.execution.TurnHandle;
 import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
+import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
+import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
+import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
+import org.zipp.ai.trigger.http.turn.TurnV2ProductIngressAdapter;
 import org.zipp.ai.trigger.http.turn.TurnHttpControlAdapter;
 import org.zipp.ai.trigger.http.turn.TurnHttpDeliveryAdapter;
+import org.zipp.ai.trigger.http.turn.TurnHttpDeliveryResult;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class TurnApplicationCompositionConfigTest {
 
@@ -69,7 +98,9 @@ class TurnApplicationCompositionConfigTest {
             .withBean(TurnAttemptTakeoverPort.class, TurnApplicationCompositionConfigTest::fakeTakeover)
             .withBean(TurnEngineAssignmentPort.class, FakeAssignments::new)
             .withBean(ConversationCatalogPort.class, FakeConversationCatalog::new)
-            .withBean(TurnStartCommitPort.class, FakeTurnStart::new);
+            .withBean(TurnStartCommitPort.class, FakeTurnStart::new)
+            .withBean(AgentUsageTelemetryService.class, () -> new AgentUsageTelemetryService(
+                    new FakeAgentUsageTelemetryStore(), Clock.systemUTC()));
 
     @Test
     void keepsDurableM1StartupDisabledUntilTheMigrationReleaseIsEnabled() {
@@ -116,7 +147,9 @@ class TurnApplicationCompositionConfigTest {
 
     @Test
     void runsExplicitStartupMigrationOnlyAfterAdmissionStartup() {
-        contextRunner.withPropertyValues("turn-engine.migration.startup-target-mode=ALL_V2")
+        contextRunner
+                .withPropertyValues("turn-engine.migration.startup-target-mode=ALL_V2")
+                .withBean(TurnAttemptExecutionRunner.class, () -> mock(TurnAttemptExecutionRunner.class))
                 .run(context -> {
                     context.getBean(org.springframework.boot.ApplicationRunner.class)
                             .run(new org.springframework.boot.DefaultApplicationArguments());
@@ -133,6 +166,7 @@ class TurnApplicationCompositionConfigTest {
         contextRunner.withPropertyValues(
                         "turn-engine.migration.startup-target-mode=V2_CANARY",
                         "turn-engine.canary.allowlist=owner-1")
+                .withBean(TurnAttemptExecutionRunner.class, () -> mock(TurnAttemptExecutionRunner.class))
                 .run(context -> {
                     context.getBean(org.springframework.boot.ApplicationRunner.class)
                             .run(new org.springframework.boot.DefaultApplicationArguments());
@@ -144,6 +178,21 @@ class TurnApplicationCompositionConfigTest {
                     assertThat(context.getBean(
                             org.zipp.ai.application.turn.TurnEngineCohortSelector.class)
                     ).isInstanceOf(org.zipp.ai.application.turn.StableTurnEngineCohortSelector.class);
+                });
+    }
+
+    @Test
+    void rejectsV2StartupBeforeMigrationWhenTheExecutionRunnerIsUnavailable() {
+        contextRunner.withPropertyValues("turn-engine.migration.startup-target-mode=V2_CANARY")
+                .run(context -> {
+                    org.springframework.boot.ApplicationRunner startup =
+                            context.getBean(org.springframework.boot.ApplicationRunner.class);
+
+                    org.assertj.core.api.Assertions.assertThatThrownBy(
+                                    () -> startup.run(new org.springframework.boot.DefaultApplicationArguments()))
+                            .isInstanceOf(IllegalStateException.class)
+                            .hasMessage("TURN_V2_EXECUTION_NOT_READY");
+                    assertThat(context.getBean(FakeMigrationControl.class).commands).isEmpty();
                 });
     }
 
@@ -160,6 +209,289 @@ class TurnApplicationCompositionConfigTest {
         } finally {
             scheduler.shutdownNow();
         }
+    }
+
+    @Test
+    void composesTheProductV2IngressAfterAllDependenciesAreRegistered() {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            contextRunner
+                    .withUserConfiguration(TurnV2ProductIngressAdapter.class)
+                    .withPropertyValues("turn-engine.http.product-v2-ingress.enabled=true")
+                    .withBean(TurnAttemptExecutionRunner.class, () -> v2Runner(scheduler))
+                    .withBean(ICanvasStateStore.class, () -> mock(ICanvasStateStore.class))
+                    .withBean(IDiagramConversationStore.class, () -> mock(IDiagramConversationStore.class))
+                    .run(context -> assertThat(context).hasSingleBean(TurnV2ProductIngressAdapter.class));
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    void productV2IngressFailsClosedWhenTheV2RunnerIsUnavailable() {
+        contextRunner
+                .withUserConfiguration(TurnV2ProductIngressAdapter.class)
+                .withPropertyValues("turn-engine.http.product-v2-ingress.enabled=true")
+                .withBean(ICanvasStateStore.class, () -> mock(ICanvasStateStore.class))
+                .withBean(IDiagramConversationStore.class, () -> mock(IDiagramConversationStore.class))
+                .run(context -> {
+                    TurnV2ProductIngressAdapter ingress =
+                            context.getBean(TurnV2ProductIngressAdapter.class);
+
+                    assertThat(ingress.chat(
+                                    "owner-1", new ChatRequestDTO(), "request-1", "run-1").getContent())
+                            .isEqualTo("TURN_V2_EXECUTION_NOT_READY");
+                });
+    }
+
+    @Test
+    void productV2IngressRejectsHistoricalLegacyAssignmentWithoutFallback() {
+        TurnHttpDeliveryAdapter delivery = mock(TurnHttpDeliveryAdapter.class);
+        TurnHttpControlAdapter control = mock(TurnHttpControlAdapter.class);
+        ICanvasStateStore canvases = mock(ICanvasStateStore.class);
+        IDiagramConversationStore messages = mock(IDiagramConversationStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<TurnAttemptExecutionRunner> runner = mock(ObjectProvider.class);
+        when(runner.getIfAvailable()).thenReturn(mock(TurnAttemptExecutionRunner.class));
+        when(delivery.executeProductSync(any(), any())).thenReturn(new TurnHttpDeliveryResult(
+                new TurnSubmission.LegacyAssignmentPinned(
+                        new TurnKey("owner-1", "conversation-1", "request-1")),
+                List.of(),
+                false));
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        TurnV2ProductIngressAdapter ingress = new TurnV2ProductIngressAdapter(
+                delivery, control, canvases, messages, runner,
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()),
+                debugTraceProvider(), 1_000L);
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setDiagramId("diagram-1");
+        request.setMessage("draw it");
+
+        assertThat(ingress.chat("owner-1", request, "request-1", "aru_run-1").getContent())
+                .isEqualTo("TURN_V2_LEGACY_ASSIGNMENT_RETIRED");
+        assertThat(telemetryStore.runs).singleElement().satisfies(run -> {
+            assertThat(run.getRequestType()).isEqualTo("chat");
+            assertThat(run.getStatus()).isEqualTo("FAILED");
+        });
+        assertThat(telemetryStore.steps).singleElement().satisfies(step -> {
+            assertThat(step.getPhase()).isEqualTo("turn_v2_execution");
+            assertThat(step.getStatus()).isEqualTo("FAILED");
+        });
+    }
+
+    @Test
+    void productV2IngressStopsPollingWhenTheLocalAttemptAlreadyFailed() {
+        TurnHttpDeliveryAdapter delivery = mock(TurnHttpDeliveryAdapter.class);
+        TurnHttpControlAdapter control = mock(TurnHttpControlAdapter.class);
+        ICanvasStateStore canvases = mock(ICanvasStateStore.class);
+        IDiagramConversationStore messages = mock(IDiagramConversationStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<TurnAttemptExecutionRunner> runner = mock(ObjectProvider.class);
+        when(runner.getIfAvailable()).thenReturn(mock(TurnAttemptExecutionRunner.class));
+
+        TurnSubmission.ExecutionAccepted accepted = acceptedTurn();
+        TurnHandle handle = mock(TurnHandle.class);
+        when(handle.completion()).thenReturn(CompletableFuture.completedFuture(
+                new TurnAttemptCompletion.StatusOnly(
+                        new TurnStatusRef(accepted.key()), "TERMINAL_UNAVAILABLE")));
+        when(delivery.executeProductSync(any(), any())).thenReturn(new TurnHttpDeliveryResult(
+                accepted, List.of(), false, handle));
+        when(control.status(any(), any())).thenReturn(new TurnStatusQueryOutcome.Available(
+                new TurnStatusView(
+                        accepted.key(), TurnStatus.RUNNING, accepted.attempt().attemptId(),
+                        accepted.attempt().attemptEpoch(), null, null, Instant.now())));
+
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        TurnV2ProductIngressAdapter ingress = new TurnV2ProductIngressAdapter(
+                delivery, control, canvases, messages, runner,
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()),
+                debugTraceProvider(), 1_000L);
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setDiagramId("diagram-1");
+        request.setMessage("recreate the attached image");
+
+        assertThat(ingress.chat("owner-1", request, "request-1", "run-1").getContent())
+                .isEqualTo("TERMINAL_UNAVAILABLE");
+    }
+
+    @Test
+    void productV2StreamCreatesTheRootRunAndExecutionStep() {
+        TurnHttpDeliveryAdapter delivery = mock(TurnHttpDeliveryAdapter.class);
+        TurnHttpControlAdapter control = mock(TurnHttpControlAdapter.class);
+        ICanvasStateStore canvases = mock(ICanvasStateStore.class);
+        IDiagramConversationStore messages = mock(IDiagramConversationStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<TurnAttemptExecutionRunner> runner = mock(ObjectProvider.class);
+        when(runner.getIfAvailable()).thenReturn(mock(TurnAttemptExecutionRunner.class));
+
+        TurnKey key = new TurnKey("owner-1", "conversation-1", "request-1");
+        when(delivery.executeProductSync(any(), any())).thenReturn(new TurnHttpDeliveryResult(
+                new TurnSubmission.TerminalReplay(
+                        key,
+                        new PersistedTurnOutcome(
+                                TurnStatus.COMPLETED, "COMPLETED", "application/json", null, "{}")),
+                List.of(),
+                false));
+        when(messages.findAssistantMessage(
+                "owner-1", "diagram-1", "conversation-1", "request-1"))
+                .thenReturn(Optional.of(DiagramConversationMessage.builder()
+                        .userId("owner-1")
+                        .diagramId("diagram-1")
+                        .turnId("request-1")
+                        .role("agent")
+                        .content("done")
+                        .build()));
+
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        TurnV2ProductIngressAdapter ingress = new TurnV2ProductIngressAdapter(
+                delivery, control, canvases, messages, runner,
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()),
+                debugTraceProvider(), 1_000L);
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setAgentId("agent-1");
+        request.setSessionId("session-1");
+        request.setDiagramId("diagram-1");
+        request.setMessage("draw it");
+
+        ingress.stream(
+                "owner-1", request, "request-1", "aru_stream-1", mock(ResponseBodyEmitter.class));
+
+        assertThat(telemetryStore.runs).singleElement().satisfies(run -> {
+            assertThat(run.getId()).isEqualTo("aru_stream-1");
+            assertThat(run.getRequestType()).isEqualTo("chat_stream");
+            assertThat(run.getDiagramId()).isEqualTo("diagram-1");
+            assertThat(run.getStatus()).isEqualTo("SUCCESS");
+        });
+        assertThat(telemetryStore.steps).singleElement().satisfies(step -> {
+            assertThat(step.getRunId()).isEqualTo("aru_stream-1");
+            assertThat(step.getPhase()).isEqualTo("turn_v2_execution");
+            assertThat(step.getStatus()).isEqualTo("SUCCESS");
+        });
+        assertThat(telemetryStore.traceEvents)
+                .extracting(event -> event.getEventType())
+                .containsExactly("turn_v2_started", "turn_v2_completed");
+    }
+
+    @Test
+    void productV2IngressCapturesRunAndStepPayloadsForTheInspector() {
+        TurnHttpDeliveryAdapter delivery = mock(TurnHttpDeliveryAdapter.class);
+        TurnHttpControlAdapter control = mock(TurnHttpControlAdapter.class);
+        ICanvasStateStore canvases = mock(ICanvasStateStore.class);
+        IDiagramConversationStore messages = mock(IDiagramConversationStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<TurnAttemptExecutionRunner> runner = mock(ObjectProvider.class);
+        when(runner.getIfAvailable()).thenReturn(mock(TurnAttemptExecutionRunner.class));
+        when(delivery.executeProductSync(any(), any())).thenReturn(new TurnHttpDeliveryResult(
+                new TurnSubmission.LegacyAssignmentPinned(
+                        new TurnKey("owner-1", "conversation-1", "request-1")),
+                List.of(),
+                false));
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        FakeDebugTraceStore traceStore = new FakeDebugTraceStore();
+        TurnV2ProductIngressAdapter ingress = new TurnV2ProductIngressAdapter(
+                delivery, control, canvases, messages, runner,
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()),
+                debugTraceProvider(new AgentDebugTraceService(traceStore, null)), 1_000L);
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setDiagramId("diagram-1");
+        request.setMessage("draw it");
+
+        ingress.chat("owner-1", request, "request-1", "aru_capture-1");
+
+        // The inspector lazy-loads payloads per span id, so the run root and the execution step
+        // must each carry their own rows or their detail panel reads "Not captured".
+        assertThat(traceStore.captures)
+                .extracting(DebugTraceCapture::getSpanId, DebugTraceCapture::getPayloadKind)
+                .contains(tuple("aru_capture-1", "INPUT"), tuple("aru_capture-1", "ERROR"));
+        assertThat(traceStore.captures)
+                .anySatisfy(capture -> {
+                    assertThat(capture.getSpanId()).isNotEqualTo("aru_capture-1");
+                    assertThat(capture.getPayloadKind()).isEqualTo("INPUT");
+                    assertThat(capture.getContent()).contains("draw it");
+                });
+    }
+
+    @Test
+    void productV2RunsAreAttributedToThePlatformKeyItActuallyUses() {
+        TurnHttpDeliveryAdapter delivery = mock(TurnHttpDeliveryAdapter.class);
+        TurnHttpControlAdapter control = mock(TurnHttpControlAdapter.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<TurnAttemptExecutionRunner> runner = mock(ObjectProvider.class);
+        when(delivery.executeProductSync(any(), any())).thenReturn(new TurnHttpDeliveryResult(
+                new TurnSubmission.LegacyAssignmentPinned(
+                        new TurnKey("owner-1", "conversation-1", "request-1")),
+                List.of(),
+                false));
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        TurnV2ProductIngressAdapter ingress = new TurnV2ProductIngressAdapter(
+                delivery, control, mock(ICanvasStateStore.class), mock(IDiagramConversationStore.class),
+                runner, new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()),
+                debugTraceProvider(null), 1_000L);
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setDiagramId("diagram-1");
+        request.setMessage("draw it");
+        request.setModelCredentialId("mc_user_owned");
+
+        ingress.chat("owner-1", request, "request-1", "aru_credential-1");
+
+        // V2 never installs the caller's credential, so claiming USER_KEY would bill a key that
+        // made no call. Every LLM span copies this attribution straight off the run context.
+        assertThat(telemetryStore.runs).singleElement().satisfies(run -> {
+            assertThat(run.getCredentialSource()).isEqualTo(AgentUsageTelemetryService.PLATFORM);
+            assertThat(run.getModelCredentialId()).isNull();
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<AgentDebugTraceService> debugTraceProvider() {
+        return debugTraceProvider(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<AgentDebugTraceService> debugTraceProvider(AgentDebugTraceService service) {
+        ObjectProvider<AgentDebugTraceService> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(service);
+        return provider;
+    }
+
+    private static final class FakeDebugTraceStore implements IAgentDebugTraceStore {
+        private final List<DebugTraceCapture> captures = new ArrayList<>();
+
+        @Override
+        public void insertControl(DebugTraceControl control) {
+        }
+
+        @Override
+        public List<DebugTraceControl> listEnabledControls() {
+            return List.of();
+        }
+
+        @Override
+        public void insertCapture(DebugTraceCapture capture) {
+            captures.add(capture);
+        }
+
+        @Override
+        public int deleteExpiredContent(Instant now) {
+            return 0;
+        }
+
+        @Override
+        public int extendRunContentExpiry(String runId, Instant expiresAt) {
+            return 0;
+        }
+    }
+
+    private static TurnSubmission.ExecutionAccepted acceptedTurn() {
+        FencedAttempt attempt = new FencedAttempt(
+                new TurnKey("owner-1", "conversation-1", "request-1"),
+                new AttemptLease(
+                        "attempt-1", 1, Instant.parse("2026-07-27T00:00:30Z"), 30_000),
+                1,
+                "input-digest",
+                new ExecutionPolicySnapshot(1, TurnEngineMode.ALL_V2, "{}", "policy-hash"));
+        return new TurnSubmission.ExecutionAccepted(
+                attempt.key(), attempt, new LeaseTimingAnchor(System.nanoTime(), attempt.lease()));
     }
 
     private static TurnAttemptExecutionRunner v2Runner(ScheduledExecutorService scheduler) {

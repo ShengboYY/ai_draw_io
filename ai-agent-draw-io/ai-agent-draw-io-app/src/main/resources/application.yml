@@ -123,6 +123,23 @@ app:
       provider-max-age-seconds: ${MATERIAL_PROVIDER_CAPACITY_MAX_AGE_SECONDS:180}
       exporter-secret: ${MATERIAL_PROVIDER_CAPACITY_EXPORTER_SECRET:}
 
+# Product chat is V2-only when the lifecycle and product ingress are explicitly enabled.
+turn-engine:
+  lifecycle:
+    enabled: ${TURN_ENGINE_LIFECYCLE_ENABLED:false}
+  execution:
+    # Explicitly composes the complete V2 planning and attempt-runner graph.
+    enabled: ${TURN_ENGINE_V2_EXECUTION_ENABLED:false}
+  http:
+    product-v2-ingress:
+      enabled: ${TURN_ENGINE_PRODUCT_V2_INGRESS_ENABLED:false}
+      # Direct image reconstruction can require a visual pass followed by generation.
+      timeout-millis: ${TURN_ENGINE_PRODUCT_V2_INGRESS_TIMEOUT_MILLIS:180000}
+  migration:
+    startup-target-mode: ${TURN_ENGINE_MIGRATION_STARTUP_TARGET_MODE:}
+  canary:
+    rollout-percent: ${TURN_ENGINE_CANARY_ROLLOUT_PERCENT:0}
+
 # Actuator only exposes health and Prometheus metrics. Production must restrict /actuator/prometheus
 # at the network or reverse-proxy layer so it is reachable by Prometheus, not public users.
 management:
@@ -149,10 +166,20 @@ management:
         ai.agent.tool.call.latency: true
 
 zipp:
+  turn:
+    v2:
+      # V2 generation capabilities are composed as one product path.
+      plain-agent-id: ${TURN_V2_PLAIN_AGENT_ID:300025}
+      grounded-agent-id: ${TURN_V2_GROUNDED_AGENT_ID:300027}
+      evidence-agent-id: ${TURN_V2_EVIDENCE_AGENT_ID:300028}
   visual-review:
-    # Roll out visible review first. Auto repair stays independently disabled until canary metrics pass.
+    # Every persisted V2 drawing is reviewed from its real browser render. The explicit flags remain
+    # the main gate; percentages are optional production canaries rather than hidden local blockers.
     enabled: ${ZIPP_VISUAL_REVIEW_ENABLED:false}
     auto-repair-enabled: ${ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED:false}
+    rollout-percent: ${ZIPP_VISUAL_REVIEW_ROLLOUT_PERCENT:100}
+    round-1-rollout-percent: ${ZIPP_VISUAL_REVIEW_ROUND_1_ROLLOUT_PERCENT:100}
+    round-2-rollout-percent: ${ZIPP_VISUAL_REVIEW_ROUND_2_ROLLOUT_PERCENT:100}
     drawer-agent-id: ${ZIPP_VISUAL_REVIEW_DRAWER_AGENT_ID:300000}
     # Allow slow image reviews while staying below the 120-second streaming response timeout.
     timeout-ms: ${ZIPP_VISUAL_REVIEW_TIMEOUT_MS:60000}
@@ -164,6 +191,8 @@ zipp:
   telemetry:
     # Enable this on exactly one app instance, or run cleanup from a dedicated scheduler.
     cleanup-enabled: ${ZIPP_TELEMETRY_CLEANUP_ENABLED:false}
+    # Local trace analysis captures every new run by default; production can explicitly disable payload storage.
+    debug-payload-capture-enabled: ${ZIPP_TELEMETRY_DEBUG_PAYLOAD_CAPTURE_ENABLED:true}
     retention-days: ${ZIPP_TELEMETRY_RETENTION_DAYS:30}
     cleanup-cron: "${ZIPP_TELEMETRY_CLEANUP_CRON:0 30 3 * * *}"
     delete-batch-size: ${ZIPP_TELEMETRY_DELETE_BATCH_SIZE:500}

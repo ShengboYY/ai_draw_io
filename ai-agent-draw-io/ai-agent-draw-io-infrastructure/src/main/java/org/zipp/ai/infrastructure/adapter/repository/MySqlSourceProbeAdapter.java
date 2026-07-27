@@ -113,7 +113,11 @@ public final class MySqlSourceProbeAdapter implements SourceProbePort {
     }
 
     private SourceMode sourceMode(SourceProbeCommand command) {
-        return command.demand().attachmentRefs().isEmpty() ? SourceMode.AUTO : SourceMode.EXPLICIT;
+        // Current-message attachment declarations are an exact allow-list. EXPLICIT would also
+        // expand older Conversation/Diagram/Chartbook sources and could select a removed draft.
+        return command.demand().attachmentRefs().isEmpty()
+                ? SourceMode.AUTO
+                : SourceMode.EXPLICIT_ONLY;
     }
 
     private DirectCandidateOrigin origin(RequestSourceOrigin origin) {

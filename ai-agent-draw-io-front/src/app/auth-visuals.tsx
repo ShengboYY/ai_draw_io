@@ -21,7 +21,7 @@ export function AuthBrandMark({ className = '' }: BrandMarkProps) {
         aria-hidden="true"
       >
         <Image
-          src="/brand/freedraw-app-icon-v2.png"
+          src="/brand/freedraw-app-icon-brush.png"
           alt=""
           fill
           sizes="48px"

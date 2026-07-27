@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.agent.service.usage.TelemetryPropagatingExecutorService;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.multimodal.*;
 import org.zipp.ai.infrastructure.adapter.filesystem.FileSystemMaterialObjectAdapter;
@@ -82,6 +83,9 @@ public class MaterialVisualObservationConfig {
             VisualArtifactReaderPort artifacts, VisionModelPort model,
             @Qualifier("visualObservationExecutor") ExecutorService executor,
             @Value("${app.material-visual-observation.timeout-ms:30000}") long timeoutMs) {
-        return new DefaultVisualObservationModule(artifacts, model, executor, timeoutMs);
+        // The observation runs the vision model on this pool, so the turn's run context has to
+        // travel with the task or the visual span never reaches the run it belongs to.
+        return new DefaultVisualObservationModule(
+                artifacts, model, TelemetryPropagatingExecutorService.wrap(executor), timeoutMs);
     }
 }

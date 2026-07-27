@@ -36,13 +36,16 @@ import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.planning.PlanningLineageFingerprint;
 import org.zipp.ai.application.turn.planning.PrePlanOutcome;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class DefaultTurnV2ExecutionCoordinatorTest {
 
@@ -54,8 +57,11 @@ class DefaultTurnV2ExecutionCoordinatorTest {
         ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
         AtomicInteger generations = new AtomicInteger();
         AtomicInteger commits = new AtomicInteger();
+        CancellationSignal cancellation = () -> false;
+        AtomicReference<CancellationSignal> observedCancellation = new AtomicReference<>();
         PlainDrawingHandler plain = new PlainDrawingHandler(
-                (request, events) -> {
+                (request, events, signal) -> {
+                    observedCancellation.set(signal);
                     generations.incrementAndGet();
                     return new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created");
                 },
@@ -70,11 +76,12 @@ class DefaultTurnV2ExecutionCoordinatorTest {
         TurnV2ExecutionOutcome outcome = new DefaultTurnV2ExecutionCoordinator(
                 (ignoredAttempt, ignoredCommand) -> ready(
                         attempt, context, readSet, plainDecision(readSet, attempt), checkpoint(readSet, attempt)),
-                plain).execute(attempt, command, ignoredEvents());
+                plain).execute(attempt, command, ignoredEvents(), cancellation);
 
         TurnV2ExecutionOutcome.Committed committed = assertInstanceOf(
                 TurnV2ExecutionOutcome.Committed.class, outcome);
         assertInstanceOf(FencedCommitOutcome.Committed.class, committed.outcome());
+        assertSame(cancellation, observedCancellation.get());
         assertEquals(1, generations.get());
         assertEquals(1, commits.get());
     }
@@ -87,8 +94,11 @@ class DefaultTurnV2ExecutionCoordinatorTest {
         ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
         AtomicInteger generations = new AtomicInteger();
         AtomicInteger commits = new AtomicInteger();
+        CancellationSignal cancellation = () -> false;
+        AtomicReference<CancellationSignal> observedCancellation = new AtomicReference<>();
         PlainResponseHandler response = new PlainResponseHandler(
-                (request, events) -> {
+                (request, events, signal) -> {
+                    observedCancellation.set(signal);
                     generations.incrementAndGet();
                     return new PlainResponseGenerationResult("reviewed", "response-1");
                 },
@@ -105,9 +115,10 @@ class DefaultTurnV2ExecutionCoordinatorTest {
                         (ignoredAttempt, ignoredCommand) -> ready(
                                 attempt, context, readSet, responseDecision(readSet, attempt),
                                 checkpoint(readSet, attempt)),
-                        response).execute(attempt, command, ignoredEvents()));
+                        response).execute(attempt, command, ignoredEvents(), cancellation));
 
         assertInstanceOf(FencedCommitOutcome.Committed.class, committed.outcome());
+        assertSame(cancellation, observedCancellation.get());
         assertEquals(1, generations.get());
         assertEquals(1, commits.get());
     }
@@ -120,7 +131,7 @@ class DefaultTurnV2ExecutionCoordinatorTest {
         ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
         AtomicInteger generations = new AtomicInteger();
         PlainDrawingHandler plain = new PlainDrawingHandler(
-                (request, events) -> {
+                (request, events, cancellation) -> {
                     generations.incrementAndGet();
                     return new PlainGenerationResult("unexpected", "<mxGraphModel/>", "unexpected");
                 },
@@ -146,7 +157,7 @@ class DefaultTurnV2ExecutionCoordinatorTest {
         FencedAttempt attempt = attempt(command);
         AtomicInteger generations = new AtomicInteger();
         PlainDrawingHandler plain = new PlainDrawingHandler(
-                (request, events) -> {
+                (request, events, cancellation) -> {
                     generations.incrementAndGet();
                     return new PlainGenerationResult("unexpected", "<mxGraphModel/>", "unexpected");
                 },
@@ -173,7 +184,7 @@ class DefaultTurnV2ExecutionCoordinatorTest {
         ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
         AtomicInteger generations = new AtomicInteger();
         PlainDrawingHandler plain = new PlainDrawingHandler(
-                (request, events) -> {
+                (request, events, cancellation) -> {
                     generations.incrementAndGet();
                     return new PlainGenerationResult("unexpected", "<mxGraphModel/>", "unexpected");
                 },

@@ -45,6 +45,13 @@ test('files panel owns upload and scoped file actions', () => {
   assert.match(pageSource, /details\.scopes\.length > 1[\s\S]*materialClient\.removeScope/);
 });
 
+test('chartbook shared files load before a diagram has a conversation', () => {
+  // Blank diagrams still have a chartbook scope even though their conversation id is empty.
+  assert.match(pageSource, /if \(!conversationId && !currentDiagramId\)/);
+  assert.match(pageSource, /conversationId\s*\?\s*materialClient\.listScope\('CONVERSATION'/);
+  assert.match(pageSource, /setConversationFiles\(conversationPage\?\.items \|\| \[\]\)/);
+});
+
 test('composer has no file checkbox or source routing controls', () => {
   assert.doesNotMatch(traySource, /type="checkbox"/);
   assert.doesNotMatch(pageSource, /<SourceUseControl/);
@@ -52,6 +59,7 @@ test('composer has no file checkbox or source routing controls', () => {
   assert.doesNotMatch(pageSource, /selectedAttachmentUploadIds/);
   assert.doesNotMatch(pageSource, /selectedVersionIds/);
   assert.doesNotMatch(pageSource, /sourceUsePreference/);
-  assert.match(traySource, /processingAttachments\.map/);
-  assert.doesNotMatch(traySource, /attachments\.map/);
+  assert.match(traySource, /attachments\.map/);
+  assert.match(pageSource, /hasProcessingAttachments/);
+  assert.match(pageSource, /Wait for attachments to finish/);
 });

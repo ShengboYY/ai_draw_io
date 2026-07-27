@@ -63,7 +63,7 @@ class VisualObservationModuleTest {
     }
 
     @Test
-    void diagramReconstructionReturnsVerifiedGraphThroughTheSharedBoundary() {
+    void diagramReconstructionReturnsUsableGraphDespiteNonBlockingVisualGaps() {
         ObservedDiagramGraph graph = new ObservedDiagramGraph(
                 List.of(new ObservedDiagramGraph.Node("review", "Review",
                         ObservedDiagramGraph.Shape.RECTANGLE,
@@ -72,7 +72,8 @@ class VisualObservationModuleTest {
                 List.of(), List.of(), List.of());
         VisualObservationModule module = new DefaultVisualObservationModule(
                 (artifact, maximumBytes) -> new byte[]{1, 2, 3, 4},
-                request -> new VisionModelPort.Response(List.of(), graph, List.of()));
+                request -> new VisionModelPort.Response(
+                        List.of(), graph, List.of("some label may be unclear")));
         VisualObservationCommand command = new VisualObservationCommand(owner, "request-1", "run-1",
                 VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, "Reconstruct this diagram",
                 List.of(target), 32);

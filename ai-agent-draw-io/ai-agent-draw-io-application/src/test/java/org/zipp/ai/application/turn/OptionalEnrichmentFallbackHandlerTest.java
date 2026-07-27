@@ -32,14 +32,17 @@ import org.zipp.ai.application.turn.planning.PrePlanOutcome;
 import org.zipp.ai.application.turn.planning.SourcePlanDecision;
 import org.zipp.ai.application.turn.planning.SourceProbeCommand;
 import org.zipp.ai.application.turn.planning.SourceProbeOutcome;
+import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OptionalEnrichmentFallbackHandlerTest {
@@ -48,7 +51,10 @@ class OptionalEnrichmentFallbackHandlerTest {
     void probeFallbackStartsFreshPlainInvocationAndEmitsHonestReceipt() {
         List<String> events = new ArrayList<>();
         int[] generations = {0};
-        OptionalEnrichmentFallbackHandler handler = handler((request, sink) -> {
+        CancellationSignal cancellation = () -> false;
+        AtomicReference<CancellationSignal> observedCancellation = new AtomicReference<>();
+        OptionalEnrichmentFallbackHandler handler = handler((request, sink, signal) -> {
+            observedCancellation.set(signal);
             generations[0]++;
             assertEquals("draw a login flow", request.plan().instruction());
             return new PlainGenerationResult("plain-payload", "<mxGraphModel/>", "created");
@@ -63,8 +69,10 @@ class OptionalEnrichmentFallbackHandlerTest {
 
         handler.executeProbeFallback(
                 attempt(), context(), readSet(), fallback,
-                event -> events.add(event.type() + ":" + event.payload()));
+                event -> events.add(event.type() + ":" + event.payload()),
+                cancellation);
 
+        assertSame(cancellation, observedCancellation.get());
         assertEquals(1, generations[0]);
         assertEquals("enrichment_skipped", events.get(0).split(":")[0]);
         assertFalse(events.get(0).contains("source_used"));
@@ -81,7 +89,7 @@ class OptionalEnrichmentFallbackHandlerTest {
     })
     void postProbeFallbackDestroysPrimaryScopeBeforePlainGeneration(FallbackReason reason) {
         List<String> order = new ArrayList<>();
-        OptionalEnrichmentFallbackHandler handler = handler((request, sink) -> {
+        OptionalEnrichmentFallbackHandler handler = handler((request, sink, cancellation) -> {
             order.add("generate");
             return new PlainGenerationResult("plain-payload", "<mxGraphModel/>", "created");
         });
@@ -101,7 +109,7 @@ class OptionalEnrichmentFallbackHandlerTest {
     @Test
     void primaryScopeCloseFailurePreventsFallbackInvocation() {
         int[] generations = {0};
-        OptionalEnrichmentFallbackHandler handler = handler((request, sink) -> {
+        OptionalEnrichmentFallbackHandler handler = handler((request, sink, cancellation) -> {
             generations[0]++;
             return new PlainGenerationResult("plain-payload", "<mxGraphModel/>", "created");
         });
@@ -128,7 +136,7 @@ class OptionalEnrichmentFallbackHandlerTest {
     @Test
     void discardFailureStillClosesPrimaryScopeAndPreventsFallbackInvocation() {
         List<String> order = new ArrayList<>();
-        OptionalEnrichmentFallbackHandler handler = handler((request, sink) -> {
+        OptionalEnrichmentFallbackHandler handler = handler((request, sink, cancellation) -> {
             order.add("generate");
             return new PlainGenerationResult("plain-payload", "<mxGraphModel/>", "created");
         });

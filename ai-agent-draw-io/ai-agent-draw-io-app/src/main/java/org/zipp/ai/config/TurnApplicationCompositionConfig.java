@@ -140,8 +140,8 @@ public class TurnApplicationCompositionConfig {
             DiagramTurnFacade facade,
             ObjectProvider<TurnAttemptExecutionRunner> runner
     ) {
-        // Keep one delivery boundary while allowing isolated V2 execution to be composed optionally.
-        return new DefaultTurnDeliveryExecutor(facade, runner.getIfAvailable());
+        // Resolve lazily: accepted V2 work must not inherit a null runner captured during startup.
+        return new DefaultTurnDeliveryExecutor(facade, runner::getIfAvailable);
     }
 
     @Bean
@@ -154,7 +154,7 @@ public class TurnApplicationCompositionConfig {
             TurnHttpRequestTranslator translator,
             TurnDeliveryExecutor executor
     ) {
-        // The compatibility adapter is composed for future V2 wiring, not attached to legacy routes.
+        // The browser DTO is translated at the edge; product execution remains V2-only.
         return new TurnHttpDeliveryAdapter(translator, executor);
     }
 
@@ -194,6 +194,7 @@ public class TurnApplicationCompositionConfig {
             TurnAdmissionGate admissionGate,
             TurnEngineMigrationStatePort migrationState,
             TurnEngineMigrationCoordinator migrationCoordinator,
+            ObjectProvider<TurnAttemptExecutionRunner> runner,
             @Value("${turn-engine.migration.startup-target-mode:}") String startupTargetMode
     ) {
         InstanceBootId bootId = new InstanceBootId(UUID.randomUUID().toString());
@@ -211,6 +212,11 @@ public class TurnApplicationCompositionConfig {
                 targetMode = TurnEngineMode.valueOf(startupTargetMode.trim().toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException exception) {
                 throw new IllegalStateException("TURN_MIGRATION_TARGET_MODE_INVALID", exception);
+            }
+            if (targetMode != TurnEngineMode.LEGACY && runner.getIfAvailable() == null) {
+                // Fail startup before changing durable migration state; V2 may never accept
+                // a turn unless the complete claim-to-terminal execution graph exists.
+                throw new IllegalStateException("TURN_V2_EXECUTION_NOT_READY");
             }
             MigrationModeSwitchOutcome migration = migrationCoordinator.switchMode(
                     migrationState.current(), targetMode);

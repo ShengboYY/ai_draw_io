@@ -9,7 +9,7 @@ import type { createMaterialClient } from '@/api/material';
 
 type MaterialClient = ReturnType<typeof createMaterialClient>;
 type UploadItem = UploadState & { file: File; postPolicy?: BrowserPostPolicy };
-type ReportedUploadStatus = {
+export type ReportedUploadStatus = {
   uploadId: string;
   fileName: string;
   state: string;
@@ -32,6 +32,7 @@ type MaterialUploaderProps = {
   onReady?: () => void;
   onUploadInitiated?: (upload: { uploadId: string; fileName: string }) => void;
   onUploadStatus?: (upload: ReportedUploadStatus) => void;
+  onSuppressedUploadStatus?: (upload: ReportedUploadStatus) => void;
   onRetryableUploadIdsChange?: (uploadIds: string[]) => void;
   suppressedUploadIds?: string[];
   variant?: 'panel' | 'compact';
@@ -55,6 +56,7 @@ export const MaterialUploader = forwardRef<MaterialUploaderHandle, MaterialUploa
   onReady,
   onUploadInitiated,
   onUploadStatus,
+  onSuppressedUploadStatus,
   onRetryableUploadIdsChange,
   suppressedUploadIds = [],
   variant = 'panel',
@@ -76,7 +78,11 @@ export const MaterialUploader = forwardRef<MaterialUploaderHandle, MaterialUploa
   }, [items, onRetryableUploadIdsChange]);
 
   const reportUploadStatus = (upload: ReportedUploadStatus) => {
-    if (!suppressedIdsRef.current.has(upload.uploadId)) onUploadStatus?.(upload);
+    if (suppressedIdsRef.current.has(upload.uploadId)) {
+      onSuppressedUploadStatus?.(upload);
+    } else {
+      onUploadStatus?.(upload);
+    }
   };
   const reportServerStatus = (file: File, status: MaterialUploadStatus) => {
     // Preserve server identities so Files can replace the pending row with its catalog row.
@@ -244,7 +250,7 @@ export const MaterialUploader = forwardRef<MaterialUploaderHandle, MaterialUploa
           <h2 className="font-semibold text-zinc-900">Upload files</h2>
           <p className="mt-1 text-sm text-zinc-500">PDF, PNG, and JPEG are supported. Files upload directly from your browser before processing.</p>
         </div>
-        <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()} className="theme-btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-40">Choose files</button>
+        <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()} className="theme-btn rounded-lg px-4 py-2 text-sm transition disabled:opacity-40">Choose files</button>
         <input ref={inputRef} type="file" multiple hidden accept={acceptedMimeTypes.join(',')} onChange={event => chooseFiles(event.target.files)} />
       </div>
       {items.length > 0 && <ul className="mt-4 space-y-2">

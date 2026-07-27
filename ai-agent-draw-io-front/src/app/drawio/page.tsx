@@ -3,7 +3,6 @@
 import { DrawIoEmbed, type DrawIoEmbedRef } from './secure-drawio-embed';
 import type { DrawioSelection } from './secure-drawio-bridge';
 import Image from 'next/image';
-import Link from 'next/link';
 import { Suspense, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setUserInfo as persistUserInfo } from '@/utils/cookie';
@@ -24,6 +23,7 @@ import { createMaterialClient } from '@/api/material';
 import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
 import { createChartbookClient } from '@/api/chartbook';
 import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
+import { MessageAttachmentPreview } from '@/features/sources/MessageAttachmentPreview';
 import { ContextReceiptBar } from '@/features/context/ContextReceiptBar';
 import { buildCitationReceipt, buildContextReceipts } from '@/features/context/context-receipts';
 import {
@@ -32,7 +32,7 @@ import {
 } from '@/features/sources/ComposerAddMenu';
 import type { MaterialUploaderHandle } from '@/features/materials/MaterialUploader';
 import type { Chartbook, MaterialCatalogCard } from '@/features/materials/material-types';
-import { isTerminalUploadStatus } from '@/features/materials/upload-machine';
+import { isReadyUploadStatus, isTerminalUploadStatus } from '@/features/materials/upload-machine';
 import { FilesPanel } from '@/features/files/FilesPanel';
 import { buildFilesPanelGroups } from '@/features/files/files-panel-model';
 import { DirectConfirmationPanel } from '@/features/sources/DirectConfirmationPanel';
@@ -73,9 +73,17 @@ import {
 } from './canvas-persistence-coordinator';
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
 import { buildDiagramHistoryEntries } from './diagram-history';
-import { buildRestoredDiagramState, normalizeRestoredDrawioXml } from './diagram-restore';
+import {
+  buildRestoredDiagramState,
+  isDiagramRouteReady,
+  normalizeRestoredDrawioXml,
+} from './diagram-restore';
 import { buildDiagramTitleFromPrompt, DEFAULT_DIAGRAM_TITLE } from './diagram-title';
-import { buildRestoredConversationMessages } from './conversation-restore';
+import {
+  buildRestoredConversationMessages,
+  mergeRestoredConversationPresentation,
+  type RestoredAttachmentMetadata,
+} from './conversation-restore';
 import { citationOriginLabel } from './citation-origin';
 import {
   applyDemoQuotaConsumption,
@@ -98,8 +106,8 @@ import {
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
+  projectUserExecutionStep,
   shouldShowAgentTyping,
-  thinkingPhaseLabel,
   thinkingRouteLabel,
   usesChinesePresentation,
   visualReviewStageLabel,
@@ -128,6 +136,7 @@ import {
   shouldShowUnavailableReview,
   shouldReviewSavedRepair,
 } from './visual-review-chain';
+import { streamErrorMessage } from './stream-error-presentation';
 
 // Message type definition
 type MessageStep = {
@@ -161,7 +170,7 @@ type Message = {
   }>;
   contextReceipts?: ReturnType<typeof buildContextReceipts>;
   citationReceipt?: ReturnType<typeof buildCitationReceipt>;
-  attachments?: Array<{ uploadId: string; fileName: string; state: ConversationAttachment['state'] }>;
+  attachments?: ConversationAttachment[];
   timestamp: number;
 };
 
@@ -793,10 +802,23 @@ function DrawioPageContent() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const currentSessionRef = useRef(currentSessionId);
   const currentDiagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
+  const isRequestedDiagramReady = isDiagramRouteReady(restoreDiagramId, currentDiagramId);
   const materialClient = useMemo(() => createMaterialClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const capabilitiesClient = useMemo(() => createMaterialCapabilitiesClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const chartbookClient = useMemo(() => createChartbookClient({ baseUrl: API_CONFIG.BASE_URL }), []);
+  // Keep the originating chartbook until this exact diagram has reached the server.
+  const pendingChartbookAssignmentRef = useRef<{
+    chartbookId: string;
+    diagramId: string;
+    inFlight: boolean;
+  } | null>(null);
   const [conversationAttachments, setConversationAttachments] = useState<ConversationAttachment[]>([]);
+  // A turn may bind only attachments that finished producing a usable direct/retrieval artifact.
+  const hasProcessingAttachments = conversationAttachments.some(attachment => {
+    const state = attachment.state.trim().toUpperCase();
+    return !isReadyUploadStatus(state) && state !== 'PARTIAL_READY';
+  });
+  const [sentAttachmentUploadIds, setSentAttachmentUploadIds] = useState<string[]>([]);
   const attachmentUploaderRef = useRef<MaterialUploaderHandle>(null);
   const [attachmentSessionLoaded, setAttachmentSessionLoaded] = useState('');
   const [restoredAttachments, setRestoredAttachments] = useState<ConversationAttachment[]>([]);
@@ -824,6 +846,24 @@ function DrawioPageContent() {
       console.error('Failed to save sessions to localStorage:', e);
     }
   };
+
+  const assignPendingChartbookAfterSave = useCallback(async (diagramId: string) => {
+    const pending = pendingChartbookAssignmentRef.current;
+    if (!pending || pending.diagramId !== diagramId || pending.inFlight) return;
+
+    pending.inFlight = true;
+    try {
+      await chartbookClient.assignDiagram(diagramId, pending.chartbookId);
+      // A newer Create New action must not be cleared by an older request finishing late.
+      if (pendingChartbookAssignmentRef.current === pending) {
+        pendingChartbookAssignmentRef.current = null;
+      }
+    } catch (error) {
+      // Keep the assignment so the next successful diagram save can retry it.
+      pending.inFlight = false;
+      console.warn('Failed to file the saved diagram into its chartbook:', error);
+    }
+  }, [chartbookClient]);
 
   const refreshHistoryDiagrams = useCallback(async (ownerId = currentUserRef.current || currentUser) => {
     if (!ownerId) return;
@@ -971,6 +1011,7 @@ function DrawioPageContent() {
       // Only sync the version; the local canvas may already be newer than the XML just saved,
       // so writing the response XML back would briefly roll the session state backwards.
       rememberManualCanvasVersion(request.sessionId, request.diagramId, response.data?.version, response.data?.contentHash);
+      void assignPendingChartbookAfterSave(request.diagramId);
       if (request.visualRepairRunId) {
         visualRepairProvenanceRef.current.delete(request.diagramId);
       }
@@ -1137,26 +1178,30 @@ function DrawioPageContent() {
     }
   };
 
-  const persistDiagramMessages = async (diagramId?: string, backendSessionId?: string, messagesToSave: Message[] = []) => {
-    const ownerId = currentUserRef.current || currentUser;
-    if (!ownerId || !diagramId || messagesToSave.length === 0) return;
-
-    const payload = messagesToSave
-      .filter(message => message.content.trim())
-      .map(message => ({
-        clientMessageId: message.id,
-        sessionId: backendSessionId,
-        role: message.role,
-        content: message.content,
-      }));
-    if (payload.length === 0) return;
-
-    try {
-      await agentApi.saveDiagramMessages(ownerId, diagramId, backendSessionId, payload);
-    } catch (e) {
-      console.warn('Failed to sync diagram messages:', e);
-    }
-  };
+  const resolveRestoredAttachmentMetadata = useCallback(async (
+    restoredMessages: Array<{ attachmentRefs?: string[] }>,
+  ): Promise<Record<string, RestoredAttachmentMetadata>> => {
+    const uploadIds = [...new Set(restoredMessages.flatMap(message => message.attachmentRefs || []))];
+    const resolved = await Promise.all(uploadIds.map(async uploadId => {
+      try {
+        const status = await materialClient.status(uploadId);
+        if (!status.materialId) {
+          return [uploadId, { fileName: uploadId, state: status.state }] as const;
+        }
+        const details = await materialClient.details(status.materialId).catch(() => null);
+        return [uploadId, {
+          fileName: details?.material.displayName || uploadId,
+          state: status.state,
+          materialId: status.materialId,
+          versionId: status.versionId || details?.material.latestVersionId,
+        }] as const;
+      } catch {
+        // Expired upload metadata degrades to the opaque reference already stored with the message.
+        return [uploadId, { fileName: uploadId, state: 'SUCCEEDED' }] as const;
+      }
+    }));
+    return Object.fromEntries(resolved);
+  }, [materialClient]);
 
   const ensureConversationDiagramShell = async ({
     diagramId,
@@ -1176,17 +1221,18 @@ function DrawioPageContent() {
     if (!ownerId || !shouldCreateConversationDiagramShell({
       diagramId: normalizedDiagramId,
       canvasVersion,
-      hasDrawableContent: hasDrawableCells(canvasXml),
       hasConversationMessages,
     })) return true;
 
     try {
-      // Chat-only diagrams still need a canvas row so the history list can restore them later.
-      const response = await agentApi.saveDiagramCanvasState(ownerId, normalizedDiagramId || '', EMPTY_DRAWIO_XML);
+      // V2 admission requires the owned diagram row before it can bind the runtime session.
+      const initialCanvasXml = canvasXml?.trim() || EMPTY_DRAWIO_XML;
+      const response = await agentApi.saveDiagramCanvasState(ownerId, normalizedDiagramId || '', initialCanvasXml);
       const version = response.data?.version;
       if ((Number.isFinite(version) || response.data?.contentHash) && currentSessionRef.current) {
         rememberManualCanvasVersion(currentSessionRef.current, normalizedDiagramId || '', version as number, response.data?.contentHash);
       }
+      void assignPendingChartbookAfterSave(normalizedDiagramId || '');
       await persistDiagramTitle(normalizedDiagramId, title);
       return true;
     } catch (error) {
@@ -1482,6 +1528,7 @@ function DrawioPageContent() {
 
   useEffect(() => {
     const attachmentSessionId = sessionId.trim();
+    setSentAttachmentUploadIds([]);
     if (!attachmentSessionId) {
       setConversationAttachments([]);
       setAttachmentSessionLoaded('');
@@ -1557,7 +1604,7 @@ function DrawioPageContent() {
   const refreshFilesPanel = useCallback(async () => {
     const requestId = ++filesRequestRef.current;
     const conversationId = sessionId.trim();
-    if (!conversationId) {
+    if (!conversationId && !currentDiagramId) {
       setFilesChartbook(null);
       setConversationFiles([]);
       setChartbookFiles([]);
@@ -1570,8 +1617,11 @@ function DrawioPageContent() {
         ? await chartbookClient.forDiagram(currentDiagramId)
         : null;
       const [conversationPage, chartbookPage] = await Promise.all([
-        materialClient.listScope('CONVERSATION', conversationId,
-          { lifecycleState: 'ACTIVE', limit: 100 }),
+        // A blank diagram can belong to a chartbook before it has a conversation.
+        conversationId
+          ? materialClient.listScope('CONVERSATION', conversationId,
+            { lifecycleState: 'ACTIVE', limit: 100 })
+          : Promise.resolve(null),
         chartbook
           ? materialClient.listScope('CHARTBOOK', chartbook.chartbookId,
             { lifecycleState: 'ACTIVE', limit: 100 })
@@ -1579,7 +1629,7 @@ function DrawioPageContent() {
       ]);
       if (requestId !== filesRequestRef.current) return;
       setFilesChartbook(chartbook);
-      setConversationFiles(conversationPage.items);
+      setConversationFiles(conversationPage?.items || []);
       setChartbookFiles(chartbookPage?.items || []);
     } catch (error) {
       if (requestId !== filesRequestRef.current) return;
@@ -1702,7 +1752,17 @@ function DrawioPageContent() {
       // restores, while keeping the saved sessions so the history sidebar (and the
       // persistence effect) does not lose them.
       setSessions(savedSessions);
-      createNewSession();
+      persistSessions(savedSessions);
+      const newSession = createNewSession();
+      // Read before the URL is stripped below, and bind the folder to this new diagram only.
+      const originatingChartbookId = freshParams.get('chartbookId')?.trim();
+      if (originatingChartbookId) {
+        pendingChartbookAssignmentRef.current = {
+          chartbookId: originatingChartbookId,
+          diagramId: newSession.diagramId,
+          inFlight: false,
+        };
+      }
       // Landing page hands off the typed prompt via ?prompt=…; draft it into the
       // composer (focused, ready to send) rather than auto-sending on mount.
       const initialPrompt = freshParams.get('prompt');
@@ -1714,11 +1774,27 @@ function DrawioPageContent() {
       return;
     }
 
+    if (restoreDiagramId?.trim()) {
+      // A URL-targeted diagram must be authorized and loaded before any cached session becomes active.
+      setSessions(savedSessions);
+      persistSessions(savedSessions);
+      currentSessionRef.current = null;
+      setCurrentSessionId(null);
+      setSessionId('');
+      setMessages([]);
+      replaceEditorXml(EMPTY_DRAWIO_XML);
+      return;
+    }
+
     if (savedSessions.length > 0) {
       setSessions(savedSessions);
+      // The restore request can finish before React publishes the state update below.
+      persistSessions(savedSessions);
       // Load the most recent session (first one if sorted by lastModified desc)
       const mostRecent = [...savedSessions].sort((a, b) => b.lastModified - a.lastModified)[0];
       setCurrentSessionId(mostRecent.id);
+      // Draft attachments and conversation files are keyed by the backend conversation ID.
+      setSessionId(mostRecent.backendSessionId || '');
       setMessages(mostRecent.messages);
       replaceEditorXml(mostRecent.drawIoXml || EMPTY_DRAWIO_XML);
     } else {
@@ -1757,7 +1833,7 @@ function DrawioPageContent() {
     pendingThumbnailExportRef.current = null;
     armBlankEditorGuard();
     const localSessionId = Date.now().toString();
-    const newSession: Session = {
+    const newSession: Session & { diagramId: string } = {
       id: localSessionId,
       backendSessionId: backendId,
       diagramId: makeLocalDiagramId(localSessionId),
@@ -1778,6 +1854,7 @@ function DrawioPageContent() {
     setMessages(newSession.messages);
     setSessionId(backendId);
     replaceEditorXml(EMPTY_DRAWIO_XML);
+    return newSession;
   };
 
   useEffect(() => {
@@ -1785,15 +1862,21 @@ function DrawioPageContent() {
 
     let cancelled = false;
     restoredDiagramIdRef.current = restoreDiagramId;
+    // Detach the previous route immediately so it cannot receive messages for this URL.
+    currentSessionRef.current = null;
+    setCurrentSessionId(null);
+    setSessionId('');
+    setMessages([]);
+    replaceEditorXml(EMPTY_DRAWIO_XML);
     Promise.all([
       agentApi.getDiagram(currentUser, restoreDiagramId),
       agentApi.listDiagramMessages(currentUser, restoreDiagramId).catch(() => ({ data: [] })),
     ])
-      .then(([res, messageRes]) => {
+      .then(async ([res, messageRes]) => {
         if (cancelled) return;
         const diagram = res.data;
         if (!diagram?.diagramId) {
-          setMessages(prev => [...prev, {
+          setMessages([{
             id: `${Date.now()}-restore-missing`,
             role: 'agent',
             content: 'Diagram not found.',
@@ -1804,7 +1887,18 @@ function DrawioPageContent() {
 
         const restored = buildRestoredDiagramState(diagram);
         const restoredSessionId = `restored-${restored.diagramId}`;
-        const restoredMessages: Message[] = buildRestoredConversationMessages(messageRes.data || [], restored.title);
+        const attachmentMetadata = await resolveRestoredAttachmentMetadata(messageRes.data || []);
+        if (cancelled) return;
+        const durableMessages: Message[] = buildRestoredConversationMessages(
+          messageRes.data || [],
+          restored.title,
+          attachmentMetadata,
+        );
+        const cachedSession = sessionsRef.current.find(session => session.diagramId === restored.diagramId);
+        const restoredMessages: Message[] = mergeRestoredConversationPresentation(
+          durableMessages,
+          cachedSession?.messages || [],
+        );
         const restoredSession: Session = {
           id: restoredSessionId,
           backendSessionId: messageRes.data?.[0]?.sessionId || '',
@@ -1838,7 +1932,7 @@ function DrawioPageContent() {
       })
       .catch(() => {
         if (!cancelled) {
-          setMessages(prev => [...prev, {
+          setMessages([{
             id: `${Date.now()}-restore-error`,
             role: 'agent',
             content: 'Failed to load the diagram.',
@@ -1850,11 +1944,20 @@ function DrawioPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser, restoreDiagramId]);
+  }, [currentUser, resolveRestoredAttachmentMetadata, restoreDiagramId]);
 
   const openHistoryDiagram = (diagramId: string) => {
     setIsSidebarOpen(false);
     router.push(`/drawio?diagramId=${encodeURIComponent(diagramId)}`);
+  };
+
+  const handleBackToSourcePage = () => {
+    // Return to the page that opened the editor; direct visits fall back to the diagram list.
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace('/diagrams');
   };
 
   const removeLocalSessionsForDiagram = (diagramId: string) => {
@@ -2143,11 +2246,7 @@ function DrawioPageContent() {
     setIsSending(true);
 
     // Freeze the composer selection for this message before any asynchronous request work starts.
-    const turnAttachments = conversationAttachments.map(attachment => ({
-      uploadId: attachment.uploadId,
-      fileName: attachment.fileName,
-      state: attachment.state,
-    }));
+    const turnAttachments = conversationAttachments.map(attachment => ({ ...attachment }));
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -2170,6 +2269,14 @@ function DrawioPageContent() {
     };
 
     setMessages(prev => [...prev, userMsg, initialAgentMsg]);
+    const sentUploadIds = turnAttachments.map(attachment => attachment.uploadId);
+    setSentAttachmentUploadIds(previous => [...new Set([...previous, ...sentUploadIds])]);
+    // Sending consumes the draft immediately; later upload polling must not recreate composer cards.
+    setConversationAttachments([]);
+    const activeAttachmentSessionId = sessionId.trim();
+    if (activeAttachmentSessionId) {
+      writeConversationAttachments(window.sessionStorage, activeAttachmentSessionId, []);
+    }
     let activeAiMutationDiagramId: string | undefined;
 
     try {
@@ -2192,12 +2299,10 @@ function DrawioPageContent() {
       // 2. Send Message via Stream
       let activeStreamPhase = 'connecting';
       let activeRouteType: string | undefined;
+      let activeSourceUse: string | undefined;
       let sourceRunId = '';
       let postDrawReviewPromise: Promise<void> | null = null;
-      let activeStepKey = '';
       let lastStepSnapshot = '';
-      const phaseVisitCounts: Record<string, number> = {};
-      const repeatableStepPhases = new Set(['drawing', 'reviewing', 'revising']);
 
       // Track the current streamed draft. Each draw pass replaces the previous draft.
       let nodeCount = 0;
@@ -2208,6 +2313,7 @@ function DrawioPageContent() {
       let requestedMoreInfo = false;
       let receivedDrawioDone = false;
       let receivedVersionConflict = false;
+      let receivedStreamError = false;
       let completionMessageAdded = false;
       let emptyResponseMessageAdded = false;
       let previewSkeletonXml = '';
@@ -2227,9 +2333,18 @@ function DrawioPageContent() {
       let eventSequence = 0;
 
       // Helper to update steps
-      const updateStep = (stepKey: string, phaseStr: string, phaseText: string, contentToAdd: string, isDone: boolean = false, replaceContent: boolean = false) => {
-          const stepIndex = accumulatedSteps.findIndex(s => (s.id || s.phase) === stepKey);
+      const updateStep = (phaseStr: string, contentToAdd: string, isDone: boolean = false, replaceContent: boolean = false) => {
+          const projected = projectUserExecutionStep({
+            phase: phaseStr,
+            routeType: activeRouteType,
+            sourceUse: activeSourceUse,
+            useChinese,
+          });
+          const projectedKey = projected.key;
+          const stepIndex = accumulatedSteps.findIndex(s => (s.id || s.phase) === projectedKey);
           if (stepIndex >= 0) {
+              accumulatedSteps[stepIndex].phase = projected.phase;
+              accumulatedSteps[stepIndex].label = projected.label;
               if (contentToAdd) {
                   if (replaceContent) {
                       accumulatedSteps[stepIndex].content = contentToAdd + '\n';
@@ -2239,33 +2354,24 @@ function DrawioPageContent() {
               }
               if (isDone) {
                   accumulatedSteps[stepIndex].status = 'done';
+              } else if (projected.phase !== 'analysis' || accumulatedSteps[stepIndex].status !== 'done') {
+                  // Retries and bounded repairs update their existing row instead of adding another step.
+                  accumulatedSteps.forEach((step, index) => {
+                    if (index !== stepIndex && step.status === 'running') step.status = 'done';
+                  });
+                  accumulatedSteps[stepIndex].status = 'running';
               }
           } else {
               // Mark previous running steps as done
               accumulatedSteps.forEach(s => { if (s.status === 'running') s.status = 'done'; });
               accumulatedSteps.push({
-                  id: stepKey,
-                  phase: phaseStr,
-                  label: phaseText,
+                  id: projectedKey,
+                  phase: projected.phase,
+                  label: projected.label,
                   content: contentToAdd ? contentToAdd + '\n' : '',
                   status: isDone ? 'done' : 'running'
               });
           }
-      };
-
-      const ensurePhaseStep = (phaseStr: string, phaseText: string) => {
-        if (phaseStr !== activeStreamPhase || !activeStepKey) {
-          phaseVisitCounts[phaseStr] = (phaseVisitCounts[phaseStr] || 0) + 1;
-          activeStepKey = `${phaseStr}:${phaseVisitCounts[phaseStr]}`;
-        }
-
-        const visitCount = phaseVisitCounts[phaseStr] || 1;
-        const displayLabel = repeatableStepPhases.has(phaseStr) ? `${phaseText} ${visitCount}` : phaseText;
-
-        return {
-          key: activeStepKey,
-          label: displayLabel
-        };
       };
 
       const getVisibleStepDetail = (phaseStr: string, state?: 'loaded' | 'passed' | 'needs_attention') => {
@@ -2381,7 +2487,8 @@ function DrawioPageContent() {
       };
 
       const appendEmptyResponseMessage = () => {
-        if (emptyResponseMessageAdded || agentTextContent || hasIncrementalContent) return false;
+        // A structured or transport error is already the terminal response shown to the user.
+        if (emptyResponseMessageAdded || receivedStreamError || agentTextContent || hasIncrementalContent) return false;
         emptyResponseMessageAdded = true;
         const fallbackContent = cleanPlainTextFallback(plainTextFallbackContent);
         accumulatedContent += (accumulatedContent ? '\n\n' : '') + (fallbackContent || `⚠️ No valid response received. Please try again.`);
@@ -2406,46 +2513,26 @@ function DrawioPageContent() {
         : buildDiagramTitleFromPrompt(displayContent);
       let diagramTitlePersisted = false;
       let persistedDiagramId = diagramId;
-      let conversationPersisted = false;
-      let evidenceAnswerCommitted = false;
 
-      const persistCurrentTurnConversation = () => {
-        if (conversationPersisted) return;
-        conversationPersisted = true;
-
-        const agentContent = (accumulatedContent || agentTextContent).trim();
-        if (!agentContent) return;
-
-        // Grounded assistant text and citations are already one server transaction. The generic
-        // conversation endpoint may persist the user turn, but must never rewrite that answer.
-        const messagesToPersist = evidenceAnswerCommitted ? [userMsg] : [
-          userMsg,
-          {
-            ...initialAgentMsg,
-            content: agentContent,
-            timestamp: Date.now(),
-          },
-        ];
-
-        void (async () => {
-          await ensureConversationDiagramShell({
-            diagramId: persistedDiagramId,
-            title: diagramTitle,
-            canvasXml: canvasContext.canvasXml,
-            canvasVersion: latestCanvasVersion(
-              persistedDiagramId ? manualCanvasVersionsRef.current.get(persistedDiagramId) : undefined,
-              activeSession?.canvasVersion,
-            ),
-            hasConversationMessages: messagesToPersist.some(message => Boolean(message.content.trim())),
-          });
-          await persistDiagramMessages(persistedDiagramId, activeBackendSessionId, messagesToPersist);
-        })();
-      };
+      const diagramPrepared = await ensureConversationDiagramShell({
+        diagramId,
+        title: diagramTitle,
+        canvasXml: canvasContext.canvasXml,
+        canvasVersion: latestCanvasVersion(
+          diagramId ? manualCanvasVersionsRef.current.get(diagramId) : undefined,
+          activeSession?.canvasVersion,
+        ),
+        hasConversationMessages: true,
+      });
+      if (!diagramPrepared) {
+        throw new Error('TURN_DIAGRAM_PREPARATION_FAILED');
+      }
 
       const requestPayload = buildDrawioChatRequestPayload({
           agentId: selectedAgentId,
           userId: currentUser,
           sessionId: activeBackendSessionId,
+          clientMessageId: userMsg.id,
           responseMessageId: agentMsgId,
           userMessage: options.requestContent || displayContent,
           diagramId,
@@ -2585,7 +2672,6 @@ function DrawioPageContent() {
         new Promise<ReviewStreamOutcome>(resolve => {
           const outcome: ReviewStreamOutcome = {};
           const reviewKeySuffix = `${reviewRequest.stage}:${reviewRequest.visualRepairRound}`;
-          const reviewStepKey = `visual-review:${reviewKeySuffix}`;
           const repairStepKey = `visual-repair:${reviewRequest.visualRepairRound + 1}`;
           const reviewStepLabel = visualReviewStageLabel(reviewRequest.stage, useChinese);
           let settled = false;
@@ -2605,7 +2691,7 @@ function DrawioPageContent() {
           };
           const finishRepairWithoutSave = (detail: string) => {
             if (outcome.decision !== 'REPAIR') return;
-            updateStep(repairStepKey, 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), detail, true, true);
+            updateStep('visual_repair', detail, true, true);
             publishSteps();
             upsertRunEvent(repairStepKey, {
               phase: 'revising',
@@ -2626,7 +2712,7 @@ function DrawioPageContent() {
             };
             recordVisualReview(unavailableReview);
             const detail = buildVisualReviewStepDetail({ ...unavailableReview, useChinese });
-            updateStep(reviewStepKey, 'visual_review', reviewStepLabel, detail, true, true);
+            updateStep('visual_review', detail, true, true);
             publishSteps();
             upsertRunEvent(`visual-review:${reviewKeySuffix}`, {
               phase: 'reviewing',
@@ -2647,7 +2733,7 @@ function DrawioPageContent() {
                 return;
               }
               if (chunk.type === 'review_started') {
-                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, '', false, true);
+                updateStep('visual_review', '', false, true);
                 publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage}:${chunk.visualRepairRound ?? reviewRequest.visualRepairRound}`, {
                   phase: 'reviewing',
@@ -2675,7 +2761,7 @@ function DrawioPageContent() {
                   beginAiCanvasMutationForDiagram(reviewRequest.diagramId);
                 }
                 const reviewDetail = buildVisualReviewStepDetail({ ...review, useChinese });
-                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, reviewDetail, true, true);
+                updateStep('visual_review', reviewDetail, true, true);
                 publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage || reviewRequest.stage}:${chunk.visualRepairRound ?? reviewRequest.visualRepairRound}`, {
                   phase: 'reviewing',
@@ -2687,7 +2773,7 @@ function DrawioPageContent() {
                 if (chunk.decision === 'REPAIR') {
                   const repairStepLabel = visualReviewStageLabel('REPAIR', useChinese);
                   const repairDetail = buildVisualRepairStepDetail({ issues: chunk.issues, useChinese });
-                  updateStep(repairStepKey, 'visual_repair', repairStepLabel, repairDetail, false, true);
+                  updateStep('visual_repair', repairDetail, false, true);
                   publishSteps();
                   upsertRunEvent(repairStepKey, {
                     phase: 'revising',
@@ -2710,7 +2796,7 @@ function DrawioPageContent() {
                 };
                 recordVisualReview(staleReview);
                 const staleDetail = buildVisualReviewStepDetail({ ...staleReview, useChinese });
-                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, staleDetail, true, true);
+                updateStep('visual_review', staleDetail, true, true);
                 publishSteps();
                 upsertRunEvent(`visual-review:${reviewKeySuffix}`, {
                   phase: 'reviewing',
@@ -2746,7 +2832,7 @@ function DrawioPageContent() {
                 const repairCompletedDetail = useChinese
                   ? '已完成一轮局部视觉修复，并重新加载画布。'
                   : 'Completed one local visual repair and reloaded the canvas.';
-                updateStep(repairStepKey, 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), repairCompletedDetail, true, true);
+                updateStep('visual_repair', repairCompletedDetail, true, true);
                 publishSteps();
                 upsertRunEvent(repairStepKey, {
                   phase: 'revising',
@@ -2811,19 +2897,19 @@ function DrawioPageContent() {
           canvasXml: string,
           stage: VisualReviewPresentation['stage'],
           repairRound: number,
-          version: number,
         ) => {
           const stepKey = `visual-evidence:${repairRound}`;
           const label = useChinese ? '准备视觉证据' : 'Prepare visual evidence';
-          updateStep(stepKey, 'visual_evidence', label, '', false, true);
+          updateStep('visual_evidence', '', false, true);
           publishSteps();
           try {
             const evidence = await exportVisualReviewEvidence(diagramId, canvasXml);
             const detailCount = evidence.additionalAfterImages.filter(item => item.role === 'DETAIL_TILE').length;
+            const reviewedPageCount = evidence.totalPageCount - evidence.truncatedPageCount;
             const detail = useChinese
-              ? `已为版本 ${version} 导出 ${evidence.totalPageCount - evidence.truncatedPageCount}/${evidence.totalPageCount} 页概览${detailCount ? `和 ${detailCount} 张高清局部图` : ''}。`
-              : `Exported ${evidence.totalPageCount - evidence.truncatedPageCount}/${evidence.totalPageCount} page overviews for version ${version}${detailCount ? ` plus ${detailCount} high-resolution detail tiles` : ''}.`;
-            updateStep(stepKey, 'visual_evidence', label, detail, true, true);
+              ? `已准备 ${reviewedPageCount} 页画布预览${detailCount ? `和 ${detailCount} 张局部图` : ''}，正在检查布局与连线。`
+              : `Prepared ${reviewedPageCount} canvas preview page${reviewedPageCount === 1 ? '' : 's'}${detailCount ? ` and ${detailCount} detail image${detailCount === 1 ? '' : 's'}` : ''} to check layout and connectors.`;
+            updateStep('visual_evidence', detail, true, true);
             publishSteps();
             upsertRunEvent(stepKey, {
               phase: 'reviewing',
@@ -2842,7 +2928,7 @@ function DrawioPageContent() {
             };
             recordVisualReview(review);
             const detail = buildVisualReviewStepDetail({ ...review, useChinese });
-            updateStep(stepKey, 'visual_evidence', label, detail, true, true);
+            updateStep('visual_evidence', detail, true, true);
             publishSteps();
             upsertRunEvent(stepKey, {
               phase: 'reviewing',
@@ -2862,7 +2948,6 @@ function DrawioPageContent() {
           finalCanvasXml,
           'POST_MUTATION',
           0,
-          finalVersion,
         );
         if (!evidence) return;
 
@@ -2903,7 +2988,6 @@ function DrawioPageContent() {
             repaired.canvasXml,
             nextStage,
             completedRepairRounds,
-            repaired.version,
           );
           if (!evidence) return;
           reviewRequest = buildCanvasVisualReviewRequest({
@@ -2946,8 +3030,8 @@ function DrawioPageContent() {
           if (chunk.type === 'route') {
             // The router has selected the work path, so label the next visible steps accordingly.
             activeRouteType = chunk.routeType;
+            activeSourceUse = chunk.sourceUse;
             setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, routeType: activeRouteType } : m));
-            const routeStepLabel = thinkingPhaseLabel(activeRouteType, 'analyzing', useChinese);
             const routeDetail = buildRouteStepDetail({
               routeType: chunk.routeType,
               diagramType: chunk.diagramType,
@@ -2972,7 +3056,7 @@ function DrawioPageContent() {
               sourceUse: chunk.sourceUse,
               useChinese,
             });
-            updateStep('route', 'analyzing', routeStepLabel, routeDetail, true, true);
+            updateStep('analyzing', routeDetail, true, true);
             publishSteps();
             setMessages(prev => prev.map(m => m.id === agentMsgId
               ? { ...m, contextReceipts }
@@ -2987,13 +3071,28 @@ function DrawioPageContent() {
             return;
           }
           // Update phase display
-          const currentPhaseLabel = thinkingPhaseLabel(activeRouteType, phase, useChinese);
+          const currentPhaseLabel = projectUserExecutionStep({
+            phase,
+            routeType: activeRouteType,
+            sourceUse: activeSourceUse,
+            useChinese,
+          }).label;
           let currentStep: { key: string; label: string } = { key: phase, label: currentPhaseLabel };
 
-          if (phase !== 'done' && phase !== 'error') {
+          // A drawing turn may send its final assistant text in the answer phase after the canvas
+          // is complete; that terminal copy must not relabel the generation step as an answer task.
+          const shouldTrackPhase = phase !== 'done'
+            && phase !== 'error'
+            && !(phase === 'answer' && receivedDrawioDone);
+          if (shouldTrackPhase) {
             const previousPhase = activeStreamPhase;
-            currentStep = ensurePhaseStep(phase, currentPhaseLabel);
-            updateStep(currentStep.key, phase, currentStep.label, getVisibleStepDetail(phase), false, true);
+            currentStep = projectUserExecutionStep({
+              phase,
+              routeType: activeRouteType,
+              sourceUse: activeSourceUse,
+              useChinese,
+            });
+            updateStep(phase, getVisibleStepDetail(phase), false, true);
             if (phase !== previousPhase) {
               finishEventsBeforePhase(phase);
               const phaseEvent = phaseRunEvent[phase] || phaseRunEvent.thinking;
@@ -3024,7 +3123,7 @@ function DrawioPageContent() {
               previewSkeletonXml = chunk.content;
               nodeCount = previewCounts.nodes;
               edgeCount = previewCounts.edges;
-              updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
+              updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
               upsertRunEvent('drawio:stream', {
                 phase: 'drawing',
                 title: 'Update canvas preview',
@@ -3063,7 +3162,7 @@ function DrawioPageContent() {
                   accumulatedNodes.push(chunk.xml);
                   hasIncrementalContent = true;
                   nodeCount = countDrawableCells(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml)).nodes;
-                  updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
+                  updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
                   upsertRunEvent('drawio:stream', {
                     phase: 'drawing',
                     title: 'Update canvas preview',
@@ -3101,7 +3200,7 @@ function DrawioPageContent() {
                   accumulatedEdges.push(chunk.xml);
                   hasIncrementalContent = true;
                   edgeCount = countDrawableCells(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml)).edges;
-                  updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
+                  updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
                   upsertRunEvent('drawio:stream', {
                     phase: 'drawing',
                     title: 'Update canvas preview',
@@ -3144,7 +3243,7 @@ function DrawioPageContent() {
                 edges: edgeCount,
               });
               finishCanvasLoadEvents();
-              updateStep(currentStep.key, phase, currentStep.label, getVisibleStepDetail(phase, 'loaded'), true, true);
+              updateStep(phase, getVisibleStepDetail(phase, 'loaded'), true, true);
               publishSteps();
 
               // Reviewer may send the polished final diagram after the drawing stage.
@@ -3170,6 +3269,7 @@ function DrawioPageContent() {
                   contentHash: chunk.contentHash,
                 });
                 persistedDiagramId = chunk.diagramId || persistedDiagramId;
+                void assignPendingChartbookAfterSave(persistedDiagramId || '');
                 queueDiagramThumbnailExport(persistedDiagramId, finalXml);
                 if (!diagramTitlePersisted) {
                   diagramTitlePersisted = true;
@@ -3298,7 +3398,18 @@ function DrawioPageContent() {
             }
 
             case 'evidence_progress': {
-              const detail = `${chunk.stage} ${chunk.completed}/${chunk.total}`;
+              const progressCompleted = Math.max(0, chunk.completed);
+              const progressTotal = Math.max(0, chunk.total);
+              const progressDone = progressTotal > 0 && progressCompleted >= progressTotal;
+              const detail = useChinese
+                ? progressDone
+                  ? `所需内容已准备完成（${progressCompleted}/${progressTotal}）。`
+                  : `正在准备所需内容（${progressCompleted}/${progressTotal}）。`
+                : progressDone
+                  ? `Required inputs are ready (${progressCompleted}/${progressTotal}).`
+                  : `Preparing required inputs (${progressCompleted}/${progressTotal}).`;
+              updateStep('retrieval', detail, progressDone, true);
+              publishSteps();
               upsertRunEvent(`retrieval:${chunk.stage}`, {
                 phase: 'retrieval',
                 title: 'Prepare evidence',
@@ -3392,7 +3503,6 @@ function DrawioPageContent() {
             }
 
             case 'evidence_answer': {
-              evidenceAnswerCommitted = true;
               accumulatedContent = normalizeAgentDisplayContent(chunk.content || '');
               agentTextContent = accumulatedContent;
               setMessages(prev => prev.map(m => m.id === agentMsgId
@@ -3430,17 +3540,22 @@ function DrawioPageContent() {
                 nodes: nodeCount,
                 edges: edgeCount,
               });
-              updateStep(currentStep.key, 'reviewing', currentStep.label, reviewDetail, true, true);
+              updateStep('reviewing', reviewDetail, true, true);
               publishSteps();
               break;
             }
 
             case 'validation_result': {
               const validationStatus = getValidationStatus(chunk);
+              const validationDetail = validationStatus === 'done'
+                ? (useChinese ? '图表结构检查通过。' : 'Diagram structure check passed.')
+                : (useChinese ? '图表结构检查发现需要注意的问题。' : 'The diagram structure check found issues that need attention.');
+              updateStep('reviewing', validationDetail, true, true);
+              publishSteps();
               upsertRunEvent('validation:result', {
                 phase: 'reviewing',
                 title: 'validate_diagram',
-                detail: validationStatus === 'done' ? 'Diagram structure looks valid.' : 'Validation needs attention.',
+                detail: validationDetail,
                 status: validationStatus,
                 tone: 'validation',
                 tool: 'validate_diagram',
@@ -3521,8 +3636,11 @@ function DrawioPageContent() {
             }
 
             case 'error': {
+              receivedStreamError = true;
               const isQuotaError = isDemoQuotaErrorCode(chunk.code);
-              const errorContent = isQuotaError ? quotaExhaustedMessageForCode(chunk.code) : chunk.content;
+              const errorContent = isQuotaError
+                ? quotaExhaustedMessageForCode(chunk.code)
+                : streamErrorMessage(chunk.code || chunk.content, useChinese);
               if (isQuotaError) {
                 setCurrentAccount(prev => markDemoQuotaExhausted(prev));
                 void refreshCurrentAccount();
@@ -3553,13 +3671,13 @@ function DrawioPageContent() {
               } else if (!appendCompletionMessage() && !appendEmptyResponseMessage()) {
                 setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, steps: [...accumulatedSteps] } : m));
               }
-              persistCurrentTurnConversation();
               break;
             }
           }
         },
         // onError
         (error: Error) => {
+          receivedStreamError = true;
           if (activeAiMutationDiagramId) {
             finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
           }
@@ -3568,7 +3686,7 @@ function DrawioPageContent() {
           
           // Only show error message if we didn't receive any content and it's not an AbortError
           if (error.name !== 'AbortError' && !hasIncrementalContent && !agentTextContent && nodeCount === 0) {
-              accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ Connection error: ${error.message}`;
+              accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ ${streamErrorMessage(error, useChinese)}`;
               setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: m.steps?.map(s => ({...s, status: 'done'})) } : m));
           } else {
               // If we already had content, just mark steps as done gracefully
@@ -3596,7 +3714,6 @@ function DrawioPageContent() {
                     return m;
                 }));
             }
-            persistCurrentTurnConversation();
           };
           if (postDrawReviewPromise) {
             void postDrawReviewPromise.finally(finishFullRun);
@@ -3605,9 +3722,6 @@ function DrawioPageContent() {
           }
         }
       );
-      // Clear only after the request has reached the server; a network failure keeps the composer intact.
-      setConversationAttachments([]);
-
       streamAbortRef.current = controller;
 
     } catch (error) {
@@ -3619,7 +3733,7 @@ function DrawioPageContent() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'agent',
-        content: error instanceof Error ? `Error: ${error.message}` : 'Failed to send. Please try again.',
+        content: streamErrorMessage(error, useChinese),
         timestamp: Date.now()
       }]);
       setIsSending(false);
@@ -3628,6 +3742,11 @@ function DrawioPageContent() {
 
   const sendContent = async (content: string, options: SendContentOptions = {}) => {
     if (!content.trim() || isSending) return;
+    const activeSession = sessionsRef.current.find(session => session.id === currentSessionRef.current);
+    if (!isDiagramRouteReady(restoreDiagramId, activeSession?.diagramId)) {
+      // Never fall back to another local session while a URL-targeted diagram is unavailable.
+      return;
+    }
     if (demoQuotaState.exhausted) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -3640,7 +3759,6 @@ function DrawioPageContent() {
 
     setIsSending(true);
 
-    const activeSession = sessionsRef.current.find(session => session.id === currentSessionRef.current);
     if (!drawioRef.current || !isDrawIoReady || !activeSession) {
       await performSendMessage(content, {}, options);
       return;
@@ -3759,6 +3877,7 @@ function DrawioPageContent() {
   };
 
   const handleSendMessage = async () => {
+    if (hasProcessingAttachments) return;
     const content = inputValue;
     // Capture user-picked skills for this message, then clear the chips.
     pendingSkillsRef.current = [...selectedSkills];
@@ -3825,15 +3944,16 @@ function DrawioPageContent() {
     <div className="relative flex h-[100dvh] w-full overflow-hidden bg-[var(--app-bg)] pb-14 font-sans text-zinc-800 sm:h-screen sm:pb-0">
       {/* Narrow rail keeps workspace navigation available without crowding the canvas. */}
       <aside className="fixed inset-x-0 bottom-0 z-50 flex h-14 w-full shrink-0 flex-row items-center justify-around gap-2 border-t border-stone-200 bg-[var(--app-bg)] px-3 py-2 text-zinc-500 sm:relative sm:inset-auto sm:z-30 sm:h-auto sm:w-14 sm:flex-col sm:justify-start sm:border-r sm:border-t-0 sm:px-2 sm:py-3">
-        <Link
-          href="/"
-          aria-label="FreeDraw home"
+        <button
+          type="button"
+          onClick={handleBackToSourcePage}
+          aria-label="Back to previous page"
           className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-lg bg-zinc-700 shadow-sm sm:h-9 sm:w-9"
-          title="FreeDraw home"
+          title="Back to previous page"
         >
           {/* Match the shared app logo used on the home and auth pages. */}
           <Image src="/brand/freedraw-app-icon-brush.png" alt="" fill sizes="36px" className="object-cover" priority />
-        </Link>
+        </button>
         <button
           type="button"
           onClick={handleNewChat}
@@ -4051,7 +4171,7 @@ function DrawioPageContent() {
           chartbookName={filesChartbook?.name}
           loading={isFilesLoading}
           error={filesError}
-          disabled={isSending || !selectedAgentId}
+          disabled={isSending || !selectedAgentId || !isRequestedDiagramReady}
           busyMaterialId={busyFileId}
           onClose={() => setIsFilesPanelOpen(false)}
           onUpload={() => attachmentUploaderRef.current?.openPicker()}
@@ -4361,7 +4481,7 @@ function DrawioPageContent() {
 
           {/* Keep history independently scrollable so it ends above the fixed-size composer. */}
           {/* Messages Area */}
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-[var(--app-bg)] p-5 pr-14 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300">
+          <div className="min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto bg-[var(--app-bg)] p-5 pr-14 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300">
             {messages.map((msg, index) => {
               const isLatestRunningAgent = index === messages.length - 1 && isSending;
               const visibleExecutionSteps = getVisibleExecutionSteps(msg.steps, isLatestRunningAgent);
@@ -4374,7 +4494,7 @@ function DrawioPageContent() {
               return (
                 <div 
                   key={`${msg.id}-${index}`} 
-                  className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                  className={`flex min-w-0 gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                 >
                   <div className={`
                     shrink-0 w-8 h-8 flex items-center justify-center shadow-sm mt-1
@@ -4386,7 +4506,7 @@ function DrawioPageContent() {
                     {msg.role === 'user' ? <Icons.User className="w-5 h-5" /> : <Icons.Sparkles className="w-4 h-4" />}
                   </div>
 
-                  <div className="flex flex-col max-w-[85%] w-full">
+                  <div className="flex min-w-0 w-full max-w-[85%] flex-col">
                       <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                         {/* Show observable execution facts, not private model reasoning. */}
                         {hasThinking && (
@@ -4433,10 +4553,10 @@ function DrawioPageContent() {
                         {msg.content && (
                           <div 
                             className={`
-                                p-3.5 text-sm leading-relaxed shadow-sm w-fit
+                                min-w-0 max-w-full w-fit p-3.5 text-sm leading-relaxed shadow-sm [overflow-wrap:anywhere]
                                 ${msg.role === 'user'
                                 ? 'rounded-lg bg-zinc-700 text-white shadow-sm whitespace-pre-wrap'
-                                : 'rounded-lg border border-stone-200 bg-white text-zinc-700 shadow-sm prose prose-sm prose-zinc max-w-none overflow-x-auto prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1 prose-pre:my-2 prose-pre:bg-stone-100 prose-pre:text-zinc-700'
+                                : 'rounded-lg border border-stone-200 bg-white text-zinc-700 shadow-sm prose prose-sm prose-zinc overflow-hidden prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1 prose-pre:my-2 prose-pre:max-w-full prose-pre:overflow-x-auto prose-pre:bg-stone-100 prose-pre:text-zinc-700'
                                 }
                             `}
                           >
@@ -4449,14 +4569,15 @@ function DrawioPageContent() {
                         )}
 
                         {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
-                          <div className="flex max-w-full flex-wrap justify-end gap-1.5">
+                          <div className="grid max-w-full grid-cols-1 justify-items-end gap-2">
                             {msg.attachments.map(attachment => (
-                              <span
+                              <MessageAttachmentPreview
                                 key={attachment.uploadId}
-                                className="rounded-full border border-zinc-500 bg-zinc-600 px-2 py-1 text-[11px] text-zinc-100"
-                              >
-                                {attachment.fileName}
-                              </span>
+                                attachment={attachment}
+                                previewUrl={attachment.materialId && attachment.versionId
+                                  ? materialClient.previewUrl(attachment.materialId, attachment.versionId)
+                                  : undefined}
+                              />
                             ))}
                           </div>
                         )}
@@ -4611,6 +4732,20 @@ function DrawioPageContent() {
                 acceptedMimeTypes={acceptedMaterialMimeTypes}
                 attachments={conversationAttachments}
                 onChange={setConversationAttachments}
+                suppressedUploadIds={sentAttachmentUploadIds}
+                onSentAttachmentStatus={attachment => {
+                  // A late processing result enriches the sent message without recreating a draft.
+                  setMessages(previous => previous.map(message => (
+                    message.attachments?.some(item => item.uploadId === attachment.uploadId)
+                      ? {
+                          ...message,
+                          attachments: message.attachments.map(item => (
+                            item.uploadId === attachment.uploadId ? { ...item, ...attachment } : item
+                          )),
+                        }
+                      : message
+                  )));
+                }}
                 onPrepareUpload={async () => {
                   const attachmentSessionId = await initializeAttachmentSession();
                   if (!attachmentSessionId) throw new Error('无法创建附件会话，请重试。');
@@ -4631,7 +4766,7 @@ function DrawioPageContent() {
                     diagramId: currentDiagramId,
                   };
                 }}
-                disabled={isSending || !selectedAgentId}
+                disabled={isSending || !selectedAgentId || !isRequestedDiagramReady}
               />
               <ComposerLibrarySelectionTray
                 selections={librarySelections}
@@ -4648,8 +4783,8 @@ function DrawioPageContent() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px';
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Describe a diagram, or ask to edit this one…"}
-                disabled={isSending || demoQuotaState.exhausted}
+                placeholder={!isRequestedDiagramReady ? "Diagram unavailable" : isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Describe a diagram, or ask to edit this one…"}
+                disabled={!isRequestedDiagramReady || isSending || demoQuotaState.exhausted}
                 className="composer-textarea max-h-[300px] w-full resize-none border-none bg-transparent px-2 py-2 text-[15px] leading-6 text-zinc-800 placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
                 rows={1}
                 style={{ height: 'auto', minHeight: COMPOSER_TEXTAREA_MIN_HEIGHT_PX }}
@@ -4660,7 +4795,7 @@ function DrawioPageContent() {
                 <div className="flex items-center gap-1.5">
                   <ComposerAddMenu
                     client={materialClient}
-                    disabled={isSending || !selectedAgentId}
+                    disabled={isSending || !selectedAgentId || !isRequestedDiagramReady}
                     selections={librarySelections}
                     onSelect={attachLibrarySelection}
                     onRemove={removeLibrarySelection}
@@ -4738,15 +4873,15 @@ function DrawioPageContent() {
                   ) : (
                     <button
                       onClick={handleSendMessage}
-                      disabled={!inputValue.trim() || demoQuotaState.exhausted}
+                      disabled={!isRequestedDiagramReady || !inputValue.trim() || demoQuotaState.exhausted || hasProcessingAttachments}
                       className={`
                         grid h-10 w-10 place-items-center rounded-full transition-[background-color,color,transform] duration-150
-                        ${inputValue.trim() && !demoQuotaState.exhausted
+                        ${isRequestedDiagramReady && inputValue.trim() && !demoQuotaState.exhausted && !hasProcessingAttachments
                           ? 'bg-zinc-900 text-white shadow-sm hover:bg-zinc-700 active:scale-95'
                           : 'cursor-not-allowed bg-stone-100 text-zinc-400'
                         }
                       `}
-                      title="Send message"
+                      title={!isRequestedDiagramReady ? "Diagram unavailable" : hasProcessingAttachments ? "Wait for attachments to finish" : "Send message"}
                       aria-label="Send message"
                     >
                       <Icons.ArrowUp className="h-[18px] w-[18px]" />

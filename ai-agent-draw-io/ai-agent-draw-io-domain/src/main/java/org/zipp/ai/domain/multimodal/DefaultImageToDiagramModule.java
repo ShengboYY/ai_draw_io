@@ -12,7 +12,6 @@ import java.util.Set;
 public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
     private static final int CANVAS_WIDTH = 1_200;
     private static final int CANVAS_HEIGHT = 800;
-    private static final double CRITICAL_EDGE_CONFIDENCE = 0.75;
 
     @Override
     public ImageToDiagramOutcome convert(ImageToDiagramCommand command) {
@@ -27,37 +26,8 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
                         (first, ignored) -> first,
                         LinkedHashMap::new));
         ObservedDiagramGraph effectiveGraph = applyDirectionClarifications(graph, clarifications);
-
-        List<String> confirmation = graph.unresolvedItems().stream()
-                .map(this::unresolvedReason)
-                .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
-                .collect(
-                        java.util.stream.Collectors.toCollection(ArrayList::new));
-        graph.nodes().stream()
-                .filter(node -> node.confidence() < CRITICAL_EDGE_CONFIDENCE)
-                .map(node -> "LOW_CONFIDENCE_NODE_TEXT:" + node.id())
-                .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
-                .forEach(confirmation::add);
-        graph.groups().stream()
-                .filter(group -> group.confidence() < CRITICAL_EDGE_CONFIDENCE)
-                .map(group -> "LOW_CONFIDENCE_GROUP_TEXT:" + group.id())
-                .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
-                .forEach(confirmation::add);
-        graph.edges().stream()
-                .filter(edge -> edge.confidence() < CRITICAL_EDGE_CONFIDENCE)
-                .map(edge -> "LOW_CONFIDENCE_EDGE:" + edge.id())
-                .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
-                .forEach(confirmation::add);
-        effectiveGraph.edges().stream()
-                .filter(edge -> edge.direction() == ObservedDiagramGraph.EdgeDirection.NONE)
-                .map(edge -> "UNRESOLVED_EDGE_DIRECTION:" + edge.id())
-                .filter(reason -> !undirected(clarifications, reason, observedValue(graph, reason)))
-                .forEach(confirmation::add);
-        if (!confirmation.isEmpty()) {
-            return new ImageToDiagramOutcome.NeedsConfirmation(
-                    confirmation, observedValues(graph, confirmation));
-        }
-
+        // Once the exact image is selected, recognition uncertainty is a quality warning rather
+        // than a reason to interrupt the user. Invalid topology still fails closed above.
         return projectVerified(effectiveGraph);
     }
 
@@ -81,20 +51,6 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
         }
         xml.append("</root></mxGraphModel>");
         return new ImageToDiagramOutcome.Converted(xml.toString(), cellIds, graph);
-    }
-
-    private boolean accepted(Map<String, DirectClarification> clarifications,
-                             String reason, String observedValue) {
-        DirectClarification clarification = clarifications.get(reason);
-        return matchesObservation(clarification, observedValue)
-                && clarification.resolution() == DirectClarification.Resolution.ACCEPT_OBSERVED;
-    }
-
-    private boolean undirected(Map<String, DirectClarification> clarifications,
-                               String reason, String observedValue) {
-        DirectClarification clarification = clarifications.get(reason);
-        return matchesObservation(clarification, observedValue)
-                && clarification.resolution() == DirectClarification.Resolution.UNDIRECTED;
     }
 
     private boolean matchesObservation(DirectClarification clarification, String observedValue) {
@@ -128,43 +84,6 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
         }).toList();
         return new ObservedDiagramGraph(
                 graph.nodes(), edges, graph.groups(), graph.unresolvedItems());
-    }
-
-    private Map<String, String> observedValues(ObservedDiagramGraph graph,
-                                               List<String> reasons) {
-        Set<String> requested = Set.copyOf(reasons);
-        Map<String, String> values = new LinkedHashMap<>();
-        graph.nodes().forEach(node -> putObserved(values, requested,
-                "LOW_CONFIDENCE_NODE_TEXT:" + node.id(), node.label()));
-        graph.groups().forEach(group -> putObserved(values, requested,
-                "LOW_CONFIDENCE_GROUP_TEXT:" + group.id(), group.label()));
-        graph.edges().forEach(edge -> {
-            putObserved(values, requested, "LOW_CONFIDENCE_EDGE:" + edge.id(),
-                    edge.label().isBlank()
-                            ? edge.sourceId() + " → " + edge.targetId()
-                            : edge.label());
-            putObserved(values, requested, "UNRESOLVED_EDGE_DIRECTION:" + edge.id(),
-                    edge.sourceId() + " → " + edge.targetId());
-        });
-        graph.unresolvedItems().forEach(item -> putObserved(values, requested,
-                unresolvedReason(item), item.suggestedConfirmation()));
-        return Map.copyOf(values);
-    }
-
-    private String unresolvedReason(ObservedDiagramGraph.UnresolvedItem item) {
-        String identity = item.reason() + "|" + item.region();
-        return "UNRESOLVED:" + DirectObservationFingerprint.of(identity).substring(0, 24);
-    }
-
-    private String observedValue(ObservedDiagramGraph graph, String reason) {
-        return observedValues(graph, List.of(reason)).getOrDefault(reason, "");
-    }
-
-    private void putObserved(Map<String, String> values, Set<String> requested,
-                             String reason, String value) {
-        if (requested.contains(reason) && value != null && !value.isBlank()) {
-            values.put(reason, value);
-        }
     }
 
     private List<String> validateReferences(ObservedDiagramGraph graph) {
