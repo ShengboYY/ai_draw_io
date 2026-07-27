@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "material-rag-owner-spot-check-policy-v1",
+  "reviewMethod": "automated-full-owner-spot-check-v1",
+  "purpose": "Freeze the representative cases displayed to and approved by the project owner. This policy does not claim independent double-human review.",
+  "requiredCoreCaseIds": [
+    "controlled-130",
+    "controlled-624"
+  ],
+  "requiredGenerationTaskIds": [
+    "dgt-dev-03",
+    "dgt-dev-10",
+    "dgt-dev-17",
+    "dgt-val-04",
+    "dgt-val-17"
+  ]
+}

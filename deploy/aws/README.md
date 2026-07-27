@@ -72,6 +72,12 @@ aws ecr create-repository \
   --image-tag-mutability IMMUTABLE \
   --image-scanning-configuration scanOnPush=true \
   --region "$AWS_REGION"
+
+aws ecr create-repository \
+  --repository-name ai-drawio-db-migrate \
+  --image-tag-mutability IMMUTABLE \
+  --image-scanning-configuration scanOnPush=true \
+  --region "$AWS_REGION"
 ```
 
 登录 ECR：
@@ -119,6 +125,7 @@ aws secretsmanager create-secret \
     "MYSQL_PASSWORD":"replace-with-rds-app-user-password",
     "LLM_API_KEY":"replace-with-provider-api-key",
     "MODEL_CREDENTIAL_ENCRYPTION_KEY":"base64:replace-with-openssl-output",
+    "ANONYMOUS_WORKSPACE_PEPPER":"replace-with-another-stable-random-secret",
     "BAIDU_SEARCH_API_KEY":"",
     "SKILL_ADMIN_TOKEN":""
   }'

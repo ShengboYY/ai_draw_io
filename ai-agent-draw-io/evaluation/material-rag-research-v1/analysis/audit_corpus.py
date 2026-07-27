@@ -1,0 +1,786 @@
+#!/usr/bin/env python3
+"""Audit material-RAG corpus readiness and emit a deterministic corpus lock."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import xml.etree.ElementTree as ET
+from collections import Counter, defaultdict
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+CORE_SPLITS = ("development", "validation", "holdout")
+LOCK_FILENAME = "corpus-lock.json"
+GUARD_SPLITS = {
+    "authorization": "guard_authorization",
+    "versioning": "guard_versioning",
+    "abstention": "guard_abstention",
+    "visualAndOcr": "guard_visual_ocr",
+    "failureAndRecovery": "guard_failure",
+}
+PROVENANCE_FILES = (
+    "EXPERIMENT-PLAN-V2.md",
+    "experiment-plan-v2.json",
+    "requirements.txt",
+    "analysis/audit_corpus.py",
+    "analysis/compare_dense_runs.py",
+    "analysis/audit_e4_chartbook.py",
+    "analysis/evaluate_guard_suites.py",
+    "analysis/build_drawio_generation_prompts.py",
+    "analysis/run_drawio_generation.py",
+    "analysis/export_drawio_paired_hydration.py",
+    "analysis/evaluate_drawio_generation_tasks.py",
+    "analysis/audit_stage_a_decision_cohort.py",
+    "analysis/validate_generation_run_manifest.py",
+    "analysis/evaluate_ocr.py",
+    "analysis/select_drawio_context.py",
+    "review/make_review_ledger.py",
+    "review/owner-spot-check-policy-v1.json",
+    "review/owner-spot-check.json",
+    "review/stage-a-independent-review-report-v1.json",
+    "review/stage-a-independent-review-ledger-v1.json",
+    "fixtures/generate_fixtures.py",
+    "fixtures/generation-config.json",
+    "fixtures/realistic_corpus_specs.py",
+    "fixtures/drawio_agent_corpus_specs.py",
+    "fixtures/scenario_corpus_specs.py",
+    "fixtures/guard_corpus_specs.py",
+    "fixtures/expansion_corpus_specs.py",
+    "fixtures/e4_chartbook_specs.py",
+    "fixtures/source_evidence_identity_specs.py",
+    "fixtures/build_drawio_generation_tasks_v3.py",
+    "fixtures/build_stage_a_generation_inputs.py",
+    "fixtures/build_stage_b_validation_inputs.py",
+    "fixtures/query-selection.json",
+    "fixtures/drawio-generation-tasks-v1.json",
+    "fixtures/drawio-generation-tasks-v2.json",
+    "fixtures/drawio-generation-tasks-v3.json",
+    "fixtures/drawio-generation-development-evidence-v1.json",
+    "fixtures/drawio-generation-paired-hydration-contract-v1.json",
+    "fixtures/final-holdout-contract-v1.json",
+    "fixtures/stage-a-evidence-decision-cohort-v1.json",
+)
+CATEGORY_CONTEXT_FIELDS = {
+    "failure": (
+        "injectedDependency", "injectedState", "expectedSystemBehavior", "forbiddenSystemBehavior",
+    ),
+    "versionAndAuthorization": (
+        "scenarioType", "actingRole", "scopeConstraint", "expectedDecision",
+    ),
+}
+
+
+def read_jsonl(path: Path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def generated_hashes(generated_root: Path) -> dict[str, str]:
+    """Hash every generated input except the lock file that contains the hashes."""
+    return {
+        path.relative_to(generated_root).as_posix(): sha256(path)
+        for path in sorted(generated_root.rglob("*"))
+        if path.is_file() and path.name not in {LOCK_FILENAME, "corpus-lock.candidate.json"}
+    }
+
+
+def provenance_hashes(root: Path) -> dict[str, str]:
+    """Lock the authored plan, generator, evaluator and dependency declaration."""
+    return {relative: sha256(root / relative) for relative in PROVENANCE_FILES}
+
+
+def duplicate_values(values: list[str]) -> list[str]:
+    counts = Counter(values)
+    return sorted(value for value, count in counts.items() if count > 1)
+
+
+def evidence_shape_errors(case: dict) -> list[str]:
+    """Reject cases that Java would drop from the retrieval denominator."""
+    errors: list[str] = []
+    gold_anchor_ids = case.get("goldAnchorIds", [])
+    groups = case.get("requiredEvidenceGroups", [])
+    if case.get("answerable"):
+        if not gold_anchor_ids:
+            errors.append("answerable case has no gold anchors")
+        if not groups:
+            errors.append("answerable case has no evidence groups")
+    elif gold_anchor_ids or groups:
+        errors.append("no-answer case must not carry gold evidence")
+    for group in groups:
+        if group.get("operator") not in {"ANY", "ALL_PARTS"}:
+            errors.append("unsupported evidence-group operator")
+        if not group.get("evidence"):
+            errors.append("evidence group is empty")
+    return errors
+
+
+def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
+                           known_source_versions: set[str],
+                           no_retrieval_task_ids: set[str] | None = None) -> list[dict]:
+    """Keep the generation suite tied to real, split-safe evidence before it is run."""
+    errors: list[dict] = []
+    no_retrieval_task_ids = no_retrieval_task_ids or set()
+    seen_task_ids: set[str] = set()
+    for task in tasks:
+        task_id = task.get("taskId", "unknown")
+        if task_id in seen_task_ids:
+            errors.append({"taskId": task_id, "error": "duplicate task ID"})
+        seen_task_ids.add(task_id)
+        source_version = task.get("sourceVersion")
+        if source_version not in known_source_versions:
+            errors.append({"taskId": task_id, "error": "unknown source version"})
+        if task.get("split") not in CORE_SPLITS:
+            errors.append({"taskId": task_id, "error": "unknown split"})
+        source_scope_mode = task.get("sourceScopeMode")
+        selected_material_version = task.get("selectedMaterialVersion")
+        if source_scope_mode == "selected_only" \
+                and selected_material_version != source_version:
+            errors.append({
+                "taskId": task_id,
+                "error": "selected-only task has no matching selected material version",
+            })
+        elif source_scope_mode == "chartbook_auto" and selected_material_version:
+            errors.append({
+                "taskId": task_id,
+                "error": "automatic task must not declare a selected material version",
+            })
+        elif source_scope_mode not in {None, "selected_only", "chartbook_auto", "none"}:
+            errors.append({"taskId": task_id, "error": "unknown generation source scope mode"})
+        if task.get("type", "").endswith("edit") or task.get("type") == "structural_edit":
+            input_xml = str(task.get("inputXml", "")).strip()
+            if not input_xml:
+                errors.append({"taskId": task_id, "error": "edit task has no input XML"})
+            if not task.get("editAssertions"):
+                errors.append({"taskId": task_id, "error": "edit task has no edit assertions"})
+            if input_xml:
+                try:
+                    root = ET.fromstring(input_xml)
+                except ET.ParseError:
+                    errors.append({"taskId": task_id, "error": "edit task input XML is malformed"})
+                else:
+                    if root.tag != "mxGraphModel":
+                        errors.append({"taskId": task_id, "error": "edit task input is not draw.io XML"})
+                    input_ids = {cell.get("id") for cell in root.iter("mxCell") if cell.get("id")}
+                    assertion = task.get("editAssertions", {})
+                    referenced_input_ids = set(assertion.get("preserveCellIds", []))
+                    referenced_input_ids.update(assertion.get("preserveCellValues", {}))
+                    referenced_input_ids.update(assertion.get("preserveCellAttributes", {}))
+                    referenced_input_ids.update(assertion.get("forbiddenCellIds", []))
+                    columns = assertion.get("columns", {})
+                    referenced_input_ids.update(columns.get("leftCellIds", []))
+                    referenced_input_ids.update(columns.get("rightCellIds", []))
+                    if not referenced_input_ids.issubset(input_ids):
+                        errors.append({"taskId": task_id,
+                                       "error": "edit assertion references a missing input cell"})
+        required = set(task.get("requiredAnchors", []))
+        cited = set(task.get("citationAssertions", {}).get("mustCiteAnchors", []))
+        if required != cited:
+            errors.append({"taskId": task_id, "error": "citation anchors differ from required anchors"})
+        for anchor_id in required:
+            anchor = anchors.get(anchor_id)
+            if anchor is None:
+                errors.append({"taskId": task_id, "anchorId": anchor_id, "error": "unknown anchor"})
+            elif f"{anchor['source']}:{anchor['version']}" != source_version \
+                    or anchor.get("split") != task.get("split"):
+                errors.append({"taskId": task_id, "anchorId": anchor_id,
+                               "error": "anchor source or split mismatch"})
+        claims = task.get("claimAssertions", {}).get("requiredClaims", [])
+        claim_ids = [claim.get("claimId") for claim in claims]
+        if not claims or len(set(claim_ids)) != len(claim_ids) \
+                or any(not str(claim.get("claimId", "")).strip()
+                       or not str(claim.get("description", "")).strip()
+                       or not isinstance(claim.get("requiresCitation"), bool) for claim in claims):
+            errors.append({"taskId": task_id, "error": "invalid frozen claim universe"})
+        if task_id in no_retrieval_task_ids:
+            citations = task.get("citationAssertions", {})
+            if source_scope_mode not in {None, "none"} \
+                    or task.get("type") != "layout_only_edit" or required or cited \
+                    or citations.get("minimumCitations") != 0 \
+                    or any(claim.get("requiresCitation") for claim in claims):
+                errors.append({"taskId": task_id, "error": "invalid no-retrieval task contract"})
+    known_task_ids = {task.get("taskId") for task in tasks}
+    for task_id in no_retrieval_task_ids - known_task_ids:
+        errors.append({"taskId": task_id, "error": "unknown no-retrieval task"})
+    return errors
+
+
+def generation_context_errors(contexts: list[dict], tasks: dict[str, dict],
+                              anchors: dict[str, dict], root: Path) -> list[dict]:
+    """Ensure fixed E7 inputs expose only the task's locatable source evidence."""
+    errors: list[dict] = []
+    seen_task_ids: set[str] = set()
+    artifact_root = (root / "fixtures" / "generated" / "images").resolve()
+    for context in contexts:
+        task_id = context.get("taskId", "unknown")
+        task = tasks.get(task_id)
+        if task_id in seen_task_ids:
+            errors.append({"taskId": task_id, "error": "duplicate context"})
+            continue
+        seen_task_ids.add(task_id)
+        if task is None or task.get("split") != "development" or context.get("arm") != "fixed":
+            errors.append({"taskId": task_id, "error": "unknown or non-development task"})
+            continue
+        evidence_ids = {evidence.get("anchorId") for evidence in context.get("evidence", [])}
+        if evidence_ids != set(task.get("requiredAnchors", [])):
+            errors.append({"taskId": task_id, "error": "context anchors differ from task anchors"})
+        for evidence in context.get("evidence", []):
+            anchor = anchors.get(evidence.get("anchorId"))
+            if anchor is None or evidence.get("sourceVersion") != task.get("sourceVersion") \
+                    or evidence.get("page") != anchor.get("page") or not evidence.get("text", "").strip():
+                errors.append({"taskId": task_id, "error": "invalid evidence location or text"})
+            image_path = evidence.get("imagePath")
+            if image_path:
+                artifact = (root / image_path).resolve() if isinstance(image_path, str) else None
+                if artifact is None or not artifact.is_relative_to(artifact_root):
+                    errors.append({"taskId": task_id, "error": "visual artifact outside frozen directory"})
+                elif not artifact.is_file():
+                    errors.append({"taskId": task_id, "error": "missing visual artifact"})
+                elif evidence.get("imageSha256") != sha256(artifact):
+                    errors.append({"taskId": task_id, "error": "visual artifact hash mismatch"})
+    expected_task_ids = {task_id for task_id, task in tasks.items()
+                         if task.get("split") == "development"}
+    if seen_task_ids != expected_task_ids:
+        errors.append({"error": "development task contexts are incomplete"})
+    return errors
+
+
+def reviewed_case_ids(review_ledger: Path | None,
+                      expected_case_ids: set[str] | None = None,
+                      owner_spot_check_policy: Path | None = None,
+                      expected_generation_task_ids: set[str] | None = None
+                      ) -> tuple[set[str], str, str | None]:
+    """Resolve the declared review method and fail closed when its artifacts are incomplete."""
+    if review_ledger is None or not review_ledger.exists():
+        return set(), "pending", None
+    ledger = json.loads(review_ledger.read_text(encoding="utf-8"))
+    ledger_sha = sha256(review_ledger)
+    ledger_root = review_ledger.parent.resolve()
+    registry = ledger.get("reviewerRegistry", {})
+    if ledger.get("schemaVersion") == "material-rag-review-ledger-v3":
+        if owner_spot_check_policy is None or not owner_spot_check_policy.is_file():
+            return set(), "pending", ledger_sha
+        owner_reference = ledger.get("ownerSpotCheckArtifact", {})
+        artifact_path = (ledger_root / str(owner_reference.get("path", ""))).resolve()
+        policy_path = (ledger_root / str(owner_reference.get("policyPath", ""))).resolve()
+        expected_policy_path = owner_spot_check_policy.resolve()
+        if not artifact_path.is_relative_to(ledger_root) or not policy_path.is_relative_to(ledger_root) \
+                or policy_path != expected_policy_path or not artifact_path.is_file() \
+                or sha256(artifact_path) != owner_reference.get("sha256") \
+                or sha256(policy_path) != owner_reference.get("policySha256"):
+            return set(), "pending", ledger_sha
+        try:
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return set(), "pending", ledger_sha
+        reviewer_id = str(artifact.get("reviewerId", "")).strip()
+        required_core = set(policy.get("requiredCoreCaseIds", []))
+        required_tasks = set(policy.get("requiredGenerationTaskIds", []))
+        confirmed_core = set(artifact.get("confirmedCoreCaseIds", []))
+        confirmed_tasks = set(artifact.get("confirmedGenerationTaskIds", []))
+        if policy.get("schemaVersion") != "material-rag-owner-spot-check-policy-v1" \
+                or policy.get("reviewMethod") != "automated-full-owner-spot-check-v1" \
+                or ledger.get("reviewMethod") != policy.get("reviewMethod") \
+                or artifact.get("schemaVersion") != "material-rag-owner-spot-check-v1" \
+                or artifact.get("decision") != "approve" or not artifact.get("confirmationNote") \
+                or owner_reference.get("reviewerId") != reviewer_id \
+                or registry.get(reviewer_id, {}).get("kind") != "human_project_owner" \
+                or not required_core or not required_tasks \
+                or not required_core.issubset(confirmed_core) \
+                or not required_tasks.issubset(confirmed_tasks):
+            return set(), "pending", ledger_sha
+        entries = ledger.get("cases", [])
+        entry_ids = {entry.get("caseId") for entry in entries}
+        expected = expected_case_ids if expected_case_ids is not None else entry_ids
+        expected_tasks = expected_generation_task_ids or set()
+        automated_reviewers = {
+            reviewer for reviewer, metadata in registry.items()
+            if metadata.get("kind") == "automated"
+        }
+        if len(entries) != len(entry_ids) or entry_ids != expected \
+                or not required_core.issubset(expected) \
+                or not confirmed_core.issubset(expected) \
+                or not expected_tasks or not required_tasks.issubset(expected_tasks) \
+                or not confirmed_tasks.issubset(expected_tasks) \
+                or not automated_reviewers or any(
+                    entry.get("status") != "agreed"
+                    or not automated_reviewers.intersection(entry.get("reviewers", []))
+                    for entry in entries
+                ):
+            return set(), "pending", ledger_sha
+        return set(expected), "owner_spot_checked", ledger_sha
+
+    if ledger.get("schemaVersion") != "material-rag-review-ledger-v2":
+        return set(), "pending", ledger_sha
+    verified_human_accepts: dict[str, set[str]] = {}
+    for artifact in ledger.get("humanReviewArtifacts", []):
+        reviewer_id = str(artifact.get("reviewerId", "")).strip()
+        relative_path = artifact.get("path")
+        expected_sha = artifact.get("sha256")
+        if not reviewer_id or not isinstance(relative_path, str) or not isinstance(expected_sha, str):
+            continue
+        path = (ledger_root / relative_path).resolve()
+        if not path.is_relative_to(ledger_root) or not path.is_file() or sha256(path) != expected_sha:
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if payload.get("schemaVersion") != "material-rag-human-review-v1" \
+                or payload.get("reviewerId") != reviewer_id \
+                or registry.get(reviewer_id, {}).get("kind") != "human":
+            continue
+        decisions: dict[str, str] = {}
+        valid = True
+        for decision in payload.get("cases", []):
+            case_id = str(decision.get("caseId", "")).strip()
+            verdict = decision.get("verdict")
+            notes = str(decision.get("notes", "")).strip()
+            if not case_id or case_id in decisions or verdict not in {"accept", "needs_fix"} \
+                    or verdict == "needs_fix" and not notes:
+                valid = False
+                break
+            decisions[case_id] = verdict
+        if valid and decisions and (
+                expected_case_ids is None or set(decisions) == expected_case_ids
+        ):
+            verified_human_accepts[reviewer_id] = {
+                case_id for case_id, verdict in decisions.items() if verdict == "accept"
+            }
+
+    def human_reviewers(entry: dict) -> set[str]:
+        """Resolve reviewer kinds from the ledger instead of guessing from reviewer names."""
+        case_id = entry.get("caseId")
+        return {
+            reviewer_id
+            for reviewer_id in entry.get("reviewers", [])
+            if case_id in verified_human_accepts.get(reviewer_id, set())
+        }
+
+    reviewed = {
+        entry["caseId"]
+        for entry in ledger.get("cases", [])
+        if entry.get("status") in {"agreed", "arbitrated"}
+        and len(human_reviewers(entry)) >= 2
+    }
+    has_single_human_review = any(
+        entry.get("status") in {"agreed", "arbitrated"} and human_reviewers(entry)
+        for entry in ledger.get("cases", [])
+    )
+    status = (
+        "double_reviewed" if reviewed
+        else "single_human_reviewed" if has_single_human_review
+        else "pending"
+    )
+    return reviewed, status, ledger_sha
+
+
+def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
+    generated = root / "fixtures" / "generated"
+    plan = json.loads((root / "experiment-plan-v2.json").read_text(encoding="utf-8"))
+    manifest = json.loads((generated / "corpus-manifest.json").read_text(encoding="utf-8"))
+    anchors = json.loads((generated / "ground-truth.json").read_text(encoding="utf-8"))["anchors"]
+    cases = read_jsonl(generated / "cases.jsonl")
+    core_case_ids = {case["caseId"] for case in cases if case.get("split") in CORE_SPLITS}
+    documents = {document["source"]: document for document in manifest["documents"]}
+    known_source_versions = {
+        f"{document['source']}:{document['version']}" for document in manifest["documents"]
+    }
+    anchor_by_id = {anchor["anchorId"]: anchor for anchor in anchors}
+    generation_fixture = json.loads(
+        (root / "fixtures" / "drawio-generation-tasks-v3.json").read_text(encoding="utf-8")
+    )
+    generation_tasks = generation_fixture["tasks"]
+    reviewed_ids, ledger_review_status, review_ledger_sha = reviewed_case_ids(
+        review_ledger,
+        core_case_ids,
+        root / "review" / "owner-spot-check-policy-v1.json",
+        {task["taskId"] for task in generation_tasks},
+    )
+    owner_policy_path = root / "review" / "owner-spot-check-policy-v1.json"
+    owner_policy = json.loads(owner_policy_path.read_text(encoding="utf-8"))
+    owner_policy_valid = (
+        owner_policy.get("schemaVersion") == "material-rag-owner-spot-check-policy-v1"
+        and set(owner_policy.get("requiredCoreCaseIds", [])).issubset(core_case_ids)
+        and set(owner_policy.get("requiredGenerationTaskIds", [])).issubset({
+            task["taskId"] for task in generation_tasks
+        })
+    )
+    legacy_fixed_generation_fixture = json.loads(
+        (root / "fixtures" / "drawio-generation-tasks-v2.json").read_text(encoding="utf-8")
+    )
+    generation_contexts = json.loads(
+        (root / "fixtures" / "drawio-generation-development-evidence-v1.json").read_text(encoding="utf-8")
+    )["contexts"]
+    core_targets = plan["coreCases"]
+    core_cases = [case for case in cases if case.get("split") in CORE_SPLITS]
+    guard_counts = Counter(
+        case.get("split") for case in cases if case.get("split", "").startswith("guard_")
+    )
+    reviewed_core_ids = reviewed_ids & core_case_ids
+    human_review_status = (
+        ledger_review_status if core_case_ids and reviewed_core_ids == core_case_ids
+        else "partial" if reviewed_core_ids
+        else ledger_review_status
+    )
+    unknown_reviewed_case_ids = sorted(reviewed_ids - {case["caseId"] for case in cases})
+    split_counts = Counter(case["split"] for case in core_cases)
+    language_counts = Counter(case["language"] for case in core_cases)
+    category_counts = Counter(case.get("primaryCategory") for case in core_cases)
+    modality_counts = Counter(case["category"] for case in core_cases)
+
+    unresolved_anchors: list[dict] = []
+    source_mismatches: list[dict] = []
+    metadata_mismatches: list[dict] = []
+    invalid_evidence_grades: list[dict] = []
+    invalid_evidence_shapes: list[dict] = []
+    evidence_metadata_mismatches: list[dict] = []
+    evidence_group_gold_mismatches: list[dict] = []
+    unknown_allowed_source_versions: list[dict] = []
+    invalid_category_contexts: list[dict] = []
+    missing_answers: list[str] = []
+    missing_abstention_conditions: list[str] = []
+    family_splits: defaultdict[str, set[str]] = defaultdict(set)
+    no_retrieval_task_ids = set(generation_fixture.get("developmentNoRetrievalTaskIds", []))
+    task_errors = generation_task_errors(generation_tasks, anchor_by_id, known_source_versions,
+                                         no_retrieval_task_ids)
+    chartbook_sources = set(generation_fixture.get("developmentChartbookSourceVersions", []))
+    if not chartbook_sources or not chartbook_sources.issubset(known_source_versions):
+        task_errors.append({"taskId": "development-chartbook", "error": "invalid mounted source versions"})
+    validation_sources = set(generation_fixture.get("validationChartbookSourceVersions", []))
+    if not validation_sources or not validation_sources.issubset(known_source_versions):
+        task_errors.append({"taskId": "validation-chartbook", "error": "invalid mounted source versions"})
+    context_errors = generation_context_errors(
+        generation_contexts,
+        {task["taskId"]: task for task in legacy_fixed_generation_fixture["tasks"]},
+        anchor_by_id,
+        root,
+    )
+
+    for case in cases:
+        family_splits[case["documentFamily"]].add(case["split"])
+        shape_errors = evidence_shape_errors(case)
+        if shape_errors:
+            invalid_evidence_shapes.append({"caseId": case["caseId"], "errors": shape_errors})
+        if case["answerable"] and not case.get("expectedAnswer"):
+            missing_answers.append(case["caseId"])
+        if not case["answerable"] and not case.get("abstentionCondition"):
+            missing_abstention_conditions.append(case["caseId"])
+        allowed_sources = set(case.get("allowedSourceVersions", []))
+        for source_version in sorted(allowed_sources - known_source_versions):
+            unknown_allowed_source_versions.append({
+                "caseId": case["caseId"], "sourceVersion": source_version,
+            })
+        for anchor_id in case.get("goldAnchorIds", []):
+            anchor = anchor_by_id.get(anchor_id)
+            if anchor is None:
+                unresolved_anchors.append({"caseId": case["caseId"], "anchorId": anchor_id})
+                continue
+            source_version = f"{anchor['source']}:{anchor['version']}"
+            if source_version not in allowed_sources:
+                source_mismatches.append({
+                    "caseId": case["caseId"], "anchorId": anchor_id,
+                    "sourceVersion": source_version,
+                })
+            if (anchor.get("split") != case.get("split")
+                    or anchor.get("documentFamily") != case.get("documentFamily")):
+                metadata_mismatches.append({"caseId": case["caseId"], "anchorId": anchor_id})
+        required_anchor_ids: set[str] = set()
+        for group in case.get("requiredEvidenceGroups", []):
+            for requirement in group.get("evidence", []):
+                anchor_id = requirement.get("anchorId")
+                if isinstance(anchor_id, str):
+                    required_anchor_ids.add(anchor_id)
+                grade = requirement.get("grade")
+                minimum_grade = requirement.get("minimumGrade")
+                if anchor_id not in anchor_by_id or not isinstance(grade, int) \
+                        or not isinstance(minimum_grade, int) or not 0 <= grade <= 3 \
+                        or not 0 <= minimum_grade <= 3 or grade < minimum_grade:
+                    invalid_evidence_grades.append({
+                        "caseId": case["caseId"], "anchorId": anchor_id,
+                        "grade": grade, "minimumGrade": minimum_grade,
+                    })
+                    continue
+                anchor = anchor_by_id[anchor_id]
+                source_version = f"{anchor['source']}:{anchor['version']}"
+                if source_version not in allowed_sources \
+                        or anchor.get("split") != case.get("split") \
+                        or anchor.get("documentFamily") != case.get("documentFamily"):
+                    evidence_metadata_mismatches.append({
+                        "caseId": case["caseId"], "anchorId": anchor_id,
+                        "sourceVersion": source_version,
+                    })
+        gold_anchor_ids = set(case.get("goldAnchorIds", []))
+        if required_anchor_ids != gold_anchor_ids:
+            evidence_group_gold_mismatches.append({
+                "caseId": case["caseId"],
+                "goldAnchorIds": sorted(gold_anchor_ids),
+                "requiredAnchorIds": sorted(required_anchor_ids),
+            })
+
+        required_context_fields = CATEGORY_CONTEXT_FIELDS.get(case.get("primaryCategory"))
+        if required_context_fields:
+            context = case.get("evaluationContext")
+            missing_fields = [
+                field for field in required_context_fields
+                if not isinstance(context, dict) or not str(context.get(field, "")).strip()
+            ]
+            if missing_fields:
+                invalid_category_contexts.append({
+                    "caseId": case["caseId"], "missingFields": missing_fields,
+                })
+
+    manifest_family_splits: defaultdict[str, set[str]] = defaultdict(set)
+    for document in manifest["documents"]:
+        manifest_family_splits[document["documentFamily"]].add(document["split"])
+    combined_family_splits: defaultdict[str, set[str]] = defaultdict(set)
+    for family, splits in [*manifest_family_splits.items(), *family_splits.items()]:
+        combined_family_splits[family].update(splits)
+    split_leakage = {
+        family: sorted(splits)
+        for family, splits in combined_family_splits.items()
+        if len(splits) > 1
+    }
+
+    exact_split_counts = all(split_counts[split] == target for split, target in core_targets.items())
+    valid_primary_categories = set(plan["primaryCategories"])
+    primary_categories_valid = all(
+        case.get("primaryCategory") in valid_primary_categories for case in cases
+    )
+    exact_category_counts = all(
+        category_counts[category] == target
+        for category, target in plan["primaryCategories"].items()
+    )
+    exact_language_counts = all(
+        language_counts[language] == target
+        for language, target in plan["languageTargets"].items()
+    )
+    guard_suite_counts = {
+        suite: guard_counts[split] for suite, split in GUARD_SPLITS.items()
+    }
+    guard_suite_gaps = {
+        suite: target - guard_suite_counts[suite]
+        for suite, target in plan["guardSuites"].items()
+        if guard_suite_counts[suite] < target
+    }
+    guard_suite_minimums_met = not guard_suite_gaps
+    structural_checks = {
+        "uniqueCaseIds": not duplicate_values([case["caseId"] for case in cases]),
+        "uniqueAnchorIds": not duplicate_values([anchor["anchorId"] for anchor in anchors]),
+        "allGoldAnchorsResolve": not unresolved_anchors,
+        "allowedSourcesMatchAnchors": not source_mismatches,
+        "caseAnchorMetadataMatches": not metadata_mismatches,
+        "evidenceGradesValid": not invalid_evidence_grades,
+        "evidenceGroupsStructurallyValid": not invalid_evidence_shapes,
+        "requiredEvidenceMetadataMatches": not evidence_metadata_mismatches,
+        "requiredEvidenceMatchesGoldAnchors": not evidence_group_gold_mismatches,
+        "allowedSourceVersionsExist": not unknown_allowed_source_versions,
+        "answerableCasesHaveExpectedAnswer": not missing_answers,
+        "noAnswerCasesHaveAbstentionCondition": not missing_abstention_conditions,
+        "documentFamiliesDoNotCrossSplits": not split_leakage,
+        "reviewLedgerReferencesKnownCases": not unknown_reviewed_case_ids,
+        "reviewGovernancePolicyValid": owner_policy_valid,
+        "primaryCategoryLabelsValid": primary_categories_valid,
+        "scenarioCategoryContextsValid": not invalid_category_contexts,
+        "guardSuiteMinimumsMet": guard_suite_minimums_met,
+        "generationTasksValid": not task_errors,
+        "generationContextsValid": not context_errors,
+    }
+    structural_pass = all(structural_checks.values())
+    reviewed_threshold = len(reviewed_core_ids) >= plan["preE0"]["minimumReviewedCasesBeforeComparison"]
+    review_governance_satisfied = (
+        reviewed_core_ids == core_case_ids
+        and human_review_status in {"double_reviewed", "owner_spot_checked"}
+    )
+    ready_for_e0 = structural_pass and exact_split_counts and exact_category_counts \
+        and exact_language_counts and review_governance_satisfied
+
+    gaps = {
+        split: core_targets[split] - split_counts[split]
+        for split in CORE_SPLITS
+        if core_targets[split] != split_counts[split]
+    }
+    hashes = generated_hashes(generated)
+    provenance = provenance_hashes(root)
+    generation_config = json.loads(
+        (root / "fixtures" / "generation-config.json").read_text(encoding="utf-8")
+    )
+    result = {
+        "schemaVersion": "material-rag-e0-readiness-v1",
+        "status": "ready" if ready_for_e0 else "blocked",
+        "readyForFormalComparison": structural_pass
+        and len(core_cases) >= plan["preE0"]["minimumReviewedCasesBeforeComparison"]
+        and reviewed_threshold,
+        "readyForE0Freeze": ready_for_e0,
+        "counts": {
+            "allGeneratedCases": len(cases),
+            "coreCases": len(core_cases),
+            "coreBySplit": dict(sorted(split_counts.items())),
+            "coreByLanguage": dict(sorted(language_counts.items())),
+            "coreByPrimaryCategory": dict(sorted(category_counts.items())),
+            "coreByModality": dict(sorted(modality_counts.items())),
+            "anchors": len(anchors),
+            "documents": len(documents),
+            "reviewedCoreCases": len(reviewed_core_ids),
+            "guardSuites": dict(sorted(guard_suite_counts.items())),
+        },
+        "targets": {
+            "coreCases": core_targets,
+            "primaryCategories": plan["primaryCategories"],
+            "languageTargets": plan["languageTargets"],
+            "guardSuites": plan["guardSuites"],
+        },
+        "gaps": {
+            "coreCases": plan["preE0"]["requiredFrozenCoreCasesForBaseline"] - len(core_cases),
+            "coreBySplit": gaps,
+            "reviewGovernance": human_review_status,
+            "independentHumanReview": (
+                human_review_status if human_review_status == "double_reviewed"
+                else "not_claimed" if human_review_status == "owner_spot_checked"
+                else human_review_status
+            ),
+            "reviewedCasesBeforeComparison": max(
+                0, plan["preE0"]["minimumReviewedCasesBeforeComparison"] - len(reviewed_core_ids)),
+            "primaryCategoryDelta": {
+                category: target - category_counts[category]
+                for category, target in plan["primaryCategories"].items()
+                if target != category_counts[category]
+            },
+            "languageTargetDelta": {
+                language: target - language_counts[language]
+                for language, target in plan["languageTargets"].items()
+                if target != language_counts[language]
+            },
+            "guardSuiteDelta": guard_suite_gaps,
+        },
+        "checks": structural_checks,
+        "details": {
+            "duplicateCaseIds": duplicate_values([case["caseId"] for case in cases]),
+            "duplicateAnchorIds": duplicate_values([anchor["anchorId"] for anchor in anchors]),
+            "unresolvedAnchors": unresolved_anchors,
+            "sourceMismatches": source_mismatches,
+            "metadataMismatches": metadata_mismatches,
+            "invalidEvidenceGrades": invalid_evidence_grades,
+            "invalidEvidenceShapes": invalid_evidence_shapes,
+            "evidenceMetadataMismatches": evidence_metadata_mismatches,
+            "evidenceGroupGoldMismatches": evidence_group_gold_mismatches,
+            "unknownAllowedSourceVersions": unknown_allowed_source_versions,
+            "invalidCategoryContexts": invalid_category_contexts,
+            "missingExpectedAnswers": missing_answers,
+            "missingAbstentionConditions": missing_abstention_conditions,
+            "splitLeakage": split_leakage,
+            "unknownReviewedCaseIds": unknown_reviewed_case_ids,
+            "generationTaskErrors": task_errors,
+            "generationContextErrors": context_errors,
+        },
+    }
+    lock = {
+        "schemaVersion": "material-rag-corpus-lock-v1",
+        "status": "frozen" if ready_for_e0 else "candidate",
+        "hashAlgorithm": "sha256",
+        "coreCaseCount": len(core_cases),
+        "coreBySplit": dict(sorted(split_counts.items())),
+        "reviewGovernance": human_review_status,
+        "independentHumanReview": (
+            human_review_status if human_review_status == "double_reviewed"
+            else "not_claimed" if human_review_status == "owner_spot_checked"
+            else human_review_status
+        ),
+        "reviewedCoreCases": len(reviewed_core_ids),
+        "reviewLedgerSha256": review_ledger_sha,
+        "fixtureFontSha256": generation_config["fixtureFontSha256"],
+        "provenanceFiles": provenance,
+        "files": hashes,
+    }
+    return result, lock
+
+
+def markdown_report(result: dict) -> str:
+    counts = result["counts"]
+    targets = result["targets"]
+    gaps = result["gaps"]
+    core_target = sum(targets["coreCases"].values())
+    lines = [
+        "# E0 readiness audit",
+        "",
+        f"Status: **{result['status'].upper()}**",
+        "",
+        "## Current corpus",
+        "",
+        f"- Core cases: {counts['coreCases']} / {core_target}",
+        f"- Development: {counts['coreBySplit'].get('development', 0)} / {targets['coreCases']['development']}",
+        f"- Validation: {counts['coreBySplit'].get('validation', 0)} / {targets['coreCases']['validation']}",
+        f"- Holdout: {counts['coreBySplit'].get('holdout', 0)} / {targets['coreCases']['holdout']}",
+        f"- Generated cases including guards: {counts['allGeneratedCases']}",
+        f"- Anchors: {counts['anchors']}; documents: {counts['documents']}",
+        "",
+        "## Readiness gaps",
+        "",
+        f"- Missing core cases: {gaps['coreCases']}",
+        f"- Split gaps: `{json.dumps(gaps['coreBySplit'], sort_keys=True)}`",
+        f"- Review-governed core cases: {counts['reviewedCoreCases']}",
+        f"- Review governance: `{gaps['reviewGovernance']}`",
+        f"- Independent human review claim: `{gaps['independentHumanReview']}`",
+        f"- Primary-category deltas: `{json.dumps(gaps['primaryCategoryDelta'], sort_keys=True)}`",
+        f"- Language-target deltas: `{json.dumps(gaps['languageTargetDelta'], sort_keys=True)}`",
+        f"- Guard-suite deltas: `{json.dumps(gaps['guardSuiteDelta'], sort_keys=True)}`",
+        "",
+        "## Structural checks",
+        "",
+    ]
+    lines.extend(
+        f"- {'PASS' if passed else 'FAIL'} - `{name}`"
+        for name, passed in result["checks"].items()
+    )
+    lines.append("")
+    if result["readyForE0Freeze"]:
+        lines.extend([
+            "The corpus lock is frozen: core targets, guard-suite minimums, structural checks and",
+            "the declared review-governance contract all pass. Development comparisons may proceed;",
+            "Validation remains closed until Development promotion. No independent double-human review",
+            "is claimed, and the external final holdout is not yet materialized.",
+            "",
+        ])
+    else:
+        lines.extend([
+            "The corpus lock is still a candidate. Do not run formal comparisons until all listed",
+            "count, label, guard-suite and review-governance gaps are closed.",
+            "",
+        ])
+    return "\n".join(lines)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("--review-ledger", type=Path)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--lock", "--candidate-lock", dest="lock", type=Path)
+    args = parser.parse_args()
+    review_ledger = args.review_ledger.resolve() if args.review_ledger else None
+    result, lock = audit(args.root.resolve(), review_ledger)
+    output = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
+    print(output, end="")
+    for path, content in [
+        (args.json_out, output),
+        (args.markdown_out, markdown_report(result)),
+        (args.lock, json.dumps(lock, ensure_ascii=False, indent=2) + "\n"),
+    ]:
+        if path:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()

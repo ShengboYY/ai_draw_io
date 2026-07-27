@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "material-rag-drawio-development-wrap-probe-v1",
+  "status": "verified",
+  "purpose": "post-Stage-E Development-only verification of the long-label wrapping remediation",
+  "source": {
+    "kind": "new synthetic local XML",
+    "sha256": "17a5a4a485a9f02be3b17bf156140ff3ffade8bcb0da3775cdd9744f0705325b",
+    "xml": "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"escalation\" value=\"Escalation Coordinator verifies the mitigation owner and publishes the recovery decision before the service review closes.\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"180\" y=\"120\" width=\"260\" height=\"70\" as=\"geometry\"/></mxCell></root></mxGraphModel>"
+  },
+  "expectedCanonicalStyle": "whiteSpace=wrap;html=1;",
+  "verification": {
+    "unitTest": "DrawioCanvasXmlToolkitTest#wrapsAnIndependentDevelopmentProbeLabel",
+    "unitTestResult": "passed",
+    "renderer": "diagrams.net",
+    "rendererResult": "passed: the 260 by 70 vertex rendered the label across three lines without overflow"
+  },
+  "modelCalls": 0,
+  "limitations": "This is a new synthetic Development probe, not a rerun or amendment of Stage E. It does not alter any frozen Stage E response, score, policy, rubric, or duplicate-run diagnostic-only conclusion."
+}

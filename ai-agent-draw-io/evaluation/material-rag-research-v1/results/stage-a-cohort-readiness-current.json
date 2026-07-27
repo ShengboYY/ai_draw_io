@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "material-rag-stage-a-cohort-audit-v1",
+  "status": "ready",
+  "structuralReady": true,
+  "independentReviewComplete": true,
+  "counts": {
+    "cases": 30,
+    "blockedCases": 14,
+    "newDocumentFamilies": 12,
+    "readyVisualArtifactCases": 2,
+    "outcomes": {
+      "Ready": 12,
+      "InsufficientEvidence": 6,
+      "ClarificationNeeded": 4,
+      "DegradedDependency": 4,
+      "NotRequired": 4
+    }
+  },
+  "errors": [],
+  "reviewErrors": []
+}

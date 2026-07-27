@@ -1,0 +1,390 @@
+{
+  "schemaVersion": "material-rag-generated-corpus-v1",
+  "documents": [
+    {
+      "source": "controlled-guide-v1",
+      "documentFamily": "controlled-operations-guide",
+      "version": "v1",
+      "split": "guard_regression",
+      "language": "mixed",
+      "role": "controlled",
+      "filename": "controlled-operations-guide-v1.pdf"
+    },
+    {
+      "source": "controlled-guide-v2",
+      "documentFamily": "controlled-operations-guide",
+      "version": "v2",
+      "split": "guard_regression",
+      "language": "mixed",
+      "role": "controlled",
+      "filename": "controlled-operations-guide-v2.pdf"
+    },
+    {
+      "source": "scanned-ops",
+      "documentFamily": "controlled-scanned-cards",
+      "version": "v1",
+      "split": "guard_visual_ocr",
+      "language": "mixed",
+      "role": "controlled",
+      "filename": "scanned-operations-cards.pdf"
+    },
+    {
+      "source": "whiteboard-review-feedback",
+      "documentFamily": "whiteboard-review-feedback",
+      "version": "v1",
+      "split": "guard_visual_ocr",
+      "language": "en",
+      "role": "challenge",
+      "filename": "whiteboard-review-feedback.png"
+    },
+    {
+      "source": "realistic-harbor-report",
+      "documentFamily": "harbor-grid-resilience",
+      "version": "v1",
+      "split": "development",
+      "language": "mixed",
+      "role": "realistic",
+      "filename": "realistic-harbor-grid-report-v1.pdf"
+    },
+    {
+      "source": "realistic-water-audit",
+      "documentFamily": "coastal-water-audit",
+      "version": "v1",
+      "split": "development",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "realistic-coastal-water-audit-v1.pdf"
+    },
+    {
+      "source": "realistic-solar-manual",
+      "documentFamily": "helios-inverter-manual",
+      "version": "v1",
+      "split": "validation",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "realistic-helios-inverter-manual-v1.pdf"
+    },
+    {
+      "source": "realistic-cold-chain-report",
+      "documentFamily": "aurora-cold-chain-validation",
+      "version": "v1",
+      "split": "holdout",
+      "language": "en",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "realistic-aurora-cold-chain-validation-v1.pdf"
+    },
+    {
+      "source": "realistic-forest-study",
+      "documentFamily": "meridian-forest-restoration-study",
+      "version": "v1",
+      "split": "validation",
+      "language": "en",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "realistic-meridian-forest-study-v1.pdf"
+    },
+    {
+      "source": "realistic-museum-condition-memo",
+      "documentFamily": "arcadia-museum-condition-memo",
+      "version": "v1",
+      "split": "holdout",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "realistic-arcadia-condition-memo-v1.pdf"
+    },
+    {
+      "source": "drawio-agent-architecture",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "version": "v1",
+      "split": "development",
+      "language": "en",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "drawio-agent-architecture-blueprint-v1.pdf"
+    },
+    {
+      "source": "drawio-workflow-handbook",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "version": "v1",
+      "split": "development",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "drawio-diagram-workflow-handbook-v1.pdf"
+    },
+    {
+      "source": "drawio-collaboration-governance",
+      "documentFamily": "drawio-collaboration-governance",
+      "version": "v1",
+      "split": "validation",
+      "language": "en",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "drawio-collaboration-governance-v1.pdf"
+    },
+    {
+      "source": "drawio-recovery-runbook",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "version": "v1",
+      "split": "holdout",
+      "language": "en",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "drawio-agent-recovery-runbook-v1.pdf"
+    },
+    {
+      "source": "scenario-payment-settlement",
+      "documentFamily": "crossborder-payment-settlement",
+      "version": "v1",
+      "split": "development",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "scenario-crossborder-payment-settlement-v1.pdf"
+    },
+    {
+      "source": "scenario-ota-rollout",
+      "documentFamily": "vehicle-ota-rollout",
+      "version": "v1",
+      "split": "validation",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "scenario-vehicle-ota-rollout-v1.pdf"
+    },
+    {
+      "source": "scenario-gmp-change-control",
+      "documentFamily": "gmp-batch-change-control",
+      "version": "v1",
+      "split": "holdout",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "scenario-gmp-batch-change-control-v1.pdf"
+    },
+    {
+      "source": "guard-release-policy",
+      "documentFamily": "guard-versioning-policy",
+      "version": "v1",
+      "split": "guard_versioning",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-release-policy-v1.pdf"
+    },
+    {
+      "source": "guard-release-policy-v2",
+      "documentFamily": "guard-versioning-policy",
+      "version": "v2",
+      "split": "guard_versioning",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-release-policy-v2.pdf"
+    },
+    {
+      "source": "guard-abstention-guide",
+      "documentFamily": "guard-abstention-guide",
+      "version": "v1",
+      "split": "guard_abstention",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-abstention-guide-v1.pdf"
+    },
+    {
+      "source": "guard-authz-standard",
+      "documentFamily": "guard-authorization-standard",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-authorization-standard-v1.pdf"
+    },
+    {
+      "source": "guard-failure-drill",
+      "documentFamily": "guard-failure-drill",
+      "version": "v1",
+      "split": "guard_failure",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-failure-drill-v1.pdf"
+    },
+    {
+      "source": "guard-access-scope-2",
+      "documentFamily": "guard-access-scope-2",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-access-scope-2-v1.pdf"
+    },
+    {
+      "source": "guard-chartbook-scope",
+      "documentFamily": "guard-chartbook-scope",
+      "version": "v1",
+      "split": "guard_chartbook_scope",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-chartbook-scope-v1.pdf"
+    },
+    {
+      "source": "guard-versioning-2",
+      "documentFamily": "guard-versioning-2",
+      "version": "v1",
+      "split": "guard_versioning",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-versioning-2-v1.pdf"
+    },
+    {
+      "source": "guard-failure-2",
+      "documentFamily": "guard-failure-2",
+      "version": "v1",
+      "split": "guard_failure",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-failure-2-v1.pdf"
+    },
+    {
+      "source": "guard-access-scope-3",
+      "documentFamily": "guard-access-scope-3",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-access-scope-3-v1.pdf"
+    },
+    {
+      "source": "guard-versioning-3",
+      "documentFamily": "guard-versioning-3",
+      "version": "v1",
+      "split": "guard_versioning",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-versioning-3-v1.pdf"
+    },
+    {
+      "source": "guard-access-scope-4",
+      "documentFamily": "guard-access-scope-4",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-access-scope-4-v1.pdf"
+    },
+    {
+      "source": "guard-access-scope-5",
+      "documentFamily": "guard-access-scope-5",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-access-scope-5-v1.pdf"
+    },
+    {
+      "source": "expansion-datacenter-change",
+      "documentFamily": "datacenter-capacity-change",
+      "version": "v1",
+      "split": "development",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "expansion-datacenter-capacity-change-v1.pdf"
+    },
+    {
+      "source": "expansion-observability",
+      "documentFamily": "microservice-observability",
+      "version": "v1",
+      "split": "validation",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "expansion-microservice-observability-v1.pdf"
+    },
+    {
+      "source": "expansion-supply-chain",
+      "documentFamily": "supply-chain-fulfillment",
+      "version": "v1",
+      "split": "holdout",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "expansion-supply-chain-fulfillment-v1.pdf"
+    },
+    {
+      "source": "expansion-platform-resilience",
+      "documentFamily": "platform-resilience",
+      "version": "v1",
+      "split": "development",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "expansion-platform-resilience-v1.pdf"
+    },
+    {
+      "source": "expansion-material-governance",
+      "documentFamily": "material-governance",
+      "version": "v1",
+      "split": "validation",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "expansion-material-governance-v1.pdf"
+    },
+    {
+      "source": "realistic-rail-scan",
+      "documentFamily": "metro-rail-inspection-scan",
+      "version": "v1",
+      "split": "guard_visual_ocr",
+      "language": "mixed",
+      "role": "challenge",
+      "freezeStatus": "guard",
+      "filename": "realistic-metro-rail-inspection-scan-v1.pdf"
+    },
+    {
+      "source": "drawio-planning-workshop-scan",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "split": "development",
+      "language": "mixed",
+      "role": "realistic_scan",
+      "freezeStatus": "development",
+      "filename": "drawio-planning-workshop-scan-v1.pdf"
+    },
+    {
+      "source": "expansion-field-audit-scan",
+      "documentFamily": "field-audit-scan",
+      "version": "v1",
+      "split": "development",
+      "language": "mixed",
+      "role": "realistic_scan",
+      "freezeStatus": "development",
+      "filename": "expansion-field-audit-scan-v1.pdf"
+    },
+    {
+      "source": "expansion-approval-scan",
+      "documentFamily": "approval-record-scan",
+      "version": "v1",
+      "split": "holdout",
+      "language": "mixed",
+      "role": "realistic_scan",
+      "freezeStatus": "development",
+      "filename": "expansion-approval-record-scan-v1.pdf"
+    }
+  ]
+}

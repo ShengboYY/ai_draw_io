@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">FreeDraw concept D — Free Stroke</title>
+  <!-- One continuous gesture balances expressive drawing with a precise AI finish. -->
+  <rect x="8" y="8" width="496" height="496" rx="132" fill="#34333D"/>
+  <path d="M128 319C166 366 219 340 221 286C223 232 185 196 158 222C128 251 163 291 222 276C282 261 333 213 370 159" fill="none" stroke="#FAFAF8" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="128" cy="319" r="24" fill="#FAFAF8"/>
+  <g fill="none" stroke="#FAFAF8" stroke-width="15" stroke-linecap="round">
+    <path d="M391 116V158M370 137H412"/>
+  </g>
+</svg>

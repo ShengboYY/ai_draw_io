@@ -234,6 +234,7 @@ git log --oneline origin/main..main
 | ECS cluster | `ai-drawio-cluster` |
 | Backend ECR repository | `ai-drawio-backend` |
 | Frontend ECR repository | `ai-drawio-frontend` |
+| Migration ECR repository | `ai-drawio-db-migrate` |
 | Backend task family | `ai-drawio-backend-prod` |
 | Frontend task family | `ai-drawio-frontend-prod` |
 | Backend ECS service | `<BACKEND_SERVICE_NAME>` |
@@ -318,6 +319,7 @@ Settings -> Secrets and variables -> Actions -> Variables
 | `AWS_PUBLISH_ROLE_ARN` | Publisher IAM Role ARN |
 | `ECR_BACKEND_REPOSITORY` | `ai-drawio-backend` |
 | `ECR_FRONTEND_REPOSITORY` | `ai-drawio-frontend` |
+| `ECR_MIGRATION_REPOSITORY` | `ai-drawio-db-migrate` |
 
 在 `production` Environment variables 中添加：
 
@@ -456,7 +458,8 @@ IAM -> Identity providers -> Add provider
       ],
       "Resource": [
         "arn:aws:ecr:ap-southeast-2:<AWS_ACCOUNT_ID>:repository/ai-drawio-backend",
-        "arn:aws:ecr:ap-southeast-2:<AWS_ACCOUNT_ID>:repository/ai-drawio-frontend"
+        "arn:aws:ecr:ap-southeast-2:<AWS_ACCOUNT_ID>:repository/ai-drawio-frontend",
+        "arn:aws:ecr:ap-southeast-2:<AWS_ACCOUNT_ID>:repository/ai-drawio-db-migrate"
       ]
     }
   ]
@@ -594,6 +597,11 @@ aws ecr put-image-tag-mutability \
   --region ap-southeast-2 \
   --repository-name ai-drawio-frontend \
   --image-tag-mutability IMMUTABLE
+
+aws ecr put-image-tag-mutability \
+  --region ap-southeast-2 \
+  --repository-name ai-drawio-db-migrate \
+  --image-tag-mutability IMMUTABLE
 ```
 
 ```bash
@@ -605,6 +613,11 @@ aws ecr put-image-scanning-configuration \
 aws ecr put-image-scanning-configuration \
   --region ap-southeast-2 \
   --repository-name ai-drawio-frontend \
+  --image-scanning-configuration scanOnPush=true
+
+aws ecr put-image-scanning-configuration \
+  --region ap-southeast-2 \
+  --repository-name ai-drawio-db-migrate \
   --image-scanning-configuration scanOnPush=true
 ```
 
@@ -696,6 +709,7 @@ env:
   AWS_REGION: ap-southeast-2
   ECR_BACKEND_REPOSITORY: ai-drawio-backend
   ECR_FRONTEND_REPOSITORY: ai-drawio-frontend
+  ECR_MIGRATION_REPOSITORY: ai-drawio-db-migrate
 
 jobs:
   backend-ci:
@@ -783,6 +797,15 @@ jobs:
           --tag ai-drawio-frontend:ci
           ai-agent-draw-io-front
 
+      - name: Build database migration image
+        run: >-
+          docker build
+          --provenance=false
+          --platform linux/amd64
+          --file deploy/aws/database/Dockerfile.20260813
+          --tag ai-drawio-db-migrate:ci
+          .
+
   publish-images:
     name: publish-images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -844,6 +867,22 @@ jobs:
             docker push "$ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG"
           fi
 
+          if aws ecr describe-images \
+            --repository-name "$ECR_MIGRATION_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            > /dev/null 2>&1; then
+            echo "Migration image already exists; immutable tag will be reused."
+          else
+            docker build \
+              --provenance=false \
+              --platform linux/amd64 \
+              --file deploy/aws/database/Dockerfile.20260813 \
+              --tag "$ECR_REGISTRY/$ECR_MIGRATION_REPOSITORY:$IMAGE_TAG" \
+              .
+
+            docker push "$ECR_REGISTRY/$ECR_MIGRATION_REPOSITORY:$IMAGE_TAG"
+          fi
+
       - name: Write publication summary
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -855,6 +894,7 @@ jobs:
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Backend: \`${ECR_REGISTRY}/${ECR_BACKEND_REPOSITORY}:${IMAGE_TAG}\`"
             echo "- Frontend: \`${ECR_REGISTRY}/${ECR_FRONTEND_REPOSITORY}:${IMAGE_TAG}\`"
+            echo "- Migration: \`${ECR_REGISTRY}/${ECR_MIGRATION_REPOSITORY}:${IMAGE_TAG}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 ```
 

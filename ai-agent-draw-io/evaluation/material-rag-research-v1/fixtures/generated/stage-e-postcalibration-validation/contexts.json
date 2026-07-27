@@ -1,0 +1,240 @@
+{
+  "schemaVersion": "material-rag-stage-e-postcalibration-validation-contexts-v1",
+  "modelVisibleRequiredEvidence": {
+    "ready": true
+  },
+  "contexts": [
+    {
+      "taskId": "stge-val-01",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-release-governance:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "rg-route",
+          "sourceVersion": "pe-release-governance:v1",
+          "page": 1,
+          "text": "Release Coordinator sends a Signed Build to Change Approval before Authorized Deployment."
+        },
+        {
+          "anchorId": "rg-owner",
+          "sourceVersion": "pe-release-governance:v1",
+          "page": 1,
+          "text": "Authorized Deployment is owned by Platform Operations."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-02",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-evidence-retention:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "er-retain",
+          "sourceVersion": "pe-evidence-retention:v1",
+          "page": 1,
+          "text": "Case Archive retains closed evidence for 90 days before Review Archive."
+        },
+        {
+          "anchorId": "er-dispose",
+          "sourceVersion": "pe-evidence-retention:v1",
+          "page": 1,
+          "text": "Review Archive sends expired evidence to Certified Disposal."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-03",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-customer-change:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "cc-impact",
+          "sourceVersion": "pe-customer-change:v1",
+          "page": 1,
+          "text": "Change Request is assessed by Impact Review before Customer Notice."
+        },
+        {
+          "anchorId": "cc-approval",
+          "sourceVersion": "pe-customer-change:v1",
+          "page": 1,
+          "text": "Customer Notice may be issued only after Change Authority approval."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-04",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-oncall-handoff-edit:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "oh-handoff",
+          "sourceVersion": "pe-oncall-handoff-edit:v1",
+          "page": 1,
+          "text": "Primary Responder hands an acknowledged incident to the Secondary Responder."
+        },
+        {
+          "anchorId": "oh-note",
+          "sourceVersion": "pe-oncall-handoff-edit:v1",
+          "page": 1,
+          "text": "Secondary Responder records the handoff note before shift close."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-05",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-billing-exception-edit:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "be-route",
+          "sourceVersion": "pe-billing-exception-edit:v1",
+          "page": 1,
+          "text": "Billing Exception goes to Revenue Review before Account Correction."
+        },
+        {
+          "anchorId": "be-owner",
+          "sourceVersion": "pe-billing-exception-edit:v1",
+          "page": 1,
+          "text": "Account Correction is owned by Revenue Operations."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-06",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-layout-roles:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "lr-roles",
+          "sourceVersion": "pe-layout-roles:v1",
+          "page": 1,
+          "text": "Submitter, Approver and Observer are the existing process roles."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-07",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-layout-states:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ls-states",
+          "sourceVersion": "pe-layout-states:v1",
+          "page": 1,
+          "text": "Pending, Validated, and Archived are the existing lifecycle states."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-08",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-catalog-approval:v4"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ca-v4",
+          "sourceVersion": "pe-catalog-approval:v4",
+          "page": 1,
+          "text": "Catalog Analyst submits Version 4 to Product Approver before Catalog Publish."
+        },
+        {
+          "anchorId": "ca-scope",
+          "sourceVersion": "pe-catalog-approval:v4",
+          "page": 1,
+          "text": "Only Version 4 is authorized for this edit."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-09",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-retrieval-recovery:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "rr-block",
+          "sourceVersion": "pe-retrieval-recovery:v1",
+          "page": 1,
+          "text": "When Evidence Retrieval is Unavailable, source-grounded generation is blocked while Manual Diagramming remains available."
+        },
+        {
+          "anchorId": "rr-resume",
+          "sourceVersion": "pe-retrieval-recovery:v1",
+          "page": 1,
+          "text": "Retry Retrieval may continue only after Evidence Retrieval is restored."
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-10",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-evidence-completeness-visual:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ec-flow",
+          "sourceVersion": "pe-evidence-completeness-visual:v1",
+          "page": 1,
+          "text": "Field Request goes to Evidence Check. If Evidence complete? is Yes, Approve Request then Issue Work Order. If No, Request Missing Evidence then Await Resubmission.",
+          "imagePath": "fixtures/generated/stage-e-postcalibration-validation/images/evidence-completeness-source.png",
+          "imageSha256": "4744fd908e4977c288cf00f420ef0da2710518b472160256320c61c68ab139a4"
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-11",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-service-recovery-visual:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "sr-flow",
+          "sourceVersion": "pe-service-recovery-visual:v1",
+          "page": 1,
+          "text": "Alert Received goes to Assess Service. If Service restored? is Yes, Record Resolution. If No, Start Recovery then Notify Incident Lead then Reassess Service.",
+          "imagePath": "fixtures/generated/stage-e-postcalibration-validation/images/service-recovery-source.png",
+          "imageSha256": "369c48020515f091cdf24642b08ac2669c7c79793378007853024b16c54b1a55"
+        }
+      ]
+    },
+    {
+      "taskId": "stge-val-12",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "pe-save-recovery:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ss-preserve",
+          "sourceVersion": "pe-save-recovery:v1",
+          "page": 1,
+          "text": "Diagram Save Failed preserves the editable canvas and offers Retry Save."
+        },
+        {
+          "anchorId": "ss-escalate",
+          "sourceVersion": "pe-save-recovery:v1",
+          "page": 1,
+          "text": "After a repeated save failure, the agent routes the case to Storage Support."
+        }
+      ]
+    }
+  ]
+}

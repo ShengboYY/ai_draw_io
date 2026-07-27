@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "material-rag-owner-spot-check-v1",
+  "reviewerId": "project-owner",
+  "decision": "approve",
+  "confirmedAt": "2026-07-23",
+  "confirmationSource": "The project owner approved continuing after Codex displayed and explained these representative cases in the current task.",
+  "confirmedCoreCaseIds": [
+    "controlled-130",
+    "controlled-624"
+  ],
+  "confirmedGenerationTaskIds": [
+    "dgt-dev-03",
+    "dgt-dev-10",
+    "dgt-dev-17",
+    "dgt-val-04",
+    "dgt-val-17"
+  ],
+  "confirmationNote": "Approved for the pragmatic automated-full plus owner-spot-check evaluation method. No independent double-human review is claimed."
+}

@@ -5,6 +5,8 @@
     <resultMap id="diagramConversationMessageMap" type="org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO">
         <id column="id" property="id"/>
         <result column="diagram_id" property="diagramId"/>
+        <result column="turn_id" property="turnId"/>
+        <result column="conversation_id" property="conversationId"/>
         <result column="user_id" property="userId"/>
         <result column="session_id" property="sessionId"/>
         <result column="client_message_id" property="clientMessageId"/>
@@ -18,6 +20,8 @@
         SELECT
             m.id,
             m.diagram_id,
+            m.turn_id,
+            m.conversation_id,
             m.user_id,
             m.session_id,
             m.client_message_id,
@@ -35,16 +39,106 @@
         ORDER BY m.created_at ASC, m.id ASC
     </select>
 
-    <insert id="upsertMessage" parameterType="org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO">
+    <select id="selectMessagesByScope" resultMap="diagramConversationMessageMap">
+        SELECT
+            m.id,
+            m.diagram_id,
+            m.turn_id,
+            m.conversation_id,
+            m.user_id,
+            m.session_id,
+            m.client_message_id,
+            m.role,
+            m.content,
+            m.created_at,
+            m.updated_at
+        FROM diagram_conversation_message m
+        INNER JOIN diagram d
+            ON d.id = m.diagram_id
+            AND d.user_id = m.user_id
+        WHERE m.user_id = #{userId}
+          AND m.diagram_id = #{diagramId}
+          AND d.deleted = 0
+          AND (m.conversation_id IN
+               <foreach collection="scopeKeys" item="scopeKey" open="(" separator="," close=")">#{scopeKey}</foreach>
+               OR m.session_id IN
+               <foreach collection="scopeKeys" item="scopeKey" open="(" separator="," close=")">#{scopeKey}</foreach>)
+        ORDER BY m.created_at ASC, m.id ASC
+    </select>
+
+    <select id="selectAssistantMessageByTurn" resultMap="diagramConversationMessageMap">
+        SELECT
+            m.id, m.diagram_id, m.turn_id, m.conversation_id, m.user_id, m.session_id,
+            m.client_message_id, m.role, m.content, m.created_at, m.updated_at
+        FROM diagram_conversation_message m
+        INNER JOIN diagram d
+            ON d.id = m.diagram_id
+            AND d.user_id = m.user_id
+        WHERE m.user_id = #{userId}
+          AND m.diagram_id = #{diagramId}
+          AND m.conversation_id = #{conversationId}
+          AND m.turn_id = #{turnId}
+          AND m.role = 'agent'
+          AND d.deleted = 0
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectAttachmentsByMessages" resultType="org.zipp.ai.infrastructure.dao.po.ConversationMessageAttachmentPO">
+        SELECT a.message_id AS messageId,
+               a.conversation_file_ref AS fileRef,
+               COALESCE(u.display_name, a.conversation_file_ref) AS displayName
+        FROM conversation_message_attachment a
+        INNER JOIN diagram_conversation_message m ON m.id = a.message_id
+        LEFT JOIN material_upload_session u ON u.id = a.conversation_file_ref
+        WHERE a.owner_key = #{userId}
+          AND m.diagram_id = #{diagramId}
+          AND a.message_id IN
+          <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">#{messageId}</foreach>
+        ORDER BY a.message_id ASC, a.attachment_order ASC
+    </select>
+
+    <insert id="upsertMessage"
+            parameterType="org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO"
+            useGeneratedKeys="true"
+            keyProperty="id">
+        <!-- Stable client message IDs are immutable; retries may observe but never rewrite text
+             that could already be bound to durable answer citations. -->
         INSERT INTO diagram_conversation_message
-            (diagram_id, user_id, session_id, client_message_id, role, content)
+            (diagram_id, turn_id, conversation_id, user_id, session_id, client_message_id, role, content)
         VALUES
-            (#{diagramId}, #{userId}, #{sessionId}, #{clientMessageId}, #{role}, #{content})
-        ON DUPLICATE KEY UPDATE
-            session_id = VALUES(session_id),
-            role = VALUES(role),
-            content = VALUES(content),
-            updated_at = CURRENT_TIMESTAMP
+            (#{diagramId}, #{turnId}, #{conversationId}, #{userId}, #{sessionId}, #{clientMessageId}, #{role}, #{content})
+        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), client_message_id = client_message_id
+    </insert>
+
+    <insert id="insertMessageAttachment">
+        <!-- Legacy persistence may bind only an upload owned by the same canonical conversation.
+             V2 continues to use its atomic claim boundary and reaches this statement only on retry. -->
+        INSERT INTO conversation_message_attachment (
+            owner_key, conversation_id, message_id, turn_id, attachment_order,
+            conversation_file_ref, attachment_status_at_bind
+        )
+        SELECT
+            m.user_id,
+            m.conversation_id,
+            m.id,
+            COALESCE(NULLIF(m.turn_id, ''), CONCAT('legacy-message-', m.id)),
+            #{attachmentOrder},
+            u.id,
+            u.state
+        FROM diagram_conversation_message m
+        INNER JOIN material_upload_session u
+            ON u.id = #{fileRef}
+            AND u.owner_key = m.user_id
+            AND u.target_scope_type = 'CONVERSATION'
+            AND u.target_scope_key = m.conversation_id
+            AND u.state IN ('CREATED', 'OBJECT_VERSION_PINNED', 'PROCESSING', 'SUCCEEDED')
+        WHERE m.id = #{messageId}
+          AND m.user_id = #{userId}
+          AND m.diagram_id = #{diagramId}
+          AND LOWER(m.role) = 'user'
+          AND m.conversation_id IS NOT NULL
+        ON DUPLICATE KEY UPDATE conversation_file_ref = conversation_file_ref
     </insert>
 
     <delete id="deleteByUserId">

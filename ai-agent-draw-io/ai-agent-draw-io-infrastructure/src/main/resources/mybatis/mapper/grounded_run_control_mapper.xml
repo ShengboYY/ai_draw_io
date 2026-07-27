@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.grounding.IGroundedRunControlMapper">
+    <insert id="insertRun">
+        INSERT IGNORE INTO grounded_run_control
+            (run_id, owner_key, request_id, state, generation)
+        VALUES (#{identity.runId}, #{identity.ownerKey}, #{identity.requestId}, 'RUNNING', #{identity.generation})
+    </insert>
+
+    <select id="selectByRequest" resultType="org.zipp.ai.infrastructure.dao.grounding.GroundedRunRowPO">
+        SELECT run_id, owner_key, request_id, state, generation
+        FROM grounded_run_control
+        WHERE owner_key = #{identity.ownerKey} AND request_id = #{identity.requestId}
+        FOR UPDATE
+    </select>
+
+    <update id="cancelRun">
+        UPDATE grounded_run_control
+        SET state = 'CANCELLED', generation = generation + 1,
+            cancelled_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+        WHERE run_id = #{identity.runId} AND owner_key = #{identity.ownerKey}
+          AND request_id = #{identity.requestId} AND state = 'RUNNING'
+          AND generation = #{identity.generation}
+    </update>
+</mapper>

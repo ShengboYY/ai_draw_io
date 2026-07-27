@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IIndexProjectionMaintenanceMapper">
+    <sql id="projectionContextColumns">
+        r.id AS revision_id, r.version_id, v.material_id, m.owner_type, m.owner_key,
+        r.fence_generation AS revision_fence_generation,
+        m.lifecycle_generation AS material_lifecycle_generation,
+        r.worker_profile_fingerprint AS processing_fingerprint,
+        manifest.object_key AS retrieval_manifest_key,
+        manifest.object_version_id AS retrieval_manifest_version_id,
+        manifest.content_sha256 AS retrieval_manifest_sha256,
+        manifest.byte_size AS retrieval_manifest_size,
+        manifest.content_type AS retrieval_manifest_content_type
+    </sql>
+
+    <select id="selectBatchesDue"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT b.revision_id, b.index_generation_id, b.batch_no,
+               b.input_fingerprint AS batch_input_fingerprint, p.vector_id
+        FROM (
+            SELECT due.revision_id, due.index_generation_id, due.batch_no,
+                   due.input_fingerprint, due.last_reconciled_at
+            FROM retrieval_vector_batch due
+            JOIN rag_index_generation active
+              ON active.id = due.index_generation_id AND active.state = 'ACTIVE'
+            WHERE due.index_generation_id = #{generationId} AND due.state = 'INDEXED'
+              AND (due.last_reconciled_at IS NULL OR due.last_reconciled_at &lt;= #{dueBefore})
+            ORDER BY COALESCE(due.last_reconciled_at, '1970-01-01'), due.revision_id, due.batch_no
+            LIMIT #{limit}
+        ) b
+        JOIN rag_index_generation g ON g.id = b.index_generation_id AND g.state = 'ACTIVE'
+        JOIN retrieval_chunk c ON c.revision_id = b.revision_id
+        JOIN retrieval_chunk_vector_projection p
+          ON p.retrieval_chunk_id = c.id AND p.index_generation_id = b.index_generation_id
+         AND p.batch_no = b.batch_no AND p.state = 'INDEXED' AND p.provider_deleted_at IS NULL
+        WHERE b.index_generation_id = #{generationId}
+        ORDER BY COALESCE(b.last_reconciled_at, '1970-01-01'), b.revision_id, b.batch_no, p.vector_id
+    </select>
+
+    <update id="markBatchChecked">
+        UPDATE retrieval_vector_batch SET last_reconciled_at = #{checkedAt}
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
+          AND batch_no = #{batchNo} AND input_fingerprint = #{batchInputFingerprint}
+          AND state = 'INDEXED'
+    </update>
+
+    <update id="closeTerminalRepair">
+        UPDATE rag_projection_repair_audit audit
+        JOIN material_processing_job job
+          ON job.revision_id = audit.revision_id AND job.stage = 'REPAIR_VECTOR_BATCH'
+         AND job.work_key = audit.work_key AND job.status = 'FAILED'
+        SET audit.state = 'FAILED', audit.completed_at = #{completedAt}
+        WHERE audit.index_generation_id = #{generationId} AND audit.revision_id = #{revisionId}
+          AND audit.batch_no = #{batchNo} AND audit.state IN ('QUEUED', 'RUNNING')
+    </update>
+
+    <insert id="insertRepairAudit">
+        INSERT IGNORE INTO rag_projection_repair_audit (
+            repair_id, index_generation_id, revision_id, batch_no, work_key,
+            input_fingerprint, missing_ids_fingerprint, missing_count, state, requested_at
+        ) SELECT
+            #{repairId}, #{generationId}, #{revisionId}, #{batchNo}, #{workKey},
+            #{inputFingerprint}, #{missingIdsFingerprint}, #{missingCount}, 'QUEUED', #{requestedAt}
+        FROM retrieval_vector_batch batch
+        JOIN rag_index_generation generation ON generation.id = batch.index_generation_id
+        WHERE batch.revision_id = #{revisionId} AND batch.index_generation_id = #{generationId}
+          AND batch.batch_no = #{batchNo} AND batch.input_fingerprint = #{batchInputFingerprint}
+          AND batch.state = 'INDEXED' AND generation.state = 'ACTIVE'
+    </insert>
+
+    <select id="selectRepairWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT <include refid="projectionContextColumns"/>,
+               g.id AS index_generation_id, g.index_name, g.namespace, g.embedding_model,
+               g.embedding_model_fingerprint, g.dimension, g.metric, g.vector_schema_version,
+               rv.tokenizer_fingerprint, rv.projection_role,
+               b.batch_no, b.input_fingerprint AS batch_input_fingerprint,
+               audit.work_key, audit.repair_id,
+               audit.input_fingerprint AS repair_input_fingerprint,
+               b.vector_object_key, b.vector_object_version_id,
+               b.vector_content_sha256, b.vector_byte_size, b.vector_content_type,
+               p.retrieval_chunk_id AS chunk_id, p.vector_id,
+               p.embedding_fingerprint AS projection_fingerprint,
+               c.chunk_type, c.modality, page.page_no, c.language_primary AS language
+        FROM rag_projection_repair_audit audit
+        JOIN retrieval_vector_batch b
+          ON b.revision_id = audit.revision_id
+         AND b.index_generation_id = audit.index_generation_id AND b.batch_no = audit.batch_no
+        JOIN rag_index_generation g ON g.id = audit.index_generation_id AND g.state = 'ACTIVE'
+        JOIN retrieval_revision_vector_projection rv
+          ON rv.revision_id = audit.revision_id AND rv.index_generation_id = audit.index_generation_id
+        JOIN material_processing_revision r ON r.id = audit.revision_id
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id AND m.lifecycle_state = 'ACTIVE'
+        JOIN material_revision_artifact manifest
+          ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+        JOIN retrieval_chunk c ON c.revision_id = r.id
+        JOIN retrieval_chunk_vector_projection p
+          ON p.retrieval_chunk_id = c.id AND p.index_generation_id = g.id
+         AND p.batch_no = b.batch_no AND p.state = 'INDEXED' AND p.provider_deleted_at IS NULL
+        LEFT JOIN material_page page ON page.id = c.page_id AND page.revision_id = c.revision_id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId} AND audit.work_key = #{workKey}
+          AND audit.state IN ('QUEUED', 'RUNNING') AND b.state = 'INDEXED'
+          AND b.vector_object_key IS NOT NULL AND b.vector_object_version_id IS NOT NULL
+          AND j.id = #{jobId} AND j.stage = 'REPAIR_VECTOR_BATCH' AND j.work_key = audit.work_key
+          AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        ORDER BY c.structural_ordinal, c.id
+    </select>
+
+    <update id="markRepairRunning">
+        UPDATE rag_projection_repair_audit SET state = 'RUNNING'
+        WHERE repair_id = #{repairId} AND state = 'QUEUED'
+    </update>
+
+    <select id="countRepairFence" resultType="int">
+        SELECT COUNT(*) FROM rag_projection_repair_audit audit
+        JOIN material_processing_job job
+          ON job.revision_id = audit.revision_id AND job.stage = 'REPAIR_VECTOR_BATCH'
+         AND job.work_key = audit.work_key
+        JOIN rag_index_generation g ON g.id = audit.index_generation_id AND g.state = 'ACTIVE'
+        WHERE audit.repair_id = #{repairId} AND audit.state IN ('QUEUED', 'RUNNING')
+          AND job.id = #{jobId} AND job.status = 'RUNNING' AND job.lease_owner = #{workerId}
+          AND job.fence_token = #{fenceToken} AND job.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <update id="completeRepair">
+        UPDATE rag_projection_repair_audit SET state = 'COMPLETED', completed_at = #{completedAt}
+        WHERE repair_id = #{repairId} AND state IN ('QUEUED', 'RUNNING')
+    </update>
+
+    <insert id="insertProviderCursor">
+        INSERT IGNORE INTO rag_projection_reconciliation_cursor (
+            index_generation_id, pagination_token, updated_at
+        ) VALUES (#{generationId}, NULL, #{updatedAt})
+    </insert>
+
+    <select id="selectProviderCursor" resultType="string">
+        SELECT pagination_token FROM rag_projection_reconciliation_cursor
+        WHERE index_generation_id = #{generationId}
+    </select>
+
+    <!-- Compare-and-set prevents concurrent replicas from moving one generation cursor backwards. -->
+    <update id="advanceProviderCursor">
+        UPDATE rag_projection_reconciliation_cursor
+        SET pagination_token = #{nextCursor}, updated_at = #{updatedAt}
+        WHERE index_generation_id = #{generationId}
+          AND ((pagination_token IS NULL AND #{expectedCursor} IS NULL)
+               OR pagination_token = #{expectedCursor})
+    </update>
+
+    <select id="selectKnownVectorIds" resultType="string">
+        SELECT vector_id FROM retrieval_chunk_vector_projection
+        WHERE provider_deleted_at IS NULL AND vector_id IN
+        <foreach collection="vectorIds" item="vectorId" open="(" separator="," close=")">
+            #{vectorId}
+        </foreach>
+    </select>
+
+    <!-- Persist a content-free intent before the external delete so a crash cannot erase the audit. -->
+    <insert id="upsertOrphanDeletionIntent">
+        INSERT INTO rag_projection_orphan_deletion_audit (
+            deletion_id, worker_generation_id, vector_ids_fingerprint, vector_count,
+            requested_at, completed_at, attempt_count
+        ) VALUES (
+            #{deletionId}, #{generationId}, #{vectorIdsFingerprint}, #{vectorCount},
+            #{requestedAt}, NULL, 1
+        ) ON DUPLICATE KEY UPDATE
+            requested_at = VALUES(requested_at), completed_at = NULL,
+            attempt_count = attempt_count + 1
+    </insert>
+
+    <update id="completeOrphanDeletion">
+        UPDATE rag_projection_orphan_deletion_audit SET completed_at = #{completedAt}
+        WHERE deletion_id = #{deletionId} AND completed_at IS NULL
+    </update>
+
+    <insert id="insertTemporaryCleanupCursor">
+        INSERT IGNORE INTO rag_projection_temporary_cleanup_cursor
+            (index_generation_id, material_cursor, updated_at)
+        VALUES (#{generationId}, '', #{updatedAt})
+    </insert>
+
+    <select id="selectTemporaryCleanupCursor" resultType="string">
+        SELECT material_cursor FROM rag_projection_temporary_cleanup_cursor
+        WHERE index_generation_id = #{generationId}
+    </select>
+
+    <update id="advanceTemporaryCleanupCursor">
+        UPDATE rag_projection_temporary_cleanup_cursor
+        SET material_cursor = #{nextMaterialId}, updated_at = #{updatedAt}
+        WHERE index_generation_id = #{generationId}
+          AND material_cursor = #{expectedMaterialId}
+    </update>
+
+    <select id="selectTemporaryCleanupMaterial" resultType="string">
+        SELECT m.id
+        FROM material m
+        JOIN material_version v ON v.material_id = m.id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        JOIN retrieval_chunk c ON c.revision_id = r.id
+        JOIN retrieval_chunk_vector_projection p
+          ON p.retrieval_chunk_id = c.id AND p.index_generation_id = #{generationId}
+         AND p.provider_deleted_at IS NULL
+        JOIN rag_index_generation g
+          ON g.id = p.index_generation_id AND g.state = 'ACTIVE'
+        WHERE m.lifecycle_state = 'TRASHED' AND m.retention_class = 'TEMPORARY'
+          AND m.expires_at &lt;= #{now}
+        <if test="afterMaterialId != null and afterMaterialId != ''">
+          AND m.id &gt; #{afterMaterialId}
+        </if>
+          AND EXISTS (SELECT 1 FROM material_scope_link conversation_scope
+                      WHERE conversation_scope.material_id = m.id
+                        AND conversation_scope.scope_type = 'CONVERSATION')
+          AND NOT EXISTS (SELECT 1 FROM material_scope_link durable_scope
+                          WHERE durable_scope.material_id = m.id
+                            AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK'))
+          AND NOT EXISTS (
+              SELECT 1 FROM evidence_read_lease lease
+              JOIN material_version leased_version ON leased_version.id = lease.version_id
+              WHERE leased_version.material_id = m.id AND lease.status = 'ACTIVE'
+                AND lease.expires_at &gt; #{now}
+          )
+        GROUP BY m.id
+        ORDER BY m.id
+        LIMIT 1
+    </select>
+
+    <select id="selectTemporaryCleanupVectorIds" resultType="string">
+        SELECT p.vector_id
+        FROM material m
+        JOIN material_version v ON v.material_id = m.id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        JOIN retrieval_chunk c ON c.revision_id = r.id
+        JOIN retrieval_chunk_vector_projection p
+          ON p.retrieval_chunk_id = c.id AND p.index_generation_id = #{generationId}
+         AND p.provider_deleted_at IS NULL
+        JOIN rag_index_generation g
+          ON g.id = p.index_generation_id AND g.state = 'ACTIVE'
+        WHERE m.id = #{materialId} AND m.lifecycle_state = 'TRASHED'
+          AND m.retention_class = 'TEMPORARY' AND m.expires_at &lt;= #{now}
+          AND EXISTS (SELECT 1 FROM material_scope_link conversation_scope
+                      WHERE conversation_scope.material_id = m.id
+                        AND conversation_scope.scope_type = 'CONVERSATION')
+          AND NOT EXISTS (SELECT 1 FROM material_scope_link durable_scope
+                          WHERE durable_scope.material_id = m.id
+                            AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK'))
+          AND NOT EXISTS (
+              SELECT 1 FROM evidence_read_lease lease
+              JOIN material_version leased_version ON leased_version.id = lease.version_id
+              WHERE leased_version.material_id = m.id AND lease.status = 'ACTIVE'
+                AND lease.expires_at &gt; #{now}
+          )
+        ORDER BY p.vector_id
+        LIMIT #{limit}
+    </select>
+
+    <select id="lockExpiredTemporaryCleanupMaterial" resultType="string">
+        SELECT m.id FROM material m
+        WHERE m.id = #{materialId} AND m.lifecycle_state = 'TRASHED'
+          AND m.retention_class = 'TEMPORARY' AND m.expires_at &lt;= #{now}
+        FOR UPDATE
+    </select>
+
+    <update id="claimTemporaryConversationVectorsForDeletion">
+        UPDATE retrieval_chunk_vector_projection p
+        JOIN retrieval_chunk c ON c.id = p.retrieval_chunk_id
+        JOIN material_processing_revision r ON r.id = c.revision_id
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN rag_index_generation g
+          ON g.id = p.index_generation_id AND g.state = 'ACTIVE'
+        SET p.provider_deleted_at = #{deletedAt}
+        WHERE p.index_generation_id = #{generationId}
+          AND p.provider_deleted_at IS NULL AND p.vector_id IN
+        <foreach collection="vectorIds" item="vectorId" open="(" separator="," close=")">
+            #{vectorId}
+        </foreach>
+          AND m.id = #{materialId} AND m.lifecycle_state = 'TRASHED'
+          AND m.retention_class = 'TEMPORARY' AND m.expires_at &lt;= #{deletedAt}
+          AND EXISTS (SELECT 1 FROM material_scope_link conversation_scope
+                      WHERE conversation_scope.material_id = m.id
+                        AND conversation_scope.scope_type = 'CONVERSATION')
+          AND NOT EXISTS (SELECT 1 FROM material_scope_link durable_scope
+                          WHERE durable_scope.material_id = m.id
+                            AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK'))
+          AND NOT EXISTS (
+              SELECT 1 FROM evidence_read_lease lease
+              JOIN material_version leased_version ON leased_version.id = lease.version_id
+              WHERE leased_version.material_id = m.id AND lease.status = 'ACTIVE'
+                AND lease.expires_at &gt; #{deletedAt}
+          )
+    </update>
+
+    <select id="selectPendingProviderDeletionGeneration"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO">
+        SELECT g.*
+        FROM rag_index_generation g
+        WHERE g.state != 'PURGED'
+          AND EXISTS (
+              SELECT 1 FROM retrieval_chunk_vector_projection pending
+              WHERE pending.index_generation_id = g.id
+                AND pending.provider_deleted_at IS NOT NULL
+                AND pending.provider_delete_completed_at IS NULL
+          )
+        ORDER BY COALESCE(g.retired_at, g.activated_at), g.id
+        LIMIT 1
+    </select>
+
+    <select id="selectTemporaryProviderDeletionRetries" resultType="string">
+        SELECT p.vector_id
+        FROM retrieval_chunk_vector_projection p
+        WHERE p.index_generation_id = #{generationId}
+          AND p.provider_deleted_at IS NOT NULL
+          AND p.provider_delete_completed_at IS NULL
+        ORDER BY p.provider_deleted_at, p.vector_id
+        LIMIT #{limit}
+    </select>
+
+    <update id="completeTemporaryProviderDeletion">
+        UPDATE retrieval_chunk_vector_projection
+        SET provider_delete_completed_at = #{completedAt}
+        WHERE index_generation_id = #{generationId}
+          AND provider_deleted_at IS NOT NULL
+          AND provider_delete_completed_at IS NULL
+          AND vector_id IN
+        <foreach collection="vectorIds" item="vectorId" open="(" separator="," close=")">
+            #{vectorId}
+        </foreach>
+    </update>
+
+    <select id="selectRetiredCleanupGeneration"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO">
+        SELECT *
+        FROM rag_index_generation
+        WHERE state IN ('RETIRED', 'PURGING') AND purged_at IS NULL
+          AND retired_at IS NOT NULL
+          AND COALESCE(rollback_until,
+              TIMESTAMPADD(SECOND, #{minimumGraceSeconds}, retired_at)) &lt;= #{now}
+        ORDER BY retired_at, id
+        LIMIT 1 FOR UPDATE SKIP LOCKED
+    </select>
+
+    <!-- The conditional claim closes the rollback race before any provider-side deletion. -->
+    <update id="claimRetiredGenerationCleanup">
+        UPDATE rag_index_generation
+        SET state = 'PURGING'
+        WHERE id = #{generationId} AND state = 'RETIRED' AND purged_at IS NULL
+          AND retired_at IS NOT NULL
+          AND COALESCE(rollback_until, TIMESTAMPADD(SECOND, #{minimumGraceSeconds}, retired_at)) &lt;= #{now}
+    </update>
+
+    <select id="selectRetiredEligibleAt" resultType="java.time.Instant">
+        SELECT COALESCE(rollback_until, TIMESTAMPADD(SECOND, #{minimumGraceSeconds}, retired_at))
+        FROM rag_index_generation
+        WHERE id = #{generationId} AND state = 'PURGING' AND purged_at IS NULL
+    </select>
+
+    <select id="selectRetiredVectorIds" resultType="string">
+        SELECT vector_id FROM retrieval_chunk_vector_projection
+        WHERE index_generation_id = #{generationId}
+          AND (provider_deleted_at IS NULL OR provider_delete_completed_at IS NULL)
+        ORDER BY vector_id LIMIT #{limit}
+    </select>
+
+    <update id="markRetiredVectorsDeleted">
+        UPDATE retrieval_chunk_vector_projection p
+        JOIN rag_index_generation g ON g.id = p.index_generation_id
+        SET p.provider_deleted_at = COALESCE(p.provider_deleted_at, #{deletedAt}),
+            p.provider_delete_completed_at = #{deletedAt}
+        WHERE p.index_generation_id = #{generationId}
+          AND (p.provider_deleted_at IS NULL OR p.provider_delete_completed_at IS NULL)
+          AND g.state = 'PURGING' AND g.purged_at IS NULL AND p.vector_id IN
+        <foreach collection="vectorIds" item="vectorId" open="(" separator="," close=")">
+            #{vectorId}
+        </foreach>
+    </update>
+
+    <!-- PURGED is committed only after every exact vector ID has a provider-deletion tombstone. -->
+    <update id="completeRetiredGeneration">
+        UPDATE rag_index_generation g SET g.state = 'PURGED', g.purged_at = #{completedAt}
+        WHERE g.id = #{generationId} AND g.state = 'PURGING' AND g.purged_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM retrieval_chunk_vector_projection p
+                          WHERE p.index_generation_id = g.id
+                            AND (p.provider_deleted_at IS NULL
+                                 OR p.provider_delete_completed_at IS NULL))
+    </update>
+
+    <select id="lockTargetState" resultType="string">
+        SELECT target.state FROM rag_index_generation_target target
+        JOIN rag_index_generation g ON g.id = target.index_generation_id
+        WHERE target.index_generation_id = #{generationId} AND target.revision_id = #{revisionId}
+          AND target.state IN ('PENDING', 'PLANNED') AND g.state IN ('BUILDING', 'SHADOW')
+        FOR UPDATE
+    </select>
+
+    <select id="selectFailedTargetJobForUpdate"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.ProcessingJobPO">
+        SELECT job.* FROM material_processing_job job
+        WHERE job.revision_id = #{revisionId} AND job.status = 'FAILED'
+          AND job.stage IN ('BUILD_COMPATIBILITY_PROJECTION', 'EMBED_CHUNK_BATCHES',
+                            'UPSERT_VECTOR_BATCHES', 'VERIFY_PROJECTION_MANIFEST')
+          AND (job.work_key = CONCAT('ig:', #{generationId})
+               OR job.work_key LIKE CONCAT('ig:', #{generationId}, ':%'))
+        ORDER BY job.updated_at DESC, job.id LIMIT 1 FOR UPDATE
+    </select>
+
+    <insert id="insertTargetRepairAudit">
+        INSERT INTO rag_generation_target_repair_audit (
+            repair_id, index_generation_id, revision_id, failed_job_id, failed_error_code,
+            requested_by_hash, reason_code, requested_at
+        ) VALUES (
+            #{repairId}, #{generationId}, #{revisionId}, #{failedJobId}, #{failedErrorCode},
+            #{requestedByHash}, #{reasonCode}, #{requestedAt}
+        )
+    </insert>
+
+    <update id="requeueFailedJob">
+        UPDATE material_processing_job
+        SET status = 'RETRY', attempt = 0, not_before = #{requestedAt},
+            lease_owner = NULL, lease_until = NULL, last_error_code = NULL
+        WHERE id = #{jobId} AND status = 'FAILED'
+    </update>
+</mapper>

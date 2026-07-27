@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "material-rag-validation-case-review-v1",
+  "taskFixtureSha256": "802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee",
+  "reviewers": ["product-owner", "alice-qa"],
+  "verdict": "approve_all_validation_source_evidence_claim_packages",
+  "reviewedTaskIds": [
+    "stge-val-01", "stge-val-02", "stge-val-03", "stge-val-04", "stge-val-05", "stge-val-06",
+    "stge-val-07", "stge-val-08", "stge-val-09", "stge-val-10", "stge-val-11", "stge-val-12"
+  ],
+  "reviewedAt": "2026-07-24",
+  "adjudication": "No disagreements were reported; both named reviewers approved all 12 frozen source/evidence/claim packages.",
+  "attestation": "This satisfies the Stage E pre-run case-review requirement only. It does not alter the frozen tasks, policy, rubric or prompt bundles and does not by itself authorize a model call."
+}

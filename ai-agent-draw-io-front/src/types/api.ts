@@ -262,6 +262,10 @@ export interface CurrentAccountResponseDTO {
   unknownTokenLlmCallCount?: number;
 }
 
+export interface AnonymousWorkspaceResponseDTO {
+  ownerId: string;
+}
+
 export interface DiagramSummaryResponseDTO {
   diagramId: string;
   title?: string;
@@ -307,20 +311,30 @@ export interface SaveDiagramCanvasStateRequestDTO {
 
 export interface DiagramConversationMessageDTO {
   clientMessageId: string;
+  turnId?: string;
   sessionId?: string;
   role: 'user' | 'agent';
   content: string;
+  attachmentRefs?: string[];
   createdAt?: string;
+  evidenceClaims?: Array<{
+    claimKey: string;
+    citationKeys: string[];
+    supportType: 'DIRECT' | 'SYNTHESIZED' | 'VISUAL_VERIFIED' | 'AI_KNOWLEDGE';
+  }>;
+  evidenceSources?: Array<{
+    citationKey: string;
+    sourceLabel: string;
+    pageNumber?: number;
+    modality?: string;
+    origin: 'EXISTING_REFERENCE' | 'EXPLICIT' | 'SEARCH' | 'SUPPLEMENTAL';
+  }>;
 }
 
 export interface SaveDiagramMessagesRequestDTO {
   userId?: string;
   sessionId?: string;
   messages: DiagramConversationMessageDTO[];
-}
-
-export interface ImportAnonymousWorkspaceRequestDTO {
-  anonymousWorkspaceId: string;
 }
 
 export interface ImportAnonymousWorkspaceResponseDTO {
@@ -335,6 +349,10 @@ export interface ChatRequestDTO {
   message: string;
   /** Client-generated id used to correlate browser request, backend logs, and stream metadata. */
   requestId?: string;
+  /** Stable id of the user message atomically committed when the turn starts. */
+  clientMessageId?: string;
+  /** Stable assistant message id for atomic evidence-answer persistence. */
+  responseMessageId?: string;
   /** Server-owned run id; clients only read it from responses. */
   runId?: string;
   /** Stable diagram id used by the backend CanvasStateStore. */
@@ -345,8 +363,18 @@ export interface ChatRequestDTO {
   expectedContentHash?: string;
   /** Current Draw.io XML, kept out of message so routers can avoid full-canvas prompt noise. */
   canvasXml?: string;
-  /** Compact canvas summary for intent routing and answer-only requests. */
+  /** Legacy drawer-only summary; Intent Router V2 never receives it. */
   canvasSummary?: string;
+  /** Explicit bounded answers to issues from a prior direct-image attempt. */
+  directClarifications?: Array<{
+    reasonCode: string;
+    resolution: 'ACCEPT_OBSERVED' | 'FORWARD' | 'REVERSE' | 'BIDIRECTIONAL' | 'UNDIRECTED';
+    observedFingerprint: string;
+  }>;
+  directConfirmationSourceVersionId?: string;
+  selectedCellIds?: string[];
+  selectionCanvasVersion?: number;
+  selectionContentHash?: string;
   /** Real draw.io PNG used by review_only; never persisted as chat content. */
   canvasImageDataUrl?: string;
   canvasImageRendererVersion?: 'drawio-embed-png-v1';
@@ -440,6 +468,7 @@ export interface LoginResponseDTO {
   userId?: string;
   email?: string;
   accountStatus?: 'ANONYMOUS' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'DISABLED' | 'DELETED';
+  admin?: boolean;
 }
 
 export interface RegisterAccountRequestDTO {

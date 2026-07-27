@@ -1,0 +1,221 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "formal",
+  "split": "validation",
+  "gitCommit": "550905c682768cf1151a3c7ea494d558f7806513",
+  "corpusLockSha256": "6920462f2401a25f5afe25cf7d20c0929b838c1aa9c60f4727ebde7a69a3d935",
+  "taskFixtureSha256": "d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d",
+  "promptBundlesSha256": "a25ee1b30ba713c1e925ecf748e9d20681c2d5302817a3eaa433d4849ec4c263",
+  "responsesSha256": "75ba1eaeafed1c92f1d4f9ca0a3bee7a435066a9a445d7a201fc15325fd5147b",
+  "model": {
+    "provider": "OpenAI",
+    "name": "gpt-5.5",
+    "endpointFingerprint": "sha256:82141e272189210ab931267ec91313de3460102092ac4f85b284b44db52b0caf"
+  },
+  "requestParameters": {
+    "temperature": "provider-default",
+    "maxCompletionTokens": 6000,
+    "responseFormat": "json_schema:drawio_generation_response_v3",
+    "reasoningEffort": "low",
+    "imageDetail": "high"
+  },
+  "taskIds": [
+    "stgf-val-01",
+    "stgf-val-02",
+    "stgf-val-03",
+    "stgf-val-04",
+    "stgf-val-05",
+    "stgf-val-06",
+    "stgf-val-07",
+    "stgf-val-08",
+    "stgf-val-09",
+    "stgf-val-10",
+    "stgf-val-11",
+    "stgf-val-12"
+  ],
+  "calls": [
+    {
+      "taskId": "stgf-val-01",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_f7b6f43308b446ad96afdc757239902b",
+      "promptSha256": "7b3f6dc03f7bfb22fdc9d14a57046967dacf4887b970576078fa49fbaee1707b",
+      "usage": {
+        "inputTokens": 372,
+        "outputTokens": 1294
+      },
+      "latencyMs": 12628
+    },
+    {
+      "taskId": "stgf-val-02",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_1534f2775d374403bd04fb3ec5e66a18",
+      "promptSha256": "536862a9d3cde14bc3cfbcb99bb79bca9d65fac86d7c905508adc5a5d9e6ae78",
+      "usage": {
+        "inputTokens": 354,
+        "outputTokens": 1104
+      },
+      "latencyMs": 10987
+    },
+    {
+      "taskId": "stgf-val-03",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_e831fa81bbdb45ae9a2037b060e260d3",
+      "promptSha256": "7aea442e34b181e508dd4e0f41de3c3775fde0eabd0edcf8cbed23e66004b08b",
+      "usage": {
+        "inputTokens": 450,
+        "outputTokens": 496
+      },
+      "latencyMs": 6161
+    },
+    {
+      "taskId": "stgf-val-04",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_743e7c0857084422a91226f52e677158",
+      "promptSha256": "d998c1e3430b4a420610ccbabb5f4e59c01c0ccd389599d1a1a1f74c5474c042",
+      "usage": {
+        "inputTokens": 439,
+        "outputTokens": 460
+      },
+      "latencyMs": 5634
+    },
+    {
+      "taskId": "stgf-val-05",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_d69212d4bb8349bf974e4691ecf9539e",
+      "promptSha256": "647c5321ac885e78b399d0ca49f4b2cae4a568e8e293c0246495db45f3c0ee6c",
+      "usage": {
+        "inputTokens": 488,
+        "outputTokens": 261
+      },
+      "latencyMs": 3182
+    },
+    {
+      "taskId": "stgf-val-06",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_1a572b439afe468d80b6874e5ee3b232",
+      "promptSha256": "f824cd55d2ea4df108d38e50a7affd3152deeda716b6bb032b766130d79d767d",
+      "usage": {
+        "inputTokens": 480,
+        "outputTokens": 257
+      },
+      "latencyMs": 3184
+    },
+    {
+      "taskId": "stgf-val-07",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_c03c169157cb44f58018a827db256754",
+      "promptSha256": "0fda1c874f47ef69061c9ba73290380573884d0e30d83b21bf3cd346afe40194",
+      "usage": {
+        "inputTokens": 363,
+        "outputTokens": 1050
+      },
+      "latencyMs": 10507
+    },
+    {
+      "taskId": "stgf-val-08",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_fc901c5f223141ec9713051b5995cefb",
+      "promptSha256": "ec82560bde711fe957a7a7eb78fb0318f672f48786ae9d97ff714ba3e624a0cc",
+      "usage": {
+        "inputTokens": 373,
+        "outputTokens": 1270
+      },
+      "latencyMs": 12393
+    },
+    {
+      "taskId": "stgf-val-09",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_dbee7f4389c84c7284a3e6bd74296240",
+      "promptSha256": "21a341273424cffc52d23b708daaff55cff0adc7cca381edad3c734e91ed1f91",
+      "usage": {
+        "inputTokens": 370,
+        "outputTokens": 1204
+      },
+      "latencyMs": 11594
+    },
+    {
+      "taskId": "stgf-val-10",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_47e00088889b45dab35300a0821dba79",
+      "promptSha256": "9d8a5c123249e2b859043f1c1bfcbd26e706faa67d3c4880ac803e0dbfd54640",
+      "usage": {
+        "inputTokens": 868,
+        "outputTokens": 1488
+      },
+      "latencyMs": 12570
+    },
+    {
+      "taskId": "stgf-val-11",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_46d291066d004c06b343e5d1ab18d394",
+      "promptSha256": "9f11689635fc1c4bc79ff15fc1c19d3b9fd7b0d91cd6b907aa82845a969d76d3",
+      "usage": {
+        "inputTokens": 873,
+        "outputTokens": 1532
+      },
+      "latencyMs": 14145
+    },
+    {
+      "taskId": "stgf-val-12",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_3a2f858497594d6fb971cd1653a6f804",
+      "promptSha256": "274b6915d09530085d1f4843b3974ecf025240794c0479e63f04f9538a11fcff",
+      "usage": {
+        "inputTokens": 358,
+        "outputTokens": 816
+      },
+      "latencyMs": 8229
+    }
+  ],
+  "artifacts": [
+    {
+      "role": "corpusLock",
+      "path": "fixtures/generated/corpus-lock.json",
+      "sha256": "6920462f2401a25f5afe25cf7d20c0929b838c1aa9c60f4727ebde7a69a3d935"
+    },
+    {
+      "role": "taskFixture",
+      "path": "fixtures/generated/stage-f-clean-validation/tasks.json",
+      "sha256": "d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d"
+    },
+    {
+      "role": "promptBundles",
+      "path": "fixtures/generated/stage-f-clean-validation/prompt-bundles.json",
+      "sha256": "a25ee1b30ba713c1e925ecf748e9d20681c2d5302817a3eaa433d4849ec4c263"
+    },
+    {
+      "role": "hydration",
+      "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+      "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+    },
+    {
+      "role": "responses",
+      "path": "results/stage-f-clean-validation-gpt-5-5-retry-1-responses.json",
+      "sha256": "75ba1eaeafed1c92f1d4f9ca0a3bee7a435066a9a445d7a201fc15325fd5147b"
+    }
+  ]
+}

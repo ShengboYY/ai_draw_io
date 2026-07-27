@@ -10,6 +10,11 @@
     <artifactId>ai-agent-draw-io-infrastructure</artifactId>
 
     <dependencies>
+        <!-- Strict decoding for isolated V2 model adapters; legacy JSON contracts stay elsewhere. -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -19,6 +24,10 @@
         <dependency>
             <groupId>org.zipp.ai</groupId>
             <artifactId>ai-agent-draw-io-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.zipp.ai</groupId>
+            <artifactId>ai-agent-draw-io-application</artifactId>
         </dependency>
 
         <!-- 持久化:MyBatis + MySQL(用户技能存储) -->
@@ -37,6 +46,22 @@
             <version>${aws.sdk.version}</version>
         </dependency>
         <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+        <!-- DefaultCredentialsProvider needs this module to resolve local AWS CLI SSO profiles. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sso</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ssooidc</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
@@ -45,6 +70,18 @@
 
     <build>
         <finalName>ai-agent-draw-io-infrastructure</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Preview rendering must not initialize macOS AppKit or require a CI display server. -->
+                    <systemPropertyVariables>
+                        <java.awt.headless>true</java.awt.headless>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

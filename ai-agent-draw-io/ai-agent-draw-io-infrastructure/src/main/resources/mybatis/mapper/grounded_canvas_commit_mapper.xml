@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.grounding.IGroundedCanvasCommitMapper">
+    <select id="selectPersistedProvenance" resultType="org.zipp.ai.infrastructure.dao.grounding.CellProvenanceTypeRowPO">
+        SELECT provenance.cell_id, provenance.provenance_ref, provenance.support_type
+        FROM diagram_cell_provenance provenance
+        JOIN diagram ON diagram.id = provenance.diagram_id
+                    AND diagram.user_id = #{query.ownerKey} AND diagram.deleted = 0
+        WHERE provenance.diagram_id = #{query.diagramId}
+          AND provenance.canvas_version = #{query.canvasVersion}
+          AND provenance.cell_id IN
+          <foreach collection="query.candidateCellIds" item="cellId" open="(" separator="," close=")">
+              #{cellId}
+          </foreach>
+    </select>
+
+    <select id="lockRunState" resultType="org.zipp.ai.infrastructure.dao.grounding.GroundedRunRowPO">
+        SELECT run_id, owner_key, request_id, state, generation FROM grounded_run_control
+        WHERE run_id = #{plan.runId} AND owner_key = #{plan.ownerKey}
+          AND request_id = #{plan.requestId}
+        FOR UPDATE
+    </select>
+
+    <update id="updateExistingCanvas">
+        UPDATE diagram_canvas_state state
+        JOIN diagram diagram ON diagram.id = state.diagram_id AND diagram.user_id = state.user_id
+        SET state.current_xml = #{plan.canvasXml}, state.content_hash = #{plan.contentHash},
+            state.version = state.version + 1, state.updated_at = UTC_TIMESTAMP(3)
+        WHERE state.diagram_id = #{plan.diagramId} AND state.user_id = #{plan.ownerKey}
+          AND diagram.deleted = 0 AND state.version = #{plan.expectedVersion}
+          AND (#{plan.expectedContentHash} IS NULL OR #{plan.expectedContentHash} = ''
+               OR state.content_hash = #{plan.expectedContentHash})
+    </update>
+
+    <insert id="insertNewCanvas">
+        INSERT INTO diagram_canvas_state
+            (diagram_id, user_id, current_xml, content_hash, version)
+        SELECT diagram.id, diagram.user_id, #{plan.canvasXml}, #{plan.contentHash}, 1
+        FROM diagram
+        WHERE diagram.id = #{plan.diagramId} AND diagram.user_id = #{plan.ownerKey}
+          AND diagram.deleted = 0
+          AND NOT EXISTS (SELECT 1 FROM diagram_canvas_state existing
+                          WHERE existing.diagram_id = diagram.id)
+    </insert>
+
+    <select id="selectCommittedCanvas" resultType="org.zipp.ai.infrastructure.dao.po.CanvasStatePO">
+        SELECT state.diagram_id, state.user_id, diagram.title, diagram.diagram_type, diagram.thumbnail_url,
+               state.current_xml, state.content_hash, state.summary, state.analysis_json, state.version,
+               state.created_at, state.updated_at
+        FROM diagram_canvas_state state
+        JOIN diagram ON diagram.id = state.diagram_id AND diagram.user_id = state.user_id
+        WHERE state.diagram_id = #{plan.diagramId} AND state.user_id = #{plan.ownerKey}
+          AND diagram.deleted = 0
+        LIMIT 1
+    </select>
+
+    <insert id="insertCanvasVersion">
+        INSERT INTO diagram_canvas_version
+            (diagram_id, version, content_hash, canvas_xml, mutation_origin, created_by, run_id)
+        VALUES (#{plan.diagramId}, #{canvasVersion}, #{plan.contentHash}, #{plan.canvasXml},
+                #{plan.mutationOrigin}, #{plan.ownerKey}, #{plan.runId})
+    </insert>
+
+    <insert id="copyInheritedProvenance">
+        INSERT INTO diagram_cell_provenance
+            (diagram_id, cell_id, canvas_version, provenance_ref, semantic_hash, support_type, current_citation_id)
+        SELECT previous.diagram_id, previous.cell_id, #{canvasVersion}, previous.provenance_ref,
+               previous.semantic_hash, previous.support_type, previous.current_citation_id
+        FROM diagram_cell_provenance previous
+        WHERE previous.diagram_id = #{plan.diagramId}
+          AND previous.canvas_version = #{previousVersion}
+          AND previous.cell_id IN
+          <foreach collection="plan.inheritedCellIds" item="cellId" open="(" separator="," close=")">
+              #{cellId}
+          </foreach>
+    </insert>
+
+    <insert id="insertCitation">
+        INSERT INTO source_citation
+            (id, owner_key, target_type, diagram_id, canvas_version, cell_id, claim_key,
+             support_type, state)
+        VALUES (#{citation.citationId}, #{plan.ownerKey}, 'DIAGRAM_CELL', #{plan.diagramId},
+                #{canvasVersion}, #{citation.cellId}, #{citation.statementKey},
+                #{citation.supportType},
+                CASE WHEN #{citation.supportType} = 'EVIDENCE' THEN 'VERIFIED' ELSE NULL END)
+    </insert>
+
+    <insert id="insertCitationEvidence">
+        INSERT INTO citation_evidence
+            (citation_id, evidence_id, version_id, revision_id, citation_key, use_role, source_origin)
+        VALUES (#{citationId}, #{link.evidenceId}, #{link.versionId}, #{link.revisionId},
+                #{link.citationKey}, #{link.useRole}, #{link.origin})
+    </insert>
+
+    <insert id="upsertCellProvenance">
+        INSERT INTO diagram_cell_provenance
+            (diagram_id, cell_id, canvas_version, provenance_ref, semantic_hash, support_type, current_citation_id)
+        VALUES (#{plan.diagramId}, #{citation.cellId}, #{canvasVersion}, #{citation.provenanceRef}, #{citation.semanticHash},
+                #{citation.supportType}, #{citation.citationId})
+        ON DUPLICATE KEY UPDATE
+            provenance_ref = VALUES(provenance_ref), semantic_hash = VALUES(semantic_hash), support_type = VALUES(support_type),
+            current_citation_id = VALUES(current_citation_id), updated_at = UTC_TIMESTAMP(3)
+    </insert>
+
+    <insert id="upsertSourcePin">
+        INSERT INTO diagram_source_pin
+            (diagram_id, material_id, version_id, processing_revision_id, state,
+             first_used_at, latest_citation_at)
+        VALUES (#{plan.diagramId}, #{link.materialId}, #{link.versionId}, #{link.revisionId},
+                'ACTIVE', UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE state = 'ACTIVE', latest_citation_at = UTC_TIMESTAMP(3)
+    </insert>
+
+    <update id="supersedeUnusedPins">
+        UPDATE diagram_source_pin pin
+        SET pin.state = 'SUPERSEDED', pin.updated_at = UTC_TIMESTAMP(3)
+        WHERE pin.diagram_id = #{diagramId} AND pin.state = 'ACTIVE'
+          AND NOT EXISTS (
+            SELECT 1 FROM diagram_cell_provenance provenance
+            JOIN source_citation anchor ON anchor.id = provenance.current_citation_id
+            JOIN source_citation citation ON citation.diagram_id = provenance.diagram_id
+                 AND citation.cell_id = provenance.cell_id AND citation.canvas_version = anchor.canvas_version
+            JOIN citation_evidence evidence ON evidence.citation_id = citation.id
+            JOIN evidence_unit unit ON unit.id = evidence.evidence_id
+            JOIN material_version version ON version.id = unit.version_id
+            WHERE provenance.diagram_id = pin.diagram_id AND provenance.canvas_version = #{canvasVersion}
+              AND version.material_id = pin.material_id AND evidence.version_id = pin.version_id
+              AND evidence.revision_id = pin.processing_revision_id
+          )
+    </update>
+
+    <update id="completeRun">
+        UPDATE grounded_run_control
+        SET state = 'COMPLETED', completed_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+        WHERE run_id = #{plan.runId} AND owner_key = #{plan.ownerKey}
+          AND request_id = #{plan.requestId} AND state = 'RUNNING'
+          AND generation = #{plan.expectedRunGeneration}
+    </update>
+</mapper>

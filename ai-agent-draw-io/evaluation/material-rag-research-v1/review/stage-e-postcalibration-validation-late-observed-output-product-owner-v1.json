@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "material-rag-drawio-output-acceptability-review-v1",
+  "status": "reviewer_1_of_2_diagnostic_duplicate_execution",
+  "reviewer": "product-owner",
+  "scope": {
+    "taskFixtureSha256": "802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee",
+    "responsesSha256": "647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b",
+    "run": "stage-e late-observed execution only"
+  },
+  "decision": "Accept stge-val-09, stge-val-10 and stge-val-11 as practically usable Draw.io outputs. Reject stge-val-04 because its long text is not wrapped inside the nodes and is insufficiently readable.",
+  "cases": [
+    {"taskId": "stge-val-04", "accepted": false, "reason": "The two long sentence labels do not wrap inside their nodes, making the diagram difficult to read despite preserving the stated facts."},
+    {"taskId": "stge-val-09", "accepted": true, "reason": "The recovery flow is clear and the added linking word does not change the stated safety behavior."},
+    {"taskId": "stge-val-10", "accepted": true, "reason": "The visual flow is correctly reconstructed; Yes and No are appropriate editable edge labels."},
+    {"taskId": "stge-val-11", "accepted": true, "reason": "The visual recovery flow is correctly reconstructed; Yes and No are appropriate editable edge labels."}
+  ],
+  "limitations": "This is an output-usability review of one preserved execution from a duplicate-run incident. It cannot select a formal result, replace the frozen strict score, or substitute for a second independent output review."
+}

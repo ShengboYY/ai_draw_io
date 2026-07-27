@@ -19,6 +19,7 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
 import org.zipp.ai.domain.agent.service.usage.IAgentUsageTelemetryStore;
+import org.zipp.ai.domain.material.service.MaterialDeletionModule;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -44,6 +45,7 @@ public class AccountDeletionServiceTest {
     private FakeDebugTraceStore debugTraceStore;
     private FakeUsageTelemetryStore usageTelemetryStore;
     private FakeAdminAuditLogStore auditLogStore;
+    private FakeMaterialDeletionModule materialDeletionModule;
     private DefaultAccountDeletionService service;
 
     @Before
@@ -56,6 +58,7 @@ public class AccountDeletionServiceTest {
         debugTraceStore = new FakeDebugTraceStore();
         usageTelemetryStore = new FakeUsageTelemetryStore();
         auditLogStore = new FakeAdminAuditLogStore();
+        materialDeletionModule = new FakeMaterialDeletionModule();
         service = new DefaultAccountDeletionService(
                 userStore,
                 tokenStore,
@@ -65,6 +68,7 @@ public class AccountDeletionServiceTest {
                 debugTraceStore,
                 usageTelemetryStore,
                 auditLogStore,
+                materialDeletionModule,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         userStore.insert(UserAccount.builder()
@@ -112,6 +116,8 @@ public class AccountDeletionServiceTest {
         assertEquals(anonymizedUserId, usageTelemetryStore.anonymizedUserId);
         assertEquals("usr_alice", auditLogStore.redactedOriginalUserId);
         assertEquals(anonymizedUserId, auditLogStore.redactedUserId);
+        assertEquals("usr_alice", materialDeletionModule.deletedOwnerKey);
+        assertEquals(NOW, materialDeletionModule.deletedAt);
     }
 
     @Test
@@ -262,6 +268,17 @@ public class AccountDeletionServiceTest {
             this.redactedOriginalUserId = userId;
             this.redactedUserId = redactedUserId;
             return 1;
+        }
+    }
+
+    private static final class FakeMaterialDeletionModule implements MaterialDeletionModule {
+        private String deletedOwnerKey;
+        private Instant deletedAt;
+
+        @Override
+        public void requestAccountDeletion(String ownerKey, Instant deletedAt) {
+            this.deletedOwnerKey = ownerKey;
+            this.deletedAt = deletedAt;
         }
     }
 }

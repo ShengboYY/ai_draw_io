@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildRestoredDiagramState } from '../src/app/drawio/diagram-restore.ts';
+import {
+  buildRestoredDiagramState,
+  isDiagramRouteReady,
+} from '../src/app/drawio/diagram-restore.ts';
 
 test('buildRestoredDiagramState maps backend diagram detail to local session state', () => {
   const restored = buildRestoredDiagramState({
@@ -45,4 +48,11 @@ test('buildRestoredDiagramState extracts xml from legacy restore payloads', () =
     }).drawIoXml,
     xml
   );
+});
+
+test('URL-targeted diagram is ready only when the active session matches it', () => {
+  assert.equal(isDiagramRouteReady(null, 'diagram-cached'), true);
+  assert.equal(isDiagramRouteReady('diagram-target', 'diagram-target'), true);
+  assert.equal(isDiagramRouteReady('diagram-target', 'diagram-cached'), false);
+  assert.equal(isDiagramRouteReady('diagram-target', null), false);
 });

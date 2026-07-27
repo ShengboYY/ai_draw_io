@@ -33,9 +33,11 @@ test('home page has mobile rules for the drawing preview and card grids', () => 
 
 test('diagram library uses mobile search, filters, and shorter preview cards', () => {
   const pageSource = source('diagrams/page.tsx');
+  const headerSource = readFileSync(
+    fileURLToPath(new URL('../src/features/workspace/WorkspaceHeader.tsx', import.meta.url)), 'utf8');
 
   assert.match(pageSource, /aspect-\[16\/9\] sm:aspect-\[4\/3\]/, 'mobile cards should use a shorter preview aspect');
-  assert.match(pageSource, /flex-wrap/, 'library header should wrap on phones');
+  assert.match(headerSource, /flex-wrap/, 'library header should wrap on phones');
   assert.match(pageSource, /overflow-x-auto/, 'filter tabs should scroll horizontally on phones');
   assert.match(pageSource, /sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/, 'card grid should expand from one column');
 });

@@ -23,6 +23,19 @@ jobs:
     name: backend-ci
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: ai_draw_io_test
+          MYSQL_ROOT_PASSWORD: ci-root-password
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
 
     steps:
       - name: Checkout repository
@@ -36,13 +49,117 @@ jobs:
           cache: maven
           cache-dependency-path: ai-agent-draw-io/**/pom.xml
 
+      - name: Prepare isolated MySQL schema-test database
+        env:
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: "3307"
+          MYSQL_USER: root
+          MYSQL_PASSWORD: ci-root-password
+          MYSQL_DATABASE: ai_draw_io_test
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 60); do
+            if mysqladmin --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" \
+                -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" ping >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" = 60 ]; then
+              echo "MySQL service did not become ready." >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # Keep CI schema tests on a disposable local database; never point them at RDS.
+          schema_files=(
+            ai-agent-draw-io/docs/sql/skill.sql
+            ai-agent-draw-io/docs/sql/diagram.sql
+            ai-agent-draw-io/docs/sql/account.sql
+            ai-agent-draw-io/docs/sql/admin.sql
+            ai-agent-draw-io/docs/sql/debug-trace.sql
+            ai-agent-draw-io/docs/sql/usage-counter.sql
+            ai-agent-draw-io/docs/sql/usage-telemetry.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-19-create-material-rag-foundation.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-20-create-secure-upload-intake.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-21-create-materialization-promotion.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-22-create-document-processing-artifacts.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-23-create-document-structure-artifacts.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-24-scope-document-section-identity.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-25-create-visual-crop-artifacts.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-26-create-turn-execution-control.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-26-pin-evidence-artifact-versions.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-27-add-turn-input-binding-payload.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-27-migrate-conversation-scopes.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-27-pin-retrieval-artifact-versions.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-28-create-chartbook-profile.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-28-create-turn-lifecycle-trace.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-28-create-vector-projection-artifacts.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-29-enforce-index-generation-publication.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-30-create-material-processing-usage.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-30-create-source-aware-commit-boundaries.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-31-create-confirmed-memory.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-31-pin-revision-gap-manifest.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-08-10-create-request-source-snapshots.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-08-11-add-request-source-display-name.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-08-12-add-request-source-processing-flag.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-08-13-create-source-aware-direct-preparations.sql
+          )
+          for schema in "${schema_files[@]}"; do
+            # The checked-in SQL targets production's name; CI rewrites only the disposable DB name.
+            sed 's/ai_draw_io/ai_draw_io_test/g' "$schema" \
+              | mysql --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" \
+                  --database="$MYSQL_DATABASE" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD"
+          done
+
       - name: Run backend tests
-        run: >-
-          mvn -B
-          -s ai-agent-draw-io/docker/maven-settings.xml
-          -f ai-agent-draw-io/pom.xml
-          -pl ai-agent-draw-io-app -am
-          test
+        env:
+          M1_MYSQL_TEST_ENABLED: "true"
+          M1_MYSQL_JDBC_URL: jdbc:mysql://127.0.0.1:3307/ai_draw_io_test?useSSL=false&allowPublicKeyRetrieval=true
+          M1_MYSQL_USER: root
+          M1_MYSQL_PASSWORD: ci-root-password
+          M2_MYSQL_TEST_ENABLED: "true"
+          M2_MYSQL_JDBC_URL: jdbc:mysql://127.0.0.1:3307/ai_draw_io_test?useSSL=false&allowPublicKeyRetrieval=true
+          M2_MYSQL_USER: root
+          M2_MYSQL_PASSWORD: ci-root-password
+          M5_MYSQL_TEST_ENABLED: "true"
+          M5_MYSQL_JDBC_URL: jdbc:mysql://127.0.0.1:3307/ai_draw_io_test?useSSL=false&allowPublicKeyRetrieval=true
+          M5_MYSQL_USER: root
+          M5_MYSQL_PASSWORD: ci-root-password
+        run: |
+          set -euo pipefail
+          for jdbc_url in "$M1_MYSQL_JDBC_URL" "$M2_MYSQL_JDBC_URL" "$M5_MYSQL_JDBC_URL"; do
+            case "$jdbc_url" in
+              jdbc:mysql://127.0.0.1:3307/ai_draw_io_test\?*) ;;
+              *)
+                echo "Schema tests must use the local CI MySQL service: $jdbc_url" >&2
+                exit 1
+                ;;
+            esac
+          done
+          mvn -B -s ai-agent-draw-io/docker/maven-settings.xml -f ai-agent-draw-io/pom.xml test
+
+      - name: Verify module sentinel reports
+        run: |
+          set -euo pipefail
+          test -f ai-agent-draw-io/ai-agent-draw-io-domain/target/surefire-reports/TEST-org.zipp.ai.domain.DomainModuleSentinelTest.xml
+          test -f ai-agent-draw-io/ai-agent-draw-io-trigger/target/surefire-reports/TEST-org.zipp.ai.trigger.TriggerModuleSentinelTest.xml
+          test -f ai-agent-draw-io/ai-agent-draw-io-infrastructure/target/surefire-reports/TEST-org.zipp.ai.infrastructure.InfrastructureModuleSentinelTest.xml
+          test -f ai-agent-draw-io/ai-agent-draw-io-app/target/surefire-reports/TEST-org.zipp.ai.test.AppModuleSentinelTest.xml
+          test -f ai-agent-draw-io/ai-agent-draw-io-ingestion-worker/target/surefire-reports/TEST-org.zipp.ai.ingestion.worker.WorkerModuleSentinelTest.xml
+
+      - name: Upload backend test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-surefire-reports
+          if-no-files-found: error
+          path: |
+            ai-agent-draw-io/ai-agent-draw-io-domain/target/surefire-reports/
+            ai-agent-draw-io/ai-agent-draw-io-trigger/target/surefire-reports/
+            ai-agent-draw-io/ai-agent-draw-io-infrastructure/target/surefire-reports/
+            ai-agent-draw-io/ai-agent-draw-io-app/target/surefire-reports/
+            ai-agent-draw-io/ai-agent-draw-io-ingestion-worker/target/surefire-reports/
 
   frontend-ci:
     name: frontend-ci
@@ -111,7 +228,7 @@ jobs:
           docker build
           --provenance=false
           --platform linux/amd64
-          --file deploy/aws/database/Dockerfile
+          --file deploy/aws/database/Dockerfile.20260813
           --tag ai-drawio-db-migrate:ci
           .
 
@@ -130,6 +247,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION }}
       ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
       ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
+      ECR_MIGRATION_REPOSITORY: ${{ vars.ECR_MIGRATION_REPOSITORY }}
 
     steps:
       - name: Checkout repository
@@ -158,8 +276,10 @@ jobs:
 
           backend_uri="${ECR_REGISTRY}/${ECR_BACKEND_REPOSITORY}:${IMAGE_TAG}"
           frontend_uri="${ECR_REGISTRY}/${ECR_FRONTEND_REPOSITORY}:${IMAGE_TAG}"
+          migration_uri="${ECR_REGISTRY}/${ECR_MIGRATION_REPOSITORY}:${IMAGE_TAG}"
           backend_exists=false
           frontend_exists=false
+          migration_exists=false
 
           if aws ecr describe-images \
             --repository-name "$ECR_BACKEND_REPOSITORY" \
@@ -173,6 +293,13 @@ jobs:
             --image-ids imageTag="$IMAGE_TAG" \
             > /dev/null 2>&1; then
             frontend_exists=true
+          fi
+
+          if aws ecr describe-images \
+            --repository-name "$ECR_MIGRATION_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            > /dev/null 2>&1; then
+            migration_exists=true
           fi
 
           if [ "$backend_exists" = false ]; then
@@ -193,12 +320,27 @@ jobs:
             echo "Frontend image already exists; reusing immutable tag $IMAGE_TAG."
           fi
 
+          if [ "$migration_exists" = false ]; then
+            docker build \
+              --provenance=false \
+              --platform linux/amd64 \
+              --file deploy/aws/database/Dockerfile.20260813 \
+              --tag "$migration_uri" \
+              .
+          else
+            echo "Migration image already exists; reusing immutable tag $IMAGE_TAG."
+          fi
+
           if [ "$backend_exists" = false ]; then
             docker push "$backend_uri"
           fi
 
           if [ "$frontend_exists" = false ]; then
             docker push "$frontend_uri"
+          fi
+
+          if [ "$migration_exists" = false ]; then
+            docker push "$migration_uri"
           fi
 
       - name: Write publication summary
@@ -218,6 +360,11 @@ jobs:
             --image-ids imageTag="$IMAGE_TAG" \
             --query 'imageDetails[0].imageDigest' \
             --output text)
+          migration_digest=$(aws ecr describe-images \
+            --repository-name "$ECR_MIGRATION_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
 
           {
             echo "## Published release images"
@@ -227,4 +374,6 @@ jobs:
             echo "- Backend digest: \`${backend_digest}\`"
             echo "- Frontend: \`${ECR_REGISTRY}/${ECR_FRONTEND_REPOSITORY}:${IMAGE_TAG}\`"
             echo "- Frontend digest: \`${frontend_digest}\`"
+            echo "- Migration: \`${ECR_REGISTRY}/${ECR_MIGRATION_REPOSITORY}:${IMAGE_TAG}\`"
+            echo "- Migration digest: \`${migration_digest}\`"
           } >> "$GITHUB_STEP_SUMMARY"

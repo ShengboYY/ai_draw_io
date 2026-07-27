@@ -122,11 +122,23 @@
         },
         {
           "name": "ZIPP_VISUAL_REVIEW_ENABLED",
-          "value": "false"
+          "value": "true"
         },
         {
           "name": "ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED",
-          "value": "false"
+          "value": "true"
+        },
+        {
+          "name": "ZIPP_VISUAL_REVIEW_ROLLOUT_PERCENT",
+          "value": "100"
+        },
+        {
+          "name": "ZIPP_VISUAL_REVIEW_ROUND_1_ROLLOUT_PERCENT",
+          "value": "100"
+        },
+        {
+          "name": "ZIPP_VISUAL_REVIEW_ROUND_2_ROLLOUT_PERCENT",
+          "value": "100"
         },
         {
           "name": "ZIPP_VISUAL_REVIEW_DRAWER_AGENT_ID",
@@ -153,6 +165,10 @@
         {
           "name": "MODEL_CREDENTIAL_ENCRYPTION_KEY",
           "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:MODEL_CREDENTIAL_ENCRYPTION_KEY::"
+        },
+        {
+          "name": "ANONYMOUS_WORKSPACE_PEPPER",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:ANONYMOUS_WORKSPACE_PEPPER::"
         },
         {
           "name": "BAIDU_SEARCH_API_KEY",

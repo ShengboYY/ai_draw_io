@@ -1,0 +1,586 @@
+{
+  "split": "validation",
+  "arm": "fixed",
+  "bundles": [
+    {
+      "taskId": "stgf-val-01",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Create an editable incident-briefing flow.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-incident-briefing:v1; page=1\n- citationId=CIT-002; sourceVersion=sf-incident-briefing:v1; page=1\n\nRetrieved material:\n[CIT-002 | sf-incident-briefing:v1 | page 1]\nIncident Commander sends a customer-impact summary to Executive Review before the recovery decision is published.\n\n[CIT-001 | sf-incident-briefing:v1 | page 1]\nThe recovery decision names the accountable Operations Lead.",
+      "promptSha256": "7b3f6dc03f7bfb22fdc9d14a57046967dacf4887b970576078fa49fbaee1707b",
+      "evidence": [
+        {
+          "anchorId": "ib-route",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1,
+          "text": "Incident Commander sends a customer-impact summary to Executive Review before the recovery decision is published."
+        },
+        {
+          "anchorId": "ib-owner",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1,
+          "text": "The recovery decision names the accountable Operations Lead."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ib-owner",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "ib-route",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-02",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Draw the approved release-exception route.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-release-exception:v1; page=1\n- citationId=CIT-002; sourceVersion=sf-release-exception:v1; page=1\n\nRetrieved material:\n[CIT-001 | sf-release-exception:v1 | page 1]\nRelease Exception goes to Risk Assessment before Change Owner approval.\n\n[CIT-002 | sf-release-exception:v1 | page 1]\nApproved Release Exception is recorded in the Deployment Register.",
+      "promptSha256": "536862a9d3cde14bc3cfbcb99bb79bca9d65fac86d7c905508adc5a5d9e6ae78",
+      "evidence": [
+        {
+          "anchorId": "re-assess",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1,
+          "text": "Release Exception goes to Risk Assessment before Change Owner approval."
+        },
+        {
+          "anchorId": "re-record",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1,
+          "text": "Approved Release Exception is recorded in the Deployment Register."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "re-assess",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "re-record",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-03",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Update the selected vendor-onboarding subgraph from the approved material.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected' value='Selected step' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-vendor-onboarding-edit:v1; page=1\n- citationId=CIT-002; sourceVersion=sf-vendor-onboarding-edit:v1; page=1\n\nRetrieved material:\n[CIT-002 | sf-vendor-onboarding-edit:v1 | page 1]\nVendor Intake goes to Security Screening before Contract Setup.\n\n[CIT-001 | sf-vendor-onboarding-edit:v1 | page 1]\nContract Setup is owned by Procurement Operations.",
+      "promptSha256": "7aea442e34b181e508dd4e0f41de3c3775fde0eabd0edcf8cbed23e66004b08b",
+      "evidence": [
+        {
+          "anchorId": "vo-screen",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1,
+          "text": "Vendor Intake goes to Security Screening before Contract Setup."
+        },
+        {
+          "anchorId": "vo-owner",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1,
+          "text": "Contract Setup is owned by Procurement Operations."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "vo-owner",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "vo-screen",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-04",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Edit the selected access-review branch using the selected source.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected' value='Selected step' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-access-review-edit:v1; page=1\n- citationId=CIT-002; sourceVersion=sf-access-review-edit:v1; page=1\n\nRetrieved material:\n[CIT-002 | sf-access-review-edit:v1 | page 1]\nAccess Request goes to Entitlement Review before Manager Approval.\n\n[CIT-001 | sf-access-review-edit:v1 | page 1]\nManager Approval creates an Access Record for the requester.",
+      "promptSha256": "d998c1e3430b4a420610ccbabb5f4e59c01c0ccd389599d1a1a1f74c5474c042",
+      "evidence": [
+        {
+          "anchorId": "ar-review",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1,
+          "text": "Access Request goes to Entitlement Review before Manager Approval."
+        },
+        {
+          "anchorId": "ar-close",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1,
+          "text": "Manager Approval creates an Access Record for the requester."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ar-close",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "ar-review",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-05",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Separate the existing escalation roles for readability without changing their content or style.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Duty Manager' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='45' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Incident Lead' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='90' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Communications Owner' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='135' y='45' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-layout-escalation:v1; page=1\n\nRetrieved material:\n[CIT-001 | sf-layout-escalation:v1 | page 1]\nDuty Manager, Incident Lead and Communications Owner are the existing escalation roles.",
+      "promptSha256": "647c5321ac885e78b399d0ca49f4b2cae4a568e8e293c0246495db45f3c0ee6c",
+      "evidence": [
+        {
+          "anchorId": "le-roles",
+          "sourceVersion": "sf-layout-escalation:v1",
+          "page": 1,
+          "text": "Duty Manager, Incident Lead and Communications Owner are the existing escalation roles."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-layout-escalation:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "le-roles",
+          "sourceVersion": "sf-layout-escalation:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-06",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Improve spacing of the existing evidence states without changing their content or style.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Captured' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='45' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Verified' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='90' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Retained' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='135' y='45' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-layout-evidence:v1; page=1\n\nRetrieved material:\n[CIT-001 | sf-layout-evidence:v1 | page 1]\nCaptured, Verified and Retained are the existing evidence states.",
+      "promptSha256": "f824cd55d2ea4df108d38e50a7affd3152deeda716b6bb032b766130d79d767d",
+      "evidence": [
+        {
+          "anchorId": "lv-states",
+          "sourceVersion": "sf-layout-evidence:v1",
+          "page": 1,
+          "text": "Captured, Verified and Retained are the existing evidence states."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-layout-evidence:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "lv-states",
+          "sourceVersion": "sf-layout-evidence:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-07",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Draw the selected, authorized catalog approval route.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-catalog-approval:v7; page=1\n- citationId=CIT-002; sourceVersion=sf-catalog-approval:v7; page=1\n\nRetrieved material:\n[CIT-001 | sf-catalog-approval:v7 | page 1]\nCatalog Analyst submits Version 7 to Product Steward before Catalog Publish.\n\n[CIT-002 | sf-catalog-approval:v7 | page 1]\nOnly Version 7 is authorized for this edit.",
+      "promptSha256": "0fda1c874f47ef69061c9ba73290380573884d0e30d83b21bf3cd346afe40194",
+      "evidence": [
+        {
+          "anchorId": "ca-route",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1,
+          "text": "Catalog Analyst submits Version 7 to Product Steward before Catalog Publish."
+        },
+        {
+          "anchorId": "ca-scope",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1,
+          "text": "Only Version 7 is authorized for this edit."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ca-route",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "ca-scope",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-08",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Create the safe evidence-sync recovery diagram.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-evidence-sync-recovery:v1; page=1\n- citationId=CIT-002; sourceVersion=sf-evidence-sync-recovery:v1; page=1\n\nRetrieved material:\n[CIT-001 | sf-evidence-sync-recovery:v1 | page 1]\nWhen Evidence Sync is Unavailable, grounded publishing is blocked while Manual Notes remain available.\n\n[CIT-002 | sf-evidence-sync-recovery:v1 | page 1]\nRetry Sync may continue only after Evidence Sync is restored.",
+      "promptSha256": "ec82560bde711fe957a7a7eb78fb0318f672f48786ae9d97ff714ba3e624a0cc",
+      "evidence": [
+        {
+          "anchorId": "es-block",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1,
+          "text": "When Evidence Sync is Unavailable, grounded publishing is blocked while Manual Notes remain available."
+        },
+        {
+          "anchorId": "es-resume",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1,
+          "text": "Retry Sync may continue only after Evidence Sync is restored."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "es-block",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "es-resume",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-09",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Draw the safe canvas-save recovery path.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-canvas-save-recovery:v1; page=1\n- citationId=CIT-002; sourceVersion=sf-canvas-save-recovery:v1; page=1\n\nRetrieved material:\n[CIT-002 | sf-canvas-save-recovery:v1 | page 1]\nCanvas Save Failed preserves the editable diagram and offers Retry Save.\n\n[CIT-001 | sf-canvas-save-recovery:v1 | page 1]\nAfter repeated save failure, the case is routed to Workspace Support.",
+      "promptSha256": "21a341273424cffc52d23b708daaff55cff0adc7cca381edad3c734e91ed1f91",
+      "evidence": [
+        {
+          "anchorId": "cs-preserve",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1,
+          "text": "Canvas Save Failed preserves the editable diagram and offers Retry Save."
+        },
+        {
+          "anchorId": "cs-escalate",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1,
+          "text": "After repeated save failure, the case is routed to Workspace Support."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "cs-escalate",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "cs-preserve",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stgf-val-10",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Reconstruct the selected change-closure figure as editable draw.io XML.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-change-closure-visual:v1; page=1\n\nRetrieved material:\n[CIT-001 | sf-change-closure-visual:v1 | page 1]\nChange Implemented goes to Verify Outcome. If Outcome accepted? is Yes, Record Closure then Publish Change Note. If No, Plan Remediation then Recheck Outcome.\nAttached visual artifact for this evidence.",
+      "promptSha256": "9d8a5c123249e2b859043f1c1bfcbd26e706faa67d3c4880ac803e0dbfd54640",
+      "evidence": [
+        {
+          "anchorId": "cc-flow",
+          "sourceVersion": "sf-change-closure-visual:v1",
+          "page": 1,
+          "text": "Change Implemented goes to Verify Outcome. If Outcome accepted? is Yes, Record Closure then Publish Change Note. If No, Plan Remediation then Recheck Outcome.",
+          "imagePath": "fixtures/generated/stage-f-clean-validation/images/change-closure-source.png",
+          "imageSha256": "a10a56bfebc14b17126268ac6847d5d9376d330d582babfcb74f726ed5fa2fd6"
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-change-closure-visual:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "cc-flow",
+          "sourceVersion": "sf-change-closure-visual:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [
+        "fixtures/generated/stage-f-clean-validation/images/change-closure-source.png"
+      ],
+      "imageSha256s": [
+        "a10a56bfebc14b17126268ac6847d5d9376d330d582babfcb74f726ed5fa2fd6"
+      ]
+    },
+    {
+      "taskId": "stgf-val-11",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Convert the selected privacy-escalation figure into editable draw.io XML.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-privacy-escalation-visual:v1; page=1\n\nRetrieved material:\n[CIT-001 | sf-privacy-escalation-visual:v1 | page 1]\nPrivacy Alert goes to Assess Exposure. If External notice required? is Yes, Notify Privacy Lead then Send Notice. If No, Document Assessment then Monitor Follow-up.\nAttached visual artifact for this evidence.",
+      "promptSha256": "9f11689635fc1c4bc79ff15fc1c19d3b9fd7b0d91cd6b907aa82845a969d76d3",
+      "evidence": [
+        {
+          "anchorId": "pe-flow",
+          "sourceVersion": "sf-privacy-escalation-visual:v1",
+          "page": 1,
+          "text": "Privacy Alert goes to Assess Exposure. If External notice required? is Yes, Notify Privacy Lead then Send Notice. If No, Document Assessment then Monitor Follow-up.",
+          "imagePath": "fixtures/generated/stage-f-clean-validation/images/privacy-escalation-source.png",
+          "imageSha256": "e6b9a40c876f97b8c4c04530550a92aeff9edc92b3a3e3c9f9eff2891e2b0e33"
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-privacy-escalation-visual:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "pe-flow",
+          "sourceVersion": "sf-privacy-escalation-visual:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [
+        "fixtures/generated/stage-f-clean-validation/images/privacy-escalation-source.png"
+      ],
+      "imageSha256s": [
+        "e6b9a40c876f97b8c4c04530550a92aeff9edc92b3a3e3c9f9eff2891e2b0e33"
+      ]
+    },
+    {
+      "taskId": "stgf-val-12",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Create an editable service-restoration flow.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sf-service-restoration:v1; page=1\n- citationId=CIT-002; sourceVersion=sf-service-restoration:v1; page=1\n\nRetrieved material:\n[CIT-002 | sf-service-restoration:v1 | page 1]\nService Triage sends an affected component to Restoration Work before Service Verification.\n\n[CIT-001 | sf-service-restoration:v1 | page 1]\nService Verification records the restoration result in the Incident Timeline.",
+      "promptSha256": "274b6915d09530085d1f4843b3974ecf025240794c0479e63f04f9538a11fcff",
+      "evidence": [
+        {
+          "anchorId": "sr-diagnose",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1,
+          "text": "Service Triage sends an affected component to Restoration Work before Service Verification."
+        },
+        {
+          "anchorId": "sr-close",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1,
+          "text": "Service Verification records the restoration result in the Incident Timeline."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "sr-close",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "sr-diagnose",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-f-clean-validation/contexts.json",
+        "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import {
   buildManualCanvasSaveRequest,
@@ -141,22 +143,35 @@ test('shouldCreateConversationDiagramShell saves a chat-only empty diagram', () 
   assert.equal(shouldCreateConversationDiagramShell({
     diagramId: 'diagram-1',
     canvasVersion: undefined,
-    hasDrawableContent: false,
     hasConversationMessages: true,
   }), true);
 });
 
-test('shouldCreateConversationDiagramShell skips drawable or already-saved diagrams', () => {
+test('shouldCreateConversationDiagramShell skips requests without conversation messages', () => {
   assert.equal(shouldCreateConversationDiagramShell({
     diagramId: 'diagram-1',
     canvasVersion: undefined,
-    hasDrawableContent: true,
-    hasConversationMessages: true,
+    hasConversationMessages: false,
   }), false);
+});
+
+test('shouldCreateConversationDiagramShell skips already-saved diagrams', () => {
   assert.equal(shouldCreateConversationDiagramShell({
     diagramId: 'diagram-1',
     canvasVersion: 1,
-    hasDrawableContent: false,
     hasConversationMessages: true,
   }), false);
+});
+
+test('drawio page prepares the diagram before building the chat request', () => {
+  const pageSource = readFileSync(
+    fileURLToPath(new URL('../src/app/drawio/page.tsx', import.meta.url)),
+    'utf8',
+  );
+  const preparation = pageSource.indexOf('const diagramPrepared = await ensureConversationDiagramShell({');
+  const request = pageSource.indexOf('const requestPayload = buildDrawioChatRequestPayload({');
+
+  assert.notEqual(preparation, -1);
+  assert.notEqual(request, -1);
+  assert.ok(preparation < request);
 });

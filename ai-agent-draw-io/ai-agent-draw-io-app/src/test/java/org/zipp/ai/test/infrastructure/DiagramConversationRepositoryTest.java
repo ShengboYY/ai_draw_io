@@ -5,6 +5,7 @@ import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMes
 import org.zipp.ai.infrastructure.adapter.repository.DiagramConversationRepository;
 import org.zipp.ai.infrastructure.dao.IDiagramConversationMapper;
 import org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO;
+import org.zipp.ai.infrastructure.dao.po.ConversationMessageAttachmentPO;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -28,6 +29,7 @@ public class DiagramConversationRepositoryTest {
                 .clientMessageId("msg-1")
                 .role("user")
                 .content("Create a flowchart")
+                .attachmentRefs(List.of(" upload-1 ", "upload-1"))
                 .build()));
 
         assertEquals(1, mapper.saved.size());
@@ -35,6 +37,7 @@ public class DiagramConversationRepositoryTest {
         assertEquals("diagram-1", mapper.saved.get(0).getDiagramId());
         assertEquals("msg-1", mapper.saved.get(0).getClientMessageId());
         assertEquals("user", mapper.saved.get(0).getRole());
+        assertEquals(List.of("101:0:upload-1"), mapper.savedAttachments);
     }
 
     @Test
@@ -50,6 +53,8 @@ public class DiagramConversationRepositoryTest {
         assertEquals(2, messages.size());
         assertEquals("msg-1", messages.get(0).getClientMessageId());
         assertEquals("agent", messages.get(1).getRole());
+        assertEquals(List.of("architecture.pdf"), messages.get(0).getAttachmentRefs());
+        assertTrue(messages.get(1).getAttachmentRefs().isEmpty());
     }
 
     @Test
@@ -88,13 +93,27 @@ public class DiagramConversationRepositoryTest {
     private static class FakeDiagramConversationMapper implements IDiagramConversationMapper {
 
         private final List<DiagramConversationMessagePO> saved = new java.util.ArrayList<>();
+        private final List<String> savedAttachments = new java.util.ArrayList<>();
         private boolean listCalled;
         private String listedUserId;
         private String listedDiagramId;
 
         @Override
         public int upsertMessage(DiagramConversationMessagePO message) {
+            message.setId(101L);
             saved.add(message);
+            return 1;
+        }
+
+        @Override
+        public int insertMessageAttachment(
+                String userId,
+                String diagramId,
+                Long messageId,
+                int attachmentOrder,
+                String fileRef
+        ) {
+            savedAttachments.add(messageId + ":" + attachmentOrder + ":" + fileRef);
             return 1;
         }
 
@@ -105,6 +124,7 @@ public class DiagramConversationRepositoryTest {
             this.listedDiagramId = diagramId;
 
             DiagramConversationMessagePO first = new DiagramConversationMessagePO();
+            first.setId(101L);
             first.setUserId(userId);
             first.setDiagramId(diagramId);
             first.setSessionId("session-1");
@@ -113,14 +133,42 @@ public class DiagramConversationRepositoryTest {
             first.setContent("Create a flowchart");
 
             DiagramConversationMessagePO second = new DiagramConversationMessagePO();
+            second.setId(102L);
             second.setUserId(userId);
             second.setDiagramId(diagramId);
             second.setSessionId("session-1");
+            second.setTurnId("turn-1");
             second.setClientMessageId("msg-2");
             second.setRole("agent");
             second.setContent("Done");
 
             return List.of(first, second);
+        }
+
+        @Override
+        public List<DiagramConversationMessagePO> selectMessagesByScope(
+                String userId,
+                String diagramId,
+                List<String> scopeKeys
+        ) {
+            // This fake does not model scope filtering; repository mapping is identical.
+            return selectMessages(userId, diagramId);
+        }
+
+        @Override
+        public DiagramConversationMessagePO selectAssistantMessageByTurn(
+                String userId, String diagramId, String conversationId, String turnId) {
+            return null;
+        }
+
+        @Override
+        public List<ConversationMessageAttachmentPO> selectAttachmentsByMessages(
+                String userId, String diagramId, List<Long> messageIds) {
+            ConversationMessageAttachmentPO attachment = new ConversationMessageAttachmentPO();
+            attachment.setMessageId(101L);
+            attachment.setFileRef("upload-1");
+            attachment.setDisplayName("architecture.pdf");
+            return List.of(attachment);
         }
 
         @Override

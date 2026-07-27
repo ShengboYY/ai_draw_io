@@ -40,6 +40,7 @@ import org.zipp.ai.domain.account.service.UsageCounterRateLimiter;
 import org.zipp.ai.domain.account.service.UsageLimitRule;
 import org.zipp.ai.trigger.http.service.AuthenticatedSessionUser;
 import org.zipp.ai.trigger.http.service.AuthenticatedUserPrincipal;
+import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
 
 import javax.annotation.Resource;
@@ -80,6 +81,9 @@ public class AuthController {
 
     @Resource
     private UsageCounterRateLimiter usageCounterRateLimiter = new UsageCounterRateLimiter();
+
+    @Resource
+    private AdminAuthorizationService adminAuthorizationService;
 
     @GetMapping("/csrf")
     public Response<Map<String, String>> csrf(CsrfToken token) {
@@ -222,6 +226,7 @@ public class AuthController {
             body.setUserId(user.getId());
             body.setEmail(user.getEmail());
             body.setAccountStatus(user.getStatus().name());
+            body.setAdmin(isAdmin(user));
         }
         return Response.<LoginResponseDTO>builder().code(SUCCESS).info("成功").data(body).build();
     }
@@ -275,8 +280,14 @@ public class AuthController {
                         .userId(user.getId())
                         .email(user.getEmail())
                         .accountStatus(user.getStatus().name())
+                        .admin(isAdmin(user))
                         .build())
                 .build();
+    }
+
+    private boolean isAdmin(UserAccount user) {
+        // Keep controller unit tests and partial local compositions safely non-admin.
+        return adminAuthorizationService != null && adminAuthorizationService.isAdmin(user);
     }
 
     private void establishSession(UserAccount user, HttpServletRequest request, HttpServletResponse response) {

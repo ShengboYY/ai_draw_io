@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IMaterialDeletionMapper">
+    <resultMap id="deletionTaskMap" type="org.zipp.ai.infrastructure.dao.material.po.DeletionTaskPO">
+        <id property="id" column="id"/>
+        <result property="materialId" column="material_id"/>
+        <result property="lifecycleGeneration" column="lifecycle_generation"/>
+        <result property="stage" column="stage"/>
+        <result property="status" column="status"/>
+        <result property="attempt" column="attempt"/>
+        <result property="notBefore" column="not_before"/>
+        <result property="leaseOwner" column="lease_owner"/>
+        <result property="leaseUntil" column="lease_until"/>
+        <result property="fenceToken" column="fence_token"/>
+        <result property="errorCode" column="error_code"/>
+    </resultMap>
+
+    <select id="selectClaimableForUpdate" resultMap="deletionTaskMap">
+        SELECT task.*
+        FROM deletion_task task
+        JOIN material m ON m.id = task.material_id
+        WHERE task.status IN ('QUEUED', 'RETRY') AND task.not_before &lt;= #{now}
+          AND task.lifecycle_generation = m.lifecycle_generation
+          AND m.lifecycle_state IN ('DELETE_PENDING', 'DELETING')
+        ORDER BY task.not_before, task.created_at
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+    </select>
+
+    <update id="claimTask">
+        UPDATE deletion_task
+        SET status = #{task.status}, attempt = #{task.attempt}, lease_owner = #{task.leaseOwner},
+            lease_until = #{task.leaseUntil}, fence_token = #{task.fenceToken}, error_code = NULL
+        WHERE id = #{task.id} AND fence_token = #{expectedFenceToken}
+          AND status IN ('QUEUED', 'RETRY')
+    </update>
+
+    <select id="lockRunningTask" resultType="string">
+        SELECT id FROM deletion_task
+        WHERE id = #{taskId} AND stage = #{expectedStage} AND status = 'RUNNING'
+          AND fence_token = #{expectedFenceToken}
+        FOR UPDATE
+    </select>
+
+    <select id="countActiveReadLeases" resultType="int">
+        SELECT COUNT(*)
+        FROM evidence_read_lease lease
+        JOIN material_version v ON v.id = lease.version_id
+        WHERE v.material_id = #{materialId} AND lease.status = 'ACTIVE' AND lease.expires_at &gt; #{now}
+    </select>
+
+    <select id="lockDeletionMaterial" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialPO">
+        SELECT * FROM material
+        WHERE id = #{materialId} AND lifecycle_generation = #{lifecycleGeneration}
+          AND lifecycle_state IN ('DELETE_PENDING', 'DELETING')
+        FOR UPDATE
+    </select>
+
+    <update id="beginDeleting">
+        UPDATE material SET lifecycle_state = 'DELETING'
+        WHERE id = #{materialId} AND lifecycle_generation = #{lifecycleGeneration}
+          AND lifecycle_state IN ('DELETE_PENDING', 'DELETING')
+    </update>
+
+    <insert id="insertDeletedSourceTombstones">
+        INSERT IGNORE INTO deleted_source_tombstone
+            (material_id, version_id, version_no, deleted_at, reason_code, former_citation_count)
+        SELECT v.material_id, v.id, v.version_no, #{deletedAt}, 'MATERIAL_PERMANENTLY_DELETED', COUNT(DISTINCT ce.citation_id)
+        FROM material_version v
+        LEFT JOIN citation_evidence ce ON ce.version_id = v.id
+        WHERE v.material_id = #{materialId}
+        GROUP BY v.material_id, v.id, v.version_no
+    </insert>
+
+    <insert id="insertCitationSourceTombstones">
+        INSERT IGNORE INTO citation_source_tombstone
+            (id, citation_id, opaque_material_id, opaque_version_id, version_no, deleted_at, state)
+        SELECT CONCAT('cst_', LEFT(SHA2(CONCAT(ce.citation_id, ':', v.id), 256), 60)),
+               ce.citation_id, v.material_id, v.id, v.version_no, #{deletedAt}, 'SOURCE_UNAVAILABLE'
+        FROM citation_evidence ce
+        JOIN material_version v ON v.id = ce.version_id
+        WHERE v.material_id = #{materialId}
+        GROUP BY ce.citation_id, v.material_id, v.id, v.version_no
+    </insert>
+
+    <delete id="deleteMaterialCitationEvidence">
+        DELETE ce FROM citation_evidence ce
+        JOIN material_version v ON v.id = ce.version_id
+        WHERE v.material_id = #{materialId}
+    </delete>
+
+    <update id="updateTombstonedCitationStates">
+        UPDATE source_citation citation
+        SET citation.state = CASE
+            WHEN EXISTS (SELECT 1 FROM citation_evidence live WHERE live.citation_id = citation.id)
+                THEN 'PARTIAL_SOURCE_UNAVAILABLE'
+            ELSE 'SOURCE_UNAVAILABLE'
+        END
+        WHERE EXISTS (
+            SELECT 1 FROM citation_source_tombstone tombstone
+            WHERE tombstone.citation_id = citation.id AND tombstone.opaque_material_id = #{materialId}
+        )
+    </update>
+
+    <update id="markExclusiveBlobsDeletePending">
+        UPDATE material_content_blob blob
+        JOIN material_version owned_version ON owned_version.content_blob_id = blob.id
+        SET blob.status = 'DELETE_PENDING'
+        WHERE owned_version.material_id = #{materialId}
+          AND NOT EXISTS (
+              SELECT 1 FROM material_version other
+              WHERE other.content_blob_id = blob.id AND other.material_id &lt;&gt; #{materialId}
+          )
+    </update>
+
+    <insert id="upsertDeletionPreparationProof">
+        INSERT INTO material_deletion_proof
+            (material_id, lifecycle_generation, tombstoned_citation_count)
+        VALUES (#{materialId}, #{lifecycleGeneration}, #{tombstoneCount})
+        ON DUPLICATE KEY UPDATE
+            lifecycle_generation = VALUES(lifecycle_generation),
+            tombstoned_citation_count = GREATEST(tombstoned_citation_count, VALUES(tombstoned_citation_count))
+    </insert>
+
+    <select id="selectVectorLocations" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialVectorLocationPO">
+        SELECT DISTINCT projection.index_name, projection.namespace, projection.vector_id
+        FROM retrieval_chunk_vector_projection projection
+        JOIN retrieval_chunk chunk ON chunk.id = projection.retrieval_chunk_id
+        JOIN material_version v ON v.id = chunk.version_id
+        WHERE v.material_id = #{materialId} AND projection.provider_deleted_at IS NULL
+    </select>
+
+    <select id="selectObjectVersions" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialObjectVersionPO">
+        SELECT 'MATERIALS' AS bucket, blob.original_object_key AS object_key, blob.original_object_version_id AS object_version_id
+        FROM material_content_blob blob JOIN material_version v ON v.content_blob_id = blob.id
+        WHERE v.material_id = #{materialId} AND blob.original_object_version_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM material_version other
+                          WHERE other.content_blob_id = blob.id AND other.material_id &lt;&gt; #{materialId})
+        UNION
+        SELECT 'MATERIALS', artifact.object_key, artifact.object_version_id FROM material_page_artifact artifact
+        JOIN material_processing_revision r ON r.id = artifact.revision_id JOIN material_version v ON v.id = r.version_id
+        WHERE v.material_id = #{materialId}
+        UNION
+        SELECT 'MATERIALS', artifact.object_key, artifact.object_version_id FROM material_revision_artifact artifact
+        JOIN material_processing_revision r ON r.id = artifact.revision_id JOIN material_version v ON v.id = r.version_id
+        WHERE v.material_id = #{materialId}
+        UNION
+        SELECT 'MATERIALS', artifact.object_key, artifact.object_version_id FROM material_visual_artifact artifact
+        JOIN material_processing_revision r ON r.id = artifact.revision_id JOIN material_version v ON v.id = r.version_id
+        WHERE v.material_id = #{materialId}
+        UNION
+        SELECT 'MATERIALS', e.display_text_object_key, e.display_text_object_version_id FROM evidence_unit e
+        JOIN material_version v ON v.id = e.version_id WHERE v.material_id = #{materialId} AND e.display_text_object_version_id IS NOT NULL
+        UNION
+        SELECT 'MATERIALS', e.visual_object_key, e.visual_object_version_id FROM evidence_unit e
+        JOIN material_version v ON v.id = e.version_id WHERE v.material_id = #{materialId} AND e.visual_object_version_id IS NOT NULL
+        UNION
+        SELECT 'MATERIALS', e.visual_analysis_object_key, e.visual_analysis_object_version_id FROM evidence_unit e
+        JOIN material_version v ON v.id = e.version_id WHERE v.material_id = #{materialId} AND e.visual_analysis_object_version_id IS NOT NULL
+        UNION
+        SELECT 'MATERIALS', chunk.retrieval_text_object_key, chunk.retrieval_text_object_version_id FROM retrieval_chunk chunk
+        JOIN material_version v ON v.id = chunk.version_id WHERE v.material_id = #{materialId}
+        UNION
+        SELECT 'MATERIALS', chunk.parent_context_object_key, chunk.parent_context_object_version_id FROM retrieval_chunk chunk
+        JOIN material_version v ON v.id = chunk.version_id WHERE v.material_id = #{materialId} AND chunk.parent_context_object_version_id IS NOT NULL
+        UNION
+        SELECT 'MATERIALS', manifest.object_key, manifest.object_version_id FROM retrieval_projection_manifest manifest
+        JOIN material_processing_revision r ON r.id = manifest.revision_id JOIN material_version v ON v.id = r.version_id
+        WHERE v.material_id = #{materialId}
+        UNION
+        SELECT 'MATERIALS', batch.vector_object_key, batch.vector_object_version_id FROM retrieval_vector_batch batch
+        JOIN material_processing_revision r ON r.id = batch.revision_id JOIN material_version v ON v.id = r.version_id
+        WHERE v.material_id = #{materialId} AND batch.vector_object_version_id IS NOT NULL
+        UNION
+        SELECT 'MATERIALS', r.gap_manifest_key, r.gap_manifest_object_version_id FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        WHERE v.material_id = #{materialId} AND r.gap_manifest_object_version_id IS NOT NULL
+        UNION
+        SELECT upload.quarantine_bucket, upload.quarantine_key, upload.quarantine_object_version_id
+        FROM material_upload_session upload
+        WHERE upload.material_id = #{materialId}
+          AND upload.quarantine_bucket IS NOT NULL AND upload.quarantine_key IS NOT NULL
+          AND upload.quarantine_object_version_id IS NOT NULL
+    </select>
+
+    <update id="markVectorScopeDeleted">
+        UPDATE retrieval_chunk_vector_projection projection
+        JOIN retrieval_chunk chunk ON chunk.id = projection.retrieval_chunk_id
+        JOIN material_version v ON v.id = chunk.version_id
+        SET projection.provider_deleted_at = #{deletedAt},
+            projection.provider_delete_completed_at = #{deletedAt}
+        WHERE v.material_id = #{materialId} AND projection.index_name = #{indexName}
+          AND projection.provider_deleted_at IS NULL
+    </update>
+
+    <update id="updateVectorDeletionProof">
+        UPDATE material_deletion_proof
+        SET deleted_vector_count = deleted_vector_count + #{deletedCount}, vectors_deleted_at = #{deletedAt},
+            request_ids_hash = SHA2(CONCAT(COALESCE(request_ids_hash, ''), ':', #{requestIdsHash}), 256)
+        WHERE material_id = #{materialId}
+    </update>
+
+    <update id="updateObjectDeletionProof">
+        UPDATE material_deletion_proof
+        SET deleted_object_count = #{deletedCount}, objects_deleted_at = #{deletedAt},
+            request_ids_hash = SHA2(CONCAT(COALESCE(request_ids_hash, ''), ':', #{requestIdsHash}), 256)
+        WHERE material_id = #{materialId}
+    </update>
+
+    <update id="completeDeletionProof">
+        UPDATE material_deletion_proof
+        SET database_purged_at = #{deletedAt}, completed_at = #{deletedAt},
+            error_free = 1
+        WHERE material_id = #{materialId}
+    </update>
+
+    <update id="sanitizeDeletedMaterial">
+        UPDATE material
+        SET lifecycle_state = 'DELETED', display_name = '[deleted]', latest_version_id = NULL,
+            owner_key = SHA2(CONCAT('deleted:', owner_key), 256),
+            origin_conversation_id = NULL, last_meaningful_activity_at = NULL,
+            expires_at = NULL, trash_expires_at = NULL, deleted_at = #{deletedAt}
+        WHERE id = #{materialId} AND lifecycle_generation = #{lifecycleGeneration}
+          AND lifecycle_state = 'DELETING'
+    </update>
+
+    <update id="saveTaskTransition">
+        UPDATE deletion_task
+        SET stage = #{task.stage}, status = #{task.status}, attempt = #{task.attempt},
+            not_before = #{task.notBefore}, lease_owner = #{task.leaseOwner},
+            lease_until = #{task.leaseUntil}, fence_token = #{task.fenceToken}, error_code = #{task.errorCode}
+        WHERE id = #{task.id} AND stage = #{expectedStage} AND status = 'RUNNING'
+          AND fence_token = #{expectedFenceToken}
+    </update>
+
+    <update id="requeueExpiredLeases">
+        UPDATE deletion_task
+        SET status = 'RETRY', lease_owner = NULL, lease_until = NULL,
+            not_before = #{now}, error_code = 'LEASE_EXPIRED'
+        WHERE status = 'RUNNING' AND lease_until &lt;= #{now}
+        ORDER BY lease_until LIMIT #{limit}
+    </update>
+</mapper>

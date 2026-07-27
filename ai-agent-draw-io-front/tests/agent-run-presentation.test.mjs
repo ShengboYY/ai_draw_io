@@ -10,6 +10,7 @@ import {
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
+  projectUserExecutionStep,
   shouldShowAgentTyping,
   thinkingPhaseLabel,
   thinkingRouteLabel,
@@ -26,24 +27,81 @@ test('thinking labels follow the routed work path', () => {
   assert.equal(thinkingPhaseLabel(undefined, 'drawing'), 'Draw diagram');
 });
 
+test('internal phases project onto stable user-visible execution stages', () => {
+  assert.deepEqual(
+    projectUserExecutionStep({ phase: 'analyzing', routeType: 'create_new', useChinese: true }),
+    { key: 'analysis', phase: 'analysis', label: '分析请求' },
+  );
+  assert.deepEqual(
+    projectUserExecutionStep({
+      phase: 'retrieval',
+      routeType: 'create_new',
+      sourceUse: 'DIRECT_AND_RETRIEVAL',
+      useChinese: true,
+    }),
+    { key: 'preparation', phase: 'preparation', label: '准备内容' },
+  );
+  for (const phase of ['drawing', 'generating', 'thinking']) {
+    assert.deepEqual(
+      projectUserExecutionStep({
+        phase,
+        routeType: 'create_new',
+        sourceUse: 'DIRECT',
+        useChinese: true,
+      }),
+      { key: 'generation', phase: 'generation', label: '重建图表' },
+    );
+  }
+  assert.deepEqual(
+    projectUserExecutionStep({ phase: 'answer', useChinese: true }),
+    { key: 'generation', phase: 'generation', label: '组织回答' },
+  );
+  for (const phase of ['reviewing', 'visual_review', 'visual_evidence', 'visual_repair', 'revising']) {
+    assert.deepEqual(
+      projectUserExecutionStep({ phase, routeType: 'create_new', useChinese: true }),
+      { key: 'verification', phase: 'verification', label: '检查结果' },
+    );
+  }
+});
+
 test('route step describes the actual diagram type and selected skill', () => {
   assert.equal(
     buildRouteStepDetail({
       routeType: 'create_new',
       diagramType: 'flowchart',
       skillName: 'drawio-flowchart',
+      sourceUse: 'DIRECT',
       useChinese: true,
     }),
-    '识别为新建流程图任务，将使用 drawio-flowchart 技能生成画布。',
+    '识别为新建流程图任务，将使用 drawio-flowchart 技能生成画布。来源方式：按原图还原。',
   );
   assert.equal(
     buildRouteStepDetail({
       routeType: 'edit_existing',
       diagramType: 'flowchart',
       skillName: 'drawio-flowchart',
+      sourceUse: 'DIRECT_AND_RETRIEVAL',
       useChinese: true,
     }),
-    '识别为修改现有流程图，将使用 drawio-flowchart 技能并保留未涉及的画布内容。',
+    '识别为修改现有流程图，将使用 drawio-flowchart 技能并保留未涉及的画布内容。来源方式：原图还原并允许资料补充。',
+  );
+  assert.match(
+    buildRouteStepDetail({
+      routeType: 'create_new',
+      diagramType: 'flowchart',
+      sourceUse: 'RETRIEVAL',
+      useChinese: true,
+    }),
+    /来源方式：仅检索授权资料/,
+  );
+  assert.match(
+    buildRouteStepDetail({
+      routeType: 'create_new',
+      diagramType: 'flowchart',
+      sourceUse: 'NONE',
+      useChinese: true,
+    }),
+    /来源方式：不使用外部来源/,
   );
 });
 

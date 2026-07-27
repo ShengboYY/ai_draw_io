@@ -71,3 +71,12 @@ export const buildRestoredDiagramState = (diagram: RestorableDiagram) => ({
   canvasVersion: diagram.version,
   ...(diagram.contentHash?.trim() && { canvasContentHash: diagram.contentHash.trim() }),
 });
+
+export const isDiagramRouteReady = (
+  requestedDiagramId?: string | null,
+  activeDiagramId?: string | null,
+) => {
+  const requested = requestedDiagramId?.trim();
+  if (!requested) return true;
+  return requested === activeDiagramId?.trim();
+};

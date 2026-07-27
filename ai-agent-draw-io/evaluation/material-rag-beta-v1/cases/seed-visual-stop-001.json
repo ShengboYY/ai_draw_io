@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "rag-eval-case-v1",
+  "caseId": "seed-visual-stop-001",
+  "datasetVersion": "rag-beta-v1-seed",
+  "category": "VISUAL_DIAGRAM_ARROW",
+  "language": "zh",
+  "locked": false,
+  "ownerFixture": {"ownerType": "USER", "ownerKeyAlias": "owner_b", "scopeType": "LIBRARY", "scopeKeyAlias": "personal"},
+  "queryShape": "VISUAL_RELATION",
+  "targetKind": "WHOLE_DIAGRAM",
+  "query": "图中的虚线箭头连接了哪些阶段",
+  "expectedRoute": "VISUAL",
+  "allowedSourceVersions": ["version_visual_v1"],
+  "goldEvidenceIds": ["evidence_visual_arrow"],
+  "hardNegativeIds": ["evidence_ocr_caption"],
+  "requiredFacets": ["虚线箭头", "起点", "终点"],
+  "forbiddenSourceIds": ["evidence_ocr_caption"],
+  "visualVerificationRequired": true,
+  "canvasMutationAllowed": false,
+  "expectedCitationClaims": ["visual_arrow_relation"]
+}

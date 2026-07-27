@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "material-rag-generation-unqualified-diagnostic-v1",
+  "status": "archived_not_scored_not_qualified",
+  "reason": "The working-tree responses and manifest differ from the formal E7/E8 artifact recorded at commit 3926c012. They are preserved without overwriting, replacing, or augmenting the formal run.",
+  "sourceFiles": {
+    "responses": {
+      "path": "results/stage-a-e7e8-gpt-5-5-development-unqualified-diagnostic-responses.json",
+      "sha256": "a5b016b5880ab4b842dab288f848864da02671d51d219ad51dcc32332cf51185"
+    },
+    "manifest": {
+      "path": "results/stage-a-e7e8-gpt-5-5-development-unqualified-diagnostic-manifest.json",
+      "sha256": "21b5575f3e6195cd4a55f1afea222f9f2a8acf3247d1c5ab647e1337dc037b40"
+    }
+  },
+  "formalRun": {
+    "commit": "3926c012",
+    "responsesSha256": "4b436e01c915d0e6d3af6eacb5712e9e173bc88ee581076fa358f9c77f1c8dee"
+  },
+  "allowedUse": "Manual debugging only. Do not report its metrics, merge it into E7/E8, or use it to choose prompts, task content, or Validation criteria."
+}

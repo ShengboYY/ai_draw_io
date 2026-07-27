@@ -1,0 +1,586 @@
+{
+  "split": "development",
+  "arm": "fixed",
+  "bundles": [
+    {
+      "taskId": "stagb-dev-01",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Create an editable deployment architecture using the approved gateway, worker, and audit-store responsibilities in the release guide.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-release-governance:v1; page=1\n- citationId=CIT-002; sourceVersion=sta-release-governance:v1; page=1\n- citationId=CIT-003; sourceVersion=sta-release-governance:v1; page=1\n\nRetrieved material:\n[CIT-002 | sta-release-governance:v1 | page 1]\nApproved deployment responsibility: Gateway validates ingress and forwards approved traffic to Worker.\n\n[CIT-003 | sta-release-governance:v1 | page 1]\nApproved deployment responsibility: Worker executes the release workload after Gateway validation.\n\n[CIT-001 | sta-release-governance:v1 | page 1]\nApproved deployment responsibility: Audit Store records the immutable release audit event from Worker.",
+      "promptSha256": "73ada2f650ee430e84ee646433a31d6616b5e03e013caacf9220248e416b56f6",
+      "evidence": [
+        {
+          "anchorId": "rg-gateway",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1,
+          "text": "Approved deployment responsibility: Gateway validates ingress and forwards approved traffic to Worker."
+        },
+        {
+          "anchorId": "rg-worker",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1,
+          "text": "Approved deployment responsibility: Worker executes the release workload after Gateway validation."
+        },
+        {
+          "anchorId": "rg-audit-store",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1,
+          "text": "Approved deployment responsibility: Audit Store records the immutable release audit event from Worker."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-003",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "rg-audit-store",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "rg-gateway",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-003",
+          "anchorId": "rg-worker",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-02",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: \u6839\u636e\u4e8b\u4ef6\u6307\u6325\u624b\u518c\u4e2d\u7684\u89d2\u8272\u548c\u5347\u7ea7\u65f6\u9650\uff0c\u521b\u5efa\u53ef\u7f16\u8f91\u7684\u6cf3\u9053\u56fe\u3002\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-incident-command:v1; page=1\n- citationId=CIT-002; sourceVersion=sta-incident-command:v1; page=1\n- citationId=CIT-003; sourceVersion=sta-incident-command:v1; page=1\n\nRetrieved material:\n[CIT-001 | sta-incident-command:v1 | page 1]\nIncident Commander owns the incident decision lane and assigns the response priority.\n\n[CIT-002 | sta-incident-command:v1 | page 1]\nCommunications Lead owns stakeholder updates and receives the Commander handoff.\n\n[CIT-003 | sta-incident-command:v1 | page 1]\nEscalate an unresolved severity-one incident to the Incident Commander within 15 minutes.",
+      "promptSha256": "709895af3dea0be2f92ae2b008f1dc95a89e5326caa30360bfbe0de0e074e77d",
+      "evidence": [
+        {
+          "anchorId": "ic-commander",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Incident Commander owns the incident decision lane and assigns the response priority."
+        },
+        {
+          "anchorId": "ic-communications",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Communications Lead owns stakeholder updates and receives the Commander handoff."
+        },
+        {
+          "anchorId": "ic-escalation-window",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Escalate an unresolved severity-one incident to the Incident Commander within 15 minutes."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-003",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ic-commander",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "ic-communications",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-003",
+          "anchorId": "ic-escalation-window",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-03",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Update the selected Archive node to show the retention period stated in the data-retention standard.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='archive' value='Archive \u2014 Retention: 30 days' vertex='1' parent='1'/></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-data-retention:v1; page=1\n\nRetrieved material:\n[CIT-001 | sta-data-retention:v1 | page 1]\nThe Archive node retention period is seven years. The record must state Retention: 7 years.",
+      "promptSha256": "20ee529b275c0618f384c6d19601b695ccafe08c23c8bfaa7ce9e1ca154396f9",
+      "evidence": [
+        {
+          "anchorId": "dr-archive-retention",
+          "sourceVersion": "sta-data-retention:v1",
+          "page": 1,
+          "text": "The Archive node retention period is seven years. The record must state Retention: 7 years."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-data-retention:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "dr-archive-retention",
+          "sourceVersion": "sta-data-retention:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-04",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: \u6309\u7167\u652f\u4ed8\u63a7\u5236\u89c4\u8303\uff0c\u628a Review \u4e0e Release \u4e4b\u95f4\u7684\u5173\u7cfb\u6539\u6210\u53cc\u4eba\u5ba1\u6279\u5e76\u6807\u6ce8\u63a7\u5236\u7f16\u53f7\u3002\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-payment-controls:v1; page=1\n- citationId=CIT-002; sourceVersion=sta-payment-controls:v1; page=1\n\nRetrieved material:\n[CIT-002 | sta-payment-controls:v1 | page 1]\nReview must approve Release using a two-person approval control.\n\n[CIT-001 | sta-payment-controls:v1 | page 1]\nThe required control identifier for the Review to Release relationship is PC-204.",
+      "promptSha256": "dbed60cfcbe65bbb27a7b13b993ddb7779daea7e2026bec593346f2c63703dfd",
+      "evidence": [
+        {
+          "anchorId": "pc-two-person",
+          "sourceVersion": "sta-payment-controls:v1",
+          "page": 1,
+          "text": "Review must approve Release using a two-person approval control."
+        },
+        {
+          "anchorId": "pc-control-number",
+          "sourceVersion": "sta-payment-controls:v1",
+          "page": 1,
+          "text": "The required control identifier for the Review to Release relationship is PC-204."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-payment-controls:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sta-payment-controls:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "pc-control-number",
+          "sourceVersion": "sta-payment-controls:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "pc-two-person",
+          "sourceVersion": "sta-payment-controls:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-05",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Draw the network zones from version 3 of the segmentation standard, including the version-specific quarantine path.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-network-zones:v3; page=1\n\nRetrieved material:\n[CIT-001 | sta-network-zones:v3 | page 1]\nVersion 3 segmentation requires Public Zone to Private Zone traffic to pass through the Quarantine Path.",
+      "promptSha256": "b974a966b48008cd424cc22bbf2d8ac61d48d178197a1ce49ecaeab211bc6039",
+      "evidence": [
+        {
+          "anchorId": "nz-v3-quarantine",
+          "sourceVersion": "sta-network-zones:v3",
+          "page": 1,
+          "text": "Version 3 segmentation requires Public Zone to Private Zone traffic to pass through the Quarantine Path."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-network-zones:v3",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "nz-v3-quarantine",
+          "sourceVersion": "sta-network-zones:v3",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-06",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: \u6839\u636e\u670d\u52a1\u6240\u6709\u6743\u76ee\u5f55\uff0c\u7528\u4e2d\u6587\u521b\u5efa\u670d\u52a1\u6240\u6709\u6743\u56fe\uff0c\u4f46\u8282\u70b9\u540d\u79f0\u4fdd\u7559\u8d44\u6599\u4e2d\u7684\u82f1\u6587\u6b63\u5f0f\u540d\u79f0\u3002\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-service-ownership:v1; page=1\n\nRetrieved material:\n[CIT-001 | sta-service-ownership:v1 | page 1]\nUse the canonical English service names API Gateway, Billing Worker, and Audit Store. Ownership is Platform Team, Payments Team, and Governance Team respectively.",
+      "promptSha256": "df43508528d0ff39dd9039e292ce69738c992f2878e23351200f4805258cf649",
+      "evidence": [
+        {
+          "anchorId": "so-canonical-name",
+          "sourceVersion": "sta-service-ownership:v1",
+          "page": 1,
+          "text": "Use the canonical English service names API Gateway, Billing Worker, and Audit Store. Ownership is Platform Team, Payments Team, and Governance Team respectively."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-service-ownership:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "so-canonical-name",
+          "sourceVersion": "sta-service-ownership:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-07",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Convert the change-calendar responsibility table into an editable swimlane with owners and approval windows.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-change-calendar:v1; page=1\n- citationId=CIT-002; sourceVersion=sta-change-calendar:v1; page=1\n\nRetrieved material:\n[CIT-002 | sta-change-calendar:v1 | page 1]\nThe change calendar assigns Database Change to DBA Owner and Application Change to Application Owner.\n\n[CIT-001 | sta-change-calendar:v1 | page 1]\nBoth changes require the approval window Tue 10:00\u201312:00.",
+      "promptSha256": "7d6e7676217ef206630421a4989a261d9bae6357ae2bb407635e1418c754fc5b",
+      "evidence": [
+        {
+          "anchorId": "cc-owner",
+          "sourceVersion": "sta-change-calendar:v1",
+          "page": 1,
+          "text": "The change calendar assigns Database Change to DBA Owner and Application Change to Application Owner."
+        },
+        {
+          "anchorId": "cc-approval-window",
+          "sourceVersion": "sta-change-calendar:v1",
+          "page": 1,
+          "text": "Both changes require the approval window Tue 10:00\u201312:00."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-change-calendar:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sta-change-calendar:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "cc-approval-window",
+          "sourceVersion": "sta-change-calendar:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "cc-owner",
+          "sourceVersion": "sta-change-calendar:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-08",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Recreate the warehouse exception flow from the selected figure as editable draw.io nodes and directed connectors.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-warehouse-visual:v1; page=1\n\nRetrieved material:\n[CIT-001 | sta-warehouse-visual:v1 | page 1]\nSelected warehouse figure: Intake goes to Inspect; an exception goes to Supervisor Review; a cleared item goes to Dispatch.\nAttached visual artifact for this evidence.",
+      "promptSha256": "d1ffddc4b41c70561f2423f9871c5a35918e56156515998309dfe887ad645260",
+      "evidence": [
+        {
+          "anchorId": "wv-exception-flow",
+          "sourceVersion": "sta-warehouse-visual:v1",
+          "page": 1,
+          "text": "Selected warehouse figure: Intake goes to Inspect; an exception goes to Supervisor Review; a cleared item goes to Dispatch.",
+          "imagePath": "fixtures/generated/stage-a-generation/images/warehouse-source.png",
+          "imageSha256": "c72070bf8a3ba8d751c449acf6d3f9696a557a182fcf33b9d7276fda57bf8dc6"
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-warehouse-visual:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "wv-exception-flow",
+          "sourceVersion": "sta-warehouse-visual:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [
+        "fixtures/generated/stage-a-generation/images/warehouse-source.png"
+      ],
+      "imageSha256s": [
+        "c72070bf8a3ba8d751c449acf6d3f9696a557a182fcf33b9d7276fda57bf8dc6"
+      ]
+    },
+    {
+      "taskId": "stagb-dev-09",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: \u628a\u626b\u63cf\u7684\u73b0\u573a\u4ea4\u63a5\u6d41\u7a0b\u8f6c\u6362\u6210\u53ef\u7f16\u8f91 draw.io XML\uff0c\u4fdd\u7559\u56fe\u4e2d\u7684\u89d2\u8272\u3001\u5224\u65ad\u8282\u70b9\u548c\u7bad\u5934\u3002\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-field-scan:v1; page=1\n\nRetrieved material:\n[CIT-001 | sta-field-scan:v1 | page 1]\nScanned field handoff: Field Technician records the handoff, Decision: complete?, No returns to Field Technician, Yes goes to Operations Lead.\nAttached visual artifact for this evidence.",
+      "promptSha256": "4720e33560265661a84d46e3f73da1fdd15fa54d605974b7c01bc39ffc794174",
+      "evidence": [
+        {
+          "anchorId": "fs-handoff-flow",
+          "sourceVersion": "sta-field-scan:v1",
+          "page": 1,
+          "text": "Scanned field handoff: Field Technician records the handoff, Decision: complete?, No returns to Field Technician, Yes goes to Operations Lead.",
+          "imagePath": "fixtures/generated/stage-a-generation/images/field-source.png",
+          "imageSha256": "114251873031ea5e9d2d39bcd2bfadb9079a37c93ca5b1e1a49d7096dbd7f0df"
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-field-scan:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "fs-handoff-flow",
+          "sourceVersion": "sta-field-scan:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [
+        "fixtures/generated/stage-a-generation/images/field-source.png"
+      ],
+      "imageSha256s": [
+        "114251873031ea5e9d2d39bcd2bfadb9079a37c93ca5b1e1a49d7096dbd7f0df"
+      ]
+    },
+    {
+      "taskId": "stagb-dev-10",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Using the citation already attached to the selected Release Gate, add its documented rollback condition.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='release-gate' value='Release Gate' vertex='1' parent='1'/></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-release-governance:v1; page=1\n\nRetrieved material:\n[CIT-001 | sta-release-governance:v1 | page 1]\nThe cited Release Gate rollback condition is: rollback to the prior stable version when post-release verification fails.",
+      "promptSha256": "41cadc3c0123459410497a2a1f8fc4a984847fd78a4fd58dd7ba8ec36558b753",
+      "evidence": [
+        {
+          "anchorId": "rg-rollback",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1,
+          "text": "The cited Release Gate rollback condition is: rollback to the prior stable version when post-release verification fails."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "rg-rollback",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-11",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Create a side-by-side capacity diagram comparing the documented steady-state and failover limits.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-capacity-planning:v1; page=1\n- citationId=CIT-002; sourceVersion=sta-capacity-planning:v1; page=1\n\nRetrieved material:\n[CIT-002 | sta-capacity-planning:v1 | page 1]\nThe documented steady-state capacity limit is 800 requests per second.\n\n[CIT-001 | sta-capacity-planning:v1 | page 1]\nThe documented failover capacity limit is 1200 requests per second.",
+      "promptSha256": "b76a9f37435f014e777bfb9b2ec019fe661a86d91afa4bf3fd6569c3f3857863",
+      "evidence": [
+        {
+          "anchorId": "cp-steady-limit",
+          "sourceVersion": "sta-capacity-planning:v1",
+          "page": 1,
+          "text": "The documented steady-state capacity limit is 800 requests per second."
+        },
+        {
+          "anchorId": "cp-failover-limit",
+          "sourceVersion": "sta-capacity-planning:v1",
+          "page": 1,
+          "text": "The documented failover capacity limit is 1200 requests per second."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-capacity-planning:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sta-capacity-planning:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "cp-failover-limit",
+          "sourceVersion": "sta-capacity-planning:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "cp-steady-limit",
+          "sourceVersion": "sta-capacity-planning:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stagb-dev-12",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: \u53ea\u4fee\u6539\u9009\u4e2d\u7684\u5347\u7ea7\u5b50\u6d41\u7a0b\uff0c\u8865\u4e0a\u624b\u518c\u4e2d\u89c4\u5b9a\u7684 Incident Commander \u548c Communications Lead \u4ea4\u63a5\u3002\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='escalation-subgraph' value='Selected escalation subgraph' vertex='1' parent='1'/></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=sta-incident-command:v1; page=1\n- citationId=CIT-002; sourceVersion=sta-incident-command:v1; page=1\n\nRetrieved material:\n[CIT-001 | sta-incident-command:v1 | page 1]\nIncident Commander owns the incident decision lane and assigns the response priority.\n\n[CIT-002 | sta-incident-command:v1 | page 1]\nCommunications Lead receives the Incident Commander handoff and owns stakeholder updates.",
+      "promptSha256": "eecfeb46b74d4bf84555f9cd005538da8eee264ea0f8c39d206338e979a88a3e",
+      "evidence": [
+        {
+          "anchorId": "ic-commander",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Incident Commander owns the incident decision lane and assigns the response priority."
+        },
+        {
+          "anchorId": "ic-communications",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Communications Lead receives the Incident Commander handoff and owns stakeholder updates."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ic-commander",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "ic-communications",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-a-generation/contexts.json",
+        "sha256": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    }
+  ]
+}

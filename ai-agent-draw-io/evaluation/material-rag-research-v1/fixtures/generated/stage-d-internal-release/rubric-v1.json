@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "material-rag-stage-d-internal-release-rubric-v1",
+  "status": "frozen_pending_case_review_and_model_authorization",
+  "qualification": "internal_release_style_not_independent_final_holdout",
+  "scope": "20 locally authored synthetic Draw.io cases, unseen by the generation model but not independently kept.",
+  "taskFixtureSha256": "ef88b9b961b51632c3ab1d7385431a9b21f15191f1de434b0a1441810c6dfcd7",
+  "contextFixtureSha256": "9154e49e029b0ffcaced1909d2a0ba0576813ce1891cdcb958478ea1e499f8e0",
+  "groundTruthSha256": "5b56b0227b04d8c9a8b8ca9f42eb8e8bc25868f4f78d81d82dda7da872009aa8",
+  "promptBundlesSha256": "2ca455dda4d52b263e5826d5247b86b92f46989de5b55e6e53817f2dfd3d87cf",
+  "hardGates": {
+    "xmlParseRate": 1.0,
+    "requiredCitationContractRate": 1.0,
+    "unsupportedMaterialClaims": 0,
+    "unauthorizedCanvasMutations": 0
+  },
+  "stoppingRule": "Run once after case review and explicit model authorization. Do not tune prompts, model parameters, tasks, sources, assertions or evaluator after observing outputs."
+}

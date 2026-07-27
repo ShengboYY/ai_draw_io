@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "material-rag-stage-e-validation-run-summary-v1",
+  "status": "completed_twice_with_delayed_artifact_overwrite_diagnostic_only",
+  "qualification": "local_validation_not_independent_final_holdout_not_unique_formal_run",
+  "frozenInputCommit": "b137c82e",
+  "executionNote": "The first local invocation returned before durable artifacts became visible. After explicit user authorization to retry, a 12-call artifact pair appeared; a second delayed 12-call artifact pair then overwrote the shared filenames. No third call was made. One prior response payload is unrecoverable because the delayed writer overwrote it before preservation. Neither execution is selected as a unique formal result.",
+  "runs": [
+    {
+      "id": "unmatched_observed_execution",
+      "responsesSha256ObservedBeforeOverwrite": "010e483d61b3d362a1b5fe58d00a6a7010588091d38d3ca601a69a55995cb46c",
+      "rawResponses": "unrecoverable_after_delayed_overwrite",
+      "manifest": "unrecoverable_after_delayed_overwrite",
+      "manifestValidation": "results/stage-e-postcalibration-validation-gpt-5-5-unmatched-response-manifest-validation.json",
+      "evaluation": "results/stage-e-postcalibration-validation-gpt-5-5-unmatched-response-evaluation.json",
+      "calls": 12,
+      "successfulCalls": 12,
+      "inputTokens": 8310,
+      "outputTokens": 9760,
+      "strictCompletionRate": 0.5833333333333334,
+      "strictFailures": ["stge-val-02", "stge-val-04", "stge-val-08", "stge-val-10", "stge-val-11"]
+    },
+    {
+      "id": "late_observed_execution",
+      "responses": "results/stage-e-postcalibration-validation-gpt-5-5-late-observed-responses.json",
+      "responsesSha256": "647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b",
+      "manifest": "results/stage-e-postcalibration-validation-gpt-5-5-late-observed-manifest.json",
+      "manifestValidation": "results/stage-e-postcalibration-validation-gpt-5-5-late-observed-manifest-validation.json",
+      "evaluation": "results/stage-e-postcalibration-validation-gpt-5-5-late-observed-evaluation.json",
+      "calls": 12,
+      "successfulCalls": 12,
+      "inputTokens": 8310,
+      "outputTokens": 10681,
+      "strictCompletionRate": 0.6666666666666666,
+      "strictFailures": ["stge-val-04", "stge-val-09", "stge-val-10", "stge-val-11"]
+    }
+  ],
+  "aggregate": {
+    "calls": 24,
+    "successfulCalls": 24,
+    "inputTokens": 16620,
+    "outputTokens": 20441,
+    "modelRunStatus": "do_not_rerun"
+  },
+  "interpretation": "Both observed evaluations report complete XML parsing and citation contracts. The strict failures are label placement, richer-node or minimum-cardinality assertions, not XML or citation failures. Practical Draw.io acceptability requires a separate review and cannot be used to select a formal result from these duplicate executions."
+}

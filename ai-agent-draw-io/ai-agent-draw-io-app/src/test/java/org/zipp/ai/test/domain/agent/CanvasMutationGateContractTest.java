@@ -113,6 +113,30 @@ public class CanvasMutationGateContractTest {
     }
 
     @Test
+    public void shouldAcceptTheCanonicalEmptyShellOnlyForANewDiagram() {
+        CapturingCanvasStateStore store = new CapturingCanvasStateStore(null);
+        CanvasMutationGate gate = new CanvasMutationGate(store, new DefaultCanvasAnalyzer());
+        String emptyShell = "<mxGraphModel><root><mxCell id=\"0\"/>"
+                + "<mxCell id=\"1\" parent=\"0\"/></root></mxGraphModel>";
+
+        CanvasMutationDecision decision = gate.evaluate(new CanvasMutationCommand(
+                CanvasMutationPurpose.USER_CREATE,
+                "",
+                emptyShell,
+                DiagramType.GENERIC,
+                CanvasMutationAuthorization.unrestricted(),
+                "alice",
+                "diagram-empty",
+                null,
+                null));
+
+        assertEquals(CanvasMutationStatus.ACCEPTED, decision.status());
+        assertEquals(1, store.saves.size());
+        assertTrue(decision.resultingXml().contains("<mxCell id=\"0\""));
+        assertTrue(decision.resultingXml().contains("<mxCell id=\"1\""));
+    }
+
+    @Test
     public void shouldRejectAStaleVersionAndKeepTheStoredCanvas() {
         String before = diagram("Current", 120);
         CapturingCanvasStateStore store = new CapturingCanvasStateStore(CanvasState.builder()

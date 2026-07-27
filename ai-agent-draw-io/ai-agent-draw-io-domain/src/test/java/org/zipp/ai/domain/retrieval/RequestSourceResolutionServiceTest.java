@@ -1,0 +1,235 @@
+package org.zipp.ai.domain.retrieval;
+
+import org.junit.jupiter.api.Test;
+import org.zipp.ai.domain.account.model.valobj.OwnerType;
+import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
+import org.zipp.ai.domain.material.model.valobj.MaterialScopeType;
+import org.zipp.ai.domain.retrieval.internal.DefaultRequestSourceResolutionService;
+import org.zipp.ai.domain.retrieval.port.RequestSourceResolutionPort;
+import org.zipp.ai.domain.retrieval.port.RequestSourceSnapshotStore;
+import org.zipp.ai.domain.retrieval.port.SourceResolutionCandidate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class RequestSourceResolutionServiceTest {
+    private final CatalogOwner owner = new CatalogOwner(OwnerType.USER, "alice");
+
+    @Test
+    void fixesTheExactRevisionForEveryConsumerOfOneRun() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        InMemorySnapshotStore snapshots = new InMemorySnapshotStore();
+        RequestSourceResolutionService service = new DefaultRequestSourceResolutionService(catalog, snapshots);
+        RequestSourceResolutionCommand command = new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-1",
+                SourceMode.EXPLICIT_ONLY, List.of(), List.of("version-1"));
+        catalog.explicit = List.of(candidate("version-1", "revision-1"));
+
+        ResolvedSourceSet first = service.resolve(command);
+        catalog.explicit = List.of(candidate("version-1", "revision-2"));
+        ResolvedSourceSet replay = service.resolve(command);
+
+        assertEquals("revision-1", first.sources().get(0).revisionId());
+        assertEquals(first, replay);
+        assertEquals(1, catalog.explicitCalls);
+    }
+
+    @Test
+    void automaticExpansionIncludesConversationDiagramAndChartbookButExcludesLibrary() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        InMemorySnapshotStore snapshots = new InMemorySnapshotStore();
+        RequestSourceResolutionService service = new DefaultRequestSourceResolutionService(catalog, snapshots);
+        catalog.automatic = List.of(
+                new SourceResolutionCandidate("version-conversation", "material-conversation",
+                        "version-conversation", "revision-conversation", "PDF",
+                        MaterialScopeType.CONVERSATION, "conversation-1", "READY", "",
+                        true, true, false, false),
+                new SourceResolutionCandidate("version-diagram", "material-diagram",
+                        "version-diagram", "revision-diagram", "PDF",
+                        MaterialScopeType.DIAGRAM, "diagram-1", "READY", "",
+                        false, true, false, true),
+                new SourceResolutionCandidate("version-chartbook", "material-chartbook",
+                        "version-chartbook", "revision-chartbook", "PDF",
+                        MaterialScopeType.CHARTBOOK, "chartbook-1", "READY", "",
+                        false, true, false, false),
+                new SourceResolutionCandidate("version-library", "material-library",
+                        "version-library", "revision-library", "PDF",
+                        MaterialScopeType.LIBRARY, "personal", "READY", "",
+                        false, true, false, false));
+
+        ResolvedSourceSet result = service.resolve(new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-2",
+                SourceMode.AUTO, List.of(), List.of()));
+
+        assertEquals(List.of("version-conversation", "version-diagram", "version-chartbook"),
+                result.sources().stream().map(ResolvedSource::versionId).toList());
+    }
+
+    @Test
+    void explicitCurrentMessageAttachmentDoesNotExpandOlderConversationSources() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        RequestSourceResolutionService service =
+                new DefaultRequestSourceResolutionService(catalog, new InMemorySnapshotStore());
+        catalog.attachments = List.of(new SourceResolutionCandidate(
+                "upload-pdf", "material-pdf", "version-pdf", "revision-pdf", "PDF",
+                MaterialScopeType.CONVERSATION, "conversation-1", "READY", "SUCCEEDED",
+                true, true, false, false));
+        // This simulates an image removed from the composer but still retained as a Conversation File.
+        catalog.automatic = List.of(readableImage(
+                "version-old-image", "version-old-image", "READY", "SUCCEEDED"));
+
+        ResolvedSourceSet result = service.resolve(new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-explicit-attachment",
+                SourceMode.EXPLICIT_ONLY, List.of("upload-pdf"), List.of()));
+
+        assertEquals(List.of("version-pdf"),
+                result.sources().stream().map(ResolvedSource::versionId).toList());
+        assertEquals(0, catalog.automaticCalls);
+    }
+
+    @Test
+    void snapshotsAuthoritativePendingConversationUploadsForEveryConsumer() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        catalog.pendingConversationUploads = 2;
+        RequestSourceResolutionService service =
+                new DefaultRequestSourceResolutionService(catalog, new InMemorySnapshotStore());
+        RequestSourceResolutionCommand command = new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-pending",
+                SourceMode.AUTO, List.of(), List.of());
+
+        ResolvedSourceSet first = service.resolve(command);
+        catalog.pendingConversationUploads = 0;
+        ResolvedSourceSet replay = service.resolve(command);
+
+        assertEquals(2, first.processingSourceCount());
+        assertEquals(first, replay);
+        assertEquals(1, catalog.pendingCalls);
+    }
+
+    @Test
+    void reportsProcessingAndMissingDeclarationsWithoutInventingSources() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        RequestSourceResolutionService service =
+                new DefaultRequestSourceResolutionService(catalog, new InMemorySnapshotStore());
+        catalog.attachments = List.of(new SourceResolutionCandidate(
+                "upl-processing", null, null, null, "PDF",
+                MaterialScopeType.CONVERSATION, "conversation-1", "PROCESSING", "PROCESSING",
+                false, false, false, false));
+
+        ResolvedSourceSet result = service.resolve(new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-3",
+                SourceMode.NONE, List.of("upl-processing", "upl-missing"), List.of()));
+
+        assertEquals(List.of(), result.sources());
+        assertEquals(SourceMode.EXPLICIT, result.mode());
+        assertEquals(1, result.processingSourceCount());
+        assertEquals(1, result.unavailableSourceCount());
+    }
+
+    @Test
+    void keepsReadableImagesInTheSnapshotIndependentOfRetrievalProcessingState() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        RequestSourceResolutionService service =
+                new DefaultRequestSourceResolutionService(catalog, new InMemorySnapshotStore());
+        catalog.attachments = List.of(
+                readableImage("upl-processing", "version-processing", "PROCESSING", "PROCESSING"),
+                readableImage("upl-object-processing", "version-object-processing",
+                        "READY", "PROCESSING"));
+        catalog.automatic = List.of(readableImage(
+                "version-failed", "version-failed", "FAILED", ""));
+
+        ResolvedSourceSet result = service.resolve(new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-readable",
+                SourceMode.AUTO, List.of("upl-processing", "upl-object-processing"), List.of()));
+
+        assertEquals(List.of("version-processing", "version-object-processing", "version-failed"),
+                result.sources().stream().map(ResolvedSource::versionId).toList());
+        assertEquals(2, result.processingSourceCount());
+        assertEquals(List.of(true, true, false), result.sources().stream()
+                .map(ResolvedSource::countsAsProcessingSource).toList());
+    }
+
+    @Test
+    void rejectsAChangedDeclarationWhenTheSameRunIsRetried() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        RequestSourceResolutionService service =
+                new DefaultRequestSourceResolutionService(catalog, new InMemorySnapshotStore());
+        catalog.explicit = List.of(candidate("version-1", "revision-1"));
+        service.resolve(new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-4",
+                SourceMode.EXPLICIT_ONLY, List.of(), List.of("version-1")));
+
+        IllegalStateException conflict = assertThrows(IllegalStateException.class, () ->
+                service.resolve(new RequestSourceResolutionCommand(
+                        owner, "diagram-1", "conversation-1", "run-4",
+                        SourceMode.EXPLICIT_ONLY, List.of(), List.of("version-2"))));
+
+        assertEquals("SOURCE_SNAPSHOT_DECLARATION_CONFLICT", conflict.getMessage());
+    }
+
+    private SourceResolutionCandidate candidate(String versionId, String revisionId) {
+        return new SourceResolutionCandidate(versionId, "material-1", versionId, revisionId,
+                "PDF", MaterialScopeType.LIBRARY, "personal", "READY", "SUCCEEDED",
+                false, true, false, false);
+    }
+
+    private SourceResolutionCandidate readableImage(String declarationId, String versionId,
+                                                    String state, String uploadState) {
+        return new SourceResolutionCandidate(declarationId, "material-" + versionId, versionId,
+                "revision-" + versionId, "IMAGE", MaterialScopeType.CONVERSATION,
+                "conversation-1", state, uploadState, true, false, true, false);
+    }
+
+    private static final class MutableResolutionPort implements RequestSourceResolutionPort {
+        private List<SourceResolutionCandidate> explicit = List.of();
+        private List<SourceResolutionCandidate> attachments = List.of();
+        private List<SourceResolutionCandidate> automatic = List.of();
+        private int explicitCalls;
+        private int automaticCalls;
+        private int pendingConversationUploads;
+        private int pendingCalls;
+
+        @Override
+        public List<SourceResolutionCandidate> resolveAttachments(RequestSourceResolutionCommand command) {
+            return attachments;
+        }
+
+        @Override
+        public List<SourceResolutionCandidate> resolveExplicitVersions(RequestSourceResolutionCommand command) {
+            explicitCalls++;
+            return explicit;
+        }
+
+        @Override
+        public List<SourceResolutionCandidate> resolveAutomatic(RequestSourceResolutionCommand command, int limit) {
+            automaticCalls++;
+            return automatic;
+        }
+
+        @Override
+        public int countPendingConversationUploads(RequestSourceResolutionCommand command) {
+            pendingCalls++;
+            return pendingConversationUploads;
+        }
+    }
+
+    private static final class InMemorySnapshotStore implements RequestSourceSnapshotStore {
+        private final Map<String, StoredSnapshot> values = new HashMap<>();
+
+        @Override
+        public Optional<StoredSnapshot> find(CatalogOwner owner, String runId) {
+            return Optional.ofNullable(values.get(runId));
+        }
+
+        @Override
+        public void save(CatalogOwner owner, String runId, String declarationFingerprint,
+                         ResolvedSourceSet sources) {
+            values.putIfAbsent(runId, new StoredSnapshot(declarationFingerprint, sources));
+        }
+    }
+}

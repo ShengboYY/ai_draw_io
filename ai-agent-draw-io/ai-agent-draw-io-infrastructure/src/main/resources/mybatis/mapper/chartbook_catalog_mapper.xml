@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IChartbookCatalogMapper">
+    <insert id="insertChartbook">
+        INSERT IGNORE INTO chartbook (
+            id, owner_key, name, status, create_idempotency_key, created_at, updated_at
+        ) VALUES (
+            #{id}, #{ownerKey}, #{name}, 'ACTIVE', #{idempotencyKey}, #{createdAt}, #{createdAt}
+        )
+    </insert>
+
+    <select id="selectByIdempotencyKey"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.ChartbookCatalogPO">
+        SELECT id, owner_key AS ownerKey, name, status, created_at AS createdAt, updated_at AS updatedAt
+        FROM chartbook WHERE owner_key = #{ownerKey} AND create_idempotency_key = #{idempotencyKey}
+    </select>
+
+    <select id="selectAll" resultType="org.zipp.ai.infrastructure.dao.material.po.ChartbookCatalogPO">
+        SELECT id, owner_key AS ownerKey, name, status, created_at AS createdAt, updated_at AS updatedAt
+        FROM chartbook WHERE owner_key = #{ownerKey} AND status = 'ACTIVE'
+        ORDER BY updated_at DESC, id
+    </select>
+
+    <select id="selectOne" resultType="org.zipp.ai.infrastructure.dao.material.po.ChartbookCatalogPO">
+        SELECT id, owner_key AS ownerKey, name, status, created_at AS createdAt, updated_at AS updatedAt
+        FROM chartbook WHERE owner_key = #{ownerKey} AND id = #{chartbookId}
+    </select>
+
+    <select id="selectDiagramIds" resultType="string">
+        SELECT d.id FROM diagram d
+        JOIN chartbook c ON c.id = d.chartbook_id AND c.owner_key = #{ownerKey}
+        WHERE d.chartbook_id = #{chartbookId} AND d.user_id = #{ownerKey} AND d.deleted = 0
+        ORDER BY d.updated_at DESC, d.id
+    </select>
+
+    <select id="selectMaterialIds" resultType="string">
+        SELECT link.material_id FROM material_scope_link link
+        JOIN material m ON m.id = link.material_id AND m.owner_key = #{ownerKey}
+        JOIN chartbook c ON c.id = link.scope_key AND c.owner_key = #{ownerKey}
+        WHERE link.scope_type = 'CHARTBOOK' AND link.scope_key = #{chartbookId}
+        ORDER BY link.created_at, link.material_id
+    </select>
+
+    <update id="rename">
+        UPDATE chartbook SET name = #{name}
+        WHERE id = #{chartbookId} AND owner_key = #{ownerKey} AND status = 'ACTIVE'
+    </update>
+
+    <update id="archive">
+        UPDATE chartbook SET status = 'ARCHIVED'
+        WHERE id = #{chartbookId} AND owner_key = #{ownerKey} AND status = 'ACTIVE'
+    </update>
+
+    <update id="detachDiagrams">
+        UPDATE diagram SET chartbook_id = NULL
+        WHERE user_id = #{ownerKey} AND chartbook_id = #{chartbookId} AND deleted = 0
+    </update>
+
+    <update id="assignDiagram">
+        UPDATE diagram d
+        JOIN chartbook c ON c.id = #{chartbookId} AND c.owner_key = #{ownerKey} AND c.status = 'ACTIVE'
+        SET d.chartbook_id = c.id
+        WHERE d.id = #{diagramId} AND d.user_id = #{ownerKey} AND d.deleted = 0
+    </update>
+
+    <update id="removeDiagram">
+        UPDATE diagram SET chartbook_id = NULL
+        WHERE id = #{diagramId} AND user_id = #{ownerKey} AND deleted = 0
+          AND chartbook_id IS NOT NULL
+    </update>
+</mapper>

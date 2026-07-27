@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">FreeDraw concept B — F Monogram</title>
+  <!-- The FreeDraw initial is constructed like a connected diagram path. -->
+  <rect x="8" y="8" width="496" height="496" rx="132" fill="#34333D"/>
+  <g fill="none" stroke="#FAFAF8" stroke-width="48" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M170 366V194C170 162 196 136 228 136H348"/>
+    <path d="M170 250H302"/>
+  </g>
+  <g fill="#34333D" stroke="#FAFAF8" stroke-width="16">
+    <circle cx="348" cy="136" r="22"/>
+    <circle cx="302" cy="250" r="22"/>
+  </g>
+  <path d="M360 314V354M340 334H380" fill="none" stroke="#FAFAF8" stroke-width="14" stroke-linecap="round"/>
+</svg>

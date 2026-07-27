@@ -1,12 +1,13 @@
 'use client';
 
-import { DrawIoEmbed, DrawIoEmbedRef } from 'react-drawio';
+import { DrawIoEmbed, type DrawIoEmbedRef } from './secure-drawio-embed';
+import type { DrawioSelection } from './secure-drawio-bridge';
 import Image from 'next/image';
-import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
+import { Suspense, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getUserInfo, setUserInfo as persistUserInfo } from '@/utils/cookie';
-import { getWorkspaceIdentity } from '@/utils/workspace-identity';
-import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
+import { setUserInfo as persistUserInfo } from '@/utils/cookie';
+import { rememberAnonymousWorkspaceHint } from '@/utils/workspace-identity';
+import { agentApi, ApiResponseError, StreamEvent, type CellCitationDTO } from '@/api/agent';
 import type { CanvasVisualReviewEvidenceDTO, CurrentAccountResponseDTO, DiagramCanvasStateResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -17,6 +18,40 @@ import {
   planFinalDiagramDelivery,
 } from './streaming-preview';
 import { buildDrawioChatRequestPayload } from './chat-request-payload';
+import { API_CONFIG } from '@/config/api-config';
+import { createMaterialClient } from '@/api/material';
+import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
+import { createChartbookClient } from '@/api/chartbook';
+import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
+import { MessageAttachmentPreview } from '@/features/sources/MessageAttachmentPreview';
+import { ContextReceiptBar } from '@/features/context/ContextReceiptBar';
+import { buildCitationReceipt, buildContextReceipts } from '@/features/context/context-receipts';
+import {
+  ComposerAddMenu,
+  ComposerLibrarySelectionTray,
+} from '@/features/sources/ComposerAddMenu';
+import type { MaterialUploaderHandle } from '@/features/materials/MaterialUploader';
+import type { Chartbook, MaterialCatalogCard } from '@/features/materials/material-types';
+import { isReadyUploadStatus, isTerminalUploadStatus } from '@/features/materials/upload-machine';
+import { FilesPanel } from '@/features/files/FilesPanel';
+import { buildFilesPanelGroups } from '@/features/files/files-panel-model';
+import { DirectConfirmationPanel } from '@/features/sources/DirectConfirmationPanel';
+import {
+  buildDirectClarifications,
+  type DirectClarification,
+  type DirectClarificationResolution,
+} from '@/features/sources/direct-confirmation';
+import {
+  readConversationAttachments,
+  writeConversationAttachments,
+  type ConversationAttachment,
+} from '@/features/sources/conversation-attachments';
+import {
+  MAX_CONVERSATION_LIBRARY_SELECTIONS,
+  readConversationLibrarySelections,
+  writeConversationLibrarySelections,
+  type ConversationLibrarySelection,
+} from '@/features/sources/conversation-library-selections';
 import {
   CanvasStateMetadata,
   makeLocalDiagramId,
@@ -38,9 +73,18 @@ import {
 } from './canvas-persistence-coordinator';
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
 import { buildDiagramHistoryEntries } from './diagram-history';
-import { buildRestoredDiagramState, normalizeRestoredDrawioXml } from './diagram-restore';
+import {
+  buildRestoredDiagramState,
+  isDiagramRouteReady,
+  normalizeRestoredDrawioXml,
+} from './diagram-restore';
 import { buildDiagramTitleFromPrompt, DEFAULT_DIAGRAM_TITLE } from './diagram-title';
-import { buildRestoredConversationMessages } from './conversation-restore';
+import {
+  buildRestoredConversationMessages,
+  mergeRestoredConversationPresentation,
+  type RestoredAttachmentMetadata,
+} from './conversation-restore';
+import { citationOriginLabel } from './citation-origin';
 import {
   applyDemoQuotaConsumption,
   buildDemoQuotaState,
@@ -62,8 +106,8 @@ import {
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
+  projectUserExecutionStep,
   shouldShowAgentTyping,
-  thinkingPhaseLabel,
   thinkingRouteLabel,
   usesChinesePresentation,
   visualReviewStageLabel,
@@ -92,6 +136,7 @@ import {
   shouldShowUnavailableReview,
   shouldReviewSavedRepair,
 } from './visual-review-chain';
+import { streamErrorMessage } from './stream-error-presentation';
 
 // Message type definition
 type MessageStep = {
@@ -111,7 +156,45 @@ type Message = {
   language?: 'zh' | 'en';
   steps?: MessageStep[];
   events?: AgentRunEvent[];
+  evidenceSources?: Array<{
+    citationKey: string;
+    sourceLabel: string;
+    pageNumber?: number;
+    modality?: string;
+    origin: 'EXISTING_REFERENCE' | 'EXPLICIT' | 'SEARCH' | 'SUPPLEMENTAL';
+  }>;
+  evidenceClaims?: Array<{
+    claimKey: string;
+    citationKeys: string[];
+    supportType: 'DIRECT' | 'SYNTHESIZED' | 'VISUAL_VERIFIED' | 'AI_KNOWLEDGE';
+  }>;
+  contextReceipts?: ReturnType<typeof buildContextReceipts>;
+  citationReceipt?: ReturnType<typeof buildCitationReceipt>;
+  attachments?: ConversationAttachment[];
   timestamp: number;
+};
+
+type TargetClarification = {
+  candidates: Array<{ cellId: string; kind: string; shortLabel: string; reasonCode: string }>;
+  canvasVersion: number;
+  contentHash: string;
+};
+
+type DirectConfirmation = {
+  issues: Array<{
+    reasonCode: string;
+    observedValue?: string;
+    observedFingerprint?: string;
+  }>;
+  sourceVersionId: string;
+  originalPrompt: string;
+  selections: Record<string, DirectClarificationResolution>;
+};
+
+type SendContentOptions = {
+  requestContent?: string;
+  directClarifications?: DirectClarification[];
+  directConfirmationSourceVersionId?: string;
 };
 
 const CHAT_WIDTH_STORAGE_KEY = 'ai_drawio_chat_width';
@@ -127,7 +210,11 @@ const DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY = 'ai_drawio_max_deterministic_rep
 const LEGACY_REVIEW_ITERATIONS_STORAGE_KEY = 'ai_drawio_max_review_iterations';
 const DETERMINISTIC_REPAIR_ROUND_OPTIONS = [0, 1, 2, 3];
 const EMPTY_DRAWIO_XML = '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
+const DRAWIO_BASE_URL = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL || 'https://embed.diagrams.net';
+const DRAWIO_SELECTION_PLUGIN_ID = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL ? 'zippSelection' : undefined;
 const STREAMING_PREVIEW_FRAME_MS = 280;
+// Keep the empty composer compact; attachments and multiline input can still expand it naturally.
+const COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 84;
 
 type StructuredCanvasContext = {
   canvasXml?: string;
@@ -159,6 +246,12 @@ const Icons = {
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="5" y1="12" x2="19" y2="12"></line>
       <polyline points="12 5 19 12 12 19"></polyline>
+    </svg>
+  ),
+  ArrowUp: ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="12" y1="19" x2="12" y2="5"></line>
+      <polyline points="5 12 12 5 19 12"></polyline>
     </svg>
   ),
   User: ({ className }: { className?: string }) => (
@@ -282,6 +375,13 @@ const parseDrawioXml = (xml?: string | null) => {
     return parser.parseFromString(EMPTY_DRAWIO_XML, 'application/xml');
   }
   return doc;
+};
+
+const provenanceRefForCell = (xml: string | null | undefined, cellId: string) => {
+  const cell = Array.from(parseDrawioXml(xml).querySelectorAll('mxCell'))
+    .find(candidate => candidate.getAttribute('id') === cellId);
+  const ref = cell?.getAttribute('zippProvenanceRef') || '';
+  return /^prv_[a-f0-9]{24}$/.test(ref) ? ref : undefined;
 };
 
 const countDrawableCells = (xml?: string | null) => {
@@ -428,6 +528,8 @@ function DrawioPageContent() {
   const restoreDiagramId = searchParams.get('diagramId');
   const [imgData, setImgData] = useState<string | null>(null);
   const drawioRef = useRef<DrawIoEmbedRef>(null);
+  const selectedCellsRef = useRef<DrawioSelection | null>(null);
+  const citationRequestRef = useRef(0);
   const restoredDiagramIdRef = useRef<string | null>(null);
   const hasInitializedSessionsRef = useRef(false);
   
@@ -495,6 +597,11 @@ function DrawioPageContent() {
   const [inputValue, setInputValue] = useState('');
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [citationCellId, setCitationCellId] = useState<string | null>(null);
+  const [cellCitations, setCellCitations] = useState<CellCitationDTO[]>([]);
+  const [citationsLoading, setCitationsLoading] = useState(false);
+  const [targetClarification, setTargetClarification] = useState<TargetClarification | null>(null);
+  const [directConfirmation, setDirectConfirmation] = useState<DirectConfirmation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // "/" skill picker
@@ -552,6 +659,7 @@ function DrawioPageContent() {
 
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
 
   // Stream State
   const streamAbortRef = useRef<AbortController | null>(null);
@@ -693,6 +801,39 @@ function DrawioPageContent() {
   const sessionsRef = useRef<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const currentSessionRef = useRef(currentSessionId);
+  const currentDiagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
+  const isRequestedDiagramReady = isDiagramRouteReady(restoreDiagramId, currentDiagramId);
+  const materialClient = useMemo(() => createMaterialClient({ baseUrl: API_CONFIG.BASE_URL }), []);
+  const capabilitiesClient = useMemo(() => createMaterialCapabilitiesClient({ baseUrl: API_CONFIG.BASE_URL }), []);
+  const chartbookClient = useMemo(() => createChartbookClient({ baseUrl: API_CONFIG.BASE_URL }), []);
+  // Keep the originating chartbook until this exact diagram has reached the server.
+  const pendingChartbookAssignmentRef = useRef<{
+    chartbookId: string;
+    diagramId: string;
+    inFlight: boolean;
+  } | null>(null);
+  const [conversationAttachments, setConversationAttachments] = useState<ConversationAttachment[]>([]);
+  // A turn may bind only attachments that finished producing a usable direct/retrieval artifact.
+  const hasProcessingAttachments = conversationAttachments.some(attachment => {
+    const state = attachment.state.trim().toUpperCase();
+    return !isReadyUploadStatus(state) && state !== 'PARTIAL_READY';
+  });
+  const [sentAttachmentUploadIds, setSentAttachmentUploadIds] = useState<string[]>([]);
+  const attachmentUploaderRef = useRef<MaterialUploaderHandle>(null);
+  const [attachmentSessionLoaded, setAttachmentSessionLoaded] = useState('');
+  const [restoredAttachments, setRestoredAttachments] = useState<ConversationAttachment[]>([]);
+  const [librarySelections, setLibrarySelections] = useState<ConversationLibrarySelection[]>([]);
+  const [librarySelectionSessionLoaded, setLibrarySelectionSessionLoaded] = useState('');
+  const [acceptedMaterialMimeTypes, setAcceptedMaterialMimeTypes] = useState<string[]>([
+    'application/pdf', 'image/png', 'image/jpeg',
+  ]);
+  const [filesChartbook, setFilesChartbook] = useState<Chartbook | null>(null);
+  const [conversationFiles, setConversationFiles] = useState<MaterialCatalogCard[]>([]);
+  const [chartbookFiles, setChartbookFiles] = useState<MaterialCatalogCard[]>([]);
+  const [isFilesLoading, setIsFilesLoading] = useState(false);
+  const [filesError, setFilesError] = useState('');
+  const [busyFileId, setBusyFileId] = useState('');
+  const filesRequestRef = useRef(0);
   const [historyDiagrams, setHistoryDiagrams] = useState<DiagramSummaryResponseDTO[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
@@ -705,6 +846,24 @@ function DrawioPageContent() {
       console.error('Failed to save sessions to localStorage:', e);
     }
   };
+
+  const assignPendingChartbookAfterSave = useCallback(async (diagramId: string) => {
+    const pending = pendingChartbookAssignmentRef.current;
+    if (!pending || pending.diagramId !== diagramId || pending.inFlight) return;
+
+    pending.inFlight = true;
+    try {
+      await chartbookClient.assignDiagram(diagramId, pending.chartbookId);
+      // A newer Create New action must not be cleared by an older request finishing late.
+      if (pendingChartbookAssignmentRef.current === pending) {
+        pendingChartbookAssignmentRef.current = null;
+      }
+    } catch (error) {
+      // Keep the assignment so the next successful diagram save can retry it.
+      pending.inFlight = false;
+      console.warn('Failed to file the saved diagram into its chartbook:', error);
+    }
+  }, [chartbookClient]);
 
   const refreshHistoryDiagrams = useCallback(async (ownerId = currentUserRef.current || currentUser) => {
     if (!ownerId) return;
@@ -852,6 +1011,7 @@ function DrawioPageContent() {
       // Only sync the version; the local canvas may already be newer than the XML just saved,
       // so writing the response XML back would briefly roll the session state backwards.
       rememberManualCanvasVersion(request.sessionId, request.diagramId, response.data?.version, response.data?.contentHash);
+      void assignPendingChartbookAfterSave(request.diagramId);
       if (request.visualRepairRunId) {
         visualRepairProvenanceRef.current.delete(request.diagramId);
       }
@@ -1018,26 +1178,30 @@ function DrawioPageContent() {
     }
   };
 
-  const persistDiagramMessages = async (diagramId?: string, backendSessionId?: string, messagesToSave: Message[] = []) => {
-    const ownerId = currentUserRef.current || currentUser;
-    if (!ownerId || !diagramId || messagesToSave.length === 0) return;
-
-    const payload = messagesToSave
-      .filter(message => message.content.trim())
-      .map(message => ({
-        clientMessageId: message.id,
-        sessionId: backendSessionId,
-        role: message.role,
-        content: message.content,
-      }));
-    if (payload.length === 0) return;
-
-    try {
-      await agentApi.saveDiagramMessages(ownerId, diagramId, backendSessionId, payload);
-    } catch (e) {
-      console.warn('Failed to sync diagram messages:', e);
-    }
-  };
+  const resolveRestoredAttachmentMetadata = useCallback(async (
+    restoredMessages: Array<{ attachmentRefs?: string[] }>,
+  ): Promise<Record<string, RestoredAttachmentMetadata>> => {
+    const uploadIds = [...new Set(restoredMessages.flatMap(message => message.attachmentRefs || []))];
+    const resolved = await Promise.all(uploadIds.map(async uploadId => {
+      try {
+        const status = await materialClient.status(uploadId);
+        if (!status.materialId) {
+          return [uploadId, { fileName: uploadId, state: status.state }] as const;
+        }
+        const details = await materialClient.details(status.materialId).catch(() => null);
+        return [uploadId, {
+          fileName: details?.material.displayName || uploadId,
+          state: status.state,
+          materialId: status.materialId,
+          versionId: status.versionId || details?.material.latestVersionId,
+        }] as const;
+      } catch {
+        // Expired upload metadata degrades to the opaque reference already stored with the message.
+        return [uploadId, { fileName: uploadId, state: 'SUCCEEDED' }] as const;
+      }
+    }));
+    return Object.fromEntries(resolved);
+  }, [materialClient]);
 
   const ensureConversationDiagramShell = async ({
     diagramId,
@@ -1057,18 +1221,20 @@ function DrawioPageContent() {
     if (!ownerId || !shouldCreateConversationDiagramShell({
       diagramId: normalizedDiagramId,
       canvasVersion,
-      hasDrawableContent: hasDrawableCells(canvasXml),
       hasConversationMessages,
-    })) return;
+    })) return true;
 
     try {
-      // Chat-only diagrams still need a canvas row so the history list can restore them later.
-      const response = await agentApi.saveDiagramCanvasState(ownerId, normalizedDiagramId || '', EMPTY_DRAWIO_XML);
+      // V2 admission requires the owned diagram row before it can bind the runtime session.
+      const initialCanvasXml = canvasXml?.trim() || EMPTY_DRAWIO_XML;
+      const response = await agentApi.saveDiagramCanvasState(ownerId, normalizedDiagramId || '', initialCanvasXml);
       const version = response.data?.version;
       if ((Number.isFinite(version) || response.data?.contentHash) && currentSessionRef.current) {
         rememberManualCanvasVersion(currentSessionRef.current, normalizedDiagramId || '', version as number, response.data?.contentHash);
       }
+      void assignPendingChartbookAfterSave(normalizedDiagramId || '');
       await persistDiagramTitle(normalizedDiagramId, title);
+      return true;
     } catch (error) {
       if (error instanceof ApiResponseError && error.code === 'CANVAS_VERSION_CONFLICT') {
         const latestBaseline = await fetchLatestCanvasBaseline(ownerId, normalizedDiagramId || '');
@@ -1080,9 +1246,10 @@ function DrawioPageContent() {
             latestBaseline.contentHash,
           );
         }
-        return;
+        return true;
       }
       console.warn('Failed to create chat-only diagram shell:', error);
+      return false;
     }
   };
 
@@ -1345,6 +1512,7 @@ function DrawioPageContent() {
   // Update ref
   useEffect(() => {
     currentSessionRef.current = currentSessionId;
+    setDirectConfirmation(null);
     const staleWaiters = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId !== currentSessionId);
     canvasLoadWaitersRef.current = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId === currentSessionId);
     staleWaiters.forEach(waiter => {
@@ -1357,6 +1525,125 @@ function DrawioPageContent() {
       diagramId: activeSession?.diagramId,
     });
   }, [currentSessionId]);
+
+  useEffect(() => {
+    const attachmentSessionId = sessionId.trim();
+    setSentAttachmentUploadIds([]);
+    if (!attachmentSessionId) {
+      setConversationAttachments([]);
+      setAttachmentSessionLoaded('');
+      setRestoredAttachments([]);
+      return;
+    }
+    const restored = readConversationAttachments(window.sessionStorage, attachmentSessionId);
+    setConversationAttachments(restored);
+    setRestoredAttachments(restored);
+    setAttachmentSessionLoaded(attachmentSessionId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    const attachmentSessionId = sessionId.trim();
+    if (!attachmentSessionId || attachmentSessionLoaded !== attachmentSessionId) return;
+    writeConversationAttachments(window.sessionStorage, attachmentSessionId, conversationAttachments);
+  }, [attachmentSessionLoaded, conversationAttachments, sessionId]);
+
+  useEffect(() => {
+    const librarySessionId = sessionId.trim();
+    if (!librarySessionId) {
+      setLibrarySelections([]);
+      setLibrarySelectionSessionLoaded('');
+      return;
+    }
+    setLibrarySelections(readConversationLibrarySelections(window.localStorage, librarySessionId));
+    setLibrarySelectionSessionLoaded(librarySessionId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    const librarySessionId = sessionId.trim();
+    if (!librarySessionId || librarySelectionSessionLoaded !== librarySessionId) return;
+    writeConversationLibrarySelections(window.localStorage, librarySessionId, librarySelections);
+  }, [librarySelectionSessionLoaded, librarySelections, sessionId]);
+
+  useEffect(() => {
+    if (!attachmentSessionLoaded || restoredAttachments.length === 0) return;
+    let cancelled = false;
+    restoredAttachments
+      .filter(attachment => !isTerminalUploadStatus(attachment.state))
+      .forEach(attachment => {
+        // Resume status polling after a reload without retaining file bytes in browser storage.
+        void materialClient.pollStatus(attachment.uploadId, status => {
+          if (cancelled || sessionId !== attachmentSessionLoaded) return;
+          setConversationAttachments(previous => previous.map(item => item.uploadId === attachment.uploadId ? {
+            ...item,
+            state: status.state,
+            errorCode: status.errorCode,
+          } : item));
+        }).catch(() => {
+          if (cancelled || sessionId !== attachmentSessionLoaded) return;
+          setConversationAttachments(previous => previous.map(item => item.uploadId === attachment.uploadId ? {
+            ...item,
+            state: 'FAILED',
+          } : item));
+        });
+      });
+    return () => { cancelled = true; };
+  }, [attachmentSessionLoaded, materialClient, restoredAttachments, sessionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void capabilitiesClient.get()
+      .then(capabilities => {
+        if (!cancelled) setAcceptedMaterialMimeTypes(capabilities.acceptedMimeTypes);
+      })
+      .catch(error => {
+        if (!cancelled) console.warn('Failed to load material capabilities:', error);
+      });
+    return () => { cancelled = true; };
+  }, [capabilitiesClient]);
+
+  const refreshFilesPanel = useCallback(async () => {
+    const requestId = ++filesRequestRef.current;
+    const conversationId = sessionId.trim();
+    if (!conversationId && !currentDiagramId) {
+      setFilesChartbook(null);
+      setConversationFiles([]);
+      setChartbookFiles([]);
+      return;
+    }
+    setIsFilesLoading(true);
+    setFilesError('');
+    try {
+      const chartbook = currentDiagramId
+        ? await chartbookClient.forDiagram(currentDiagramId)
+        : null;
+      const [conversationPage, chartbookPage] = await Promise.all([
+        // A blank diagram can belong to a chartbook before it has a conversation.
+        conversationId
+          ? materialClient.listScope('CONVERSATION', conversationId,
+            { lifecycleState: 'ACTIVE', limit: 100 })
+          : Promise.resolve(null),
+        chartbook
+          ? materialClient.listScope('CHARTBOOK', chartbook.chartbookId,
+            { lifecycleState: 'ACTIVE', limit: 100 })
+          : Promise.resolve(null),
+      ]);
+      if (requestId !== filesRequestRef.current) return;
+      setFilesChartbook(chartbook);
+      setConversationFiles(conversationPage?.items || []);
+      setChartbookFiles(chartbookPage?.items || []);
+    } catch (error) {
+      if (requestId !== filesRequestRef.current) return;
+      console.warn('Failed to load files panel:', error);
+      setFilesError('Failed to load files.');
+    } finally {
+      if (requestId === filesRequestRef.current) setIsFilesLoading(false);
+    }
+  }, [chartbookClient, currentDiagramId, materialClient, sessionId]);
+
+  useEffect(() => {
+    if (!isFilesPanelOpen) return;
+    void refreshFilesPanel();
+  }, [conversationAttachments, isFilesPanelOpen, refreshFilesPanel]);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -1465,7 +1752,17 @@ function DrawioPageContent() {
       // restores, while keeping the saved sessions so the history sidebar (and the
       // persistence effect) does not lose them.
       setSessions(savedSessions);
-      createNewSession();
+      persistSessions(savedSessions);
+      const newSession = createNewSession();
+      // Read before the URL is stripped below, and bind the folder to this new diagram only.
+      const originatingChartbookId = freshParams.get('chartbookId')?.trim();
+      if (originatingChartbookId) {
+        pendingChartbookAssignmentRef.current = {
+          chartbookId: originatingChartbookId,
+          diagramId: newSession.diagramId,
+          inFlight: false,
+        };
+      }
       // Landing page hands off the typed prompt via ?prompt=…; draft it into the
       // composer (focused, ready to send) rather than auto-sending on mount.
       const initialPrompt = freshParams.get('prompt');
@@ -1477,11 +1774,27 @@ function DrawioPageContent() {
       return;
     }
 
+    if (restoreDiagramId?.trim()) {
+      // A URL-targeted diagram must be authorized and loaded before any cached session becomes active.
+      setSessions(savedSessions);
+      persistSessions(savedSessions);
+      currentSessionRef.current = null;
+      setCurrentSessionId(null);
+      setSessionId('');
+      setMessages([]);
+      replaceEditorXml(EMPTY_DRAWIO_XML);
+      return;
+    }
+
     if (savedSessions.length > 0) {
       setSessions(savedSessions);
+      // The restore request can finish before React publishes the state update below.
+      persistSessions(savedSessions);
       // Load the most recent session (first one if sorted by lastModified desc)
       const mostRecent = [...savedSessions].sort((a, b) => b.lastModified - a.lastModified)[0];
       setCurrentSessionId(mostRecent.id);
+      // Draft attachments and conversation files are keyed by the backend conversation ID.
+      setSessionId(mostRecent.backendSessionId || '');
       setMessages(mostRecent.messages);
       replaceEditorXml(mostRecent.drawIoXml || EMPTY_DRAWIO_XML);
     } else {
@@ -1520,7 +1833,7 @@ function DrawioPageContent() {
     pendingThumbnailExportRef.current = null;
     armBlankEditorGuard();
     const localSessionId = Date.now().toString();
-    const newSession: Session = {
+    const newSession: Session & { diagramId: string } = {
       id: localSessionId,
       backendSessionId: backendId,
       diagramId: makeLocalDiagramId(localSessionId),
@@ -1541,6 +1854,7 @@ function DrawioPageContent() {
     setMessages(newSession.messages);
     setSessionId(backendId);
     replaceEditorXml(EMPTY_DRAWIO_XML);
+    return newSession;
   };
 
   useEffect(() => {
@@ -1548,15 +1862,21 @@ function DrawioPageContent() {
 
     let cancelled = false;
     restoredDiagramIdRef.current = restoreDiagramId;
+    // Detach the previous route immediately so it cannot receive messages for this URL.
+    currentSessionRef.current = null;
+    setCurrentSessionId(null);
+    setSessionId('');
+    setMessages([]);
+    replaceEditorXml(EMPTY_DRAWIO_XML);
     Promise.all([
       agentApi.getDiagram(currentUser, restoreDiagramId),
       agentApi.listDiagramMessages(currentUser, restoreDiagramId).catch(() => ({ data: [] })),
     ])
-      .then(([res, messageRes]) => {
+      .then(async ([res, messageRes]) => {
         if (cancelled) return;
         const diagram = res.data;
         if (!diagram?.diagramId) {
-          setMessages(prev => [...prev, {
+          setMessages([{
             id: `${Date.now()}-restore-missing`,
             role: 'agent',
             content: 'Diagram not found.',
@@ -1567,7 +1887,18 @@ function DrawioPageContent() {
 
         const restored = buildRestoredDiagramState(diagram);
         const restoredSessionId = `restored-${restored.diagramId}`;
-        const restoredMessages: Message[] = buildRestoredConversationMessages(messageRes.data || [], restored.title);
+        const attachmentMetadata = await resolveRestoredAttachmentMetadata(messageRes.data || []);
+        if (cancelled) return;
+        const durableMessages: Message[] = buildRestoredConversationMessages(
+          messageRes.data || [],
+          restored.title,
+          attachmentMetadata,
+        );
+        const cachedSession = sessionsRef.current.find(session => session.diagramId === restored.diagramId);
+        const restoredMessages: Message[] = mergeRestoredConversationPresentation(
+          durableMessages,
+          cachedSession?.messages || [],
+        );
         const restoredSession: Session = {
           id: restoredSessionId,
           backendSessionId: messageRes.data?.[0]?.sessionId || '',
@@ -1601,7 +1932,7 @@ function DrawioPageContent() {
       })
       .catch(() => {
         if (!cancelled) {
-          setMessages(prev => [...prev, {
+          setMessages([{
             id: `${Date.now()}-restore-error`,
             role: 'agent',
             content: 'Failed to load the diagram.',
@@ -1613,11 +1944,20 @@ function DrawioPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser, restoreDiagramId]);
+  }, [currentUser, resolveRestoredAttachmentMetadata, restoreDiagramId]);
 
   const openHistoryDiagram = (diagramId: string) => {
     setIsSidebarOpen(false);
     router.push(`/drawio?diagramId=${encodeURIComponent(diagramId)}`);
+  };
+
+  const handleBackToSourcePage = () => {
+    // Return to the page that opened the editor; direct visits fall back to the diagram list.
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace('/diagrams');
   };
 
   const removeLocalSessionsForDiagram = (diagramId: string) => {
@@ -1775,7 +2115,6 @@ function DrawioPageContent() {
     let cancelled = false;
 
     const initializeWorkspace = async () => {
-      const userInfo = getUserInfo();
       let ownerId = '';
 
       try {
@@ -1790,12 +2129,19 @@ function DrawioPageContent() {
           }
         }
       } catch {
-        // Anonymous local work still needs to open when the auth endpoint is unavailable in dev.
+        // Continue below and ask the server for an anonymous capability.
       }
 
       if (!ownerId) {
         setAccountDisplayName('');
-        ownerId = getWorkspaceIdentity(userInfo?.user).ownerId;
+        try {
+          const anonymous = await agentApi.ensureAnonymousWorkspace();
+          ownerId = anonymous.data?.ownerId || '';
+          rememberAnonymousWorkspaceHint(window.localStorage, ownerId);
+        } catch {
+          setHistoryError('Failed to initialize the anonymous workspace.');
+          return;
+        }
       }
 
       if (cancelled) return;
@@ -1866,45 +2212,6 @@ function DrawioPageContent() {
      finalizeNewChat();
   };
 
-  const handleRestartSession = async () => {
-    if (!selectedAgentId || !currentUser) return;
-
-    if (!currentSessionId) {
-      finalizeNewChat();
-      return;
-    }
-    
-    try {
-        const res = await agentApi.createSession(selectedAgentId, currentUser);
-        const newBackendId = res.data.sessionId;
-        
-        const initialMsg: Message = {
-          id: Date.now().toString(),
-          role: 'agent',
-          content: 'Hi! Tell me what diagram you want — a flowchart, architecture, UML class, sequence, ER, or state diagram. I can also edit the one on your canvas.',
-          timestamp: Date.now()
-        };
-
-        setSessionId(newBackendId);
-        setMessages([initialMsg]);
-        setInputValue('');
-
-        setSessions(prev => prev.map(session => {
-          if (session.id === currentSessionId) {
-            return {
-              ...session,
-              backendSessionId: newBackendId,
-              messages: [initialMsg],
-              lastModified: Date.now()
-            };
-          }
-          return session;
-        }));
-    } catch (error) {
-        console.error('Failed to restart session:', error);
-    }
-  };
-
   const handleStopStream = () => {
     if (streamAbortRef.current) {
       streamAbortRef.current.abort();
@@ -1920,7 +2227,11 @@ function DrawioPageContent() {
     }]);
   };
 
-  const performSendMessage = async (displayContent: string, canvasContext: StructuredCanvasContext = {}) => {
+  const performSendMessage = async (
+    displayContent: string,
+    canvasContext: StructuredCanvasContext = {},
+    options: SendContentOptions = {},
+  ) => {
     if (!selectedAgentId) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -1934,10 +2245,13 @@ function DrawioPageContent() {
 
     setIsSending(true);
 
+    // Freeze the composer selection for this message before any asynchronous request work starts.
+    const turnAttachments = conversationAttachments.map(attachment => ({ ...attachment }));
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: displayContent,
+      attachments: turnAttachments,
       timestamp: Date.now()
     };
     
@@ -1955,6 +2269,14 @@ function DrawioPageContent() {
     };
 
     setMessages(prev => [...prev, userMsg, initialAgentMsg]);
+    const sentUploadIds = turnAttachments.map(attachment => attachment.uploadId);
+    setSentAttachmentUploadIds(previous => [...new Set([...previous, ...sentUploadIds])]);
+    // Sending consumes the draft immediately; later upload polling must not recreate composer cards.
+    setConversationAttachments([]);
+    const activeAttachmentSessionId = sessionId.trim();
+    if (activeAttachmentSessionId) {
+      writeConversationAttachments(window.sessionStorage, activeAttachmentSessionId, []);
+    }
     let activeAiMutationDiagramId: string | undefined;
 
     try {
@@ -1977,12 +2299,10 @@ function DrawioPageContent() {
       // 2. Send Message via Stream
       let activeStreamPhase = 'connecting';
       let activeRouteType: string | undefined;
+      let activeSourceUse: string | undefined;
       let sourceRunId = '';
       let postDrawReviewPromise: Promise<void> | null = null;
-      let activeStepKey = '';
       let lastStepSnapshot = '';
-      const phaseVisitCounts: Record<string, number> = {};
-      const repeatableStepPhases = new Set(['drawing', 'reviewing', 'revising']);
 
       // Track the current streamed draft. Each draw pass replaces the previous draft.
       let nodeCount = 0;
@@ -1993,6 +2313,7 @@ function DrawioPageContent() {
       let requestedMoreInfo = false;
       let receivedDrawioDone = false;
       let receivedVersionConflict = false;
+      let receivedStreamError = false;
       let completionMessageAdded = false;
       let emptyResponseMessageAdded = false;
       let previewSkeletonXml = '';
@@ -2012,9 +2333,18 @@ function DrawioPageContent() {
       let eventSequence = 0;
 
       // Helper to update steps
-      const updateStep = (stepKey: string, phaseStr: string, phaseText: string, contentToAdd: string, isDone: boolean = false, replaceContent: boolean = false) => {
-          const stepIndex = accumulatedSteps.findIndex(s => (s.id || s.phase) === stepKey);
+      const updateStep = (phaseStr: string, contentToAdd: string, isDone: boolean = false, replaceContent: boolean = false) => {
+          const projected = projectUserExecutionStep({
+            phase: phaseStr,
+            routeType: activeRouteType,
+            sourceUse: activeSourceUse,
+            useChinese,
+          });
+          const projectedKey = projected.key;
+          const stepIndex = accumulatedSteps.findIndex(s => (s.id || s.phase) === projectedKey);
           if (stepIndex >= 0) {
+              accumulatedSteps[stepIndex].phase = projected.phase;
+              accumulatedSteps[stepIndex].label = projected.label;
               if (contentToAdd) {
                   if (replaceContent) {
                       accumulatedSteps[stepIndex].content = contentToAdd + '\n';
@@ -2024,33 +2354,24 @@ function DrawioPageContent() {
               }
               if (isDone) {
                   accumulatedSteps[stepIndex].status = 'done';
+              } else if (projected.phase !== 'analysis' || accumulatedSteps[stepIndex].status !== 'done') {
+                  // Retries and bounded repairs update their existing row instead of adding another step.
+                  accumulatedSteps.forEach((step, index) => {
+                    if (index !== stepIndex && step.status === 'running') step.status = 'done';
+                  });
+                  accumulatedSteps[stepIndex].status = 'running';
               }
           } else {
               // Mark previous running steps as done
               accumulatedSteps.forEach(s => { if (s.status === 'running') s.status = 'done'; });
               accumulatedSteps.push({
-                  id: stepKey,
-                  phase: phaseStr,
-                  label: phaseText,
+                  id: projectedKey,
+                  phase: projected.phase,
+                  label: projected.label,
                   content: contentToAdd ? contentToAdd + '\n' : '',
                   status: isDone ? 'done' : 'running'
               });
           }
-      };
-
-      const ensurePhaseStep = (phaseStr: string, phaseText: string) => {
-        if (phaseStr !== activeStreamPhase || !activeStepKey) {
-          phaseVisitCounts[phaseStr] = (phaseVisitCounts[phaseStr] || 0) + 1;
-          activeStepKey = `${phaseStr}:${phaseVisitCounts[phaseStr]}`;
-        }
-
-        const visitCount = phaseVisitCounts[phaseStr] || 1;
-        const displayLabel = repeatableStepPhases.has(phaseStr) ? `${phaseText} ${visitCount}` : phaseText;
-
-        return {
-          key: activeStepKey,
-          label: displayLabel
-        };
       };
 
       const getVisibleStepDetail = (phaseStr: string, state?: 'loaded' | 'passed' | 'needs_attention') => {
@@ -2166,7 +2487,8 @@ function DrawioPageContent() {
       };
 
       const appendEmptyResponseMessage = () => {
-        if (emptyResponseMessageAdded || agentTextContent || hasIncrementalContent) return false;
+        // A structured or transport error is already the terminal response shown to the user.
+        if (emptyResponseMessageAdded || receivedStreamError || agentTextContent || hasIncrementalContent) return false;
         emptyResponseMessageAdded = true;
         const fallbackContent = cleanPlainTextFallback(plainTextFallbackContent);
         accumulatedContent += (accumulatedContent ? '\n\n' : '') + (fallbackContent || `⚠️ No valid response received. Please try again.`);
@@ -2191,44 +2513,28 @@ function DrawioPageContent() {
         : buildDiagramTitleFromPrompt(displayContent);
       let diagramTitlePersisted = false;
       let persistedDiagramId = diagramId;
-      let conversationPersisted = false;
 
-      const persistCurrentTurnConversation = () => {
-        if (conversationPersisted) return;
-        conversationPersisted = true;
-
-        const agentContent = (accumulatedContent || agentTextContent).trim();
-        if (!agentContent) return;
-
-        const messagesToPersist = [
-          userMsg,
-          {
-            ...initialAgentMsg,
-            content: agentContent,
-            timestamp: Date.now(),
-          },
-        ];
-
-        void (async () => {
-          await ensureConversationDiagramShell({
-            diagramId: persistedDiagramId,
-            title: diagramTitle,
-            canvasXml: canvasContext.canvasXml,
-            canvasVersion: latestCanvasVersion(
-              persistedDiagramId ? manualCanvasVersionsRef.current.get(persistedDiagramId) : undefined,
-              activeSession?.canvasVersion,
-            ),
-            hasConversationMessages: messagesToPersist.some(message => Boolean(message.content.trim())),
-          });
-          await persistDiagramMessages(persistedDiagramId, activeBackendSessionId, messagesToPersist);
-        })();
-      };
+      const diagramPrepared = await ensureConversationDiagramShell({
+        diagramId,
+        title: diagramTitle,
+        canvasXml: canvasContext.canvasXml,
+        canvasVersion: latestCanvasVersion(
+          diagramId ? manualCanvasVersionsRef.current.get(diagramId) : undefined,
+          activeSession?.canvasVersion,
+        ),
+        hasConversationMessages: true,
+      });
+      if (!diagramPrepared) {
+        throw new Error('TURN_DIAGRAM_PREPARATION_FAILED');
+      }
 
       const requestPayload = buildDrawioChatRequestPayload({
           agentId: selectedAgentId,
           userId: currentUser,
           sessionId: activeBackendSessionId,
-          userMessage: displayContent,
+          clientMessageId: userMsg.id,
+          responseMessageId: agentMsgId,
+          userMessage: options.requestContent || displayContent,
           diagramId,
           expectedVersion: latestCanvasVersion(
             diagramId ? manualCanvasVersionsRef.current.get(diagramId) : undefined,
@@ -2240,11 +2546,18 @@ function DrawioPageContent() {
           canvasImageDataUrl: canvasContext.canvasImageDataUrl,
           canvasImageRendererVersion: canvasContext.canvasImageRendererVersion,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
+          directClarifications: options.directClarifications,
+          directConfirmationSourceVersionId: options.directConfirmationSourceVersionId,
+          currentTurnAttachmentRefs: turnAttachments.map(attachment => attachment.uploadId),
+          memoryChartbookId: filesChartbook?.chartbookId,
+          selectedLibraryVersionIds: librarySelections.map(selection => selection.versionId),
+          selectedCellIds: selectedCellsRef.current?.cellIds,
+          selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
+          selectionContentHash: selectedCellsRef.current?.contentHash,
           maxDeterministicRepairRounds,
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined,
           conversationMessages: messages,
       });
-
       type ReviewStreamOutcome = {
         decision?: string;
         visualReviewRunId?: string;
@@ -2359,7 +2672,6 @@ function DrawioPageContent() {
         new Promise<ReviewStreamOutcome>(resolve => {
           const outcome: ReviewStreamOutcome = {};
           const reviewKeySuffix = `${reviewRequest.stage}:${reviewRequest.visualRepairRound}`;
-          const reviewStepKey = `visual-review:${reviewKeySuffix}`;
           const repairStepKey = `visual-repair:${reviewRequest.visualRepairRound + 1}`;
           const reviewStepLabel = visualReviewStageLabel(reviewRequest.stage, useChinese);
           let settled = false;
@@ -2379,7 +2691,7 @@ function DrawioPageContent() {
           };
           const finishRepairWithoutSave = (detail: string) => {
             if (outcome.decision !== 'REPAIR') return;
-            updateStep(repairStepKey, 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), detail, true, true);
+            updateStep('visual_repair', detail, true, true);
             publishSteps();
             upsertRunEvent(repairStepKey, {
               phase: 'revising',
@@ -2400,7 +2712,7 @@ function DrawioPageContent() {
             };
             recordVisualReview(unavailableReview);
             const detail = buildVisualReviewStepDetail({ ...unavailableReview, useChinese });
-            updateStep(reviewStepKey, 'visual_review', reviewStepLabel, detail, true, true);
+            updateStep('visual_review', detail, true, true);
             publishSteps();
             upsertRunEvent(`visual-review:${reviewKeySuffix}`, {
               phase: 'reviewing',
@@ -2421,7 +2733,7 @@ function DrawioPageContent() {
                 return;
               }
               if (chunk.type === 'review_started') {
-                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, '', false, true);
+                updateStep('visual_review', '', false, true);
                 publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage}:${chunk.visualRepairRound ?? reviewRequest.visualRepairRound}`, {
                   phase: 'reviewing',
@@ -2449,7 +2761,7 @@ function DrawioPageContent() {
                   beginAiCanvasMutationForDiagram(reviewRequest.diagramId);
                 }
                 const reviewDetail = buildVisualReviewStepDetail({ ...review, useChinese });
-                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, reviewDetail, true, true);
+                updateStep('visual_review', reviewDetail, true, true);
                 publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage || reviewRequest.stage}:${chunk.visualRepairRound ?? reviewRequest.visualRepairRound}`, {
                   phase: 'reviewing',
@@ -2461,7 +2773,7 @@ function DrawioPageContent() {
                 if (chunk.decision === 'REPAIR') {
                   const repairStepLabel = visualReviewStageLabel('REPAIR', useChinese);
                   const repairDetail = buildVisualRepairStepDetail({ issues: chunk.issues, useChinese });
-                  updateStep(repairStepKey, 'visual_repair', repairStepLabel, repairDetail, false, true);
+                  updateStep('visual_repair', repairDetail, false, true);
                   publishSteps();
                   upsertRunEvent(repairStepKey, {
                     phase: 'revising',
@@ -2484,7 +2796,7 @@ function DrawioPageContent() {
                 };
                 recordVisualReview(staleReview);
                 const staleDetail = buildVisualReviewStepDetail({ ...staleReview, useChinese });
-                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, staleDetail, true, true);
+                updateStep('visual_review', staleDetail, true, true);
                 publishSteps();
                 upsertRunEvent(`visual-review:${reviewKeySuffix}`, {
                   phase: 'reviewing',
@@ -2520,7 +2832,7 @@ function DrawioPageContent() {
                 const repairCompletedDetail = useChinese
                   ? '已完成一轮局部视觉修复，并重新加载画布。'
                   : 'Completed one local visual repair and reloaded the canvas.';
-                updateStep(repairStepKey, 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), repairCompletedDetail, true, true);
+                updateStep('visual_repair', repairCompletedDetail, true, true);
                 publishSteps();
                 upsertRunEvent(repairStepKey, {
                   phase: 'revising',
@@ -2585,19 +2897,19 @@ function DrawioPageContent() {
           canvasXml: string,
           stage: VisualReviewPresentation['stage'],
           repairRound: number,
-          version: number,
         ) => {
           const stepKey = `visual-evidence:${repairRound}`;
           const label = useChinese ? '准备视觉证据' : 'Prepare visual evidence';
-          updateStep(stepKey, 'visual_evidence', label, '', false, true);
+          updateStep('visual_evidence', '', false, true);
           publishSteps();
           try {
             const evidence = await exportVisualReviewEvidence(diagramId, canvasXml);
             const detailCount = evidence.additionalAfterImages.filter(item => item.role === 'DETAIL_TILE').length;
+            const reviewedPageCount = evidence.totalPageCount - evidence.truncatedPageCount;
             const detail = useChinese
-              ? `已为版本 ${version} 导出 ${evidence.totalPageCount - evidence.truncatedPageCount}/${evidence.totalPageCount} 页概览${detailCount ? `和 ${detailCount} 张高清局部图` : ''}。`
-              : `Exported ${evidence.totalPageCount - evidence.truncatedPageCount}/${evidence.totalPageCount} page overviews for version ${version}${detailCount ? ` plus ${detailCount} high-resolution detail tiles` : ''}.`;
-            updateStep(stepKey, 'visual_evidence', label, detail, true, true);
+              ? `已准备 ${reviewedPageCount} 页画布预览${detailCount ? `和 ${detailCount} 张局部图` : ''}，正在检查布局与连线。`
+              : `Prepared ${reviewedPageCount} canvas preview page${reviewedPageCount === 1 ? '' : 's'}${detailCount ? ` and ${detailCount} detail image${detailCount === 1 ? '' : 's'}` : ''} to check layout and connectors.`;
+            updateStep('visual_evidence', detail, true, true);
             publishSteps();
             upsertRunEvent(stepKey, {
               phase: 'reviewing',
@@ -2616,7 +2928,7 @@ function DrawioPageContent() {
             };
             recordVisualReview(review);
             const detail = buildVisualReviewStepDetail({ ...review, useChinese });
-            updateStep(stepKey, 'visual_evidence', label, detail, true, true);
+            updateStep('visual_evidence', detail, true, true);
             publishSteps();
             upsertRunEvent(stepKey, {
               phase: 'reviewing',
@@ -2636,7 +2948,6 @@ function DrawioPageContent() {
           finalCanvasXml,
           'POST_MUTATION',
           0,
-          finalVersion,
         );
         if (!evidence) return;
 
@@ -2677,7 +2988,6 @@ function DrawioPageContent() {
             repaired.canvasXml,
             nextStage,
             completedRepairRounds,
-            repaired.version,
           );
           if (!evidence) return;
           reviewRequest = buildCanvasVisualReviewRequest({
@@ -2720,16 +3030,37 @@ function DrawioPageContent() {
           if (chunk.type === 'route') {
             // The router has selected the work path, so label the next visible steps accordingly.
             activeRouteType = chunk.routeType;
+            activeSourceUse = chunk.sourceUse;
             setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, routeType: activeRouteType } : m));
-            const routeStepLabel = thinkingPhaseLabel(activeRouteType, 'analyzing', useChinese);
             const routeDetail = buildRouteStepDetail({
               routeType: chunk.routeType,
               diagramType: chunk.diagramType,
               skillName: chunk.skillName,
+              sourceUse: chunk.sourceUse,
               useChinese,
             });
-            updateStep('route', 'analyzing', routeStepLabel, routeDetail, true, true);
+            const contextReceipts = buildContextReceipts({
+              location: filesChartbook
+                ? { kind: 'CHARTBOOK', label: filesChartbook.name }
+                : { kind: 'STANDALONE' },
+              attachments: [
+                ...turnAttachments.map(attachment => ({
+                  label: attachment.fileName,
+                  state: attachment.state,
+                })),
+                ...librarySelections.map(selection => ({
+                  label: selection.displayName,
+                  state: 'READY',
+                })),
+              ],
+              sourceUse: chunk.sourceUse,
+              useChinese,
+            });
+            updateStep('analyzing', routeDetail, true, true);
             publishSteps();
+            setMessages(prev => prev.map(m => m.id === agentMsgId
+              ? { ...m, contextReceipts }
+              : m));
             upsertRunEvent('route', {
               phase: 'analyzing',
               title: 'Intent Router',
@@ -2740,13 +3071,28 @@ function DrawioPageContent() {
             return;
           }
           // Update phase display
-          const currentPhaseLabel = thinkingPhaseLabel(activeRouteType, phase, useChinese);
+          const currentPhaseLabel = projectUserExecutionStep({
+            phase,
+            routeType: activeRouteType,
+            sourceUse: activeSourceUse,
+            useChinese,
+          }).label;
           let currentStep: { key: string; label: string } = { key: phase, label: currentPhaseLabel };
 
-          if (phase !== 'done' && phase !== 'error') {
+          // A drawing turn may send its final assistant text in the answer phase after the canvas
+          // is complete; that terminal copy must not relabel the generation step as an answer task.
+          const shouldTrackPhase = phase !== 'done'
+            && phase !== 'error'
+            && !(phase === 'answer' && receivedDrawioDone);
+          if (shouldTrackPhase) {
             const previousPhase = activeStreamPhase;
-            currentStep = ensurePhaseStep(phase, currentPhaseLabel);
-            updateStep(currentStep.key, phase, currentStep.label, getVisibleStepDetail(phase), false, true);
+            currentStep = projectUserExecutionStep({
+              phase,
+              routeType: activeRouteType,
+              sourceUse: activeSourceUse,
+              useChinese,
+            });
+            updateStep(phase, getVisibleStepDetail(phase), false, true);
             if (phase !== previousPhase) {
               finishEventsBeforePhase(phase);
               const phaseEvent = phaseRunEvent[phase] || phaseRunEvent.thinking;
@@ -2777,7 +3123,7 @@ function DrawioPageContent() {
               previewSkeletonXml = chunk.content;
               nodeCount = previewCounts.nodes;
               edgeCount = previewCounts.edges;
-              updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
+              updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
               upsertRunEvent('drawio:stream', {
                 phase: 'drawing',
                 title: 'Update canvas preview',
@@ -2816,7 +3162,7 @@ function DrawioPageContent() {
                   accumulatedNodes.push(chunk.xml);
                   hasIncrementalContent = true;
                   nodeCount = countDrawableCells(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml)).nodes;
-                  updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
+                  updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
                   upsertRunEvent('drawio:stream', {
                     phase: 'drawing',
                     title: 'Update canvas preview',
@@ -2854,7 +3200,7 @@ function DrawioPageContent() {
                   accumulatedEdges.push(chunk.xml);
                   hasIncrementalContent = true;
                   edgeCount = countDrawableCells(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml)).edges;
-                  updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
+                  updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
                   upsertRunEvent('drawio:stream', {
                     phase: 'drawing',
                     title: 'Update canvas preview',
@@ -2897,7 +3243,7 @@ function DrawioPageContent() {
                 edges: edgeCount,
               });
               finishCanvasLoadEvents();
-              updateStep(currentStep.key, phase, currentStep.label, getVisibleStepDetail(phase, 'loaded'), true, true);
+              updateStep(phase, getVisibleStepDetail(phase, 'loaded'), true, true);
               publishSteps();
 
               // Reviewer may send the polished final diagram after the drawing stage.
@@ -2923,6 +3269,7 @@ function DrawioPageContent() {
                   contentHash: chunk.contentHash,
                 });
                 persistedDiagramId = chunk.diagramId || persistedDiagramId;
+                void assignPendingChartbookAfterSave(persistedDiagramId || '');
                 queueDiagramThumbnailExport(persistedDiagramId, finalXml);
                 if (!diagramTitlePersisted) {
                   diagramTitlePersisted = true;
@@ -3050,6 +3397,131 @@ function DrawioPageContent() {
               break;
             }
 
+            case 'evidence_progress': {
+              const progressCompleted = Math.max(0, chunk.completed);
+              const progressTotal = Math.max(0, chunk.total);
+              const progressDone = progressTotal > 0 && progressCompleted >= progressTotal;
+              const detail = useChinese
+                ? progressDone
+                  ? `所需内容已准备完成（${progressCompleted}/${progressTotal}）。`
+                  : `正在准备所需内容（${progressCompleted}/${progressTotal}）。`
+                : progressDone
+                  ? `Required inputs are ready (${progressCompleted}/${progressTotal}).`
+                  : `Preparing required inputs (${progressCompleted}/${progressTotal}).`;
+              updateStep('retrieval', detail, progressDone, true);
+              publishSteps();
+              upsertRunEvent(`retrieval:${chunk.stage}`, {
+                phase: 'retrieval',
+                title: 'Prepare evidence',
+                detail,
+                status: chunk.total > 0 && chunk.completed >= chunk.total ? 'done' : 'running',
+                tone: 'analysis',
+              });
+              break;
+            }
+
+            case 'direct_confirmation_required': {
+              const reasons = Array.from(new Set((chunk.reasons || []).filter(Boolean))).slice(0, 5);
+              const issueByReason = new Map((chunk.issues || []).map(issue => [
+                issue.reasonCode,
+                issue,
+              ]));
+              if (reasons.length > 0 && chunk.sourceVersionId) {
+                setDirectConfirmation({
+                  issues: reasons.map(reasonCode => (
+                    issueByReason.get(reasonCode) || { reasonCode }
+                  )),
+                  sourceVersionId: chunk.sourceVersionId,
+                  originalPrompt: options.requestContent || displayContent,
+                  selections: {},
+                });
+              }
+              const clarificationContent = normalizeAgentDisplayContent(chunk.content || '');
+              if (clarificationContent) {
+                accumulatedContent += (accumulatedContent ? '\n\n' : '') + clarificationContent;
+                setMessages(prev => prev.map(m => m.id === agentMsgId
+                  ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] }
+                  : m));
+              }
+              upsertRunEvent('direct-confirmation', {
+                phase: 'drawing',
+                title: '等待图片确认',
+                detail: clarificationContent,
+                status: 'warning',
+                tone: 'validation',
+              });
+              break;
+            }
+
+            case 'source_wait_started':
+            case 'source_not_ready':
+            case 'source_clarification':
+            case 'claim_clarification':
+            case 'degraded':
+            case 'stale_canvas_selection':
+            case 'grounding_rejected': {
+              if (chunk.type === 'stale_canvas_selection') {
+                // A stale tuple cannot be highlighted or reused; wait for a fresh bridge selection.
+                selectedCellsRef.current = null;
+                setTargetClarification(null);
+              }
+              const displayContent = normalizeAgentDisplayContent(chunk.content || '');
+              if (displayContent) {
+                agentTextContent += displayContent;
+                accumulatedContent += (accumulatedContent ? '\n\n' : '') + displayContent;
+                setMessages(prev => prev.map(m => m.id === agentMsgId
+                  ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] }
+                  : m));
+              }
+              upsertRunEvent(`retrieval:${chunk.type}`, {
+                phase: 'retrieval',
+                title: chunk.type,
+                detail: displayContent,
+                status: chunk.type === 'source_wait_started' ? 'running' : 'warning',
+                tone: 'analysis',
+              });
+              break;
+            }
+
+            case 'target_clarification': {
+              const candidates = chunk.candidates || [];
+              setTargetClarification({
+                candidates,
+                canvasVersion: chunk.canvasVersion,
+                contentHash: chunk.contentHash,
+              });
+              const highlightIds = candidates.map(candidate => candidate.cellId).filter(Boolean);
+              if (highlightIds.length > 0) {
+                drawioRef.current?.highlightCells(highlightIds, chunk.canvasVersion, chunk.contentHash);
+              }
+              const displayContent = normalizeAgentDisplayContent(chunk.content || '');
+              accumulatedContent += (accumulatedContent ? '\n\n' : '') + displayContent;
+              setMessages(prev => prev.map(m => m.id === agentMsgId
+                ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] }
+                : m));
+              break;
+            }
+
+            case 'evidence_answer': {
+              accumulatedContent = normalizeAgentDisplayContent(chunk.content || '');
+              agentTextContent = accumulatedContent;
+              setMessages(prev => prev.map(m => m.id === agentMsgId
+                ? {
+                    ...m,
+                    id: chunk.messageId || m.id,
+                    content: accumulatedContent,
+                    evidenceSources: chunk.sources || [],
+                    evidenceClaims: chunk.claims || [],
+                    citationReceipt: buildCitationReceipt(
+                      new Set((chunk.claims || []).flatMap(claim => claim.citationKeys || [])).size,
+                      useChinese,
+                    ),
+                    steps: markStepsDone(m.steps),
+                  }
+                : m));
+              break;
+            }
+
             case 'review_result': {
               const review: VisualReviewPresentation = {
                 stage: chunk.stage || 'CURRENT_CANVAS',
@@ -3068,17 +3540,22 @@ function DrawioPageContent() {
                 nodes: nodeCount,
                 edges: edgeCount,
               });
-              updateStep(currentStep.key, 'reviewing', currentStep.label, reviewDetail, true, true);
+              updateStep('reviewing', reviewDetail, true, true);
               publishSteps();
               break;
             }
 
             case 'validation_result': {
               const validationStatus = getValidationStatus(chunk);
+              const validationDetail = validationStatus === 'done'
+                ? (useChinese ? '图表结构检查通过。' : 'Diagram structure check passed.')
+                : (useChinese ? '图表结构检查发现需要注意的问题。' : 'The diagram structure check found issues that need attention.');
+              updateStep('reviewing', validationDetail, true, true);
+              publishSteps();
               upsertRunEvent('validation:result', {
                 phase: 'reviewing',
                 title: 'validate_diagram',
-                detail: validationStatus === 'done' ? 'Diagram structure looks valid.' : 'Validation needs attention.',
+                detail: validationDetail,
                 status: validationStatus,
                 tone: 'validation',
                 tool: 'validate_diagram',
@@ -3159,8 +3636,11 @@ function DrawioPageContent() {
             }
 
             case 'error': {
+              receivedStreamError = true;
               const isQuotaError = isDemoQuotaErrorCode(chunk.code);
-              const errorContent = isQuotaError ? quotaExhaustedMessageForCode(chunk.code) : chunk.content;
+              const errorContent = isQuotaError
+                ? quotaExhaustedMessageForCode(chunk.code)
+                : streamErrorMessage(chunk.code || chunk.content, useChinese);
               if (isQuotaError) {
                 setCurrentAccount(prev => markDemoQuotaExhausted(prev));
                 void refreshCurrentAccount();
@@ -3191,13 +3671,13 @@ function DrawioPageContent() {
               } else if (!appendCompletionMessage() && !appendEmptyResponseMessage()) {
                 setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, steps: [...accumulatedSteps] } : m));
               }
-              persistCurrentTurnConversation();
               break;
             }
           }
         },
         // onError
         (error: Error) => {
+          receivedStreamError = true;
           if (activeAiMutationDiagramId) {
             finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
           }
@@ -3206,7 +3686,7 @@ function DrawioPageContent() {
           
           // Only show error message if we didn't receive any content and it's not an AbortError
           if (error.name !== 'AbortError' && !hasIncrementalContent && !agentTextContent && nodeCount === 0) {
-              accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ Connection error: ${error.message}`;
+              accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ ${streamErrorMessage(error, useChinese)}`;
               setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: m.steps?.map(s => ({...s, status: 'done'})) } : m));
           } else {
               // If we already had content, just mark steps as done gracefully
@@ -3234,7 +3714,6 @@ function DrawioPageContent() {
                     return m;
                 }));
             }
-            persistCurrentTurnConversation();
           };
           if (postDrawReviewPromise) {
             void postDrawReviewPromise.finally(finishFullRun);
@@ -3243,7 +3722,6 @@ function DrawioPageContent() {
           }
         }
       );
-
       streamAbortRef.current = controller;
 
     } catch (error) {
@@ -3255,15 +3733,20 @@ function DrawioPageContent() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'agent',
-        content: error instanceof Error ? `Error: ${error.message}` : 'Failed to send. Please try again.',
+        content: streamErrorMessage(error, useChinese),
         timestamp: Date.now()
       }]);
       setIsSending(false);
     }
   };
 
-  const sendContent = async (content: string) => {
+  const sendContent = async (content: string, options: SendContentOptions = {}) => {
     if (!content.trim() || isSending) return;
+    const activeSession = sessionsRef.current.find(session => session.id === currentSessionRef.current);
+    if (!isDiagramRouteReady(restoreDiagramId, activeSession?.diagramId)) {
+      // Never fall back to another local session while a URL-targeted diagram is unavailable.
+      return;
+    }
     if (demoQuotaState.exhausted) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -3276,9 +3759,8 @@ function DrawioPageContent() {
 
     setIsSending(true);
 
-    const activeSession = sessionsRef.current.find(session => session.id === currentSessionRef.current);
     if (!drawioRef.current || !isDrawIoReady || !activeSession) {
-      await performSendMessage(content);
+      await performSendMessage(content, {}, options);
       return;
     }
 
@@ -3336,19 +3818,76 @@ function DrawioPageContent() {
       console.warn('Canvas context export failed; using the latest stored canvas:', error);
     }
 
-    await performSendMessage(content, canvasContext);
+    await performSendMessage(content, canvasContext, options);
+  };
+
+  const handleDirectConfirmation = () => {
+    if (!directConfirmation || isSending) return;
+    const clarifications = buildDirectClarifications(
+      directConfirmation.issues,
+      directConfirmation.selections,
+    );
+    if (!clarifications) return;
+    const originalPrompt = directConfirmation.originalPrompt;
+    setDirectConfirmation(null);
+    void sendContent('已确认图片中的不确定项，请继续转换。', {
+      requestContent: originalPrompt,
+      directClarifications: clarifications,
+      directConfirmationSourceVersionId: directConfirmation.sourceVersionId,
+    });
+  };
+
+  const initializeAttachmentSession = async () => {
+    if (sessionId) return sessionId;
+    if (!selectedAgentId || !currentUser) return null;
+    try {
+      const created = await agentApi.createSession(selectedAgentId, currentUser);
+      setSessionId(created.data.sessionId);
+      return created.data.sessionId;
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: `${Date.now()}-attachment-session`,
+        role: 'agent',
+        content: error instanceof Error ? `无法创建附件会话：${error.message}` : '无法创建附件会话，请重试。',
+        timestamp: Date.now(),
+      }]);
+      return null;
+    }
+  };
+
+  const attachLibrarySelection = async (selection: ConversationLibrarySelection) => {
+    const librarySessionId = await initializeAttachmentSession();
+    if (!librarySessionId) throw new Error('无法创建附件会话，请重试。');
+    const currentSelections = librarySelectionSessionLoaded === librarySessionId
+      ? librarySelections
+      : readConversationLibrarySelections(window.localStorage, librarySessionId);
+    if (currentSelections.some(item => item.versionId === selection.versionId)) return;
+    if (currentSelections.length >= MAX_CONVERSATION_LIBRARY_SELECTIONS) {
+      throw new Error(`每个对话最多可选择 ${MAX_CONVERSATION_LIBRARY_SELECTIONS} 个资料库文件。`);
+    }
+    const nextSelections = [...currentSelections, selection];
+    // Persist immediately so a newly created session cannot race with its session-load effect.
+    writeConversationLibrarySelections(window.localStorage, librarySessionId, nextSelections);
+    setLibrarySelections(nextSelections);
+    setLibrarySelectionSessionLoaded(librarySessionId);
+  };
+
+  const removeLibrarySelection = (versionId: string) => {
+    setLibrarySelections(current => current.filter(selection => selection.versionId !== versionId));
   };
 
   const handleSendMessage = async () => {
+    if (hasProcessingAttachments) return;
     const content = inputValue;
     // Capture user-picked skills for this message, then clear the chips.
     pendingSkillsRef.current = [...selectedSkills];
     setInputValue('');
     setSelectedSkills([]);
     setSlashOpen(false);
+    setDirectConfirmation(null);
     // Reset textarea height
     const textarea = promptInputRef.current;
-    if (textarea) textarea.style.height = '80px';
+    if (textarea) textarea.style.height = `${COMPOSER_TEXTAREA_MIN_HEIGHT_PX}px`;
     sendContent(content);
   };
 
@@ -3372,8 +3911,30 @@ function DrawioPageContent() {
     { label: 'Architecture', text: 'Create an architecture diagram' },
     { label: 'Flowchart', text: 'Create a flowchart' }
   ];
+  const filesPanelGroups = buildFilesPanelGroups({
+    hasChartbook: filesChartbook !== null,
+    conversationFiles,
+    chartbookFiles,
+  });
+  const runFileAction = async (file: MaterialCatalogCard, action: () => Promise<unknown>) => {
+    setBusyFileId(file.materialId);
+    setFilesError('');
+    try {
+      await action();
+      await refreshFilesPanel();
+    } catch (error) {
+      console.warn('Files action failed:', error);
+      setFilesError('File action failed. Please try again.');
+    } finally {
+      setBusyFileId('');
+    }
+  };
+  const openFileUrl = (url: string) => {
+    // The API response controls Content-Disposition; storage identities never reach the browser.
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
   const historyEntries = buildDiagramHistoryEntries(historyDiagrams);
-  const currentDiagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
+  const activeCanvasSession = sessions.find(session => session.id === currentSessionId);
   const formatHistoryUpdatedAt = (updatedAtMs: number) => {
     if (!updatedAtMs) return 'No updates yet';
     return `${new Date(updatedAtMs).toLocaleDateString()} ${new Date(updatedAtMs).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
@@ -3385,12 +3946,13 @@ function DrawioPageContent() {
       <aside className="fixed inset-x-0 bottom-0 z-50 flex h-14 w-full shrink-0 flex-row items-center justify-around gap-2 border-t border-stone-200 bg-[var(--app-bg)] px-3 py-2 text-zinc-500 sm:relative sm:inset-auto sm:z-30 sm:h-auto sm:w-14 sm:flex-col sm:justify-start sm:border-r sm:border-t-0 sm:px-2 sm:py-3">
         <button
           type="button"
-          onClick={() => { window.location.href = '/diagrams'; }}
+          onClick={handleBackToSourcePage}
+          aria-label="Back to previous page"
           className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-lg bg-zinc-700 shadow-sm sm:h-9 sm:w-9"
-          title="Diagram home"
+          title="Back to previous page"
         >
           {/* Match the shared app logo used on the home and auth pages. */}
-          <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
+          <Image src="/brand/freedraw-app-icon-brush.png" alt="" fill sizes="36px" className="object-cover" priority />
         </button>
         <button
           type="button"
@@ -3402,7 +3964,10 @@ function DrawioPageContent() {
         </button>
         <button
           type="button"
-          onClick={() => setIsSidebarOpen(prev => !prev)}
+          onClick={() => {
+            setIsSidebarOpen(prev => !prev);
+            setIsFilesPanelOpen(false);
+          }}
           className={`grid h-10 w-10 place-items-center rounded-lg border transition sm:h-9 sm:w-9 ${
             isSidebarOpen
               ? 'border-stone-300 bg-white text-zinc-800 shadow-sm'
@@ -3411,6 +3976,24 @@ function DrawioPageContent() {
           title="Diagram history"
         >
           <Icons.MessageSquare className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsFilesPanelOpen(prev => !prev);
+            setIsSidebarOpen(false);
+          }}
+          className={`grid h-10 w-10 place-items-center rounded-lg border transition sm:h-9 sm:w-9 ${
+            isFilesPanelOpen
+              ? 'border-stone-300 bg-white text-zinc-800 shadow-sm'
+              : 'border-transparent text-zinc-500 hover:bg-white hover:text-zinc-800 hover:shadow-sm'
+          }`}
+          title="Files"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h6l2 2h8v14H4z" />
+          </svg>
         </button>
         <button
           type="button"
@@ -3581,6 +4164,74 @@ function DrawioPageContent() {
         </div>
       )}
 
+      {isFilesPanelOpen && (
+        <FilesPanel
+          groups={filesPanelGroups}
+          uploads={conversationAttachments}
+          chartbookName={filesChartbook?.name}
+          loading={isFilesLoading}
+          error={filesError}
+          disabled={isSending || !selectedAgentId || !isRequestedDiagramReady}
+          busyMaterialId={busyFileId}
+          onClose={() => setIsFilesPanelOpen(false)}
+          onUpload={() => attachmentUploaderRef.current?.openPicker()}
+          onRetryUpload={upload => {
+            attachmentUploaderRef.current?.retryUpload(upload.uploadId);
+          }}
+          onPreview={file => {
+            if (!file.latestVersionId) return;
+            openFileUrl(materialClient.previewUrl(file.materialId, file.latestVersionId));
+          }}
+          onDownload={file => {
+            if (!file.latestVersionId) return;
+            openFileUrl(materialClient.downloadUrl(file.materialId, file.latestVersionId));
+          }}
+          onAddToChartbook={file => {
+            if (!filesChartbook) return;
+            void runFileAction(file, () => chartbookClient.addFile(
+              filesChartbook.chartbookId, file.materialId, crypto.randomUUID(),
+            ));
+          }}
+          onRemoveFromConversation={file => {
+            void runFileAction(file, async () => {
+              if (file.retentionClass === 'TEMPORARY') {
+                await materialClient.remove(file.materialId, crypto.randomUUID());
+                setConversationAttachments(previous => previous.filter(
+                  attachment => attachment.materialId !== file.materialId,
+                ));
+                return;
+              }
+              const details = await materialClient.details(file.materialId);
+              const conversationScope = details.scopes.find(scope => (
+                scope.scopeType === 'CONVERSATION' && scope.scopeKey === sessionId
+              ));
+              if (!conversationScope) return;
+              if (details.scopes.length > 1) {
+                await materialClient.removeScope(file.materialId, conversationScope.linkId);
+                setConversationAttachments(previous => previous.filter(
+                  attachment => attachment.materialId !== file.materialId,
+                ));
+                return;
+              }
+              // A sole conversation scope has no other consumer, so normal recycle semantics apply.
+              await materialClient.remove(file.materialId, crypto.randomUUID());
+              setConversationAttachments(previous => previous.filter(
+                attachment => attachment.materialId !== file.materialId,
+              ));
+            });
+          }}
+          onRemoveFromChartbook={file => {
+            if (!filesChartbook) return;
+            void runFileAction(file, () => chartbookClient.removeFile(
+              filesChartbook.chartbookId, file.materialId, crypto.randomUUID(),
+            ));
+          }}
+          onRetry={file => {
+            void runFileAction(file, () => materialClient.reprocess(file.materialId, crypto.randomUUID()));
+          }}
+        />
+      )}
+
       {/* Main Layout */}
       <div className="flex flex-1 min-w-0 h-full overflow-hidden relative">
         {isResizingChat && (
@@ -3604,6 +4255,36 @@ function DrawioPageContent() {
             <DrawIoEmbed 
               key={editorInstanceKey}
               ref={drawioRef}
+              baseUrl={DRAWIO_BASE_URL}
+              selectionPluginId={DRAWIO_SELECTION_PLUGIN_ID}
+              canvasVersion={activeCanvasSession?.canvasVersion}
+              contentHash={activeCanvasSession?.canvasContentHash}
+              onSelectionChange={(selection) => {
+                // The tuple is sent to the server later; stale selections are never reduced to IDs alone.
+                selectedCellsRef.current = selection;
+                setTargetClarification(null);
+                const cellId = selection.cellIds[0];
+                const diagramId = activeCanvasSession?.diagramId;
+                const requestNumber = ++citationRequestRef.current;
+                setCitationCellId(cellId || null);
+                setCellCitations([]);
+                if (!cellId || !diagramId || !currentUser) {
+                  setCitationsLoading(false);
+                  return;
+                }
+                setCitationsLoading(true);
+                agentApi.getCellCitations(currentUser, diagramId, cellId, selection.canvasVersion,
+                  provenanceRefForCell(editorXml, cellId))
+                  .then(response => {
+                    if (requestNumber === citationRequestRef.current) setCellCitations(response.data || []);
+                  })
+                  .catch(() => {
+                    if (requestNumber === citationRequestRef.current) setCellCitations([]);
+                  })
+                  .finally(() => {
+                    if (requestNumber === citationRequestRef.current) setCitationsLoading(false);
+                  });
+              }}
               xml={editorXml}
               autosave={true}
               onAutoSave={(data) => {
@@ -3655,6 +4336,113 @@ function DrawioPageContent() {
               }}
             />
           </div>
+          {targetClarification && (
+            <aside className="absolute left-5 top-5 z-30 w-80 max-w-[calc(100%-2.5rem)] rounded-xl border border-amber-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Choose canvas target</p>
+                  <p className="text-xs text-zinc-500">Select one candidate, then resend the question.</p>
+                </div>
+                <button
+                  className="rounded p-1 text-zinc-400 hover:bg-stone-100 hover:text-zinc-700"
+                  onClick={() => {
+                    drawioRef.current?.highlightCells([], targetClarification.canvasVersion, targetClarification.contentHash);
+                    selectedCellsRef.current = null;
+                    setTargetClarification(null);
+                  }}
+                  title="Clear target candidates"
+                >
+                  <Icons.Close className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {targetClarification.candidates.filter(candidate => candidate.cellId).map(candidate => (
+                  <button
+                    key={candidate.cellId}
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 p-3 text-left hover:border-amber-300 hover:bg-amber-50"
+                    onClick={() => {
+                      selectedCellsRef.current = {
+                        cellIds: [candidate.cellId],
+                        canvasVersion: targetClarification.canvasVersion,
+                        contentHash: targetClarification.contentHash,
+                      };
+                      drawioRef.current?.highlightCells([candidate.cellId], targetClarification.canvasVersion,
+                        targetClarification.contentHash);
+                      setTargetClarification(null);
+                    }}
+                  >
+                    <p className="truncate text-sm font-medium text-zinc-800">{candidate.shortLabel || candidate.cellId}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{candidate.kind.toLowerCase()} · {candidate.reasonCode.toLowerCase()}</p>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
+          {directConfirmation && (
+            <DirectConfirmationPanel
+              issues={directConfirmation.issues}
+              selections={directConfirmation.selections}
+              onSelectionChange={(reasonCode, value) => setDirectConfirmation(current => (
+                current ? {
+                  ...current,
+                  selections: { ...current.selections, [reasonCode]: value },
+                } : null
+              ))}
+              onConfirm={handleDirectConfirmation}
+              onCancel={() => setDirectConfirmation(null)}
+              disabled={isSending}
+            />
+          )}
+          {citationCellId && (
+            <aside className="absolute bottom-5 right-5 z-30 w-80 max-w-[calc(100%-2.5rem)] rounded-xl border border-stone-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sources</p>
+                  <p className="max-w-56 truncate text-sm text-zinc-800">Cell {citationCellId}</p>
+                </div>
+                <button
+                  className="rounded p-1 text-zinc-400 hover:bg-stone-100 hover:text-zinc-700"
+                  onClick={() => { setCitationCellId(null); setCellCitations([]); }}
+                  title="Close sources"
+                >
+                  <Icons.Close className="h-4 w-4" />
+                </button>
+              </div>
+              {citationsLoading && <p className="text-xs text-zinc-500">Loading sources…</p>}
+              {!citationsLoading && cellCitations.length === 0 && (
+                <p className="text-xs leading-5 text-zinc-500">No source is attached to this cell.</p>
+              )}
+              <div className="max-h-64 space-y-3 overflow-y-auto">
+                {cellCitations.map(citation => (
+                  <div key={citation.citationId} className="rounded-lg bg-stone-50 p-3">
+                    <p className="text-xs font-medium text-zinc-700">{citation.supportType.replace('_', ' ')}</p>
+                    {citation.sources.map(source => (
+                      <div key={`${citation.citationId}:${source.citationKey}`} className="mt-2 border-t border-stone-200 pt-2 text-xs text-zinc-600">
+                        <p className="font-medium text-zinc-800">{source.displayName || 'Source unavailable'}</p>
+                        <p>
+                          {source.versionNo ? `v${source.versionNo}` : 'Version'}
+                          {source.pageNumber ? ` · page ${source.pageNumber}` : ''}
+                          {source.modality ? ` · ${source.modality.toLowerCase()}` : ''}
+                          {source.origin ? ` · ${citationOriginLabel(source.origin)}` : ''}
+                        </p>
+                        {source.sourceState === 'SOURCE_UNAVAILABLE' && (
+                          <p className="mt-1 text-amber-700">Source unavailable{source.deletedAt ? ` · deleted ${source.deletedAt}` : ''}</p>
+                        )}
+                        {source.boundedExcerpt && (
+                          <p className="mt-1 line-clamp-4 text-zinc-600">{source.boundedExcerpt}</p>
+                        )}
+                        {source.previewUrl && (
+                          <a className="mt-1 inline-block text-indigo-600 hover:underline" href={source.previewUrl} target="_blank" rel="noreferrer">
+                            Open bounded page preview
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </aside>
+          )}
         </div>
 
         {isChatOpen && (
@@ -3691,8 +4479,9 @@ function DrawioPageContent() {
             <Icons.Close className="w-5 h-5" />
           </button>
 
+          {/* Keep history independently scrollable so it ends above the fixed-size composer. */}
           {/* Messages Area */}
-          <div className="flex-1 space-y-6 overflow-y-auto bg-[var(--app-bg)] p-5 pr-14 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300">
+          <div className="min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto bg-[var(--app-bg)] p-5 pr-14 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300">
             {messages.map((msg, index) => {
               const isLatestRunningAgent = index === messages.length - 1 && isSending;
               const visibleExecutionSteps = getVisibleExecutionSteps(msg.steps, isLatestRunningAgent);
@@ -3705,7 +4494,7 @@ function DrawioPageContent() {
               return (
                 <div 
                   key={`${msg.id}-${index}`} 
-                  className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                  className={`flex min-w-0 gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                 >
                   <div className={`
                     shrink-0 w-8 h-8 flex items-center justify-center shadow-sm mt-1
@@ -3717,7 +4506,7 @@ function DrawioPageContent() {
                     {msg.role === 'user' ? <Icons.User className="w-5 h-5" /> : <Icons.Sparkles className="w-4 h-4" />}
                   </div>
 
-                  <div className="flex flex-col max-w-[85%] w-full">
+                  <div className="flex min-w-0 w-full max-w-[85%] flex-col">
                       <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                         {/* Show observable execution facts, not private model reasoning. */}
                         {hasThinking && (
@@ -3764,10 +4553,10 @@ function DrawioPageContent() {
                         {msg.content && (
                           <div 
                             className={`
-                                p-3.5 text-sm leading-relaxed shadow-sm w-fit
+                                min-w-0 max-w-full w-fit p-3.5 text-sm leading-relaxed shadow-sm [overflow-wrap:anywhere]
                                 ${msg.role === 'user'
                                 ? 'rounded-lg bg-zinc-700 text-white shadow-sm whitespace-pre-wrap'
-                                : 'rounded-lg border border-stone-200 bg-white text-zinc-700 shadow-sm prose prose-sm prose-zinc max-w-none overflow-x-auto prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1 prose-pre:my-2 prose-pre:bg-stone-100 prose-pre:text-zinc-700'
+                                : 'rounded-lg border border-stone-200 bg-white text-zinc-700 shadow-sm prose prose-sm prose-zinc overflow-hidden prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1 prose-pre:my-2 prose-pre:max-w-full prose-pre:overflow-x-auto prose-pre:bg-stone-100 prose-pre:text-zinc-700'
                                 }
                             `}
                           >
@@ -3777,6 +4566,52 @@ function DrawioPageContent() {
                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                             )}
                           </div>
+                        )}
+
+                        {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                          <div className="grid max-w-full grid-cols-1 justify-items-end gap-2">
+                            {msg.attachments.map(attachment => (
+                              <MessageAttachmentPreview
+                                key={attachment.uploadId}
+                                attachment={attachment}
+                                previewUrl={attachment.materialId && attachment.versionId
+                                  ? materialClient.previewUrl(attachment.materialId, attachment.versionId)
+                                  : undefined}
+                              />
+                            ))}
+                          </div>
+                        )}
+
+                        {msg.role === 'agent' && msg.evidenceClaims && msg.evidenceClaims.length > 0 && (
+                          <div className="max-w-full space-y-1.5">
+                            {msg.evidenceClaims.map(claim => (
+                              <div key={claim.claimKey} className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                                <span className="font-medium text-zinc-700">{claim.claimKey}</span>
+                                {claim.citationKeys.length === 0 && <span>AI knowledge</span>}
+                                {claim.citationKeys.map(citationKey => {
+                                  const source = msg.evidenceSources?.find(item => item.citationKey === citationKey);
+                                  if (!source) return null;
+                                  return (
+                                    <span
+                                      key={`${claim.claimKey}:${citationKey}`}
+                                      className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-zinc-600"
+                                      title={`${source.origin.toLowerCase()} · ${source.modality?.toLowerCase() || 'text'}`}
+                                    >
+                                      {source.sourceLabel}{source.pageNumber ? ` p.${source.pageNumber}` : ''}
+                                      {source.origin === 'EXISTING_REFERENCE' ? ' · existing' : source.origin === 'SUPPLEMENTAL' ? ' · supplemental' : ''}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {msg.role === 'agent' && (msg.contextReceipts?.length || msg.citationReceipt) && (
+                          <ContextReceiptBar
+                            receipts={[...(msg.contextReceipts || []), ...(msg.citationReceipt ? [msg.citationReceipt] : [])]}
+                            useChinese={useChineseMessage}
+                          />
                         )}
 
                         {/* Empty state while generating */}
@@ -3829,65 +4664,9 @@ function DrawioPageContent() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* The composer shares the chat surface without a visual divider. */}
           {/* Input Area */}
-          <div className="relative z-20 shrink-0 border-t border-stone-200 bg-white p-4 shadow-[0_-4px_12px_rgba(24,24,27,0.03)]">
-            {/* Model and loop controls */}
-            <div className="flex flex-wrap items-center gap-2 mb-2 px-1">
-                <div className="relative flex items-center rounded-full border border-stone-200 bg-white shadow-sm transition-colors hover:border-stone-300">
-                    <Icons.Sparkles className={`ml-2 h-3 w-3 ${selectedCustomModelId !== 'default' ? 'text-zinc-700' : 'text-zinc-400'}`} />
-                    <select
-                        value={selectedCustomModelId}
-                        onChange={(e) => {
-                            if (e.target.value === 'add_new') {
-                                setShowApiConfig(true);
-                                e.target.value = selectedCustomModelId;
-                            } else {
-                                setSelectedCustomModelId(e.target.value);
-                                localStorage.setItem('ai_agent_selected_model', e.target.value);
-                            }
-                        }}
-                        className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-600 outline-none focus:ring-0"
-                    >
-                        <option value="default">Default Model</option>
-                        {customModels.filter(m => m.enabled).map(m => (
-                            <option key={m.id} value={m.id}>{m.name || m.model}</option>
-                        ))}
-                        <option disabled>──────────</option>
-                        <option value="add_new">+ Manage Models</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
-                        <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
-                </div>
-                <div className="relative flex items-center rounded-full border border-stone-200 bg-white shadow-sm transition-colors hover:border-stone-300">
-                    <span className="pl-3 text-[11px] font-medium text-zinc-500">Deterministic repair rounds</span>
-                    <select
-                        value={maxDeterministicRepairRounds}
-                        onChange={(e) => {
-                            const nextValue = Number(e.target.value);
-                            setMaxDeterministicRepairRounds(nextValue);
-                            localStorage.setItem(DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY, String(nextValue));
-                        }}
-                        className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-600 outline-none focus:ring-0"
-                    >
-                        {DETERMINISTIC_REPAIR_ROUND_OPTIONS.map(count => (
-                            <option key={count} value={count}>{count}x</option>
-                        ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
-                        <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
-                </div>
-
-                {/* Compact remaining-quota indicator, mirroring the mockup's "N left". */}
-                {demoQuotaState.visible && !demoQuotaState.exhausted && (
-                    <span className="ml-auto flex items-center gap-1.5 pr-1 font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
-                        {demoQuotaState.remaining} left
-                    </span>
-                )}
-            </div>
-
+          <div className="relative z-20 shrink-0 bg-[var(--app-bg)] p-4">
             {demoQuotaState.visible && demoQuotaState.exhausted && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                 <span className="font-medium">{demoQuotaState.label}</span>
@@ -3925,9 +4704,12 @@ function DrawioPageContent() {
               </div>
             )}
 
-            <div className="relative flex items-end gap-2 rounded-2xl border border-stone-300 bg-stone-50 p-2 shadow-sm transition-all focus-within:border-zinc-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-zinc-700/5">
+            {/* Codex-style composer: attachments, writing surface, and actions each get their own row. */}
+            <div
+              className="relative flex min-h-[176px] flex-col rounded-[26px] border border-stone-200 bg-white px-3 pb-3 pt-3 shadow-[0_8px_28px_rgba(24,24,27,0.07)] transition-[border-color,box-shadow] focus-within:border-stone-300 focus-within:shadow-[0_10px_32px_rgba(24,24,27,0.1)]"
+            >
               {slashOpen && filteredSkills.length > 0 && (
-                <div className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-80 overflow-auto rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+                <div className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-80 overflow-auto rounded-2xl border border-stone-200 bg-white py-1 shadow-xl">
                   {filteredSkills.map((s, i) => (
                     <button
                       key={s.name}
@@ -3942,6 +4724,56 @@ function DrawioPageContent() {
                   ))}
                 </div>
               )}
+              <ConversationAttachmentTray
+                ref={attachmentUploaderRef}
+                client={materialClient}
+                sessionId={sessionId}
+                diagramId={currentDiagramId}
+                acceptedMimeTypes={acceptedMaterialMimeTypes}
+                attachments={conversationAttachments}
+                onChange={setConversationAttachments}
+                suppressedUploadIds={sentAttachmentUploadIds}
+                onSentAttachmentStatus={attachment => {
+                  // A late processing result enriches the sent message without recreating a draft.
+                  setMessages(previous => previous.map(message => (
+                    message.attachments?.some(item => item.uploadId === attachment.uploadId)
+                      ? {
+                          ...message,
+                          attachments: message.attachments.map(item => (
+                            item.uploadId === attachment.uploadId ? { ...item, ...attachment } : item
+                          )),
+                        }
+                      : message
+                  )));
+                }}
+                onPrepareUpload={async () => {
+                  const attachmentSessionId = await initializeAttachmentSession();
+                  if (!attachmentSessionId) throw new Error('无法创建附件会话，请重试。');
+                  if (!currentDiagramId) throw new Error('请先创建图表，再上传资料。');
+                  // Selecting an attachment establishes conversation intent even before the first message is sent.
+                  const prepared = await ensureConversationDiagramShell({
+                    diagramId: currentDiagramId,
+                    title: activeCanvasSession?.title,
+                    canvasXml: activeCanvasSession?.drawIoXml || undefined,
+                    canvasVersion: activeCanvasSession?.canvasVersion,
+                    hasConversationMessages: true,
+                  });
+                  if (!prepared) throw new Error('无法建立资料所属图表，请重试。');
+                  return {
+                    scopeType: 'CONVERSATION',
+                    scopeId: attachmentSessionId,
+                    retentionClass: 'TEMPORARY',
+                    diagramId: currentDiagramId,
+                  };
+                }}
+                disabled={isSending || !selectedAgentId || !isRequestedDiagramReady}
+              />
+              <ComposerLibrarySelectionTray
+                selections={librarySelections}
+                onRemove={removeLibrarySelection}
+              />
+
+              {/* The composer shell owns focus treatment; the textarea itself stays visually borderless. */}
               <textarea
                 ref={promptInputRef}
                 value={inputValue}
@@ -3951,45 +4783,111 @@ function DrawioPageContent() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px';
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Describe a diagram, or ask to edit this one…"}
-                disabled={isSending || demoQuotaState.exhausted}
-                className="max-h-[300px] min-h-[80px] flex-1 resize-none border-none bg-transparent px-4 py-3 text-[15px] leading-relaxed text-zinc-800 placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
+                placeholder={!isRequestedDiagramReady ? "Diagram unavailable" : isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Describe a diagram, or ask to edit this one…"}
+                disabled={!isRequestedDiagramReady || isSending || demoQuotaState.exhausted}
+                className="composer-textarea max-h-[300px] w-full resize-none border-none bg-transparent px-2 py-2 text-[15px] leading-6 text-zinc-800 placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
                 rows={1}
-                style={{ height: 'auto', minHeight: '80px' }}
+                style={{ height: 'auto', minHeight: COMPOSER_TEXTAREA_MIN_HEIGHT_PX }}
               />
-              <div className="flex gap-1 mb-0.5 shrink-0">
+
+              <div className="mt-auto flex items-center justify-between gap-3 pt-1">
+                {/* Files owns management; the composer keeps a lightweight upload shortcut. */}
+                <div className="flex items-center gap-1.5">
+                  <ComposerAddMenu
+                    client={materialClient}
+                    disabled={isSending || !selectedAgentId || !isRequestedDiagramReady}
+                    selections={librarySelections}
+                    onSelect={attachLibrarySelection}
+                    onRemove={removeLibrarySelection}
+                    onUploadFromComputer={() => attachmentUploaderRef.current?.openPicker()}
+                  />
+                  {demoQuotaState.visible && !demoQuotaState.exhausted && (
+                    <span className="flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
+                      {demoQuotaState.remaining} left
+                    </span>
+                  )}
+                </div>
+
+                {/* Keep model and repair controls in the same footer as the primary actions. */}
+                <div className="flex min-w-0 shrink items-center justify-end gap-1">
+                  <div className="relative flex h-9 shrink-0 items-center rounded-full transition-colors hover:bg-stone-100">
+                    <span className="hidden pl-2.5 text-[11px] font-medium text-zinc-500 min-[360px]:inline">Repair</span>
+                    <select
+                      value={maxDeterministicRepairRounds}
+                      onChange={(e) => {
+                        const nextValue = Number(e.target.value);
+                        setMaxDeterministicRepairRounds(nextValue);
+                        localStorage.setItem(DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY, String(nextValue));
+                      }}
+                      className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-700 outline-none focus:ring-0"
+                      title="Deterministic repair rounds"
+                      aria-label="Deterministic repair rounds"
+                    >
+                      {DETERMINISTIC_REPAIR_ROUND_OPTIONS.map(count => (
+                        <option key={count} value={count}>{count}x</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
+                      <svg className="h-3 w-3 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                  </div>
+
+                  <div className="relative flex h-9 min-w-0 items-center rounded-full transition-colors hover:bg-stone-100">
+                    <Icons.Sparkles className={`ml-2 h-3.5 w-3.5 shrink-0 ${selectedCustomModelId !== 'default' ? 'text-zinc-700' : 'text-zinc-400'}`} />
+                    <select
+                      value={selectedCustomModelId}
+                      onChange={(e) => {
+                        if (e.target.value === 'add_new') {
+                          setShowApiConfig(true);
+                          e.target.value = selectedCustomModelId;
+                        } else {
+                          setSelectedCustomModelId(e.target.value);
+                          localStorage.setItem('ai_agent_selected_model', e.target.value);
+                        }
+                      }}
+                      className="min-w-0 max-w-[112px] cursor-pointer appearance-none truncate border-none bg-transparent py-1 pl-1 pr-5 text-xs font-medium text-zinc-600 outline-none focus:ring-0"
+                      aria-label="Model"
+                    >
+                      <option value="default">Default Model</option>
+                      {customModels.filter(m => m.enabled).map(m => (
+                        <option key={m.id} value={m.id}>{m.name || m.model}</option>
+                      ))}
+                      <option disabled>──────────</option>
+                      <option value="add_new">+ Manage Models</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
+                      <svg className="h-3 w-3 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                  </div>
+
                   {isSending ? (
                     <button
                       onClick={handleStopStream}
-                      className="p-2.5 rounded-full transition-all duration-200 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 shadow-sm"
+                      className="grid h-10 w-10 place-items-center rounded-full bg-zinc-900 text-white shadow-sm transition-colors hover:bg-zinc-700"
                       title="Stop generation"
+                      aria-label="Stop generation"
                     >
-                      <Icons.Square className="w-4 h-4" />
+                      <Icons.Square className="h-4 w-4" />
                     </button>
                   ) : (
                     <button
                       onClick={handleSendMessage}
-                      disabled={!inputValue.trim() || demoQuotaState.exhausted}
+                      disabled={!isRequestedDiagramReady || !inputValue.trim() || demoQuotaState.exhausted || hasProcessingAttachments}
                       className={`
-                        p-2.5 rounded-full transition-all duration-200 flex items-center justify-center
-                        ${inputValue.trim() && !demoQuotaState.exhausted
-                          ? 'bg-zinc-800 text-white shadow-md shadow-zinc-700/10 hover:bg-zinc-700 hover:scale-105 active:scale-95'
-                          : 'cursor-not-allowed bg-stone-200 text-zinc-400'
+                        grid h-10 w-10 place-items-center rounded-full transition-[background-color,color,transform] duration-150
+                        ${isRequestedDiagramReady && inputValue.trim() && !demoQuotaState.exhausted && !hasProcessingAttachments
+                          ? 'bg-zinc-900 text-white shadow-sm hover:bg-zinc-700 active:scale-95'
+                          : 'cursor-not-allowed bg-stone-100 text-zinc-400'
                         }
                       `}
-                      title="Send message"
+                      title={!isRequestedDiagramReady ? "Diagram unavailable" : hasProcessingAttachments ? "Wait for attachments to finish" : "Send message"}
+                      aria-label="Send message"
                     >
-                      <Icons.ArrowRight className="w-4 h-4" />
+                      <Icons.ArrowUp className="h-[18px] w-[18px]" />
                     </button>
                   )}
-                  <button
-                    onClick={handleRestartSession}
-                    disabled={isSending}
-                    className="rounded-full border border-stone-200 bg-white p-2.5 text-zinc-400 shadow-sm transition-all duration-200 hover:bg-stone-50 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Restart conversation"
-                  >
-                    <Icons.Plus className="w-4 h-4" />
-                  </button>
+                </div>
               </div>
             </div>
 

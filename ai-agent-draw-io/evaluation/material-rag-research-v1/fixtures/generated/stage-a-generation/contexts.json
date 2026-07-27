@@ -1,0 +1,240 @@
+{
+  "schemaVersion": "material-rag-stage-a-generation-contexts-v1",
+  "modelVisibleRequiredEvidence": {
+    "ready": true
+  },
+  "contexts": [
+    {
+      "taskId": "stagb-dev-01",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-release-governance:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "rg-gateway",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1,
+          "text": "Approved deployment responsibility: Gateway validates ingress and forwards approved traffic to Worker."
+        },
+        {
+          "anchorId": "rg-worker",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1,
+          "text": "Approved deployment responsibility: Worker executes the release workload after Gateway validation."
+        },
+        {
+          "anchorId": "rg-audit-store",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1,
+          "text": "Approved deployment responsibility: Audit Store records the immutable release audit event from Worker."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-02",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-incident-command:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ic-commander",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Incident Commander owns the incident decision lane and assigns the response priority."
+        },
+        {
+          "anchorId": "ic-communications",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Communications Lead owns stakeholder updates and receives the Commander handoff."
+        },
+        {
+          "anchorId": "ic-escalation-window",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Escalate an unresolved severity-one incident to the Incident Commander within 15 minutes."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-03",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-data-retention:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "dr-archive-retention",
+          "sourceVersion": "sta-data-retention:v1",
+          "page": 1,
+          "text": "The Archive node retention period is seven years. The record must state Retention: 7 years."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-04",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-payment-controls:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "pc-two-person",
+          "sourceVersion": "sta-payment-controls:v1",
+          "page": 1,
+          "text": "Review must approve Release using a two-person approval control."
+        },
+        {
+          "anchorId": "pc-control-number",
+          "sourceVersion": "sta-payment-controls:v1",
+          "page": 1,
+          "text": "The required control identifier for the Review to Release relationship is PC-204."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-05",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-network-zones:v3"
+      ],
+      "evidence": [
+        {
+          "anchorId": "nz-v3-quarantine",
+          "sourceVersion": "sta-network-zones:v3",
+          "page": 1,
+          "text": "Version 3 segmentation requires Public Zone to Private Zone traffic to pass through the Quarantine Path."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-06",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-service-ownership:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "so-canonical-name",
+          "sourceVersion": "sta-service-ownership:v1",
+          "page": 1,
+          "text": "Use the canonical English service names API Gateway, Billing Worker, and Audit Store. Ownership is Platform Team, Payments Team, and Governance Team respectively."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-07",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-change-calendar:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "cc-owner",
+          "sourceVersion": "sta-change-calendar:v1",
+          "page": 1,
+          "text": "The change calendar assigns Database Change to DBA Owner and Application Change to Application Owner."
+        },
+        {
+          "anchorId": "cc-approval-window",
+          "sourceVersion": "sta-change-calendar:v1",
+          "page": 1,
+          "text": "Both changes require the approval window Tue 10:00\u201312:00."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-08",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-warehouse-visual:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "wv-exception-flow",
+          "sourceVersion": "sta-warehouse-visual:v1",
+          "page": 1,
+          "text": "Selected warehouse figure: Intake goes to Inspect; an exception goes to Supervisor Review; a cleared item goes to Dispatch.",
+          "imagePath": "fixtures/generated/stage-a-generation/images/warehouse-source.png",
+          "imageSha256": "c72070bf8a3ba8d751c449acf6d3f9696a557a182fcf33b9d7276fda57bf8dc6"
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-09",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-field-scan:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "fs-handoff-flow",
+          "sourceVersion": "sta-field-scan:v1",
+          "page": 1,
+          "text": "Scanned field handoff: Field Technician records the handoff, Decision: complete?, No returns to Field Technician, Yes goes to Operations Lead.",
+          "imagePath": "fixtures/generated/stage-a-generation/images/field-source.png",
+          "imageSha256": "114251873031ea5e9d2d39bcd2bfadb9079a37c93ca5b1e1a49d7096dbd7f0df"
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-10",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-release-governance:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "rg-rollback",
+          "sourceVersion": "sta-release-governance:v1",
+          "page": 1,
+          "text": "The cited Release Gate rollback condition is: rollback to the prior stable version when post-release verification fails."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-11",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-capacity-planning:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "cp-steady-limit",
+          "sourceVersion": "sta-capacity-planning:v1",
+          "page": 1,
+          "text": "The documented steady-state capacity limit is 800 requests per second."
+        },
+        {
+          "anchorId": "cp-failover-limit",
+          "sourceVersion": "sta-capacity-planning:v1",
+          "page": 1,
+          "text": "The documented failover capacity limit is 1200 requests per second."
+        }
+      ]
+    },
+    {
+      "taskId": "stagb-dev-12",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sta-incident-command:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ic-commander",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Incident Commander owns the incident decision lane and assigns the response priority."
+        },
+        {
+          "anchorId": "ic-communications",
+          "sourceVersion": "sta-incident-command:v1",
+          "page": 1,
+          "text": "Communications Lead receives the Incident Commander handoff and owns stakeholder updates."
+        }
+      ]
+    }
+  ]
+}

@@ -1,28 +1,39 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
-import { clearUserInfo, getUserInfo, setUserInfo as persistUserInfo, type UserInfo } from '@/utils/cookie';
-import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import {
   clearAnonymousWorkspaceImportNotice,
   readAnonymousWorkspaceImportNotice,
   type AnonymousWorkspaceImportNotice,
 } from '@/utils/anonymous-workspace-import';
-import { CurrentAccountResponseDTO, DiagramSummaryResponseDTO } from '@/types/api';
-import { isAccountMenuTarget, isDiagramActionMenuTarget, isSortMenuTarget } from '../home-menu-click-away';
+import { DiagramSummaryResponseDTO } from '@/types/api';
+import { isDiagramActionMenuTarget, isSortMenuTarget } from '../home-menu-click-away';
 import {
   applyDiagramLibraryView,
   categoryDisplayLabel,
+  CHARTBOOKS_TAB,
   countByFilter,
+  diagramFilterForTab,
   DIAGRAM_FILTERS,
   DIAGRAM_SORTS,
+  WORKSPACE_TABS,
   type DiagramFilter,
   type DiagramSortMode,
+  type WorkspaceTab,
 } from '../diagram-library';
+import { ChartbookFolderCard, ChartbookFolderGrid, DIAGRAM_DRAG_MIME } from '@/features/chartbooks/ChartbookFolderGrid';
+import { ChartbookCreateDialog } from '@/features/chartbooks/ChartbookCreateDialog';
+import { applyChartbookShelfView } from '@/features/chartbooks/chartbook-shelf';
+import { useChartbookShelf } from '@/features/chartbooks/use-chartbook-shelf';
+import { createMaterialClient } from '@/api/material';
+import { WorkspaceHeader } from '@/features/workspace/WorkspaceHeader';
+import { useWorkspaceIdentity } from '@/features/workspace/use-workspace-identity';
+import { DiagramActionMenu, PencilIcon, TrashIcon } from '@/features/diagrams/DiagramActionMenu';
+import { DiagramDeleteDialog } from '@/features/diagrams/DiagramDeleteDialog';
+import { API_CONFIG } from '@/config/api-config';
+import type { Chartbook } from '@/features/materials/material-types';
 
 const formatUpdatedAt = (value?: string) => {
   if (!value) return 'No updates yet';
@@ -35,115 +46,93 @@ const formatUpdatedAt = (value?: string) => {
   }).format(date);
 };
 
-const displayNameFromUser = (value?: string | null) => {
-  if (!value) return 'Anonymous';
-  const cleanValue = value.trim();
-  if (!cleanValue) return 'Anonymous';
-  return cleanValue.includes('@') ? cleanValue.split('@')[0] : cleanValue;
-};
-
-const initialsFromUser = (value?: string | null) => {
-  const displayName = displayNameFromUser(value);
-  const initials = displayName
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(part => part[0])
-    .join('');
-  return initials.toUpperCase() || 'A';
-};
-
 const diagramTitle = (diagram: DiagramSummaryResponseDTO) => diagram.title || 'Untitled Diagram';
 // Keep list preview frames aligned with the landscape Draw.io canvas shape.
 const DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS = 'aspect-[16/9] sm:aspect-[4/3]';
 
 export default function Home() {
   const router = useRouter();
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [ownerId, setOwnerId] = useState('');
-  const [currentAccount, setCurrentAccount] = useState<CurrentAccountResponseDTO | null>(null);
+  const identity = useWorkspaceIdentity();
+  const { ownerId } = identity;
   const [diagrams, setDiagrams] = useState<DiagramSummaryResponseDTO[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoadingDiagrams, setIsLoadingDiagrams] = useState(true);
+  const [diagramError, setDiagramError] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<DiagramFilter>('all');
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('all');
   const [sortMode, setSortMode] = useState<DiagramSortMode>('recent');
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [deletingDiagram, setDeletingDiagram] = useState<DiagramSummaryResponseDTO | null>(null);
+  const [isDeletingDiagram, setIsDeletingDiagram] = useState(false);
   const [importNotice, setImportNotice] = useState<AnonymousWorkspaceImportNotice | null>(null);
+  const [draggingDiagramId, setDraggingDiagramId] = useState<string | null>(null);
+  const [dropTargetDiagramId, setDropTargetDiagramId] = useState<string | null>(null);
+  // One naming dialog serves both "new chartbook" and "group these two diagrams".
+  const [chartbookRequest, setChartbookRequest] = useState<
+    { mode: 'create' } | { mode: 'group'; sourceId: string; targetId: string; suggestedName: string } | null
+  >(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const chartbookShelf = useChartbookShelf();
 
+  const errorMessage = diagramError || identity.error;
+  const isLoading = isLoadingDiagrams && !identity.error;
+  const activeFilter = diagramFilterForTab(activeTab);
+  const isChartbooksTab = activeTab === CHARTBOOKS_TAB;
   const visibleDiagrams = useMemo(
     () => applyDiagramLibraryView(diagrams, { query: searchQuery, filter: activeFilter, sort: sortMode }),
     [diagrams, searchQuery, activeFilter, sortMode],
+  );
+  const visibleChartbooks = useMemo(
+    () => applyChartbookShelfView(chartbookShelf.chartbooks, searchQuery),
+    [chartbookShelf.chartbooks, searchQuery],
   );
   const filterCounts = useMemo(
     () => Object.fromEntries(DIAGRAM_FILTERS.map(({ id }) => [id, countByFilter(diagrams, id)])) as Record<DiagramFilter, number>,
     [diagrams],
   );
+  const tabCounts: Record<WorkspaceTab, number> = { ...filterCounts, [CHARTBOOKS_TAB]: chartbookShelf.chartbooks.length };
+  const materialClient = useMemo(() => createMaterialClient({ baseUrl: API_CONFIG.BASE_URL }), []);
+  // Diagrams offered in the create dialog; a dragged pair is already implied by the gesture.
+  const chartbookDiagramOptions = useMemo(() => {
+    if (!chartbookRequest) return undefined;
+    const implied = new Set(chartbookRequest.mode === 'group' ? [chartbookRequest.sourceId, chartbookRequest.targetId] : []);
+    return diagrams
+      .filter(diagram => !implied.has(diagram.diagramId))
+      .map(diagram => ({
+        id: diagram.diagramId,
+        title: diagramTitle(diagram),
+        caption: categoryDisplayLabel(diagram),
+      }));
+  }, [chartbookRequest, diagrams]);
   const activeSortLabel = DIAGRAM_SORTS.find(sort => sort.id === sortMode)?.label ?? 'recent';
   const hasSearch = searchQuery.trim().length > 0;
 
-  const userDisplayName = displayNameFromUser(userInfo?.user);
-  const userInitials = initialsFromUser(userInfo?.user);
-  const isSignedInWorkspace = Boolean(
-    currentAccount?.authenticated || currentAccount?.ownerType === 'USER' || (ownerId && !ownerId.startsWith('anon_')),
+  const groupedDiagramIds = useMemo(
+    () => new Set(chartbookShelf.chartbooks.flatMap(chartbook => chartbook.diagramIds)),
+    [chartbookShelf.chartbooks],
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    const resolveInitialIdentity = async () => {
-      // The server session is authoritative; the legacy cookie is only a UI label fallback.
-      const browserUserInfo = getUserInfo();
-      setUserInfo(browserUserInfo);
-
-      try {
-        const res = await agentApi.me();
-        const account = res.data;
-        if (!cancelled && account?.status === 'SUCCESS' && account.userId) {
-          const displayUser = account.email || browserUserInfo?.user || account.userId;
-          setUserInfo({ user: displayUser, ts: Date.now() });
-          if (account.email) persistUserInfo(account.email);
-          setOwnerId(account.userId);
-          return;
-        }
-      } catch {
-        // Fall back to the browser-local anonymous workspace when the backend is unavailable.
-      }
-
-      if (!cancelled) {
-        setOwnerId(getWorkspaceIdentity(browserUserInfo?.user).ownerId);
-      }
-    };
-
-    void resolveInitialIdentity();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Browsing "All" reads as a folder view, so diagrams that live in a chartbook show inside it.
+  // Search stays global — nothing becomes unreachable just because it was filed away.
+  const isFolderView = activeTab === 'all' && !hasSearch;
+  const gridDiagrams = isFolderView
+    ? visibleDiagrams.filter(diagram => !groupedDiagramIds.has(diagram.diagramId))
+    : visibleDiagrams;
+  // Dragging one card onto another only makes sense where the resulting folder is visible.
+  const canGroupByDrag = isFolderView;
 
   useEffect(() => {
     if (!ownerId) return;
 
     let cancelled = false;
-    agentApi.currentAccount(ownerId)
-      .then(res => {
-        if (!cancelled) setCurrentAccount(res.data || null);
-      })
-      .catch(() => {
-        if (!cancelled) setCurrentAccount(null);
-      });
-
     agentApi.listDiagrams(ownerId)
       .then(res => {
         if (!cancelled) setDiagrams(res.data || []);
       })
       .catch(() => {
-        if (!cancelled) setErrorMessage('Failed to load diagrams.');
+        if (!cancelled) setDiagramError('Failed to load diagrams.');
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) setIsLoadingDiagrams(false);
       });
 
     return () => {
@@ -175,12 +164,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!openMenuId && !isAccountMenuOpen && !isSortMenuOpen) return;
+    // Deep links such as /diagrams#chartbooks open the folder tab straight away.
+    const syncTabFromHash = () => {
+      if (window.location.hash === `#${CHARTBOOKS_TAB}`) setActiveTab(CHARTBOOKS_TAB);
+    };
+    syncTabFromHash();
+    window.addEventListener('hashchange', syncTabFromHash);
+    return () => window.removeEventListener('hashchange', syncTabFromHash);
+  }, []);
+
+  useEffect(() => {
+    if (!openMenuId && !isSortMenuOpen) return;
 
     const closeMenuOnOutsidePointerDown = (event: PointerEvent) => {
       // Keep menu actions clickable while allowing the rest of the page to dismiss open menus.
       if (!isDiagramActionMenuTarget(event.target)) setOpenMenuId(null);
-      if (!isAccountMenuTarget(event.target)) setIsAccountMenuOpen(false);
       if (!isSortMenuTarget(event.target)) setIsSortMenuOpen(false);
     };
 
@@ -188,25 +186,21 @@ export default function Home() {
     return () => {
       document.removeEventListener('pointerdown', closeMenuOnOutsidePointerDown);
     };
-  }, [openMenuId, isAccountMenuOpen, isSortMenuOpen]);
+  }, [openMenuId, isSortMenuOpen]);
 
   const openDiagram = (diagramId: string) => {
     setOpenMenuId(null);
-    setIsAccountMenuOpen(false);
     router.push(`/drawio?diagramId=${encodeURIComponent(diagramId)}`);
   };
 
   const startNewDiagram = () => {
     setOpenMenuId(null);
-    setIsAccountMenuOpen(false);
     router.push('/drawio?new=1');
   };
 
-  const openAccountMenu = () => {
-    // Keep closing on outside pointerdown so users can move from the trigger into the detached menu.
+  const closeCardMenus = () => {
     setOpenMenuId(null);
     setIsSortMenuOpen(false);
-    setIsAccountMenuOpen(true);
   };
 
   const chooseSort = (mode: DiagramSortMode) => {
@@ -214,25 +208,68 @@ export default function Home() {
     setIsSortMenuOpen(false);
   };
 
+  const chooseTab = (tab: WorkspaceTab) => {
+    setActiveTab(tab);
+    setOpenMenuId(null);
+    // Keep the chartbooks tab linkable without paying for a route change.
+    window.history.replaceState(
+      null,
+      '',
+      tab === CHARTBOOKS_TAB ? `${window.location.pathname}#${CHARTBOOKS_TAB}` : window.location.pathname,
+    );
+  };
+
   const dismissImportNotice = () => {
     clearAnonymousWorkspaceImportNotice(typeof window === 'undefined' ? null : window.sessionStorage);
     setImportNotice(null);
   };
 
-  const logout = async () => {
+  const startDiagramDrag = (event: React.DragEvent, diagram: DiagramSummaryResponseDTO) => {
     setOpenMenuId(null);
-    setIsAccountMenuOpen(false);
-    setErrorMessage('');
-    try {
-      await agentApi.logout();
-    } catch {
-      // Best-effort logout keeps local UI usable if the server session is already gone.
+    setDraggingDiagramId(diagram.diagramId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData(DIAGRAM_DRAG_MIME, diagram.diagramId);
+  };
+
+  const endDiagramDrag = () => {
+    setDraggingDiagramId(null);
+    setDropTargetDiagramId(null);
+  };
+
+  // Dropping one diagram onto another asks for a folder name before anything is created.
+  const groupDiagramsIntoChartbook = (sourceId: string, target: DiagramSummaryResponseDTO) => {
+    endDiagramDrag();
+    if (!sourceId || sourceId === target.diagramId) return;
+    setChartbookRequest({ mode: 'group', sourceId, targetId: target.diagramId, suggestedName: diagramTitle(target) });
+  };
+
+  // The dialog owns creation so its optional upload step can target a real chartbook.
+  const ensureChartbookForRequest = async (name: string) => {
+    const request = chartbookRequest;
+    if (!request) return null;
+    setDiagramError('');
+    const created = request.mode === 'group'
+      ? await chartbookShelf.groupDiagrams(name, [request.targetId, request.sourceId])
+      : await chartbookShelf.create(name);
+    if (!created) setDiagramError('Failed to create the chartbook.');
+    return created;
+  };
+
+  const finishChartbookRequest = async (chartbook: Chartbook, diagramIds: string[]) => {
+    setChartbookRequest(null);
+    for (const diagramId of diagramIds) {
+      if (!await chartbookShelf.addDiagram(chartbook.chartbookId, diagramId)) {
+        setDiagramError('Some diagrams could not be moved into the chartbook.');
+      }
     }
-    clearUserInfo();
-    setUserInfo(null);
-    setCurrentAccount(null);
-    setIsLoading(true);
-    setOwnerId(getWorkspaceIdentity(null).ownerId);
+  };
+
+  const moveDiagramIntoChartbook = async (chartbook: Chartbook, diagramId: string) => {
+    endDiagramDrag();
+    setDiagramError('');
+    if (!await chartbookShelf.addDiagram(chartbook.chartbookId, diagramId)) {
+      setDiagramError('Failed to move the diagram into the chartbook.');
+    }
   };
 
   const renameDiagram = async (diagram: DiagramSummaryResponseDTO) => {
@@ -243,7 +280,7 @@ export default function Home() {
     const title = nextTitle.trim();
     if (!title) return;
 
-    setErrorMessage('');
+    setDiagramError('');
     try {
       const res = await agentApi.renameDiagram(ownerId, diagram.diagramId, title);
       const updated = res.data;
@@ -259,40 +296,45 @@ export default function Home() {
           : item
       )));
     } catch {
-      setErrorMessage('Failed to rename diagram.');
+      setDiagramError('Failed to rename diagram.');
     }
   };
 
-  const deleteDiagram = async (diagram: DiagramSummaryResponseDTO) => {
+  const openDeleteDialog = (diagram: DiagramSummaryResponseDTO) => {
     setOpenMenuId(null);
-    if (!window.confirm(`Delete "${diagramTitle(diagram)}"?`)) return;
+    setDeletingDiagram(diagram);
+  };
 
-    setErrorMessage('');
+  const deleteDiagram = async () => {
+    if (!deletingDiagram) return;
+    setDiagramError('');
+    setIsDeletingDiagram(true);
     try {
-      const res = await agentApi.deleteDiagram(ownerId, diagram.diagramId);
+      const res = await agentApi.deleteDiagram(ownerId, deletingDiagram.diagramId);
       if (!res.data) {
-        setErrorMessage('Diagram was not deleted.');
+        setDiagramError('Diagram was not deleted.');
+        setDeletingDiagram(null);
         return;
       }
-      setDiagrams(prev => prev.filter(item => item.diagramId !== diagram.diagramId));
+      setDiagrams(prev => prev.filter(item => item.diagramId !== deletingDiagram.diagramId));
+      setDeletingDiagram(null);
     } catch {
-      setErrorMessage('Failed to delete diagram.');
+      setDiagramError('Failed to delete diagram.');
+      setDeletingDiagram(null);
+    } finally {
+      setIsDeletingDiagram(false);
     }
   };
 
   return (
     <main className="app-page text-zinc-800">
-      <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/95 backdrop-blur">
-        <div className="flex h-auto flex-wrap items-center gap-3 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-4 sm:px-6 sm:py-0">
-          <Link href="/diagrams" className="order-1 flex shrink-0 items-center gap-2.5 sm:order-none" aria-label="FreeDraw home">
-            <span className="relative block h-9 w-9 overflow-hidden rounded-xl shadow-sm" aria-hidden="true">
-              <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
-            </span>
-            <span className="font-display text-lg font-semibold tracking-tight text-zinc-800">FreeDraw</span>
-          </Link>
-
-          {/* Client-side search over the fully-loaded workspace list — instant, no round trips. */}
-          <div className="order-3 relative mx-0 flex w-full max-w-none basis-full items-center sm:order-none sm:mx-auto sm:max-w-xl sm:basis-auto">
+      <WorkspaceHeader
+        identity={identity}
+        onChartbooks={() => chooseTab(CHARTBOOKS_TAB)}
+        onMenuOpen={closeCardMenus}
+        search={(
+          <>
+            {/* Client-side search over the fully-loaded workspace list — instant, no round trips. */}
             <svg
               viewBox="0 0 24 24"
               className="pointer-events-none absolute left-3.5 h-4 w-4 text-zinc-400"
@@ -311,88 +353,16 @@ export default function Home() {
               type="search"
               value={searchQuery}
               onChange={event => setSearchQuery(event.target.value)}
-              placeholder="Search diagrams"
-              aria-label="Search diagrams"
+              placeholder={isChartbooksTab ? 'Search chartbooks' : 'Search diagrams'}
+              aria-label={isChartbooksTab ? 'Search chartbooks' : 'Search diagrams'}
               className="h-11 w-full rounded-xl border border-stone-200 bg-stone-50 pl-10 pr-14 text-sm text-zinc-800 placeholder:text-zinc-400 transition focus:border-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-700/10"
             />
             <kbd className="pointer-events-none absolute right-3 hidden items-center rounded-md border border-stone-200 bg-white px-1.5 py-0.5 font-mono text-xs text-zinc-400 sm:inline-flex">
               ⌘K
             </kbd>
-          </div>
-
-          <div className="order-2 ml-auto flex min-w-0 shrink-0 items-center gap-3 sm:order-none sm:ml-0">
-            {!isSignedInWorkspace && (
-              <Link
-                href="/login"
-                className="theme-btn-secondary hidden h-10 items-center rounded-lg px-3 text-sm font-medium transition sm:inline-flex"
-                title="Admin accounts use the same sign-in page."
-              >
-                Sign in
-              </Link>
-            )}
-            <div
-              className="relative flex min-w-0 items-center gap-2"
-              data-account-menu
-              onMouseEnter={openAccountMenu}
-            >
-              {isSignedInWorkspace ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={openAccountMenu}
-                    aria-label={`${userDisplayName} account menu`}
-                    aria-haspopup="menu"
-                    aria-expanded={isAccountMenuOpen}
-                    className="flex min-w-0 items-center gap-2 rounded-lg transition hover:bg-stone-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
-                    title={userDisplayName}
-                  >
-                    <span className="hidden min-w-0 text-right sm:block">
-                      <span className="block truncate text-sm font-medium text-zinc-700">{userDisplayName}</span>
-                    </span>
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-700 text-sm font-semibold text-white shadow-sm transition">
-                      {userInitials}
-                    </span>
-                  </button>
-                  {isAccountMenuOpen && (
-                    <div
-                      role="menu"
-                      className="absolute right-0 top-12 z-30 w-48 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 text-sm shadow-lg"
-                    >
-                      {/* Admin authorization remains server-enforced; expired sessions retain /admin as the login return target. */}
-                      <Link
-                        href="/admin"
-                        role="menuitem"
-                        onClick={() => setIsAccountMenuOpen(false)}
-                        className="block w-full px-3 py-2 text-left font-medium text-zinc-700 transition hover:bg-stone-50"
-                      >
-                        Admin dashboard
-                      </Link>
-                      <div className="my-1 border-t border-stone-100" role="separator" />
-                      <button
-                        type="button"
-                        onClick={logout}
-                        role="menuitem"
-                        className="block w-full px-3 py-2 text-left text-zinc-700 transition hover:bg-stone-50"
-                      >
-                        Sign out
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Link
-                  href="/login"
-                  aria-label="Sign in"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-700 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-600"
-                  title="Sign in"
-                >
-                  {userInitials}
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+          </>
+        )}
+      />
 
       {/* The diagram workspace fills wide screens; responsive gutters keep content off the viewport edge. */}
       <div className="flex w-full flex-col px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
@@ -420,27 +390,28 @@ export default function Home() {
           )}
 
           <div className={`${importNotice ? 'mt-6' : 'mt-7'} flex flex-col items-stretch gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4`}>
-            {/* Category filter tabs — instant client-side filtering by diagram kind. */}
-            <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filter diagrams by category">
-              {DIAGRAM_FILTERS.map(filter => {
-                const isActive = activeFilter === filter.id;
+            {/* Workspace tabs — diagram-kind filters plus the chartbook folders view. */}
+            <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filter workspace by category">
+              {WORKSPACE_TABS.map(tab => {
+                const isActive = activeTab === tab.id;
+                const countReady = tab.id === CHARTBOOKS_TAB ? !chartbookShelf.isLoading : !isLoading;
                 return (
                   <button
-                    key={filter.id}
+                    key={tab.id}
                     type="button"
                     role="tab"
                     aria-selected={isActive}
-                    onClick={() => setActiveFilter(filter.id)}
-                    className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${
+                    onClick={() => chooseTab(tab.id)}
+                    className={`shrink-0 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${
                       isActive
                         ? 'bg-zinc-800 text-white shadow-sm'
                         : 'text-zinc-500 hover:bg-stone-100 hover:text-zinc-700'
                     }`}
                   >
-                    {filter.label}
-                    {!isLoading && (
+                    {tab.label}
+                    {countReady && (
                       <span className={`ml-1.5 text-xs font-medium ${isActive ? 'text-zinc-300' : 'text-zinc-400'}`}>
-                        {filterCounts[filter.id] ?? 0}
+                        {tabCounts[tab.id] ?? 0}
                       </span>
                     )}
                   </button>
@@ -449,7 +420,7 @@ export default function Home() {
             </div>
 
             {/* Sort control — reorders the loaded list without a server round trip. */}
-            <div className="relative" data-sort-menu>
+            <div className={`relative ${isChartbooksTab ? 'hidden' : ''}`} data-sort-menu>
               <button
                 type="button"
                 onClick={() => setIsSortMenuOpen(open => !open)}
@@ -492,15 +463,56 @@ export default function Home() {
           </div>
 
           <p className="mt-4 text-sm text-zinc-500">
-            {isLoading
-              ? 'Loading your diagrams...'
-              : hasSearch
-                ? `${visibleDiagrams.length} ${visibleDiagrams.length === 1 ? 'result' : 'results'} for “${searchQuery.trim()}”`
-                : `${diagrams.length} saved ${diagrams.length === 1 ? 'diagram' : 'diagrams'}`}
+            {isChartbooksTab
+              ? chartbookShelf.isLoading
+                ? 'Loading your chartbooks...'
+                : hasSearch
+                  ? `${visibleChartbooks.length} ${visibleChartbooks.length === 1 ? 'result' : 'results'} for “${searchQuery.trim()}”`
+                  : `${chartbookShelf.chartbooks.length} ${chartbookShelf.chartbooks.length === 1 ? 'chartbook' : 'chartbooks'}`
+              : isLoading
+                ? 'Loading your diagrams...'
+                : hasSearch
+                  ? `${visibleDiagrams.length} ${visibleDiagrams.length === 1 ? 'result' : 'results'} for “${searchQuery.trim()}”`
+                  : `${diagrams.length} saved ${diagrams.length === 1 ? 'diagram' : 'diagrams'}`}
           </p>
+          {canGroupByDrag && gridDiagrams.length > 1 && (
+            <p className="mt-1 text-xs text-zinc-400">Drag a diagram onto another to file both into a new chartbook.</p>
+          )}
+
+          {/* Chartbook capability and error notices only matter while the folder tab is open. */}
+          {isChartbooksTab && chartbookShelf.capabilityMessage && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {chartbookShelf.capabilityMessage}
+            </div>
+          )}
+          {isChartbooksTab && chartbookShelf.message && (
+            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {chartbookShelf.message}
+            </div>
+          )}
 
           <div className="mt-5">
-          {isLoading ? (
+          {isChartbooksTab ? (
+            chartbookShelf.isAvailable || chartbookShelf.isLoading ? (
+              <ChartbookFolderGrid
+                chartbooks={visibleChartbooks}
+                // Hide the create tile while searching so results read as a clean set.
+                onCreate={chartbookShelf.isAvailable && !hasSearch ? () => setChartbookRequest({ mode: 'create' }) : undefined}
+                onArchive={chartbook => void chartbookShelf.archive(chartbook)}
+              />
+            ) : (
+              <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-6 py-16 text-center">
+                <p className="text-sm font-medium text-zinc-600">
+                  {chartbookShelf.requiresSignIn ? 'Sign in to use chartbooks.' : 'Chartbooks are unavailable right now.'}
+                </p>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Chartbooks let diagrams and shared library items stay together by topic.
+                </p>
+              </div>
+            )
+          ) : (
+            <>
+            {isLoading ? (
             <div className="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
               {Array.from({ length: 5 }).map((_, index) => (
                 <div key={index} className="animate-pulse">
@@ -541,15 +553,49 @@ export default function Home() {
                   </button>
                 </article>
               )}
-              {visibleDiagrams.map(diagram => (
+              {/* Folders share the workspace grid, so a chartbook reads as a tile next to its diagrams. */}
+              {isFolderView && visibleChartbooks.map(chartbook => (
+                <ChartbookFolderCard
+                  key={chartbook.chartbookId}
+                  chartbook={chartbook}
+                  onDropDiagram={(folder, diagramId) => void moveDiagramIntoChartbook(folder, diagramId)}
+                />
+              ))}
+              {gridDiagrams.map(diagram => {
+                const isDropTarget = dropTargetDiagramId === diagram.diagramId;
+                return (
                 <article
                   key={diagram.diagramId}
-                  className="group relative min-w-0"
+                  className={`group relative min-w-0 ${draggingDiagramId === diagram.diagramId ? 'opacity-50' : ''}`}
+                  draggable={canGroupByDrag}
+                  onDragStart={event => startDiagramDrag(event, diagram)}
+                  onDragEnd={endDiagramDrag}
+                  onDragOver={event => {
+                    if (!canGroupByDrag || !draggingDiagramId || draggingDiagramId === diagram.diagramId) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                    setDropTargetDiagramId(diagram.diagramId);
+                  }}
+                  onDragLeave={() => setDropTargetDiagramId(current => (current === diagram.diagramId ? null : current))}
+                  onDrop={event => {
+                    if (!canGroupByDrag) return;
+                    event.preventDefault();
+                    groupDiagramsIntoChartbook(event.dataTransfer.getData(DIAGRAM_DRAG_MIME), diagram);
+                  }}
                 >
+                  {isDropTarget && (
+                    <span className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/75 text-center text-sm font-semibold text-zinc-800">
+                      Drop to create a chartbook
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => openDiagram(diagram.diagramId)}
-                    className="block w-full cursor-pointer overflow-hidden rounded-xl border border-stone-200 bg-white text-left shadow-md transition hover:border-stone-300 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
+                    className={`block w-full cursor-pointer overflow-hidden rounded-xl border bg-white text-left shadow-md transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20 ${
+                      isDropTarget
+                        ? 'border-zinc-800 ring-2 ring-zinc-800/20'
+                        : 'border-stone-200 hover:border-stone-300 hover:shadow-lg'
+                    }`}
                     aria-label={`Open ${diagramTitle(diagram)}`}
                   >
                     {/* Category badge uses the normalized token so old and new diagrams share labels. */}
@@ -580,42 +626,33 @@ export default function Home() {
                     >
                       {diagramTitle(diagram)}
                     </button>
-                    <div className="relative shrink-0" data-diagram-action-menu>
-                      <button
-                        type="button"
-                        onClick={() => setOpenMenuId(prev => prev === diagram.diagramId ? null : diagram.diagramId)}
-                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold text-zinc-500 transition hover:bg-stone-100 hover:text-zinc-700"
-                        aria-label={`More actions for ${diagramTitle(diagram)}`}
-                      >
-                        ...
-                      </button>
-                      {openMenuId === diagram.diagramId && (
-                        <div className="absolute right-0 top-9 z-10 w-32 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 text-sm shadow-lg">
-                          <button
-                            type="button"
-                            onClick={() => renameDiagram(diagram)}
-                            className="block w-full px-3 py-2 text-left text-zinc-700 transition hover:bg-stone-50"
-                          >
-                            Rename
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteDiagram(diagram)}
-                            className="block w-full px-3 py-2 text-left text-rose-700 transition hover:bg-rose-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <DiagramActionMenu
+                      diagramTitle={diagramTitle(diagram)}
+                      isOpen={openMenuId === diagram.diagramId}
+                      onToggle={() => setOpenMenuId(previous => previous === diagram.diagramId ? null : diagram.diagramId)}
+                      actions={[
+                        {
+                          label: 'Rename',
+                          icon: <PencilIcon />,
+                          onSelect: () => void renameDiagram(diagram),
+                        },
+                        {
+                          label: 'Delete',
+                          icon: <TrashIcon />,
+                          tone: 'danger',
+                          onSelect: () => openDeleteDialog(diagram),
+                        },
+                      ]}
+                    />
                   </div>
                   {/* Keep card metadata focused on the user-facing updated date. */}
                   <div className="mt-1 min-w-0 text-xs text-zinc-500">
                     <span className="block truncate font-mono">{formatUpdatedAt(diagram.updatedAt)}</span>
                   </div>
                 </article>
-              ))}
-              {visibleDiagrams.length === 0 && (
+                );
+              })}
+              {gridDiagrams.length === 0 && !(isFolderView && visibleChartbooks.length > 0) && (
                 <div className="col-span-full rounded-xl border border-dashed border-stone-300 bg-stone-50 px-6 py-16 text-center">
                   <p className="text-sm font-medium text-zinc-600">
                     {hasSearch
@@ -628,10 +665,37 @@ export default function Home() {
                 </div>
               )}
             </div>
+            )}
+            </>
           )}
           </div>
         </section>
       </div>
+
+      {deletingDiagram && (
+        <DiagramDeleteDialog
+          diagramTitle={diagramTitle(deletingDiagram)}
+          isDeleting={isDeletingDiagram}
+          onCancel={() => setDeletingDiagram(null)}
+          onConfirm={() => void deleteDiagram()}
+        />
+      )}
+
+      {chartbookRequest && (
+        <ChartbookCreateDialog
+          hint={chartbookRequest.mode === 'group'
+            ? 'Both diagrams move into this chartbook.'
+            : 'Keep diagrams and shared files together by topic.'}
+          defaultName={chartbookRequest.mode === 'group' ? chartbookRequest.suggestedName : ''}
+          diagramOptions={chartbookDiagramOptions}
+          uploadTools={chartbookShelf.capabilities?.upload === 'AVAILABLE'
+            ? { client: materialClient, acceptedMimeTypes: chartbookShelf.capabilities.acceptedMimeTypes }
+            : undefined}
+          ensureChartbook={ensureChartbookForRequest}
+          onCancel={() => setChartbookRequest(null)}
+          onFinish={(chartbook, diagramIds) => void finishChartbookRequest(chartbook, diagramIds)}
+        />
+      )}
     </main>
   );
 }

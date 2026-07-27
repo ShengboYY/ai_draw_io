@@ -44,6 +44,101 @@ app:
   security:
     # Credentialed CORS is restricted to known SPA origins; production should set this env var.
     allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  material-catalog:
+    # Enable only after the WP1 foundation and WP4-A idempotency migration are applied.
+    enabled: ${MATERIAL_CATALOG_ENABLED:false}
+  material-lifecycle:
+    # Keep lifecycle APIs and cleanup isolated from ordinary text drawing.
+    enabled: ${MATERIAL_LIFECYCLE_ENABLED:false}
+    deletion-confirmation-secret: ${MATERIAL_DELETION_CONFIRMATION_SECRET:}
+    maintenance-delay-ms: ${MATERIAL_LIFECYCLE_MAINTENANCE_DELAY_MS:60000}
+    batch-size: ${MATERIAL_LIFECYCLE_BATCH_SIZE:100}
+  material-storage:
+    storage: ${MATERIAL_UPLOAD_STORAGE:local}
+    local-root: ${MATERIAL_LOCAL_ROOT:./data/material-objects}
+  material-preview:
+    # Page rendering and reprocessing remain isolated from ordinary text drawing.
+    enabled: ${MATERIAL_PREVIEW_ENABLED:false}
+    aws-region: ${MATERIAL_PREVIEW_AWS_REGION:${AWS_REGION:ap-southeast-2}}
+    materials-bucket: ${MATERIALS_BUCKET:}
+    processing-profile:
+      # Must match the Worker profile that should own newly requested revisions.
+      fingerprint: ${MATERIAL_PROCESSING_PROFILE_FINGERPRINT:}
+      parser-version: ${MATERIAL_PROCESSING_PARSER_VERSION:}
+      cleaner-version: ${MATERIAL_PROCESSING_CLEANER_VERSION:}
+      chunk-schema-version: ${MATERIAL_PROCESSING_CHUNK_SCHEMA_VERSION:}
+      ocr-version: ${MATERIAL_PROCESSING_OCR_VERSION:}
+      vlm-schema-version: ${MATERIAL_PROCESSING_VLM_SCHEMA_VERSION:}
+  material-rag:
+    # WP5 remains fail-closed until migrations, lifecycle leases, material storage and optional Pinecone are configured.
+    enabled: ${MATERIAL_RAG_ENABLED:false}
+    citation-commit-enabled: ${MATERIAL_CITATION_COMMIT_ENABLED:false}
+    evidence-answer-enabled: ${MATERIAL_EVIDENCE_ANSWER_ENABLED:false}
+    dense-enabled: ${MATERIAL_RAG_DENSE_ENABLED:false}
+    parallelism: ${MATERIAL_RAG_PARALLELISM:4}
+    retrieval-timeout-ms: ${MATERIAL_RAG_RETRIEVAL_TIMEOUT_MS:3000}
+    probe-timeout-ms: ${MATERIAL_RAG_PROBE_TIMEOUT_MS:300}
+    hydration-timeout-ms: ${MATERIAL_RAG_HYDRATION_TIMEOUT_MS:800}
+    aws-region: ${MATERIAL_RAG_AWS_REGION:${AWS_REGION:ap-southeast-2}}
+    materials-bucket: ${MATERIALS_BUCKET:}
+    pinecone:
+      api-key: ${PINECONE_API_KEY:}
+      index-host: ${PINECONE_INDEX_HOST:}
+      namespace: ${PINECONE_NAMESPACE:prod}
+      embedding-model: ${PINECONE_EMBEDDING_MODEL:multilingual-e5-large}
+      dimension: ${PINECONE_DIMENSION:1024}
+      tenant-hmac-secret: ${PINECONE_TENANT_HMAC_SECRET:}
+  material-upload:
+    # Local storage keeps development independent from AWS; production can opt into "s3".
+    enabled: ${MATERIAL_UPLOAD_ENABLED:false}
+    anonymous-enabled: ${MATERIAL_UPLOAD_ANONYMOUS_ENABLED:false}
+    storage: ${MATERIAL_UPLOAD_STORAGE:local}
+    local-root: ${MATERIAL_UPLOAD_LOCAL_ROOT:./data/material-uploads}
+    local-bucket: ${MATERIAL_UPLOAD_LOCAL_BUCKET:quarantine}
+    aws-region: ${MATERIAL_UPLOAD_AWS_REGION:${AWS_REGION:ap-southeast-2}}
+    quarantine-bucket: ${MATERIAL_UPLOAD_QUARANTINE_BUCKET:}
+    owner-path-secret: ${MATERIAL_UPLOAD_OWNER_PATH_SECRET:}
+    rate-key-secret: ${MATERIAL_UPLOAD_RATE_KEY_SECRET:}
+    max-batch-files: ${MATERIAL_UPLOAD_MAX_BATCH_FILES:10}
+  material-visual-observation:
+    # Online visual fact verification remains independently fail-closed until its model adapter is deployed.
+    enabled: ${MATERIAL_VISUAL_OBSERVATION_ENABLED:false}
+    timeout-ms: ${MATERIAL_VISUAL_OBSERVATION_TIMEOUT_MS:30000}
+    aws-region: ${MATERIAL_VISUAL_AWS_REGION:${MATERIAL_RAG_AWS_REGION:${AWS_REGION:ap-southeast-2}}}
+    materials-bucket: ${MATERIAL_VISUAL_MATERIALS_BUCKET:${MATERIALS_BUCKET:}}
+  material-direct-image-conversion:
+    # Image reconstruction depends on verified visual observation and never enables retrieval by itself.
+    enabled: ${MATERIAL_DIRECT_IMAGE_CONVERSION_ENABLED:false}
+  material-operations:
+    # Anonymous upload is admitted only after the pinned WP8 release report is approved.
+    enabled: ${MATERIAL_OPERATIONS_ENABLED:false}
+    ingestion-enabled: ${MATERIAL_INGESTION_ROLLOUT_ENABLED:false}
+    retrieval-shadow-enabled: ${MATERIAL_RETRIEVAL_SHADOW_ENABLED:false}
+    release-approved: ${MATERIAL_RELEASE_APPROVED:false}
+    release-report-version: ${MATERIAL_RELEASE_REPORT_VERSION:}
+    refresh-ms: ${MATERIAL_OPERATIONS_REFRESH_MS:30000}
+    capacity:
+      monthly-indexed-pages-limit: ${MATERIAL_MONTHLY_INDEXED_PAGES_LIMIT:7000}
+      # The authenticated billing exporter must refresh the live feed before this age expires.
+      provider-max-age-seconds: ${MATERIAL_PROVIDER_CAPACITY_MAX_AGE_SECONDS:180}
+      exporter-secret: ${MATERIAL_PROVIDER_CAPACITY_EXPORTER_SECRET:}
+
+# Product chat is V2-only when the lifecycle and product ingress are explicitly enabled.
+turn-engine:
+  lifecycle:
+    enabled: ${TURN_ENGINE_LIFECYCLE_ENABLED:false}
+  execution:
+    # Explicitly composes the complete V2 planning and attempt-runner graph.
+    enabled: ${TURN_ENGINE_V2_EXECUTION_ENABLED:false}
+  http:
+    product-v2-ingress:
+      enabled: ${TURN_ENGINE_PRODUCT_V2_INGRESS_ENABLED:false}
+      # Direct image reconstruction can require a visual pass followed by generation.
+      timeout-millis: ${TURN_ENGINE_PRODUCT_V2_INGRESS_TIMEOUT_MILLIS:180000}
+  migration:
+    startup-target-mode: ${TURN_ENGINE_MIGRATION_STARTUP_TARGET_MODE:}
+  canary:
+    rollout-percent: ${TURN_ENGINE_CANARY_ROLLOUT_PERCENT:0}
 
 # Actuator only exposes health and Prometheus metrics. Production must restrict /actuator/prometheus
 # at the network or reverse-proxy layer so it is reachable by Prometheus, not public users.
@@ -71,11 +166,21 @@ management:
         ai.agent.tool.call.latency: true
 
 zipp:
+  turn:
+    v2:
+      # V2 generation capabilities are composed as one product path.
+      plain-agent-id: ${TURN_V2_PLAIN_AGENT_ID:300025}
+      grounded-agent-id: ${TURN_V2_GROUNDED_AGENT_ID:300027}
+      evidence-agent-id: ${TURN_V2_EVIDENCE_AGENT_ID:300028}
   visual-review:
-    # Roll out visible review first. Auto repair stays independently disabled until canary metrics pass.
+    # Every persisted V2 drawing is reviewed from its real browser render. The explicit flags remain
+    # the main gate; percentages are optional production canaries rather than hidden local blockers.
     enabled: ${ZIPP_VISUAL_REVIEW_ENABLED:false}
     auto-repair-enabled: ${ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED:false}
-    drawer-agent-id: ${ZIPP_VISUAL_REVIEW_DRAWER_AGENT_ID:300000}
+    rollout-percent: ${ZIPP_VISUAL_REVIEW_ROLLOUT_PERCENT:100}
+    round-1-rollout-percent: ${ZIPP_VISUAL_REVIEW_ROUND_1_ROLLOUT_PERCENT:100}
+    round-2-rollout-percent: ${ZIPP_VISUAL_REVIEW_ROUND_2_ROLLOUT_PERCENT:100}
+    repair-agent-id: ${ZIPP_VISUAL_REPAIR_AGENT_ID:300029}
     # Allow slow image reviews while staying below the 120-second streaming response timeout.
     timeout-ms: ${ZIPP_VISUAL_REVIEW_TIMEOUT_MS:60000}
     model-version: ${VLM_MODEL:${LLM_MODEL:gpt-5.5}}
@@ -86,6 +191,8 @@ zipp:
   telemetry:
     # Enable this on exactly one app instance, or run cleanup from a dedicated scheduler.
     cleanup-enabled: ${ZIPP_TELEMETRY_CLEANUP_ENABLED:false}
+    # Local trace analysis captures every new run by default; production can explicitly disable payload storage.
+    debug-payload-capture-enabled: ${ZIPP_TELEMETRY_DEBUG_PAYLOAD_CAPTURE_ENABLED:true}
     retention-days: ${ZIPP_TELEMETRY_RETENTION_DAYS:30}
     cleanup-cron: "${ZIPP_TELEMETRY_CLEANUP_CRON:0 30 3 * * *}"
     delete-batch-size: ${ZIPP_TELEMETRY_DELETE_BATCH_SIZE:500}
@@ -155,6 +262,7 @@ mybatis:
     - classpath:/mybatis/mapper/diagram_conversation_mapper.xml
     - classpath:/mybatis/mapper/user_account_mapper.xml
     - classpath:/mybatis/mapper/account_token_mapper.xml
+    - classpath:/mybatis/mapper/anonymous_workspace_mapper.xml
     - classpath:/mybatis/mapper/model_credential_mapper.xml
     - classpath:/mybatis/mapper/agent_usage_telemetry_mapper.xml
     - classpath:/mybatis/mapper/admin_audit_log_mapper.xml
@@ -166,4 +274,25 @@ mybatis:
     - classpath:/mybatis/mapper/eval_catalog_mapper.xml
     - classpath:/mybatis/mapper/eval_run_mapper.xml
     - classpath:/mybatis/mapper/usage_counter_mapper.xml
+    - classpath*:/mybatis/mapper/grounded_run_control_mapper.xml
+    - classpath*:/mybatis/mapper/request_source_snapshot_mapper.xml
+    - classpath*:/mybatis/mapper/grounded_canvas_commit_mapper.xml
+    - classpath*:/mybatis/mapper/evidence_answer_commit_mapper.xml
+    - classpath*:/mybatis/mapper/citation_query_mapper.xml
+    - classpath*:/mybatis/mapper/manual_provenance_mapper.xml
+    - classpath*:/mybatis/mapper/material_foundation_mapper.xml
+    - classpath*:/mybatis/mapper/material_processing_job_mapper.xml
+    - classpath*:/mybatis/mapper/material_document_processing_mapper.xml
+    - classpath*:/mybatis/mapper/material_upload_session_mapper.xml
+    - classpath*:/mybatis/mapper/material_catalog_mapper.xml
+    - classpath*:/mybatis/mapper/chartbook_catalog_mapper.xml
+    - classpath*:/mybatis/mapper/material_preview_mapper.xml
+    - classpath*:/mybatis/mapper/material_lifecycle_mapper.xml
+    - classpath*:/mybatis/mapper/material_read_lease_mapper.xml
+    - classpath*:/mybatis/mapper/material_deletion_mapper.xml
+    - classpath*:/mybatis/mapper/material_materialization_mapper.xml
+    - classpath*:/mybatis/mapper/material_vector_projection_mapper.xml
+    - classpath*:/mybatis/mapper/index_projection_maintenance_mapper.xml
+    - classpath*:/mybatis/mapper/online_retrieval_mapper.xml
+    - classpath*:/mybatis/mapper/material_operations_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

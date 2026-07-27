@@ -78,9 +78,9 @@ export const buildVisualReviewEvidencePlan = ({
     pages,
     totalPageCount: allPages.length,
     truncatedPageCount: Math.max(0, allPages.length - pages.length),
-    // Separate page exports restore per-page legibility; a single page gets tiles when density or font size needs pixels.
+    // Moderate flowcharts already need tiles: long retry lanes can be lost when a tall overview is downscaled.
     detailTiles: allPages.length === 1
-      && (nodeCount >= 16 || edgeCount >= 20 || containsSmallText(canvasXml)),
+      && (nodeCount >= 12 || edgeCount >= 15 || containsSmallText(canvasXml)),
   };
 };
 

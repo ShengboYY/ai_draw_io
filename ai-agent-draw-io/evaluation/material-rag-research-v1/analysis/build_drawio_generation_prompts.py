@@ -1,0 +1,202 @@
+#!/usr/bin/env python3
+"""Build evidence-grounded draw.io generation prompts without exposing evaluator gold."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def allowed_sources(task: dict, chartbook_sources: set[str]) -> set[str]:
+    """Resolve the same explicit-versus-automatic source contract used by hydration export."""
+    mode = task.get("sourceScopeMode")
+    if mode == "selected_only":
+        selected = str(task.get("selectedMaterialVersion", "")).strip()
+        if not selected:
+            raise ValueError(f"selected source is missing for {task.get('taskId', 'unknown')}")
+        return {selected}
+    if mode == "chartbook_auto":
+        if task.get("selectedMaterialVersion") or not chartbook_sources:
+            raise ValueError(f"invalid automatic source scope for {task.get('taskId', 'unknown')}")
+        return set(chartbook_sources)
+    if mode == "none":
+        return set()
+    if mode is not None:
+        raise ValueError(f"unknown source scope mode for {task.get('taskId', 'unknown')}")
+    # Historical prompt fixtures keep their pre-contract behavior.
+    return set(task.get("allowedSourceVersions", [task.get("sourceVersion")])) | chartbook_sources
+
+
+def citation_resolution(context: dict) -> list[dict]:
+    """Map deterministic opaque handles to canonical evidence outside the model-visible prompt."""
+    canonical = sorted({
+        (evidence["anchorId"], evidence["sourceVersion"], evidence["page"])
+        for evidence in context.get("evidence", [])
+    })
+    return [
+        {
+            "citationId": f"CIT-{index:03d}",
+            "anchorId": anchor_id,
+            "sourceVersion": source_version,
+            "page": page,
+        }
+        for index, (anchor_id, source_version, page) in enumerate(canonical, start=1)
+    ]
+
+
+def citation_options(context: dict) -> list[dict]:
+    """Return only the opaque citation fields exposed to the model."""
+    return [
+        {
+            "citationId": item["citationId"],
+            "sourceVersion": item["sourceVersion"],
+            "page": item["page"],
+        }
+        for item in citation_resolution(context)
+    ]
+
+
+def build_prompt(task: dict, context: dict) -> str:
+    """Render one task and its hydrated context as the model-visible contract."""
+    handles = {
+        (item["anchorId"], item["sourceVersion"], item["page"]): item["citationId"]
+        for item in citation_resolution(context)
+    }
+    evidence_lines = []
+    for evidence in context.get("evidence", []):
+        # Citation metadata remains beside the excerpt so model output is independently traceable.
+        artifact = "\nAttached visual artifact for this evidence." if evidence.get("imagePath") else ""
+        citation_id = handles[(evidence["anchorId"], evidence["sourceVersion"], evidence["page"])]
+        evidence_lines.append(
+            f"[{citation_id} | {evidence['sourceVersion']} | page {evidence['page']}]\n"
+            f"{evidence['text']}{artifact}"
+        )
+    material = "\n\n".join(evidence_lines) or "(No material was retrieved.)"
+    options = citation_options(context)
+    allowed_citations = "\n".join(
+        f"- citationId={option['citationId']}; sourceVersion={option['sourceVersion']}; page={option['page']}"
+        for option in options
+    ) or "- None; return citations as an empty array."
+    input_xml = task.get("inputXml")
+    edit_material = f"\n\nExisting editable XML to modify:\n{input_xml}" if input_xml else ""
+    return (
+        "Return JSON only with keys xml and citations. xml must be editable draw.io XML "
+        "using mxGraphModel/mxCell. citations must be an array of objects with citationId, "
+        "sourceVersion and page. Use only the material below; do not invent material-backed "
+        "claims or citations. Every citation must copy one complete row from Allowed citations "
+        "exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\n"
+        f"Task: {task['request']}{edit_material}\n\n"
+        f"Allowed citations:\n{allowed_citations}\n\n"
+        f"Retrieved material:\n{material}"
+    )
+
+
+def image_paths(context: dict) -> list[str]:
+    """Keep each local visual artifact once so the multimodal runner can attach it exactly once."""
+    return list(dict.fromkeys(
+        evidence["imagePath"] for evidence in context.get("evidence", []) if evidence.get("imagePath")
+    ))
+
+
+def hydration_artifact_reference(contexts_path: Path) -> dict:
+    """Bind generated bundles to the exact readiness-checked hydration export."""
+    contexts_path = contexts_path.resolve()
+    if ROOT not in contexts_path.parents or not contexts_path.is_file():
+        raise ValueError("hydration contexts must be an ordinary file inside the research directory")
+    return {
+        "path": contexts_path.relative_to(ROOT).as_posix(),
+        "sha256": hashlib.sha256(contexts_path.read_bytes()).hexdigest(),
+    }
+
+
+def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str,
+                  chartbook_sources: set[str] | None = None,
+                  hydration_artifact: dict | None = None) -> list[dict]:
+    """Pair each task with exactly one frozen context bundle from the selected experiment arm."""
+    if not isinstance(hydration_artifact, dict) \
+            or not isinstance(hydration_artifact.get("path"), str) \
+            or not isinstance(hydration_artifact.get("sha256"), str):
+        raise ValueError("model-visible required evidence readiness gate failed")
+    chartbook_sources = chartbook_sources or set()
+    selected = {}
+    for context in contexts:
+        if context.get("arm") != arm:
+            continue
+        task_id = context["taskId"]
+        if task_id in selected:
+            raise ValueError(f"duplicate {arm} context for {task_id}")
+        selected[task_id] = context
+    bundles = []
+    for task in tasks:
+        if task.get("split") != split:
+            continue
+        context = selected.get(task["taskId"])
+        if context is None:
+            raise ValueError(f"missing {arm} context for {task['taskId']}")
+        task_allowed_sources = allowed_sources(task, chartbook_sources)
+        declared_sources = context.get("allowedSourceVersions")
+        if declared_sources is not None and set(declared_sources) != task_allowed_sources:
+            raise ValueError(f"context scope mismatch for {task['taskId']}")
+        for evidence in context.get("evidence", []):
+            if evidence["sourceVersion"] not in task_allowed_sources:
+                raise ValueError(f"out-of-scope evidence for {task['taskId']}")
+        prompt = build_prompt(task, context)
+        bundles.append({
+            "taskId": task["taskId"],
+            "arm": arm,
+            "prompt": prompt,
+            "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
+            "evidence": context.get("evidence", []),
+            "citationOptions": citation_options(context),
+            "citationResolution": citation_resolution(context),
+            "modelVisibleRequiredEvidenceReady": True,
+            "hydrationArtifact": hydration_artifact,
+            "imagePaths": image_paths(context),
+            "imageSha256s": list(dict.fromkeys(
+                evidence["imageSha256"] for evidence in context.get("evidence", [])
+                if evidence.get("imageSha256")
+            )),
+        })
+    return bundles
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tasks", type=Path, required=True)
+    parser.add_argument("--contexts", type=Path, required=True)
+    parser.add_argument("--split", choices=("development", "validation", "holdout"), required=True)
+    parser.add_argument("--arm", choices=("control", "candidate", "fixed"), required=True)
+    parser.add_argument("--json-out", type=Path, required=True)
+    args = parser.parse_args()
+    task_fixture = json.loads(args.tasks.read_text())
+    tasks = task_fixture["tasks"]
+    contexts_payload = json.loads(args.contexts.read_text())
+    readiness = contexts_payload.get("modelVisibleRequiredEvidence", {})
+    if readiness.get("ready") is not True:
+        raise ValueError("model-visible required evidence readiness gate failed")
+    contexts = contexts_payload["contexts"]
+    hydration_artifact = hydration_artifact_reference(args.contexts)
+    result = {
+        "split": args.split,
+        "arm": args.arm,
+        "bundles": build_bundles(
+            tasks, contexts, args.split, args.arm,
+            set(task_fixture.get(
+                "developmentChartbookSourceVersions" if args.split == "development"
+                else "validationChartbookSourceVersions" if args.split == "validation"
+                else "",
+                [],
+            )),
+            hydration_artifact,
+        ),
+    }
+    args.json_out.write_text(json.dumps(result, indent=2) + "\n")
+
+
+if __name__ == "__main__":
+    main()

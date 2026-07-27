@@ -4,15 +4,16 @@ import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.account.model.valobj.OwnerResolutionCommand;
 import org.zipp.ai.domain.account.model.valobj.ResolvedOwner;
 
-import java.util.Locale;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 @Service
 public class DefaultCurrentOwnerResolver implements ICurrentOwnerResolver {
 
-    private static final Pattern ANONYMOUS_WORKSPACE_ID = Pattern.compile(
-            "^anon_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
+    private final IAnonymousWorkspaceIdentityService anonymousWorkspaceIdentityService;
+
+    public DefaultCurrentOwnerResolver(IAnonymousWorkspaceIdentityService anonymousWorkspaceIdentityService) {
+        this.anonymousWorkspaceIdentityService = anonymousWorkspaceIdentityService;
+    }
 
     @Override
     public Optional<ResolvedOwner> resolve(OwnerResolutionCommand command) {
@@ -23,11 +24,13 @@ public class DefaultCurrentOwnerResolver implements ICurrentOwnerResolver {
                 return Optional.of(ResolvedOwner.authenticated(authenticatedUserId));
             }
         }
-        String ownerId = normalize(command == null ? null : command.getWorkspaceId());
-        if (ownerId == null) {
+        String credential = trim(command == null ? null : command.getAnonymousCredential());
+        if (credential == null) {
             return Optional.empty();
         }
-        return Optional.of(ResolvedOwner.anonymous(ownerId));
+        // Authentication is delegated to the anonymous workspace domain service; owner ids alone
+        // are never accepted as capabilities.
+        return anonymousWorkspaceIdentityService.authenticate(credential);
     }
 
     private String trim(String value) {
@@ -38,11 +41,4 @@ public class DefaultCurrentOwnerResolver implements ICurrentOwnerResolver {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private String normalize(String workspaceId) {
-        if (workspaceId == null || workspaceId.isBlank()) {
-            return null;
-        }
-        String value = workspaceId.trim().toLowerCase(Locale.ROOT);
-        return ANONYMOUS_WORKSPACE_ID.matcher(value).matches() ? value : null;
-    }
 }

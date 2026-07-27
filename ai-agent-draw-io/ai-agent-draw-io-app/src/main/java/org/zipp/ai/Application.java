@@ -4,6 +4,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.MyTestMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillMcpService;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.VisualRepairMcpService;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Configurable;
@@ -29,6 +30,12 @@ public class Application {
     @Bean("drawioCanvasToolCallbackProvider")
     public ToolCallbackProvider drawioCanvasTools(DrawioCanvasMcpService drawioCanvasMcpService) {
         return MethodToolCallbackProvider.builder().toolObjects(drawioCanvasMcpService).build();
+    }
+
+    @Bean("drawioVisualRepairToolCallbackProvider")
+    public ToolCallbackProvider drawioVisualRepairTools(VisualRepairMcpService visualRepairMcpService) {
+        // Registration-level isolation prevents the general Drawer from seeing repair-only actions.
+        return MethodToolCallbackProvider.builder().toolObjects(visualRepairMcpService).build();
     }
 
     @Bean("drawioSkillToolCallbackProvider")

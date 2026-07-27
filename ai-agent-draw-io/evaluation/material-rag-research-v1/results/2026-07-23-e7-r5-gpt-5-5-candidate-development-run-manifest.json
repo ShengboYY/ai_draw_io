@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "formal",
+  "split": "development",
+  "gitCommit": "ad9a175f",
+  "corpusLockSha256": "7b0c0fdc7fd45a48a92e0e90b5051ef378e9aeb92b01c88fe6099f0e5006cb65",
+  "taskFixtureSha256": "e69f654383f9fd85376a8b79df81a0c3417ad9f805def7ac38e244c579e2981a",
+  "promptBundlesSha256": "51ff96d79847946530135f4ff40e30ce53c04b49c9aef51e664659d8fa598b87",
+  "responsesSha256": "cdd55cfc48c2bde115cffc529949c8c16bf0c4d6b69910065c1c5a2ced76b3b4",
+  "model": {
+    "provider": "OpenAI",
+    "name": "gpt-5.5",
+    "endpointFingerprint": "sha256:82141e272189210ab931267ec91313de3460102092ac4f85b284b44db52b0caf"
+  },
+  "requestParameters": {
+    "temperature": "provider-default",
+    "maxCompletionTokens": 6000,
+    "responseFormat": "json_schema:drawio_generation_response_v2",
+    "reasoningEffort": "low",
+    "imageDetail": "high"
+  },
+  "taskIds": [
+    "dgt-dev-01",
+    "dgt-dev-02",
+    "dgt-dev-03",
+    "dgt-dev-04",
+    "dgt-dev-05",
+    "dgt-dev-06"
+  ],
+  "calls": [
+    {
+      "taskId": "dgt-dev-01",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_38fad74e98f4496a8015c09bc67e599b",
+      "promptSha256": "87fd019c3f303e8102d0a3304d54ed2573eaa6d4823c68c546e52a9e9e26ebb9",
+      "usage": {
+        "inputTokens": 5945,
+        "outputTokens": 3711
+      },
+      "latencyMs": 37022
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_55c127abe6614846a428a40bc9fe12b5",
+      "promptSha256": "733917dcd6791d268a131ffec9498c68bc72be65f4942e995788278c744c3ff6",
+      "usage": {
+        "inputTokens": 7588,
+        "outputTokens": 2547
+      },
+      "latencyMs": 24493
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_b84e69daf0674b35a890e242684a5a31",
+      "promptSha256": "a83e82c76a400a9dbcd6a1ffbac09a0c88df4d409db68b1d3ef49dc34d34d94d",
+      "usage": {
+        "inputTokens": 4483,
+        "outputTokens": 267
+      },
+      "latencyMs": 3832
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_4174e88032024d00920d80355941fc59",
+      "promptSha256": "68676acee1cb8c8fab394d1cd29010f0251460607bb57a514be732f67b3107c4",
+      "usage": {
+        "inputTokens": 8954,
+        "outputTokens": 135
+      },
+      "latencyMs": 3286
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_a70ee8bf2aeb497983a56ae56ae779e4",
+      "promptSha256": "6c8af01020662777aee74c78fc2428818c419a38c73c66d0e706c2b4f048df3e",
+      "usage": {
+        "inputTokens": 5270,
+        "outputTokens": 1180
+      },
+      "latencyMs": 11493
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_852e3579be9644f0be3421b8d9becd57",
+      "promptSha256": "7288b8b127feba0a7bc5c861c460ddd07b293af7dd2b8e9b7425cd0f20ee7d9f",
+      "usage": {
+        "inputTokens": 419,
+        "outputTokens": 226
+      },
+      "latencyMs": 2734
+    }
+  ],
+  "artifacts": [
+    {
+      "role": "corpusLock",
+      "path": "results/2026-07-23-e7-r5-gpt-5-5-development-run-corpus-lock.json",
+      "sha256": "7b0c0fdc7fd45a48a92e0e90b5051ef378e9aeb92b01c88fe6099f0e5006cb65"
+    },
+    {
+      "role": "taskFixture",
+      "path": "fixtures/drawio-generation-tasks-v2.json",
+      "sha256": "e69f654383f9fd85376a8b79df81a0c3417ad9f805def7ac38e244c579e2981a"
+    },
+    {
+      "role": "promptBundles",
+      "path": "results/2026-07-23-e7-r5-candidate-development-prompt-bundles.json",
+      "sha256": "51ff96d79847946530135f4ff40e30ce53c04b49c9aef51e664659d8fa598b87"
+    },
+    {
+      "role": "responses",
+      "path": "results/2026-07-23-e7-r5-gpt-5-5-candidate-development-responses.json",
+      "sha256": "cdd55cfc48c2bde115cffc529949c8c16bf0c4d6b69910065c1c5a2ced76b3b4"
+    }
+  ]
+}

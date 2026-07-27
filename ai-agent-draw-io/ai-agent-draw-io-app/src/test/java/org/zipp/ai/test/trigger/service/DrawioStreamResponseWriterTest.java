@@ -11,8 +11,18 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
+import org.zipp.ai.domain.citation.service.CitationGuard;
+import org.zipp.ai.domain.grounding.CanvasCommitModule;
+import org.zipp.ai.domain.grounding.EvidenceAccessContext;
+import org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort;
+import org.zipp.ai.domain.retrieval.EvidenceBundle;
+import org.zipp.ai.domain.retrieval.EvidenceBundleItem;
+import org.zipp.ai.domain.retrieval.RunResourceDomain;
+import org.zipp.ai.domain.retrieval.SourceMode;
+import org.zipp.ai.domain.multimodal.DirectObservationFingerprint;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
@@ -23,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.time.Clock;
 
 import static org.junit.Assert.assertEquals;
@@ -32,11 +43,59 @@ import static org.junit.Assert.assertTrue;
 public class DrawioStreamResponseWriterTest {
 
     @Test
+    public void shouldCommitStrictEvidenceManifestBeforeEmittingFinalCanvas() throws Exception {
+        String before = "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>";
+        CanvasState current = CanvasState.builder().userId("alice").diagramId("diagram-1")
+                .diagramType("flowchart").currentXml(before).contentHash("hash-1").version(1L).build();
+        ICanvasStateStore store = new ICanvasStateStore() {
+            @Override public Optional<CanvasState> find(String userId, String diagramId) { return Optional.of(current); }
+            @Override public CanvasState save(CanvasState state) { throw new AssertionError("must use atomic port"); }
+        };
+        AtomicInteger commits = new AtomicInteger();
+        GroundedCanvasCommitPort port = new GroundedCanvasCommitPort() {
+            @Override public java.util.Map<String, InheritedProvenance> findPersistedProvenance(InheritanceQuery query) {
+                return java.util.Map.of();
+            }
+            @Override public org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult commit(CommitPlan plan) {
+                commits.incrementAndGet();
+                return org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult.updated(
+                        CanvasState.builder().userId("alice").diagramId("diagram-1").diagramType("flowchart")
+                                .currentXml(plan.canvasXml()).contentHash(plan.contentHash()).version(2L).build());
+            }
+        };
+        CanvasMutationGate gate = new CanvasMutationGate(store, new DefaultCanvasAnalyzer());
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        injectMutationGate(writer, gate);
+        injectField(writer, "canvasCommitModule", new CanvasCommitModule(
+                gate, new CitationGuard(requests -> List.of()), port));
+        CapturingEmitter emitter = new CapturingEmitter();
+        RunResourceDomain resources = new RunResourceDomain();
+        resources.markPrepared();
+        EvidenceAccessContext access = EvidenceAccessContext.from(new EvidenceBundle(
+                "bundle-1", "request-1", "run-1", SourceMode.EXPLICIT_ONLY,
+                List.of(new EvidenceBundleItem("E1", "evidence-1", "material-1", "version-1", "revision-1",
+                        "S1", 6, "TEXT", "Product Owner is accountable for maximizing value"))), false);
+        writer.setCurrentCanvas(emitter, before);
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 1L, "hash-1", "flowchart", "run-1", "span-1");
+        writer.setEvidenceContext(emitter, access, resources, true, "request-1", "run-1");
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"create_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='node-1' value='Product Owner is accountable for maximizing value' vertex='1' parent='1'><mxGeometry width='220' height='60' as='geometry'/></mxCell></root></mxGraphModel>","citationBindings":[{"cellId":"node-1","statementKey":"D1","statementKind":"NODE_TEXT","statementText":"Product Owner is accountable for maximizing value","citationKeys":["E1"],"supportAtoms":[{"atomKey":"A1","citationKey":"E1","anchorText":"Product Owner is accountable for maximizing value","role":"PREMISE"}],"supportType":"EVIDENCE"}]}
+                """);
+        writer.flushPendingDiagram(emitter, "done");
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(1, commits.get());
+        assertTrue(output.contains("zippCitationSchema"));
+        assertFalse(output.contains("grounding_rejected"));
+    }
+
+    @Test
     public void shouldSendRouteAsACompactThinkingEvent() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();
 
-        writer.sendRoute(emitter, "edit_existing", "flowchart", "drawio-flowchart");
+        writer.sendRoute(emitter, "edit_existing", "flowchart", "drawio-flowchart", "DIRECT");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"phase\":\"thinking\""));
@@ -44,6 +103,82 @@ public class DrawioStreamResponseWriterTest {
         assertTrue(output.contains("\"routeType\":\"edit_existing\""));
         assertTrue(output.contains("\"diagramType\":\"flowchart\""));
         assertTrue(output.contains("\"skillName\":\"drawio-flowchart\""));
+        assertTrue(output.contains("\"sourceUse\":\"DIRECT\""));
+    }
+
+    @Test
+    public void shouldSendStructuredDirectConfirmationIssues() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        writer.sendDirectConfirmation(emitter, "请确认图片结构。", "version-1",
+                List.of("UNRESOLVED_EDGE_DIRECTION:e1", "LOW_CONFIDENCE_NODE_TEXT:n2"),
+                java.util.Map.of("LOW_CONFIDENCE_NODE_TEXT:n2", "Approve order"));
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"direct_confirmation_required\""));
+        assertTrue(output.contains("\"reasons\":[\"UNRESOLVED_EDGE_DIRECTION:e1\",\"LOW_CONFIDENCE_NODE_TEXT:n2\"]"));
+        assertTrue(output.contains("\"sourceVersionId\":\"version-1\""));
+        assertTrue(output.contains("\"observedValue\":\"Approve order\""));
+        assertTrue(output.contains("\"type\":\"done\""));
+    }
+
+    @Test
+    public void shouldFingerprintTheFullObservedValueWhileBoundingDisplayText() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+        String observed = "x".repeat(240);
+
+        writer.sendDirectConfirmation(emitter, "请确认图片结构。", "version-1",
+                List.of("LOW_CONFIDENCE_NODE_TEXT:n2"),
+                java.util.Map.of("LOW_CONFIDENCE_NODE_TEXT:n2", observed));
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"observedFingerprint\":\""
+                + DirectObservationFingerprint.of(observed) + "\""));
+        assertTrue(output.contains("\"observedValue\":\"" + "x".repeat(197) + "...\""));
+    }
+
+    @Test
+    public void shouldRejectModelCitationBindingsForImmutableDirectCells() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+        org.zipp.ai.domain.citation.model.valobj.CitationBinding directBinding =
+                new org.zipp.ai.domain.citation.model.valobj.CitationBinding(
+                        "direct-node-a", "direct-statement-a",
+                        org.zipp.ai.domain.citation.model.valobj.StatementKind.NODE_TEXT,
+                        "A", null, null, List.of("D1"),
+                        List.of(new org.zipp.ai.domain.citation.model.valobj.SupportAtom(
+                                "direct-atom-a", "D1", "A",
+                                org.zipp.ai.domain.citation.model.valobj.SupportAtomRole.DIRECT_QUOTE)),
+                        org.zipp.ai.domain.citation.model.valobj.SupportType.EVIDENCE);
+        writer.setDirectCompositionContext(
+                emitter, List.of(directBinding), Set.of("direct-node-a"));
+        com.alibaba.fastjson.JSONObject candidate = com.alibaba.fastjson.JSON.parseObject("""
+                {"citationBindings":[{"cellId":"direct-node-a","statementKey":"model-rewrite",
+                "statementKind":"NODE_TEXT","statementText":"changed","citationKeys":["E1"],
+                "supportAtoms":[],"supportType":"EVIDENCE"}]}
+                """);
+
+        writer.rememberCitationBindings(emitter, candidate);
+
+        @SuppressWarnings("unchecked")
+        Set<ResponseBodyEmitter> invalid = (Set<ResponseBodyEmitter>)
+                readField(writer, "invalidCitationManifestEmitters");
+        assertTrue(invalid.contains(emitter));
+
+        CapturingEmitter supplementalEmitter = new CapturingEmitter();
+        writer.setDirectCompositionContext(
+                supplementalEmitter, List.of(directBinding), Set.of("direct-node-a"));
+        com.alibaba.fastjson.JSONObject directCitationReuse = com.alibaba.fastjson.JSON.parseObject("""
+                {"citationBindings":[{"cellId":"new-node","statementKey":"new-statement",
+                "statementKind":"NODE_TEXT","statementText":"new","citationKeys":["D1"],
+                "supportAtoms":[],"supportType":"EVIDENCE"}]}
+                """);
+
+        writer.rememberCitationBindings(supplementalEmitter, directCitationReuse);
+
+        assertTrue(invalid.contains(supplementalEmitter));
     }
 
     @Test
@@ -313,16 +448,25 @@ public class DrawioStreamResponseWriterTest {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
-        injectCanvasStateStore(writer, canvasStateStore);
-        injectTelemetryService(writer, new AgentUsageTelemetryService(
-                new FakeAgentUsageTelemetryStore(), Clock.systemUTC(),
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService telemetryService = new AgentUsageTelemetryService(
+                telemetryStore, Clock.systemUTC(),
                 AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
-                new AgentTelemetryMetrics(registry)));
+                new AgentTelemetryMetrics(registry));
+        injectCanvasStateStore(writer, canvasStateStore);
+        injectTelemetryService(writer, telemetryService);
         CapturingEmitter emitter = new CapturingEmitter();
-        writer.setCanvasStateContext(
-                emitter, "alice", "diagram-1", 3L, null, "flowchart",
-                CanvasMutationPurpose.VLM_REPAIR, CanvasMutationAuthorization.unrestricted(),
-                1, "aru_repair", "ars_drawing");
+        AgentUsageTelemetryService.RunScope traceRun = telemetryService.startRun(
+                "aru_repair", "request-1", "alice", "300029", "session-1",
+                "visual_repair_stream", "diagram-1", AgentUsageTelemetryService.PLATFORM,
+                null, "openai", "test-model");
+        try (AgentUsageTelemetryContext.Scope ignored =
+                     AgentUsageTelemetryContext.bind(traceRun.getContext())) {
+            writer.setCanvasStateContext(
+                    emitter, "alice", "diagram-1", 3L, null, "flowchart",
+                    CanvasMutationPurpose.VLM_REPAIR, CanvasMutationAuthorization.unrestricted(),
+                    1, "aru_repair", "ars_drawing");
+        }
 
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
@@ -333,6 +477,12 @@ public class DrawioStreamResponseWriterTest {
                 .tag("purpose", "vlm_repair").tag("status", "rejected_scope_violation")
                 .tag("reason", "scope_violation").tag("repair_round", "1")
                 .counter().count(), 0.001D);
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "CANVAS_MUTATION_EVALUATED".equals(event.getEventType())
+                        && "ars_drawing".equals(event.getParentId())
+                        && "FAILED".equals(event.getStatus())
+                        && event.getMetadataJson().contains("\"purpose\":\"VLM_REPAIR\"")
+                        && event.getMetadataJson().contains("\"status\":\"REJECTED_SCOPE_VIOLATION\"")));
     }
 
     @Test
@@ -720,6 +870,18 @@ public class DrawioStreamResponseWriterTest {
         Field field = DrawioStreamResponseWriter.class.getDeclaredField("agentUsageTelemetryService");
         field.setAccessible(true);
         field.set(writer, telemetryService);
+    }
+
+    private void injectField(Object target, String name, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private Object readField(Object target, String name) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(target);
     }
 
     @Test

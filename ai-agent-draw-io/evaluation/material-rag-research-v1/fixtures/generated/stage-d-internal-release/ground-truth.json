@@ -1,0 +1,208 @@
+{
+  "schemaVersion": "material-rag-stage-d-internal-release-ground-truth-v1",
+  "anchors": [
+    {
+      "anchorId": "co-intake",
+      "source": "ir-customer-onboarding",
+      "version": "v1",
+      "page": 1,
+      "text": "Customer Intake is followed by Identity Check before Account Activation."
+    },
+    {
+      "anchorId": "co-owner",
+      "source": "ir-customer-onboarding",
+      "version": "v1",
+      "page": 1,
+      "text": "Account Activation is owned by Customer Operations."
+    },
+    {
+      "anchorId": "dr-store",
+      "source": "ir-data-retention",
+      "version": "v1",
+      "page": 1,
+      "text": "Raw Archive retains approved records for 30 days before Curated Archive."
+    },
+    {
+      "anchorId": "dr-delete",
+      "source": "ir-data-retention",
+      "version": "v1",
+      "page": 1,
+      "text": "Curated Archive sends expired records to Verified Deletion."
+    },
+    {
+      "anchorId": "ro-build",
+      "source": "ir-release-ownership",
+      "version": "v1",
+      "page": 1,
+      "text": "Build Steward owns the signed package."
+    },
+    {
+      "anchorId": "ro-approve",
+      "source": "ir-release-ownership",
+      "version": "v1",
+      "page": 1,
+      "text": "Release Manager approves the signed package before Production Gateway."
+    },
+    {
+      "anchorId": "fr-route",
+      "source": "ir-fraud-route",
+      "version": "v1",
+      "page": 1,
+      "text": "Payment Intake goes to Risk Screening. A flagged payment goes to Analyst Review; an unflagged payment goes to Settlement Queue."
+    },
+    {
+      "anchorId": "va-sponsor",
+      "source": "ir-vendor-access",
+      "version": "v1",
+      "page": 1,
+      "text": "Vendor Sponsor submits the access request to Security Validation."
+    },
+    {
+      "anchorId": "va-expiry",
+      "source": "ir-vendor-access",
+      "version": "v1",
+      "page": 1,
+      "text": "Approved vendor access expires after 14 days."
+    },
+    {
+      "anchorId": "ce-verify",
+      "source": "ir-customer-onboarding-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Identity Check hands verified customers to Account Activation."
+    },
+    {
+      "anchorId": "ie-escalate",
+      "source": "ir-incident-routing-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Service Owner escalates unresolved incidents to Incident Commander."
+    },
+    {
+      "anchorId": "ie-update",
+      "source": "ir-incident-routing-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Incident Commander assigns Communications Lead."
+    },
+    {
+      "anchorId": "ir-match",
+      "source": "ir-invoice-reconcile-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Invoice Match routes mismatches to Finance Investigation before Supplier Query."
+    },
+    {
+      "anchorId": "ll-roles",
+      "source": "ir-layout-lanes",
+      "version": "v1",
+      "page": 1,
+      "text": "Requester and Reviewer are the two existing process roles."
+    },
+    {
+      "anchorId": "ls-roles",
+      "source": "ir-layout-sequence",
+      "version": "v1",
+      "page": 1,
+      "text": "Draft, Review and Publish are the existing approval sequence labels."
+    },
+    {
+      "anchorId": "lt-status",
+      "source": "ir-layout-status",
+      "version": "v1",
+      "page": 1,
+      "text": "Queued, Running and Complete are the existing status labels."
+    },
+    {
+      "anchorId": "tv-flow",
+      "source": "ir-telemetry-visual",
+      "version": "v1",
+      "page": 1,
+      "text": "Sensor Intake goes to Calibration Check. If Reading valid? is Yes, Publish Telemetry then Operations Dashboard. If No, Quarantine Sample then Lab Review."
+    },
+    {
+      "anchorId": "ss-flow",
+      "source": "ir-site-safety-scan",
+      "version": "v1",
+      "page": 1,
+      "text": "Field Technician attaches Site Photo. If Safety cleared? is Yes, Close Visit. If No, Dispatch Supervisor then Arrange Return."
+    },
+    {
+      "anchorId": "pb-v2",
+      "source": "ir-price-book",
+      "version": "v2",
+      "page": 1,
+      "text": "Price Analyst submits Version 2 to Commercial Approver before Catalog Publish."
+    },
+    {
+      "anchorId": "pe-auth",
+      "source": "ir-policy-exception",
+      "version": "v3",
+      "page": 1,
+      "text": "Policy Owner approves exception EX-903 before Compliance Register records it."
+    },
+    {
+      "anchorId": "cc-v2",
+      "source": "ir-contract-change",
+      "version": "v2",
+      "page": 1,
+      "text": "Legal Reviewer and Procurement Lead must approve Change Set B before Supplier Notice."
+    },
+    {
+      "anchorId": "sr-safe",
+      "source": "ir-search-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "During Vector Search Unavailable, material-backed drawing is blocked while Manual Drawing remains available."
+    },
+    {
+      "anchorId": "sr-retry",
+      "source": "ir-search-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "Retry Retrieval may continue only after Vector Search is restored."
+    },
+    {
+      "anchorId": "cr-save",
+      "source": "ir-save-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "Canvas Save Failed must preserve the current canvas and offer Retry Save."
+    },
+    {
+      "anchorId": "cr-escalate",
+      "source": "ir-save-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "A repeated save failure is escalated to Storage Support."
+    },
+    {
+      "anchorId": "or-ocr",
+      "source": "ir-ocr-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "OCR Unavailable blocks source-grounded extraction and offers Retry OCR."
+    },
+    {
+      "anchorId": "or-manual",
+      "source": "ir-ocr-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "After a completed OCR failure, the user may provide a manual source excerpt."
+    },
+    {
+      "anchorId": "br-blob",
+      "source": "ir-blob-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "Evidence Blob Unavailable blocks cited material generation until Blob Read is restored."
+    },
+    {
+      "anchorId": "br-audit",
+      "source": "ir-blob-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "The recovery event is recorded in Retrieval Audit."
+    }
+  ]
+}

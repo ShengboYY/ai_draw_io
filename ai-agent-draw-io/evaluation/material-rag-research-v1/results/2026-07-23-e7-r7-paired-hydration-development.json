@@ -1,0 +1,1338 @@
+{
+  "schemaVersion": "material-rag-drawio-paired-hydration-v1",
+  "split": "development",
+  "selector": "source-aware-top8-v1",
+  "candidatePoolSize": 40,
+  "limit": 8,
+  "taskCount": 6,
+  "retrievalRequiredTaskCount": 5,
+  "changedTaskCount": 5,
+  "changedTaskRate": 1.0,
+  "minimumChangeRate": 0.2,
+  "effectiveExperiment": true,
+  "hydrationCandidates": {
+    "corpusLockSha256": "fb4758d7da4174649eb26f2389443f56c3d0e5e17a82ced2bd7b7c9b092978f0",
+    "gitCommit": "81a2824d4199aedc146095f8ab4573d2e2f4627d",
+    "runId": "drawiohydrationpdfresearch_d6eabdb94562432fa8a60e178f9aa46f",
+    "path": "evaluation/material-rag-research-v1/results/2026-07-23-e7-r7-task-hydration-candidates-development.json",
+    "sha256": "fc1519ed4e02d60c03df3569064ff6304bae45cd8b5bd4dec37977c96f5a79b0"
+  },
+  "contexts": [
+    {
+      "taskId": "dgt-dev-01",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only architecture relationship",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] This synthetic blueprint contains no production",
+          "chunkId": "rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Out of scope\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Product boundary",
+          "chunkId": "rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Trust\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer is owned by the Diagram team. Citation Binder can reject an unresolved reference but cannot change the selected source version.",
+          "chunkId": "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_9087330c22064f0501619c66b8ffd222552fec7f",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 1,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+          "imageSha256": "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b",
+          "chunkId": "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 1,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+          "imageSha256": "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b",
+          "chunkId": "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 4. CANVAS REVIEW",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Draw.io Agent Architecture Blueprint; 1. Component ownership; 2. Request-to-canvas rout\n[\u5185\u5bb9] [\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation",
+          "chunkId": "rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-01",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only architecture relationship",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_9087330c22064f0501619c66b8ffd222552fec7f",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 1,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+          "imageSha256": "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b",
+          "chunkId": "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+          "rank": 5
+        },
+        {
+          "anchorId": "dwh-handoff-type",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u4e1a\u52a1\u8d1f\u8d23\u4eba\n\n[\u7ae0\u8282] 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u63cf\u8ff0\u7cfb\u7edf\u4ea4\u4e92\u65f6\u9996\u9009\u65f6\u5e8f\u56fe\uff1b\u8d23\u4efb\u4ea4\u63a5\u5219\u9996\u9009\u6cf3\u9053\u56fe\u3002\u4e24\u8005\u90fd\u53ef\u80fd\u5305\u542b\u7bad\u5934\uff0c\u4f46\u7bad\u5934\u7684\u8bed\u4e49\u4e0d\u540c\u3002",
+          "chunkId": "rc_d609600c06eadde132ffc6bb1e17f3e13d2e6d1b",
+          "rank": 12
+        },
+        {
+          "anchorId": "dwh-sequence-type",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u4e1a\u52a1\u8d1f\u8d23\u4eba\n\n[\u7ae0\u8282] 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u63cf\u8ff0\u7cfb\u7edf\u4ea4\u4e92\u65f6\u9996\u9009\u65f6\u5e8f\u56fe\uff1b\u8d23\u4efb\u4ea4\u63a5\u5219\u9996\u9009\u6cf3\u9053\u56fe\u3002\u4e24\u8005\u90fd\u53ef\u80fd\u5305\u542b\u7bad\u5934\uff0c\u4f46\u7bad\u5934\u7684\u8bed\u4e49\u4e0d\u540c\u3002",
+          "chunkId": "rc_d609600c06eadde132ffc6bb1e17f3e13d2e6d1b",
+          "rank": 12
+        },
+        {
+          "anchorId": "retrieved:rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] This synthetic blueprint contains no production",
+          "chunkId": "rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Out of scope\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Product boundary",
+          "chunkId": "rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Trust\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer is owned by the Diagram team. Citation Binder can reject an unresolved reference but cannot change the selected source version.",
+          "chunkId": "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 1,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+          "imageSha256": "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b",
+          "chunkId": "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 4. CANVAS REVIEW",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "rank": 7
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DWH-2026-12 | \u4ece\u8d44\u6599\u68c0\u7d22\u5230\u53ef\u7f16\u8f91\u753b\u5e03\n\n[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u9002\u7528\u8303\u56f4 \u672c\u624b\u518c\u7528\u4e8e\u89c4\u8303 Agent \u6839\u636e PDF\u3001\u56fe\u7247\u548c\u5df2\u6709\u8d44\u6599\u751f\u6210 draw.io \u56fe\u7684\u5de5\u4f5c\u6d41\u3002\u6b63\u5f0f\u7f16\u53f7\u4e3a DWH-2026-12\uff1b \u57f9\u8bad\u6837\u4f8b DWH-2026-21 \u4e0d\u5c5e\u4e8e\u672c\u7248\u672c\u3002\u5de5\u4f5c\u6d41\u8986\u76d6\u9700\u6c42\u6f84\u6e05\u3001\u8d44\u6599\u8303\u56f4\u3001\u8bc1\u636e\u9009\u62e9\u3001\u56fe\u5f62\u89c4\u5212\u3001\u753b\u5e03\u751f\u6210 \u548c\u5f15\u7528\u590d\u6838\u3002 \u57fa\u672c\u539f\u5219 \u5148\u786e\u5b9a\u7528\u6237\u8981\u8868\u8fbe\u7684\u5173\u7cfb\uff0c\u518d\u9009\u62e9\u56fe\u578b\u3002\u7cfb\u7edf\u4e0d\u80fd\u56e0\u4e3a\u8d44\u6599\u4e2d\u51fa\u73b0\u8bb8\u591a\u540d\u8bcd\u5c31\u9ed8\u8ba4\u751f\u6210\u67b6\u6784\u56fe\uff0c\u4e5f\u4e0d\u80fd\u628a\u4e00 \u6bb5\u987a\u5e8f\u6587\u5b57\u76f4\u63a5\u89e3\u91ca\u6210\u5e76\u884c\u6d41\u7a0b\u3002\u6bcf\u4e2a\u5173\u952e\u8282\u70b9\u5e94\u80fd\u8ffd\u6eaf\u5230\u8d44\u6599\u8bc1\u636e\u6216\u660e\u786e\u6807\u6ce8\u4e3a\u7528\u6237\u63d0\u4f9b\u3002 \u62d2\u7b54\u8fb9\u754c \u624b\u518c\u6ca1\u6709\u8bb0\u5f55\u7528\u6237\u5bc6\u7801\u3001\u4ed8\u8d39\u8d26\u53f7\u3001\u79c1\u4eba\u7535\u8bdd\u53f7\u7801\u3001\u751f\u4ea7\u79df\u6237\u7f16\u53f7\u6216\u5185\u90e8\u8bbf\u95ee\u4ee4\u724c\u3002\u76f8\u5173\u95ee\u9898\u5fc5\u987b\u62d2\u7b54\uff0c\u4e0d \u80fd\u4ece\u622a\u56fe\u3001\u6587\u4ef6\u540d\u6216\u5e38\u8bc6\u4e2d\u731c\u6d4b\u3002",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation",
+          "chunkId": "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+          "rank": 2
+        },
+        {
+          "anchorId": "daa-route-compose",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+          "rank": 3
+        },
+        {
+          "anchorId": "daa-route-scope",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_40e415a8536e28b787ea9183314b81f21950db96",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] caption_context\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_40e415a8536e28b787ea9183314b81f21950db96",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 6,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] dates, roles and negative evidence\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+          "imageSha256": "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2",
+          "chunkId": "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_e7341d059d57f50a6991f798b880debd689d036f",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9] [\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Required fields and unsupported shortcuts",
+          "chunkId": "rc_e7341d059d57f50a6991f798b880debd689d036f",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] architecture identifier is DAA-2026-17.",
+          "chunkId": "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values.",
+          "chunkId": "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DWH-2026-12 | \u4ece\u8d44\u6599\u68c0\u7d22\u5230\u53ef\u7f16\u8f91\u753b\u5e03\n\n[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u9002\u7528\u8303\u56f4 \u672c\u624b\u518c\u7528\u4e8e\u89c4\u8303 Agent \u6839\u636e PDF\u3001\u56fe\u7247\u548c\u5df2\u6709\u8d44\u6599\u751f\u6210 draw.io \u56fe\u7684\u5de5\u4f5c\u6d41\u3002\u6b63\u5f0f\u7f16\u53f7\u4e3a DWH-2026-12\uff1b \u57f9\u8bad\u6837\u4f8b DWH-2026-21 \u4e0d\u5c5e\u4e8e\u672c\u7248\u672c\u3002\u5de5\u4f5c\u6d41\u8986\u76d6\u9700\u6c42\u6f84\u6e05\u3001\u8d44\u6599\u8303\u56f4\u3001\u8bc1\u636e\u9009\u62e9\u3001\u56fe\u5f62\u89c4\u5212\u3001\u753b\u5e03\u751f\u6210 \u548c\u5f15\u7528\u590d\u6838\u3002 \u57fa\u672c\u539f\u5219 \u5148\u786e\u5b9a\u7528\u6237\u8981\u8868\u8fbe\u7684\u5173\u7cfb\uff0c\u518d\u9009\u62e9\u56fe\u578b\u3002\u7cfb\u7edf\u4e0d\u80fd\u56e0\u4e3a\u8d44\u6599\u4e2d\u51fa\u73b0\u8bb8\u591a\u540d\u8bcd\u5c31\u9ed8\u8ba4\u751f\u6210\u67b6\u6784\u56fe\uff0c\u4e5f\u4e0d\u80fd\u628a\u4e00 \u6bb5\u987a\u5e8f\u6587\u5b57\u76f4\u63a5\u89e3\u91ca\u6210\u5e76\u884c\u6d41\u7a0b\u3002\u6bcf\u4e2a\u5173\u952e\u8282\u70b9\u5e94\u80fd\u8ffd\u6eaf\u5230\u8d44\u6599\u8bc1\u636e\u6216\u660e\u786e\u6807\u6ce8\u4e3a\u7528\u6237\u63d0\u4f9b\u3002 \u62d2\u7b54\u8fb9\u754c \u624b\u518c\u6ca1\u6709\u8bb0\u5f55\u7528\u6237\u5bc6\u7801\u3001\u4ed8\u8d39\u8d26\u53f7\u3001\u79c1\u4eba\u7535\u8bdd\u53f7\u7801\u3001\u751f\u4ea7\u79df\u6237\u7f16\u53f7\u6216\u5185\u90e8\u8bbf\u95ee\u4ee4\u724c\u3002\u76f8\u5173\u95ee\u9898\u5fc5\u987b\u62d2\u7b54\uff0c\u4e0d \u80fd\u4ece\u622a\u56fe\u3001\u6587\u4ef6\u540d\u6216\u5e38\u8bc6\u4e2d\u731c\u6d4b\u3002",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation",
+          "chunkId": "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 6,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] dates, roles and negative evidence\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+          "imageSha256": "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2",
+          "chunkId": "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "rank": 5
+        },
+        {
+          "anchorId": "daa-route-compose",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+          "rank": 3
+        },
+        {
+          "anchorId": "daa-route-scope",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_40e415a8536e28b787ea9183314b81f21950db96",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] caption_context\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_40e415a8536e28b787ea9183314b81f21950db96",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_e7341d059d57f50a6991f798b880debd689d036f",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9] [\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Required fields and unsupported shortcuts",
+          "chunkId": "rc_e7341d059d57f50a6991f798b880debd689d036f",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] architecture identifier is DAA-2026-17.",
+          "chunkId": "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values.",
+          "chunkId": "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] generation; exporting an image does not replace",
+          "chunkId": "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 6,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] dates, roles and negative evidence\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+          "imageSha256": "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2",
+          "chunkId": "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values.",
+          "chunkId": "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] visual and editable-output checks\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Visual Arrow direction, containment and raster table cells require pixel verification. Editable Stable cell identifiers and valid draw.io XML are required before completion. Export PNG is a preview. It does not preserve semantic groups or evidence bindings.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] reference that can resolve to source version, page",
+          "chunkId": "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation",
+          "chunkId": "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] version rules are checked before evidence enters",
+          "chunkId": "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_9087330c22064f0501619c66b8ffd222552fec7f",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 1,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+          "imageSha256": "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b",
+          "chunkId": "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] generation; exporting an image does not replace",
+          "chunkId": "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 6,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] dates, roles and negative evidence\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+          "imageSha256": "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2",
+          "chunkId": "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "rank": 2
+        },
+        {
+          "anchorId": "dwh-canonical",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u4e2d\u6587\u957f\u6bb5\u843d\u4e0e\u5bf9\u8c61\u8fb9\u754c\n\n[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u7f16\u8f91 \u7528\u6237\u53ef\u4ee5\u79fb\u52a8\u3001\u5206\u7ec4\u6216\u91cd\u65b0\u7740\u8272\u8282\u70b9\u800c\u4e0d\u6539\u53d8\u4e8b\u5b9e\u3002\u82e5\u4fee\u6539\u8282\u70b9\u540d\u79f0\u3001\u6570\u503c\u3001\u7bad\u5934\u65b9\u5411\u6216\u8d23\u4efb\u89d2\u8272\uff0c\u7cfb\u7edf\u5fc5 \u987b\u91cd\u65b0\u68c0\u67e5\u8bc1\u636e\u3002\u4ec5\u6539\u53d8\u5b57\u4f53\u5927\u5c0f\u4e0d\u9700\u8981\u91cd\u65b0\u68c0\u7d22\u3002 \u5f15\u7528 \u5f15\u7528\u9762\u677f\u6309\u5f62\u72b6\u663e\u793a\u8d44\u6599\u540d\u79f0\u3001\u7248\u672c\u3001\u9875\u7801\u548c\u8bc1\u636e\u533a\u57df\u3002\u8de8\u9875\u6bd4\u8f83\u5fc5\u987b\u4fdd\u7559\u4e24\u4e2a\u6765\u6e90\u4f4d\u7f6e\u3002\u6458\u8981\u8282\u70b9\u53ef\u4ee5\u5408 \u5e76\u5c55\u793a\uff0c\u4f46\u4e0d\u80fd\u628a\u591a\u4e2a\u8bc1\u636e\u538b\u7f29\u6210\u4e00\u4e2a\u4e0d\u53ef\u8ffd\u6eaf\u7684\u9875\u7801\u3002 \u5bfc\u51fa draw.io XML \u662f\u53ef\u7ee7\u7eed\u7f16\u8f91\u7684\u6b63\u5f0f\u7ed3\u679c\uff1bSVG \u9002\u5408\u7f51\u9875\uff0cPNG \u9002\u5408\u9884\u89c8\uff0cPDF \u9002\u5408\u5ba1\u9605\u3002\u5bfc\u51fa\u683c\u5f0f\u4e0d\u4f1a\u6539 \u53d8\u8d44\u6599\u6743\u9650\uff0c\u4e5f\u4e0d\u80fd\u628a\u5df2\u5931\u6548\u5f15\u7528\u91cd\u65b0\u53d8\u6210\u6709\u6548\u5f15\u7528\u3002 \u56de\u9000 \u753b\u5e03\u751f\u6210\u5931\u8d25\u65f6\u4fdd\u7559\u5df2\u9a8c\u8bc1\u7684 typed plan\uff0c\u5e76\u663e\u793a\u53ef\u91cd\u8bd5\u72b6\u6001\u3002\u7cfb\u7edf\u4e0d\u80fd\u7528\u65e0\u5f15\u7528\u7684\u65e7\u622a\u56fe\u5047\u88c5\u751f\u6210\u6210\u529f\u3002",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+          "rank": 21
+        },
+        {
+          "anchorId": "dwh-factual-edit",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u4e2d\u6587\u957f\u6bb5\u843d\u4e0e\u5bf9\u8c61\u8fb9\u754c\n\n[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u7f16\u8f91 \u7528\u6237\u53ef\u4ee5\u79fb\u52a8\u3001\u5206\u7ec4\u6216\u91cd\u65b0\u7740\u8272\u8282\u70b9\u800c\u4e0d\u6539\u53d8\u4e8b\u5b9e\u3002\u82e5\u4fee\u6539\u8282\u70b9\u540d\u79f0\u3001\u6570\u503c\u3001\u7bad\u5934\u65b9\u5411\u6216\u8d23\u4efb\u89d2\u8272\uff0c\u7cfb\u7edf\u5fc5 \u987b\u91cd\u65b0\u68c0\u67e5\u8bc1\u636e\u3002\u4ec5\u6539\u53d8\u5b57\u4f53\u5927\u5c0f\u4e0d\u9700\u8981\u91cd\u65b0\u68c0\u7d22\u3002 \u5f15\u7528 \u5f15\u7528\u9762\u677f\u6309\u5f62\u72b6\u663e\u793a\u8d44\u6599\u540d\u79f0\u3001\u7248\u672c\u3001\u9875\u7801\u548c\u8bc1\u636e\u533a\u57df\u3002\u8de8\u9875\u6bd4\u8f83\u5fc5\u987b\u4fdd\u7559\u4e24\u4e2a\u6765\u6e90\u4f4d\u7f6e\u3002\u6458\u8981\u8282\u70b9\u53ef\u4ee5\u5408 \u5e76\u5c55\u793a\uff0c\u4f46\u4e0d\u80fd\u628a\u591a\u4e2a\u8bc1\u636e\u538b\u7f29\u6210\u4e00\u4e2a\u4e0d\u53ef\u8ffd\u6eaf\u7684\u9875\u7801\u3002 \u5bfc\u51fa draw.io XML \u662f\u53ef\u7ee7\u7eed\u7f16\u8f91\u7684\u6b63\u5f0f\u7ed3\u679c\uff1bSVG \u9002\u5408\u7f51\u9875\uff0cPNG \u9002\u5408\u9884\u89c8\uff0cPDF \u9002\u5408\u5ba1\u9605\u3002\u5bfc\u51fa\u683c\u5f0f\u4e0d\u4f1a\u6539 \u53d8\u8d44\u6599\u6743\u9650\uff0c\u4e5f\u4e0d\u80fd\u628a\u5df2\u5931\u6548\u5f15\u7528\u91cd\u65b0\u53d8\u6210\u6709\u6548\u5f15\u7528\u3002 \u56de\u9000 \u753b\u5e03\u751f\u6210\u5931\u8d25\u65f6\u4fdd\u7559\u5df2\u9a8c\u8bc1\u7684 typed plan\uff0c\u5e76\u663e\u793a\u53ef\u91cd\u8bd5\u72b6\u6001\u3002\u7cfb\u7edf\u4e0d\u80fd\u7528\u65e0\u5f15\u7528\u7684\u65e7\u622a\u56fe\u5047\u88c5\u751f\u6210\u6210\u529f\u3002",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+          "rank": 21
+        },
+        {
+          "anchorId": "retrieved:rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values.",
+          "chunkId": "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] visual and editable-output checks\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Visual Arrow direction, containment and raster table cells require pixel verification. Editable Stable cell identifiers and valid draw.io XML are required before completion. Export PNG is a preview. It does not preserve semantic groups or evidence bindings.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] reference that can resolve to source version, page",
+          "chunkId": "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation",
+          "chunkId": "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] version rules are checked before evidence enters",
+          "chunkId": "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+          "rank": 7
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 4. CANVAS REVIEW",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 6,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] dates, roles and negative evidence\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+          "imageSha256": "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2",
+          "chunkId": "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Version pinning\n\n[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Recovery",
+          "chunkId": "rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Text extraction alone cannot confirm arrow direction, containment or the row-column association of a raster table.",
+          "chunkId": "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] generation; exporting an image does not replace",
+          "chunkId": "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+          "rank": 5
+        },
+        {
+          "anchorId": "daa-route-compose",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+          "rank": 6
+        },
+        {
+          "anchorId": "daa-route-scope",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u8349\u6848\u51b2\u7a81\u3001\u5b8c\u6210\u6807\u51c6\u4e0e\u65e0\u7b54\u6848\u63a7\u5236\n\n[\u7ae0\u8282] 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u6279\u51c6\u7248\u672c \u624b\u518c 1.0 \u7248\u4e8e 2026 \u5e74 12 \u6708 6 \u65e5\u7531 Diagram Experience Lead \u6279\u51c6\u300211 \u6708\u8349\u6848\u5141\u8bb8\u5728\u5e03\u5c40\u64cd\u4f5c \u65f6\u81ea\u52a8\u8865\u5145\u4e8b\u5b9e\uff0c\u8bc4\u5ba1\u8ba4\u4e3a\u98ce\u9669\u8fc7\u9ad8\u5e76\u5220\u9664\u8be5\u89c4\u5219\u3002 \u5b8c\u6210\u6807\u51c6 \u6b63\u5f0f\u5b8c\u6210\u9700\u8981\u53ef\u7f16\u8f91 XML\u3001\u901a\u8fc7\u7684\u5e03\u5c40\u68c0\u67e5\u3001\u5168\u90e8 \u5173\u952e\u5f62\u72b6\u7684\u8bc1\u636e\u7ed1\u5b9a\u4ee5\u53ca\u65e0\u672a\u89e3\u51b3\u7684\u6743\u9650\u8b66\u544a\u3002\u53ea \u6709 PNG \u9884\u89c8\u4e0d\u7b97\u5b8c\u6210\u3002 \u590d\u6838\u62bd\u6837 \u6bcf\u6b21\u53d1\u5e03\u81f3\u5c11\u62bd\u67e5 12 \u4e2a\u590d\u6742\u56fe\uff0c\u5176\u4e2d\u4e2d\u6587\u3001\u82f1\u6587 \u548c\u56fe\u50cf\u8bc1\u636e\u6848\u4f8b\u5747\u9700\u8986\u76d6\u3002\u62bd\u67e5\u901a\u8fc7\u4e0d\u66ff\u4ee3\u4e13\u9879\u6743 \u9650\u5b88\u95e8\u6d4b\u8bd5\u3002",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Document\n[\u5185\u5bb9] [\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+          "chunkId": "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 4. CANVAS REVIEW",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Version pinning\n\n[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Recovery",
+          "chunkId": "rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u8349\u6848\u51b2\u7a81\u3001\u5b8c\u6210\u6807\u51c6\u4e0e\u65e0\u7b54\u6848\u63a7\u5236\n\n[\u7ae0\u8282] 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u6279\u51c6\u7248\u672c \u624b\u518c 1.0 \u7248\u4e8e 2026 \u5e74 12 \u6708 6 \u65e5\u7531 Diagram Experience Lead \u6279\u51c6\u300211 \u6708\u8349\u6848\u5141\u8bb8\u5728\u5e03\u5c40\u64cd\u4f5c \u65f6\u81ea\u52a8\u8865\u5145\u4e8b\u5b9e\uff0c\u8bc4\u5ba1\u8ba4\u4e3a\u98ce\u9669\u8fc7\u9ad8\u5e76\u5220\u9664\u8be5\u89c4\u5219\u3002 \u5b8c\u6210\u6807\u51c6 \u6b63\u5f0f\u5b8c\u6210\u9700\u8981\u53ef\u7f16\u8f91 XML\u3001\u901a\u8fc7\u7684\u5e03\u5c40\u68c0\u67e5\u3001\u5168\u90e8 \u5173\u952e\u5f62\u72b6\u7684\u8bc1\u636e\u7ed1\u5b9a\u4ee5\u53ca\u65e0\u672a\u89e3\u51b3\u7684\u6743\u9650\u8b66\u544a\u3002\u53ea \u6709 PNG \u9884\u89c8\u4e0d\u7b97\u5b8c\u6210\u3002 \u590d\u6838\u62bd\u6837 \u6bcf\u6b21\u53d1\u5e03\u81f3\u5c11\u62bd\u67e5 12 \u4e2a\u590d\u6742\u56fe\uff0c\u5176\u4e2d\u4e2d\u6587\u3001\u82f1\u6587 \u548c\u56fe\u50cf\u8bc1\u636e\u6848\u4f8b\u5747\u9700\u8986\u76d6\u3002\u62bd\u67e5\u901a\u8fc7\u4e0d\u66ff\u4ee3\u4e13\u9879\u6743 \u9650\u5b88\u95e8\u6d4b\u8bd5\u3002",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 6,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] dates, roles and negative evidence\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+          "imageSha256": "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2",
+          "chunkId": "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Text extraction alone cannot confirm arrow direction, containment or the row-column association of a raster table.",
+          "chunkId": "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] generation; exporting an image does not replace",
+          "chunkId": "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+          "rank": 5
+        },
+        {
+          "anchorId": "daa-route-compose",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+          "rank": 6
+        },
+        {
+          "anchorId": "daa-route-scope",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Document\n[\u5185\u5bb9] [\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+          "chunkId": "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 4. CANVAS REVIEW",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 1,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+          "imageSha256": "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b",
+          "chunkId": "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Purpose\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Design invariant Every material-backed shape keeps an evidence",
+          "chunkId": "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO AGENT REQUEST ROUTE\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] authorizfa ranked validated",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] visual and editable-output checks\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Visual Arrow direction, containment and raster table cells require pixel verification. Editable Stable cell identifiers and valid draw.io XML are required before completion. Export PNG is a preview. It does not preserve semantic groups or evidence bindings.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_67aa9782417bc32f67ee09479f9afe5532625837",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after",
+          "chunkId": "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] reference that can resolve to source version, page",
+          "chunkId": "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u8349\u6848\u51b2\u7a81\u3001\u5b8c\u6210\u6807\u51c6\u4e0e\u65e0\u7b54\u6848\u63a7\u5236\n\n[\u7ae0\u8282] 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u6279\u51c6\u7248\u672c \u624b\u518c 1.0 \u7248\u4e8e 2026 \u5e74 12 \u6708 6 \u65e5\u7531 Diagram Experience Lead \u6279\u51c6\u300211 \u6708\u8349\u6848\u5141\u8bb8\u5728\u5e03\u5c40\u64cd\u4f5c \u65f6\u81ea\u52a8\u8865\u5145\u4e8b\u5b9e\uff0c\u8bc4\u5ba1\u8ba4\u4e3a\u98ce\u9669\u8fc7\u9ad8\u5e76\u5220\u9664\u8be5\u89c4\u5219\u3002 \u5b8c\u6210\u6807\u51c6 \u6b63\u5f0f\u5b8c\u6210\u9700\u8981\u53ef\u7f16\u8f91 XML\u3001\u901a\u8fc7\u7684\u5e03\u5c40\u68c0\u67e5\u3001\u5168\u90e8 \u5173\u952e\u5f62\u72b6\u7684\u8bc1\u636e\u7ed1\u5b9a\u4ee5\u53ca\u65e0\u672a\u89e3\u51b3\u7684\u6743\u9650\u8b66\u544a\u3002\u53ea \u6709 PNG \u9884\u89c8\u4e0d\u7b97\u5b8c\u6210\u3002 \u590d\u6838\u62bd\u6837 \u6bcf\u6b21\u53d1\u5e03\u81f3\u5c11\u62bd\u67e5 12 \u4e2a\u590d\u6742\u56fe\uff0c\u5176\u4e2d\u4e2d\u6587\u3001\u82f1\u6587 \u548c\u56fe\u50cf\u8bc1\u636e\u6848\u4f8b\u5747\u9700\u8986\u76d6\u3002\u62bd\u67e5\u901a\u8fc7\u4e0d\u66ff\u4ee3\u4e13\u9879\u6743 \u9650\u5b88\u95e8\u6d4b\u8bd5\u3002",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 4. CANVAS REVIEW",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Purpose\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Design invariant Every material-backed shape keeps an evidence",
+          "chunkId": "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u8349\u6848\u51b2\u7a81\u3001\u5b8c\u6210\u6807\u51c6\u4e0e\u65e0\u7b54\u6848\u63a7\u5236\n\n[\u7ae0\u8282] 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u6279\u51c6\u7248\u672c \u624b\u518c 1.0 \u7248\u4e8e 2026 \u5e74 12 \u6708 6 \u65e5\u7531 Diagram Experience Lead \u6279\u51c6\u300211 \u6708\u8349\u6848\u5141\u8bb8\u5728\u5e03\u5c40\u64cd\u4f5c \u65f6\u81ea\u52a8\u8865\u5145\u4e8b\u5b9e\uff0c\u8bc4\u5ba1\u8ba4\u4e3a\u98ce\u9669\u8fc7\u9ad8\u5e76\u5220\u9664\u8be5\u89c4\u5219\u3002 \u5b8c\u6210\u6807\u51c6 \u6b63\u5f0f\u5b8c\u6210\u9700\u8981\u53ef\u7f16\u8f91 XML\u3001\u901a\u8fc7\u7684\u5e03\u5c40\u68c0\u67e5\u3001\u5168\u90e8 \u5173\u952e\u5f62\u72b6\u7684\u8bc1\u636e\u7ed1\u5b9a\u4ee5\u53ca\u65e0\u672a\u89e3\u51b3\u7684\u6743\u9650\u8b66\u544a\u3002\u53ea \u6709 PNG \u9884\u89c8\u4e0d\u7b97\u5b8c\u6210\u3002 \u590d\u6838\u62bd\u6837 \u6bcf\u6b21\u53d1\u5e03\u81f3\u5c11\u62bd\u67e5 12 \u4e2a\u590d\u6742\u56fe\uff0c\u5176\u4e2d\u4e2d\u6587\u3001\u82f1\u6587 \u548c\u56fe\u50cf\u8bc1\u636e\u6848\u4f8b\u5747\u9700\u8986\u76d6\u3002\u62bd\u67e5\u901a\u8fc7\u4e0d\u66ff\u4ee3\u4e13\u9879\u6743 \u9650\u5b88\u95e8\u6d4b\u8bd5\u3002",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+          "rank": 8
+        },
+        {
+          "anchorId": "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 1,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+          "imageSha256": "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b",
+          "chunkId": "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO AGENT REQUEST ROUTE\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] authorizfa ranked validated",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] visual and editable-output checks\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Visual Arrow direction, containment and raster table cells require pixel verification. Editable Stable cell identifiers and valid draw.io XML are required before completion. Export PNG is a preview. It does not preserve semantic groups or evidence bindings.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_67aa9782417bc32f67ee09479f9afe5532625837",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after",
+          "chunkId": "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] reference that can resolve to source version, page",
+          "chunkId": "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+          "rank": 7
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": []
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": []
+    }
+  ],
+  "taskSummaries": [
+    {
+      "taskId": "dgt-dev-01",
+      "changed": true,
+      "rawCandidateChunkIds": [
+        "rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+        "rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+        "rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+        "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+        "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+        "rc_469150b37cce98766191521376835b5426edc534",
+        "rc_3f9a11599a8dee4dde0c151a98880ba068cdceaa",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_d609600c06eadde132ffc6bb1e17f3e13d2e6d1b",
+        "rc_68989de7ffd607cde249652cd4ef3434cb13de9a",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+        "rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+        "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+        "rc_056ec7c27e913447d49226c2957744170dd5097b",
+        "rc_0e0008bc59d3fccea97c8a38ccfdf2c0bebe04d4",
+        "rc_57f0b1f02c6bfb66f109890f2087ee71d52ad9c7",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+        "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+        "rc_ffeed257e0a0f56a323d9e98e46e3f3f2225a668",
+        "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "rc_64da2d05b874413ba7c79736b755e2170672ae97",
+        "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+        "rc_125f87c1814e8b8ec14cfb4d7ae165cee8e60ce8",
+        "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+        "rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+        "rc_ae089d46ddf413ca74287d4dfb31586b0d09a921",
+        "rc_65e31e762e72da207eeb7a5712a42a62177c39f2",
+        "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8"
+      ],
+      "rawCandidateChunkIdsSha256": "ff4a20e19fea65402b811b0c5427b567ad44a5f8a483e7addefec5c5535b109f",
+      "controlChunkIds": [
+        "rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+        "rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+        "rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+        "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+        "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5"
+      ],
+      "candidateChunkIds": [
+        "rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+        "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "rc_d609600c06eadde132ffc6bb1e17f3e13d2e6d1b",
+        "rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+        "rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+        "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "changed": true,
+      "rawCandidateChunkIds": [
+        "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+        "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+        "rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+        "rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+        "rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+        "rc_64da2d05b874413ba7c79736b755e2170672ae97",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_0e0008bc59d3fccea97c8a38ccfdf2c0bebe04d4",
+        "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+        "rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+        "rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+        "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "rc_469150b37cce98766191521376835b5426edc534",
+        "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "rc_68989de7ffd607cde249652cd4ef3434cb13de9a",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_21d08c089f12113d111492915856d76297d89b20",
+        "rc_471b7fa8f02e429cebd81722869556e304825363",
+        "rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+        "rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+        "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "rc_c5c909ee12eca7c2f76543c6a3bbc206bc06cf92",
+        "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+        "rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+        "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+        "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+        "rc_169b86c02ff6b13fc85b932c7e1d2a921aaf87cd",
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c"
+      ],
+      "rawCandidateChunkIdsSha256": "ff608ead06e53ba63f0e42decfc06cd1907df6082235bb3475e1c2b3ff828832",
+      "controlChunkIds": [
+        "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+        "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826"
+      ],
+      "candidateChunkIds": [
+        "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+        "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "changed": true,
+      "rawCandidateChunkIds": [
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "rc_6fecb961db640b7e42976ef5ce37b8a5492d1671",
+        "rc_471b7fa8f02e429cebd81722869556e304825363",
+        "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+        "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "rc_21d08c089f12113d111492915856d76297d89b20",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+        "rc_056ec7c27e913447d49226c2957744170dd5097b",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+        "rc_903826562d291119704bc89c05ed762b0da5cbac",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_46def08281d969ff490c484fd10526554693c710",
+        "rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+        "rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "rc_469150b37cce98766191521376835b5426edc534",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "rc_bad0269dddc69a10061329a97477228133611a6b",
+        "rc_0c04ffa1d52272ea72dbe1a1a0837d07a6178417",
+        "rc_8005e856479484bd3be369662ff9c2029e7ec67e",
+        "rc_56ec93ca17587894fb71f8de4718f3ee272b9fa0",
+        "rc_970d1dd8cf1e3b3a7178d4427216a6140882ef51",
+        "rc_4887482dec2f7ebc3128fcb2ba7c054e0d155d09",
+        "rc_57f0b1f02c6bfb66f109890f2087ee71d52ad9c7"
+      ],
+      "rawCandidateChunkIdsSha256": "6a0242ca374f95aec6109fe7e72ee3364ee3d8edbc2dbbf8f5f85586643f1755",
+      "controlChunkIds": [
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "rc_9087330c22064f0501619c66b8ffd222552fec7f"
+      ],
+      "candidateChunkIds": [
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "changed": true,
+      "rawCandidateChunkIds": [
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+        "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "rc_8005e856479484bd3be369662ff9c2029e7ec67e",
+        "rc_903826562d291119704bc89c05ed762b0da5cbac",
+        "rc_056ec7c27e913447d49226c2957744170dd5097b",
+        "rc_0b6ed6fca85c455434fb69f0a4af30ae72dc3aaf",
+        "rc_21d08c089f12113d111492915856d76297d89b20",
+        "rc_311f54a315fe5c15d48e971171630c6c6f2ae9cf",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "rc_6fecb961db640b7e42976ef5ce37b8a5492d1671",
+        "rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+        "rc_654b4967c2b7253dccf97458167d2857ab8d3af6",
+        "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_469150b37cce98766191521376835b5426edc534",
+        "rc_471b7fa8f02e429cebd81722869556e304825363",
+        "rc_44bea979e12a4313473c55408b163520576ca9b2",
+        "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "rc_64da2d05b874413ba7c79736b755e2170672ae97",
+        "rc_56ec93ca17587894fb71f8de4718f3ee272b9fa0",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+        "rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+        "rc_f65ca66c08720ae7736a0a336201a07a9ca680bf",
+        "rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+        "rc_46def08281d969ff490c484fd10526554693c710",
+        "rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+        "rc_a8f2f6bba9210b3c9f11f924ce8c3e32b20359cf"
+      ],
+      "rawCandidateChunkIdsSha256": "411f99a2f314029a166730589888b590b64bf98383010acc4ff67cd27c98b71e",
+      "controlChunkIds": [
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+        "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_34e8b38d925c0862114095c46383664bfdd8c65f"
+      ],
+      "candidateChunkIds": [
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_34e8b38d925c0862114095c46383664bfdd8c65f"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "changed": true,
+      "rawCandidateChunkIds": [
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+        "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+        "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_471b7fa8f02e429cebd81722869556e304825363",
+        "rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+        "rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+        "rc_903826562d291119704bc89c05ed762b0da5cbac",
+        "rc_169b86c02ff6b13fc85b932c7e1d2a921aaf87cd",
+        "rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+        "rc_3f9a11599a8dee4dde0c151a98880ba068cdceaa",
+        "rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+        "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+        "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_056ec7c27e913447d49226c2957744170dd5097b",
+        "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+        "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+        "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "rc_bad0269dddc69a10061329a97477228133611a6b",
+        "rc_469150b37cce98766191521376835b5426edc534",
+        "rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+        "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_264997c737389717f36839a56f76c0a04577b7ad"
+      ],
+      "rawCandidateChunkIdsSha256": "363a3e865effcf2f676d2b0da0d28e48072cb5db3d4cac4af9cbb2e13f2963f1",
+      "controlChunkIds": [
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+        "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+        "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+      ],
+      "candidateChunkIds": [
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+        "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "changed": false,
+      "rawCandidateChunkIds": [],
+      "rawCandidateChunkIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "controlChunkIds": [],
+      "candidateChunkIds": []
+    }
+  ],
+  "modelVisibleRequiredEvidence": {
+    "ready": false,
+    "tasks": [
+      {
+        "taskId": "dgt-dev-01",
+        "requiredAnchors": [
+          "dwh-handoff-type",
+          "dwh-sequence-type"
+        ],
+        "controlMissing": [
+          "dwh-handoff-type",
+          "dwh-sequence-type"
+        ],
+        "candidateMissing": []
+      },
+      {
+        "taskId": "dgt-dev-02",
+        "requiredAnchors": [
+          "daa-route-compose",
+          "daa-route-scope"
+        ],
+        "controlMissing": [],
+        "candidateMissing": []
+      },
+      {
+        "taskId": "dgt-dev-03",
+        "requiredAnchors": [
+          "dwh-canonical",
+          "dwh-factual-edit"
+        ],
+        "controlMissing": [
+          "dwh-canonical",
+          "dwh-factual-edit"
+        ],
+        "candidateMissing": []
+      },
+      {
+        "taskId": "dgt-dev-04",
+        "requiredAnchors": [
+          "daa-version-pin"
+        ],
+        "controlMissing": [
+          "daa-version-pin"
+        ],
+        "candidateMissing": [
+          "daa-version-pin"
+        ]
+      },
+      {
+        "taskId": "dgt-dev-05",
+        "requiredAnchors": [
+          "dpw-budgets"
+        ],
+        "controlMissing": [
+          "dpw-budgets"
+        ],
+        "candidateMissing": [
+          "dpw-budgets"
+        ]
+      }
+    ]
+  },
+  "groundTruth": {
+    "path": "/Users/shengboyuan/Documents/AI_Agent/ai_draw_io/ai-agent-draw-io/evaluation/material-rag-research-v1/fixtures/generated/ground-truth.json",
+    "sha256": "4da9fdb3767d03ab8a027f2009cd5d27b612f377bd6ef8461e97611608000791"
+  },
+  "sourceEvidenceIdentityManifest": {
+    "path": "/Users/shengboyuan/Documents/AI_Agent/ai_draw_io/ai-agent-draw-io/evaluation/material-rag-research-v1/fixtures/generated/source-evidence-identities-v1.json",
+    "sha256": "373b050bed6e32749c329590d8228bd6b11cd801af17f5053f6c34deb86efe8e"
+  },
+  "taskFixture": {
+    "path": "evaluation/material-rag-research-v1/fixtures/drawio-generation-tasks-v2.json",
+    "sha256": "e69f654383f9fd85376a8b79df81a0c3417ad9f805def7ac38e244c579e2981a"
+  },
+  "corpusLock": {
+    "path": "/Users/shengboyuan/Documents/AI_Agent/ai_draw_io/ai-agent-draw-io/evaluation/material-rag-research-v1/fixtures/generated/corpus-lock.json",
+    "sha256": "fb4758d7da4174649eb26f2389443f56c3d0e5e17a82ced2bd7b7c9b092978f0"
+  },
+  "exporterScriptSha256": "e94ed15c81fdc14c703835f62357856eb24b6f49334f30a60532201676491ba7"
+}

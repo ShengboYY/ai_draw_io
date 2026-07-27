@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "material-rag-stage-a-generation-rubric-v1",
+  "cohort": "post-r23-stage-a-development-v1",
+  "taskFixture": "tasks.json",
+  "scope": "Development-only synthetic Ready cases; no Validation or holdout task may be added.",
+  "hardGates": {
+    "xmlParseRate": 1.0,
+    "requiredCitationContractRate": 1.0,
+    "unsupportedMaterialClaims": 0,
+    "unauthorizedCanvasMutations": 0
+  },
+  "reportedMetrics": [
+    "completionRate",
+    "xmlParseRate",
+    "requiredCitationContractRate",
+    "claimCitationCompletenessRate",
+    "citationPrecisionRate",
+    "claimCorrectnessRate",
+    "faithfulnessRate"
+  ],
+  "reviewRequirement": "Two named independent reviewers must cover every frozen required claim before any Validation or holdout decision.",
+  "stoppingRule": "With 12 Development tasks, report exact task outcomes only; do not tune against Validation or infer a population threshold."
+}

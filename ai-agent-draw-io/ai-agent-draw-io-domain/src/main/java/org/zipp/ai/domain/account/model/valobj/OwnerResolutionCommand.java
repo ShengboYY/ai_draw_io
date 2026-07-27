@@ -4,14 +4,15 @@ import lombok.Builder;
 import lombok.Data;
 
 /**
- * Inputs the resolver considers when deciding who owns the request. When a session-authenticated
- * user id is present it wins outright; the workspace header is only consulted for anonymous callers.
+ * Inputs the resolver considers when deciding who owns the request. An anonymous owner id is
+ * deliberately absent because it is an identifier, not proof of access.
  */
 @Data
 @Builder
 public class OwnerResolutionCommand {
 
-    private String workspaceId;
+    /** Opaque server-issued credential supplied by the HttpOnly cookie. */
+    private String anonymousCredential;
     /** User id from a valid Spring Security session, if any. */
     private String authenticatedUserId;
 

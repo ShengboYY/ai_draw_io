@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "formal",
+  "split": "validation",
+  "status": "template_not_runnable_until_case_review_and_validation_policy_are_frozen",
+  "taskFixture": "tasks.json",
+  "contextFixture": "contexts.json",
+  "groundTruthFixture": "ground-truth.json",
+  "promptBundles": "prompt-bundles.json",
+  "rubric": "rubric-v2.json",
+  "forbidden": ["Development response reuse", "prompt tuning after output", "second Validation run after observed output"]
+}

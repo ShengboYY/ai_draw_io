@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.retrieval.IOnlineRetrievalMapper">
+    <sql id="activeOwnerMaterial">
+        m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+        AND m.lifecycle_state = 'ACTIVE'
+        AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+    </sql>
+    <sql id="hasVisualArtifact">
+        EXISTS (SELECT 1 FROM material_page_artifact visual_page
+                WHERE visual_page.revision_id = r.id AND visual_page.page_no = 1
+                  AND visual_page.artifact_kind = 'PAGE_IMAGE')
+    </sql>
+
+    <select id="selectExplicitSources" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO">
+        WITH ranked AS (
+            SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id, m.kind,
+                   m.display_name, v.id AS declaration_id, '' AS upload_state,
+                   link.scope_type, link.scope_key, r.state,
+                   (link.scope_type = 'CONVERSATION') AS conversation_scoped,
+                   EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
+                           AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')) AS has_text,
+                   <include refid="hasVisualArtifact"/> AS has_visual,
+                   FALSE AS pinned,
+                   ROW_NUMBER() OVER (PARTITION BY v.id ORDER BY
+                       FIELD(link.scope_type, 'CONVERSATION', 'DIAGRAM', 'CHARTBOOK', 'LIBRARY'), link.created_at) AS rn
+            FROM material m
+            JOIN material_version v ON v.material_id = m.id AND v.id IN
+                <foreach collection="versionIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            JOIN material_processing_revision r ON r.id = COALESCE(v.active_revision_id,
+                (SELECT pending.id FROM material_processing_revision pending
+                 WHERE pending.version_id = v.id ORDER BY pending.revision_no DESC LIMIT 1))
+            JOIN material_scope_link link ON link.material_id = m.id
+            LEFT JOIN diagram d ON d.id = #{diagramId} AND d.user_id = #{ownerKey} AND d.deleted = 0
+            WHERE <include refid="activeOwnerMaterial"/>
+              AND ((link.scope_type = 'CONVERSATION' AND link.scope_key = #{conversationId})
+                OR (link.scope_type = 'DIAGRAM' AND link.scope_key = #{diagramId})
+                OR (link.scope_type = 'CHARTBOOK' AND link.scope_key = d.chartbook_id)
+                OR (link.scope_type = 'LIBRARY' AND link.scope_key IN ('personal', 'library', #{ownerKey})))
+        )
+        SELECT * FROM ranked WHERE rn = 1
+    </select>
+
+    <select id="selectConversationAttachmentSources" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO">
+        SELECT u.id AS declaration_id, m.id AS material_id, v.id AS version_id,
+               r.id AS revision_id, COALESCE(m.kind, 'UNKNOWN') AS kind,
+               COALESCE(m.display_name, u.display_name, '') AS display_name,
+               'CONVERSATION' AS scope_type, #{conversationId} AS scope_key,
+               COALESCE(r.state, 'PROCESSING') AS state,
+               CASE WHEN u.state = 'CREATED' AND u.policy_expires_at &lt;= UTC_TIMESTAMP(3)
+                    THEN 'EXPIRED' ELSE u.state END AS upload_state,
+               TRUE AS conversation_scoped,
+               EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
+                       AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')) AS has_text,
+               <include refid="hasVisualArtifact"/> AS has_visual,
+               FALSE AS pinned
+        FROM material_upload_session u
+        LEFT JOIN material m ON m.id = u.material_id
+        LEFT JOIN material_version v ON v.id = u.version_id AND v.material_id = m.id
+        LEFT JOIN material_processing_revision r ON r.id = u.processing_revision_id AND r.version_id = v.id
+        LEFT JOIN material_scope_link link ON link.material_id = m.id
+          AND link.scope_type = 'CONVERSATION' AND link.scope_key = #{conversationId}
+        WHERE u.id IN <foreach collection="uploadIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+          AND u.owner_type = #{ownerType} AND u.owner_key = #{ownerKey}
+          AND u.target_scope_type = 'CONVERSATION' AND u.target_scope_key = #{conversationId}
+          AND (m.id IS NULL OR (<include refid="activeOwnerMaterial"/> AND link.material_id IS NOT NULL))
+    </select>
+
+    <select id="selectAutomaticSources" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO">
+        WITH candidates AS (
+            SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id, m.kind,
+                   m.display_name, v.id AS declaration_id, '' AS upload_state,
+                   'DIAGRAM' AS scope_type, #{diagramId} AS scope_key, r.state,
+                   FALSE AS conversation_scoped,
+                   EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
+                           AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')) AS has_text,
+                   <include refid="hasVisualArtifact"/> AS has_visual,
+                   TRUE AS pinned, 1 AS priority
+            FROM diagram_source_pin pin
+            JOIN material m ON m.id = pin.material_id
+            JOIN material_version v ON v.id = pin.version_id AND v.material_id = m.id
+            JOIN material_processing_revision r ON r.id = pin.processing_revision_id
+            WHERE pin.diagram_id = #{diagramId} AND <include refid="activeOwnerMaterial"/>
+            UNION ALL
+            SELECT m.id, v.id, r.id, m.kind, m.display_name, v.id, '',
+                   link.scope_type, link.scope_key, r.state,
+                   (link.scope_type = 'CONVERSATION'),
+                   EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
+                           AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')),
+                   <include refid="hasVisualArtifact"/>,
+                   FALSE,
+                   CASE link.scope_type WHEN 'CONVERSATION' THEN 2 WHEN 'DIAGRAM' THEN 3
+                        WHEN 'CHARTBOOK' THEN 4 ELSE 5 END
+            FROM material m
+            JOIN material_version v ON v.id = m.latest_version_id
+            JOIN material_processing_revision r ON r.id = COALESCE(v.active_revision_id,
+                (SELECT pending.id FROM material_processing_revision pending
+                 WHERE pending.version_id = v.id ORDER BY pending.revision_no DESC LIMIT 1))
+            JOIN material_scope_link link ON link.material_id = m.id
+            LEFT JOIN diagram d ON d.id = #{diagramId} AND d.user_id = #{ownerKey} AND d.deleted = 0
+            WHERE <include refid="activeOwnerMaterial"/>
+              AND ((link.scope_type = 'CONVERSATION' AND link.scope_key = #{conversationId})
+                OR (link.scope_type = 'DIAGRAM' AND link.scope_key = #{diagramId})
+                OR (link.scope_type = 'CHARTBOOK' AND link.scope_key = d.chartbook_id)
+              )
+        ), ranked AS (
+            SELECT candidates.*, ROW_NUMBER() OVER (PARTITION BY version_id ORDER BY priority) AS rn
+            FROM candidates
+        )
+        SELECT * FROM ranked WHERE rn = 1 ORDER BY priority, material_id LIMIT #{limit}
+    </select>
+
+    <select id="countPendingConversationUploads" resultType="int">
+        SELECT COALESCE(JSON_LENGTH(pending_upload_ids_json), 0)
+        FROM conversation_source_context
+        WHERE owner_key = #{ownerKey} AND conversation_id = #{conversationId}
+        LIMIT 1
+    </select>
+
+    <select id="lexicalSearch" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
+        SELECT doc.retrieval_chunk_id AS chunk_id, chunk.modality,
+               (MATCH(doc.word_search_text) AGAINST(#{query} IN NATURAL LANGUAGE MODE)
+                + MATCH(doc.cjk_search_text) AGAINST(#{query} IN NATURAL LANGUAGE MODE)
+                + 2 * EXISTS (SELECT 1 FROM retrieval_exact_term term
+                    WHERE term.retrieval_chunk_id = doc.retrieval_chunk_id
+                      AND term.owner_type = #{ownerType} AND term.owner_key = #{ownerKey}
+                      AND LOCATE(term.normalized_term, LOWER(#{query})) &gt; 0)) AS score
+        FROM retrieval_search_document doc
+        JOIN retrieval_chunk chunk ON chunk.id = doc.retrieval_chunk_id
+        WHERE doc.owner_type = #{ownerType} AND doc.owner_key = #{ownerKey}
+          AND doc.status = 'ACTIVE' AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
+          AND (
+            <foreach collection="sources" item="source" separator=" OR ">
+                (doc.version_id = #{source.versionId} AND doc.revision_id = #{source.revisionId})
+            </foreach>
+          )
+          AND ((#{includeText} = TRUE AND chunk.modality IN ('TEXT', 'TABLE'))
+            OR (#{includeVisual} = TRUE AND chunk.modality = 'VISUAL'))
+          AND (MATCH(doc.word_search_text) AGAINST(#{query} IN NATURAL LANGUAGE MODE) &gt; 0
+            OR MATCH(doc.cjk_search_text) AGAINST(#{query} IN NATURAL LANGUAGE MODE) &gt; 0
+            OR EXISTS (SELECT 1 FROM retrieval_exact_term term
+                WHERE term.retrieval_chunk_id = doc.retrieval_chunk_id
+                  AND term.owner_type = #{ownerType} AND term.owner_key = #{ownerKey}
+                  AND LOCATE(term.normalized_term, LOWER(#{query})) &gt; 0))
+        ORDER BY score DESC, doc.retrieval_chunk_id LIMIT #{limit}
+    </select>
+
+    <select id="selectExactVisualCandidates"
+            resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
+        SELECT chunk.id AS chunk_id, chunk.modality, chunk.quality_score AS score
+        FROM retrieval_chunk chunk
+        JOIN retrieval_chunk_evidence mapping ON mapping.retrieval_chunk_id = chunk.id
+             AND mapping.role = 'PRIMARY'
+        JOIN evidence_unit evidence ON evidence.id = mapping.evidence_id
+             AND evidence.status = 'ACTIVE'
+        JOIN material_version mv ON mv.id = evidence.version_id
+        JOIN material material ON material.id = mv.material_id
+        WHERE material.owner_type = #{ownerType} AND material.owner_key = #{ownerKey}
+          AND material.lifecycle_state = 'ACTIVE'
+          AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
+          AND chunk.modality = 'VISUAL'
+          AND (
+            <foreach collection="sources" item="source" separator=" OR ">
+                (evidence.version_id = #{source.versionId}
+                 AND evidence.revision_id = #{source.revisionId})
+            </foreach>
+          )
+        ORDER BY chunk.quality_score DESC, chunk.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="resolveVectorCandidates" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
+        SELECT chunk.id AS chunk_id, chunk.modality, 1.0 AS score
+        FROM retrieval_chunk_vector_projection projection
+        JOIN retrieval_chunk chunk ON chunk.id = projection.retrieval_chunk_id
+        JOIN retrieval_search_document doc ON doc.retrieval_chunk_id = chunk.id
+        WHERE projection.vector_id IN
+            <foreach collection="vectorIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+          AND projection.state = 'ACTIVE' AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
+          AND doc.owner_type = #{ownerType} AND doc.owner_key = #{ownerKey} AND doc.status = 'ACTIVE'
+          AND (
+            <foreach collection="sources" item="source" separator=" OR ">
+                (doc.version_id = #{source.versionId} AND doc.revision_id = #{source.revisionId})
+            </foreach>
+          )
+        ORDER BY FIELD(projection.vector_id,
+            <foreach collection="vectorIds" item="id" separator=",">#{id}</foreach>)
+    </select>
+
+    <select id="reauthorizeCandidates" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
+        SELECT chunk.id AS chunk_id, mapping.evidence_id, material.id AS material_id,
+               mv.id AS version_id, mr.id AS revision_id,
+               chunk.modality, page.page_no AS page_number, chunk.quality_score,
+               chunk.retrieval_text_object_key, chunk.retrieval_text_object_version_id,
+               chunk.retrieval_text_sha256, chunk.retrieval_text_byte_size,
+               chunk.retrieval_text_content_type,
+               visual.object_key AS visual_object_key,
+               visual.object_version_id AS visual_object_version_id,
+               visual.content_sha256 AS visual_content_sha256,
+               visual.byte_size AS visual_byte_size,
+               visual.content_type AS visual_content_type,
+               material.display_name AS source_label
+        FROM retrieval_chunk chunk
+        JOIN retrieval_chunk_evidence mapping ON mapping.retrieval_chunk_id = chunk.id
+             AND mapping.role = 'PRIMARY'
+        JOIN evidence_unit evidence ON evidence.id = mapping.evidence_id AND evidence.status = 'ACTIVE'
+        JOIN material_version mv ON mv.id = evidence.version_id
+        JOIN material material ON material.id = mv.material_id
+        JOIN material_processing_revision mr ON mr.id = evidence.revision_id
+             AND mr.version_id = mv.id
+        LEFT JOIN material_visual_artifact visual ON visual.revision_id = mr.id
+             AND visual.object_key = evidence.visual_object_key
+             AND visual.object_version_id = evidence.visual_object_version_id
+        LEFT JOIN material_page page ON page.id = evidence.page_id AND page.revision_id = mr.id
+        WHERE chunk.id IN
+            <foreach collection="chunkIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+          AND material.owner_type = #{ownerType} AND material.owner_key = #{ownerKey}
+          AND material.lifecycle_state = 'ACTIVE'
+          AND (material.retention_class = 'RETAINED' OR material.expires_at &gt; UTC_TIMESTAMP(3))
+          AND mr.state = 'READY'
+          AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
+          AND ((chunk.modality = 'VISUAL'
+                AND visual.byte_size IS NOT NULL AND visual.content_type LIKE 'image/%')
+            OR (chunk.modality &lt;&gt; 'VISUAL'
+                AND chunk.retrieval_text_byte_size IS NOT NULL
+                AND chunk.retrieval_text_content_type IS NOT NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM retrieval_search_document active_doc
+                    WHERE active_doc.retrieval_chunk_id = chunk.id
+                      AND active_doc.owner_type = #{ownerType}
+                      AND active_doc.owner_key = #{ownerKey}
+                      AND active_doc.version_id = mv.id
+                      AND active_doc.revision_id = mr.id
+                      AND active_doc.status = 'ACTIVE'
+                )))
+          AND (page.page_no IS NULL OR NOT JSON_CONTAINS(
+                COALESCE(mr.excluded_pages_json, JSON_ARRAY()), CAST(page.page_no AS JSON)))
+          AND (
+            <foreach collection="sources" item="source" separator=" OR ">
+                (mv.id = #{source.versionId} AND mr.id = #{source.revisionId})
+            </foreach>
+          )
+        ORDER BY FIELD(chunk.id,
+            <foreach collection="chunkIds" item="id" separator=",">#{id}</foreach>), mapping.ordinal
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectExistingTargetCandidates" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
+        SELECT chunk.id AS chunk_id, chunk.modality, 1.0 AS score
+        FROM diagram_cell_provenance provenance
+        JOIN diagram ON diagram.id = provenance.diagram_id
+                    AND diagram.user_id = #{ownerKey} AND diagram.deleted = 0
+        JOIN source_citation anchor ON anchor.id = provenance.current_citation_id
+                    AND anchor.owner_key = #{ownerKey} AND anchor.target_type = 'DIAGRAM_CELL'
+        JOIN source_citation citation ON citation.diagram_id = provenance.diagram_id
+                    AND citation.cell_id = provenance.cell_id
+                    AND citation.canvas_version = anchor.canvas_version
+                    AND citation.owner_key = #{ownerKey} AND citation.target_type = 'DIAGRAM_CELL'
+                    AND citation.state = 'VERIFIED'
+        JOIN citation_evidence cited ON cited.citation_id = citation.id AND cited.use_role = 'SUPPORT'
+        JOIN retrieval_chunk_evidence mapping ON mapping.evidence_id = cited.evidence_id
+                    AND mapping.role = 'PRIMARY'
+        JOIN retrieval_chunk chunk ON chunk.id = mapping.retrieval_chunk_id
+                    AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
+        JOIN retrieval_search_document doc ON doc.retrieval_chunk_id = chunk.id
+                    AND doc.owner_type = #{ownerType} AND doc.owner_key = #{ownerKey}
+                    AND doc.status = 'ACTIVE'
+        WHERE provenance.diagram_id = #{diagramId}
+          AND provenance.canvas_version = #{canvasVersion}
+          AND provenance.support_type = 'EVIDENCE'
+          AND provenance.cell_id IN
+            <foreach collection="cellIds" item="cellId" open="(" separator="," close=")">#{cellId}</foreach>
+          AND (
+            <foreach collection="sources" item="source" separator=" OR ">
+                (doc.version_id = #{source.versionId} AND doc.revision_id = #{source.revisionId})
+            </foreach>
+          )
+        ORDER BY FIELD(provenance.cell_id,
+            <foreach collection="cellIds" item="cellId" separator=",">#{cellId}</foreach>), mapping.ordinal
+        LIMIT #{limit}
+    </select>
+</mapper>

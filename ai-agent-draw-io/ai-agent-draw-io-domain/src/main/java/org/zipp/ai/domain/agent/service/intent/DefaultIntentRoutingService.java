@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.intent;
 
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingProbe;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
@@ -16,6 +17,7 @@ import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -86,6 +88,11 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             "再见", "拜拜", "bye", "goodbye"
     };
 
+    private static final String[] EVIDENCE_TERMS = {
+            "根据资料", "基于资料", "引用", "来源", "文档", "pdf", "文章", "指南", "资料库",
+            "according to", "based on", "source", "citation", "document", "article", "guide"
+    };
+
     // Pure small talk that never needs a model call or a canvas mutation.
     private static final String[] SMALL_TALK_TERMS = {
             "你好", "您好", "嗨", "哈喽", "早上好", "中午好", "下午好", "晚上好", "在吗", "在么",
@@ -97,6 +104,11 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     // json_schema handed to capable providers can never drift apart. Any router output outside these
     // is coerced to a safe default, so a hallucinated / injected token cannot leak into the drawer.
     private static final Set<String> ALLOWED_ROUTE_TYPES = Set.copyOf(IntentRoutingContract.ROUTE_TYPES);
+    private static final Set<String> ALLOWED_EVIDENCE_NEEDS = Set.copyOf(IntentRoutingContract.EVIDENCE_NEEDS);
+    private static final Set<String> ALLOWED_TARGET_NEEDS = Set.copyOf(IntentRoutingContract.TARGET_NEEDS);
+    private static final Set<String> ALLOWED_CLARIFICATION_NEEDS =
+            Set.copyOf(IntentRoutingContract.CLARIFICATION_NEEDS);
+    private static final Set<String> ALLOWED_SOURCE_USES = Set.copyOf(IntentRoutingContract.SOURCE_USES);
     // Canonical diagram types seen downstream. Router-friendly aliases (uml_class, concept, diagram,
     // basic) are mapped into this set by normalizeDiagramType; nothing else is allowed.
     private static final Set<String> CANONICAL_DIAGRAM_TYPES = IntentRoutingContract.CANONICAL_DIAGRAM_TYPES;
@@ -126,7 +138,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                 // (including the user's own), instead of a hardcoded enum. Fetch it once and reuse the
                 // offered-name set to validate the reply, avoiding a second catalog (DB) round-trip.
                 SkillCatalogService.RouterCatalog routerCatalog = skillCatalogService.routerCatalog(userId);
-                String routerMessage = withAvailableSkills(command.getMessage(), routerCatalog.promptText());
+                String routerMessage = withRoutingFacts(
+                        withAvailableSkills(command.getMessage(), routerCatalog.promptText()), command.getRequestProbe());
                 List<String> outputs = chatService.handleMessage(
                         INTENT_AGENT_ID,
                         userId,
@@ -135,7 +148,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                         AgentUsageTelemetryContext.current().orElse(null));
                 String rawResult = String.join("", outputs);
                 IntentRoutingResult result = normalize(parseRoutingResult(rawResult),
-                        extractUserInstruction(null == command ? "" : command.getMessage()), routerCatalog.skillNames());
+                        extractUserInstruction(null == command ? "" : command.getMessage()),
+                        command.getRequestProbe(), routerCatalog.skillNames());
                 logRoutingDecision("llm", userId, result);
                 return result;
             } finally {
@@ -144,7 +158,10 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         } catch (Exception e) {
             log.warn("Intent routing failed, fail-closed to clarify (no canvas mutation). userId:{}",
                     SecretLogSanitizer.maskCapability(userId), e);
-            IntentRoutingResult fallback = IntentRoutingResult.clarifyFallback("Intent routing failed; ask the user to clarify.");
+            IntentRoutingResult fallback = deterministicFallback(
+                    extractUserInstruction(command == null ? "" : command.getMessage()),
+                    command == null ? null : command.getRequestProbe(),
+                    "Intent routing failed; deterministic safe fallback.");
             logRoutingDecision("fallback", userId, fallback);
             return fallback;
         }
@@ -161,7 +178,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             return null;
         }
         // An empty canvas still ships an <mxGraphModel> skeleton, so require a real vertex/edge.
-        if (!hasExistingCanvas(null == command ? "" : command.getCanvasXml(), message)) {
+        IntentRoutingProbe probe = null == command ? null : command.getRequestProbe();
+        if (probe == null || !probe.hasCanvas()) {
             return null; // No drawable canvas -> let the router decide (likely create_new).
         }
         // Match verbs only against the user's request, not injected canvas or policy text.
@@ -174,6 +192,9 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setRouteType("edit_existing");
         result.setDiagramType("none");
         result.setSkillName("none");
+        result.setEvidenceNeed("NONE");
+        result.setTargetNeed("NONE");
+        result.setSourceUse("NONE");
         result.setAnswer("");
         result.setReason("Rule-based fast path: existing canvas with a localized relabel/recolor edit.");
         return result;
@@ -212,6 +233,9 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setRouteType("answer_only");
         result.setDiagramType("none");
         result.setSkillName("none");
+        result.setEvidenceNeed("NONE");
+        result.setTargetNeed("NONE");
+        result.setSourceUse("NONE");
         result.setAnswer(smallTalkAnswer(instruction));
         result.setReason("Rule-based fast path: greeting/small talk with no canvas task.");
         return result;
@@ -232,17 +256,6 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
         return "你好！我可以帮你在 Draw.io 画布上新建、修改或点评各类图表，告诉我你想画什么或想改哪里就行。\n"
                 + "Hi! I can help you create, edit, or review Draw.io diagrams - tell me what you'd like to draw or change.";
-    }
-
-    // The frontend embeds the live canvas as [Context: Current Draw.io XML]; an empty canvas is just
-    // the <mxGraphModel> skeleton with cells 0/1, so a real vertex or edge marks an existing canvas.
-    private boolean hasExistingCanvas(String canvasXml, String legacyMessage) {
-        String source = (null != canvasXml && !canvasXml.isBlank()) ? canvasXml : legacyMessage;
-        if (!MXGRAPH_PATTERN.matcher(source).find()) {
-            return false;
-        }
-        return source.contains("vertex=\"1\"") || source.contains("vertex='1'")
-                || source.contains("edge=\"1\"") || source.contains("edge='1'");
     }
 
     // Pull out just the user's request (after the [User Request] marker the frontend appends),
@@ -282,33 +295,85 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                 + message;
     }
 
+    private String withRoutingFacts(String message, IntentRoutingProbe probe) {
+        IntentRoutingProbe safe = probe == null ? IntentRoutingProbe.empty() : probe;
+        // Serialize a fixed map so user-authored labels/XML can never enter the intent prompt.
+        Map<String, Object> facts = new java.util.LinkedHashMap<>();
+        facts.put("hasCanvas", safe.hasCanvas());
+        facts.put("nodeCount", safe.nodeCount());
+        facts.put("edgeCount", safe.edgeCount());
+        facts.put("selectedSourceCount", safe.selectedSourceCount());
+        facts.put("pendingSourceCount", safe.pendingSourceCount());
+        facts.put("hasReadySource", safe.hasReadySource());
+        facts.put("hasVisualEvidence", safe.hasVisualEvidence());
+        facts.put("selectionVersionMismatch", safe.selectionVersionMismatch());
+        facts.put("sourceMode", safe.sourceMode().name());
+        facts.put("attachmentCount", safe.attachmentCount());
+        facts.put("readyAttachmentCount", safe.readyAttachmentCount());
+        facts.put("pendingAttachmentCount", safe.pendingAttachmentCount());
+        facts.put("hasSingleReadyImageAttachment", safe.hasSingleReadyImageAttachment());
+        facts.put("directReadableImageCandidateCount", safe.directReadableImageCandidateCount());
+        facts.put("hasPdfAttachment", safe.hasPdfAttachment());
+        return "[Trusted Request Probe]\n" + JSON.toJSONString(facts) + "\n\n" + (message == null ? "" : message);
+    }
+
     private IntentRoutingResult parseRoutingResult(String rawResult) {
         String json = extractFirstJsonObject(rawResult);
         if (null == json) {
-            return IntentRoutingResult.clarifyFallback("Intent router did not return valid JSON.");
+            return null;
         }
         try {
             return JSON.parseObject(json, IntentRoutingResult.class);
         } catch (RuntimeException e) {
-            log.warn("Intent router returned malformed JSON; fail-closed to clarify.", e);
-            return IntentRoutingResult.clarifyFallback("Intent router returned malformed JSON.");
+            // Returning no decision lets normalization choose the deterministic, content-aware
+            // fallback. Evidence requests therefore remain non-mutating even when JSON is broken.
+            log.warn("Intent router returned malformed JSON; use deterministic safe fallback.", e);
+            return null;
         }
     }
 
-    private IntentRoutingResult normalize(IntentRoutingResult result, String userInstruction, Set<String> allowedSkills) {
+    private IntentRoutingResult normalize(IntentRoutingResult result, String userInstruction,
+                                          IntentRoutingProbe probe, Set<String> allowedSkills) {
         if (null == result || null == result.getRouteType()) {
-            return IntentRoutingResult.clarifyFallback("Intent router returned an empty decision.");
+            return deterministicFallback(userInstruction, probe,
+                    "Intent router returned an empty decision; deterministic safe fallback.");
         }
 
         String routeType = result.getRouteType().trim();
         if (!ALLOWED_ROUTE_TYPES.contains(routeType)) {
             // routeType is the single model-written control field. If it is unknown, fail closed
             // instead of guessing a canvas-mutating action.
-            return IntentRoutingResult.clarifyFallback("Router returned an invalid routeType; ask the user to clarify.");
+            return deterministicFallback(userInstruction, probe,
+                    "Router returned an invalid routeType; deterministic safe fallback.");
         }
         result.setRouteType(routeType);
 
+        normalizeNeeds(result);
+        result.setClarificationNeed(normalizeNeed(
+                result.getClarificationNeed(), "NONE", ALLOWED_CLARIFICATION_NEEDS));
+        result.setSourceUse(normalizeSourceUse(result.getSourceUse(), probe));
+        boolean retrievalRequested = "RETRIEVAL".equals(result.getSourceUse())
+                || "DIRECT_AND_RETRIEVAL".equals(result.getSourceUse());
+        if (!"NONE".equals(result.getClarificationNeed())) {
+            // Structured ambiguity must reach the evidence seam before any drawing agent is invoked.
+            result.setEvidenceNeed("REQUIRED");
+        }
+        if (result.isDrawAction() && "OPTIONAL".equals(result.getEvidenceNeed()) && !retrievalRequested) {
+            // Self-contained drawing remains evidence-free even if optional context happens to exist.
+            result.setEvidenceNeed("NONE");
+        }
+        if (result.isEvidenceAnswer()) {
+            result.setDiagramType("none");
+            result.setSkillName("none");
+            result.setEvidenceNeed("REQUIRED");
+            result.setTargetNeed(normalizeNeed(result.getTargetNeed(), "NONE", ALLOWED_TARGET_NEEDS));
+            result.setAnswer("");
+            return result;
+        }
+
         if (result.isDirectReply()) {
+            result.setSourceUse("NONE");
+            result.setClarificationNeed("NONE");
             if ("review_only".equals(routeType)) {
                 result.setDiagramType(normalizeDiagramType(result.getDiagramType(), userInstruction));
                 result.setAnswer("");
@@ -319,6 +384,10 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                 }
             }
             result.setSkillName("none");
+            if ("answer_only".equals(routeType) || "clarify".equals(routeType)) {
+                result.setEvidenceNeed("NONE");
+                result.setTargetNeed("NONE");
+            }
             return result;
         }
 
@@ -327,9 +396,72 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
 
         result.setDiagramType(normalizeDiagramType(result.getDiagramType(), userInstruction));
+        if ("optimize_layout".equals(routeType) || isPureStyleRequest(userInstruction)) {
+            result.setEvidenceNeed("NONE");
+            result.setSourceUse("NONE");
+            result.setClarificationNeed("NONE");
+        }
         validateSkillName(result, allowedSkills);
         result.setAnswer("");
         return result;
+    }
+
+    private IntentRoutingResult deterministicFallback(String instruction, IntentRoutingProbe probe, String reason) {
+        String value = instruction == null ? "" : instruction.toLowerCase(Locale.ROOT);
+        if (containsAny(value, EVIDENCE_TERMS)) {
+            IntentRoutingResult result = new IntentRoutingResult();
+            result.setRouteType("answer_with_evidence");
+            result.setDiagramType("none");
+            result.setSkillName("none");
+            result.setEvidenceNeed("REQUIRED");
+            result.setTargetNeed("NONE");
+            result.setClarificationNeed("NONE");
+            result.setSourceUse("NONE");
+            result.setAnswer("");
+            result.setReason(reason);
+            return result;
+        }
+        if (probe != null && probe.hasCanvas() && isPureStyleRequest(value)) {
+            IntentRoutingResult result = new IntentRoutingResult();
+            result.setRouteType("optimize_layout");
+            result.setDiagramType("none");
+            result.setSkillName("none");
+            result.setEvidenceNeed("NONE");
+            result.setTargetNeed("OPTIONAL");
+            result.setClarificationNeed("NONE");
+            result.setSourceUse("NONE");
+            result.setAnswer("");
+            result.setReason(reason);
+            return result;
+        }
+        return IntentRoutingResult.clarifyFallback(reason);
+    }
+
+    private void normalizeNeeds(IntentRoutingResult result) {
+        result.setEvidenceNeed(normalizeNeed(result.getEvidenceNeed(),
+                result.isDrawAction() ? "OPTIONAL" : "NONE", ALLOWED_EVIDENCE_NEEDS));
+        result.setTargetNeed(normalizeNeed(result.getTargetNeed(),
+                "edit_existing".equals(result.getRouteType()) ? "OPTIONAL" : "NONE", ALLOWED_TARGET_NEEDS));
+    }
+
+    private String normalizeSourceUse(String value, IntentRoutingProbe probe) {
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (!ALLOWED_SOURCE_USES.contains(normalized)) return "NONE";
+        // H0 resolves sources only after routing, so candidate availability is validated by TaskSourcePlanner.
+        return normalized;
+    }
+
+    private String normalizeNeed(String value, String fallback, Set<String> allowed) {
+        if (value == null || value.isBlank()) return fallback;
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return allowed.contains(normalized) ? normalized : fallback;
+    }
+
+    private boolean isPureStyleRequest(String instruction) {
+        String value = instruction == null ? "" : instruction.toLowerCase(Locale.ROOT);
+        return containsAny(value, new String[]{"颜色", "配色", "字体", "加粗", "移动", "对齐", "间距",
+                "布局", "排版", "color", "font", "move", "align", "spacing", "layout"})
+                && !containsAny(value, SEMANTIC_REVIEW_TERMS);
     }
 
     // Only skills the router was actually offered may be selected; anything else (hallucinated or

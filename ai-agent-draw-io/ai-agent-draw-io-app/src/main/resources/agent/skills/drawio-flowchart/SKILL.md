@@ -35,8 +35,9 @@ Use 4–6 shape types at most in one flowchart.
 5. Branches and exceptions move to the side (usually right), visually weaker than the main path, and either terminate or merge back cleanly.
 6. Retry/correction branches stay local: return to the nearest input/action by the nearest side gutter. Do not centralize unrelated failures in one distant error box; duplicate a small correction step when it keeps edges short and readable.
 7. Loops route back along the side with a clear condition label; retry loops return to the smallest meaningful earlier step.
-8. Use swimlanes only when the user mentions roles/owners; steps then get `parent="<lane-id>"` with lane-relative coordinates.
-9. No orphan steps; merge branches only where the story actually rejoins.
+8. Never run several long retry edges through one narrow exception column. Prefer separate local correction steps; if a shared side gutter is unavoidable, use explicit orthogonal waypoints on parallel lanes at least 24 px apart. Retry routes must not overlap, use diagonal segments, or pass through/alongside alert boxes and their labels.
+9. Use swimlanes only when the user mentions roles/owners; steps then get `parent="<lane-id>"` with lane-relative coordinates.
+10. No orphan steps; merge branches only where the story actually rejoins.
 
 ## Golden Example [P0]
 

@@ -1,3 +1,6 @@
+import type { DirectClarification } from '../../features/sources/direct-confirmation.ts';
+import { MAX_CONVERSATION_LIBRARY_SELECTIONS } from '../../features/sources/conversation-library-selections.ts';
+
 type ConversationMessageInput = {
   id?: string;
   clientMessageId?: string;
@@ -10,12 +13,22 @@ type BuildDrawioChatRequestPayloadInput = {
   agentId: string;
   userId: string;
   sessionId: string;
+  clientMessageId?: string;
+  responseMessageId?: string;
   userMessage: string;
   diagramId?: string;
   expectedVersion?: number;
   expectedContentHash?: string;
   canvasXml?: string;
   canvasSummary?: string;
+  directClarifications?: DirectClarification[];
+  directConfirmationSourceVersionId?: string;
+  currentTurnAttachmentRefs?: string[];
+  memoryChartbookId?: string;
+  selectedLibraryVersionIds?: string[];
+  selectedCellIds?: string[];
+  selectionCanvasVersion?: number;
+  selectionContentHash?: string;
   canvasImageDataUrl?: string;
   canvasImageRendererVersion?: 'drawio-embed-png-v1';
   modelCredentialId?: string;
@@ -69,6 +82,8 @@ export const buildDrawioChatRequestPayload = ({
   agentId,
   userId,
   sessionId,
+  clientMessageId,
+  responseMessageId,
   diagramId,
   expectedVersion,
   expectedContentHash,
@@ -76,6 +91,14 @@ export const buildDrawioChatRequestPayload = ({
   userMessage,
   canvasXml,
   canvasSummary,
+  directClarifications,
+  directConfirmationSourceVersionId,
+  currentTurnAttachmentRefs,
+  memoryChartbookId,
+  selectedLibraryVersionIds,
+  selectedCellIds,
+  selectionCanvasVersion,
+  selectionContentHash,
   canvasImageDataUrl,
   canvasImageRendererVersion,
   maxDeterministicRepairRounds,
@@ -90,12 +113,19 @@ export const buildDrawioChatRequestPayload = ({
       }
       : undefined;
   const compactConversationMessages = toConversationContextMessages(conversationMessages);
-
+  const libraryVersionIds = [...new Set(
+    (selectedLibraryVersionIds || []).map(versionId => versionId.trim()).filter(Boolean),
+  )].slice(0, MAX_CONVERSATION_LIBRARY_SELECTIONS);
+  const attachmentRefs = [...new Set(
+    (currentTurnAttachmentRefs || []).map(uploadId => uploadId.trim()).filter(Boolean),
+  )];
   return {
     agentId,
     userId,
     sessionId,
     requestId: newRequestId(),
+    ...(clientMessageId && { clientMessageId }),
+    ...(responseMessageId && { responseMessageId }),
     ...(diagramId && { diagramId }),
     ...(expectedVersion !== undefined && { expectedVersion }),
     ...(expectedContentHash?.trim() && { expectedContentHash: expectedContentHash.trim() }),
@@ -104,6 +134,16 @@ export const buildDrawioChatRequestPayload = ({
     message: userMessage,
     ...(canvasXml && { canvasXml }),
     ...(canvasSummary && { canvasSummary }),
+    ...(directClarifications?.length && { directClarifications }),
+    ...(directConfirmationSourceVersionId && { directConfirmationSourceVersionId }),
+    // A conversation upload is only source-eligible for the message that declares its upload id.
+    ...(attachmentRefs.length > 0 && { currentTurnAttachmentRefs: attachmentRefs }),
+    ...(memoryChartbookId?.trim() && { memoryChartbookId: memoryChartbookId.trim() }),
+    // Library choices are source declarations; the Router still decides whether this turn uses them.
+    ...(libraryVersionIds.length > 0 && { selectedLibraryVersionIds: libraryVersionIds }),
+    ...(selectedCellIds?.length && { selectedCellIds }),
+    ...(selectionCanvasVersion !== undefined && { selectionCanvasVersion }),
+    ...(selectionContentHash?.trim() && { selectionContentHash: selectionContentHash.trim() }),
     ...(canvasImageDataUrl && { canvasImageDataUrl }),
     ...(canvasImageRendererVersion && { canvasImageRendererVersion }),
     // Legacy raw custom fields are intentionally dropped; chat accepts saved credential ids only.

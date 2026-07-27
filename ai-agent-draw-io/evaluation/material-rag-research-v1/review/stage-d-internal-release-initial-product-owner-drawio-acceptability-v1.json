@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "material-rag-drawio-output-acceptability-review-v1",
+  "status": "posthoc_product_owner_review_not_independent_not_formal",
+  "reviewer": "product-owner",
+  "scope": {
+    "taskFixtureSha256": "ef88b9b961b51632c3ab1d7385431a9b21f15191f1de434b0a1441810c6dfcd7",
+    "responsesSha256": "7ce8010235db21066b45a6d2855c35b3e06ce6f49ee7135839b2559439550d12",
+    "run": "stage-d-internal-release initial only"
+  },
+  "decision": "Accept stgd-int-01, stgd-int-02, stgd-int-12 and stgd-int-13 as practically editable Draw.io expressions. Retain strict failures for stgd-int-09 and stgd-int-11 because layout-only edits changed styles.",
+  "cases": [
+    {"taskId": "stgd-int-01", "accepted": true, "reason": "Ownership is visibly and editably stated within the Account Activation node rather than as a standalone owner node."},
+    {"taskId": "stgd-int-02", "accepted": true, "reason": "The 30-day retention fact is visibly and editably stated in a node and on the transition, rather than as a standalone node."},
+    {"taskId": "stgd-int-09", "accepted": false, "reason": "The visible roles are preserved, but converting nodes to swimlanes changes style beyond a geometry-only edit."},
+    {"taskId": "stgd-int-11", "accepted": false, "reason": "The status labels are preserved, but new colors and rounded styles exceed a geometry-only edit."},
+    {"taskId": "stgd-int-12", "accepted": true, "reason": "The editable flow and both branch labels are visible; the Yes/No labels are standalone editable text near their branches."},
+    {"taskId": "stgd-int-13", "accepted": true, "reason": "The editable flow and both branch labels are complete; the decision labels are attached to their edges."}
+  ]
+}

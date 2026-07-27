@@ -4,6 +4,7 @@ import org.junit.Test;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
 
 import java.util.HashMap;
@@ -191,5 +192,145 @@ public class DrawioMutationResultPostProcessorTest {
         assertFalse(result.mutationApplied());
         assertEquals(currentXml, state.get(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY));
         assertEquals(response.get("repairBrief"), result.response().get("repairBrief"));
+    }
+
+    @Test
+    public void visualRepairBatchAppliesGeometryAndStyleFromServerOwnedCanvas() {
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' style='rounded=1;' vertex='1' parent='1'>
+                    <mxGeometry x='100' y='100' width='120' height='60' as='geometry'/>
+                </mxCell>
+                <mxCell id='3' value='Worker' vertex='1' parent='1'>
+                    <mxGeometry x='360' y='100' width='120' height='60' as='geometry'/>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+        Map<String, Object> state = new HashMap<>();
+        state.put(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentXml);
+        Map<String, Object> args = Map.of("repairs", List.of(
+                Map.of(
+                        "action", "SET_GEOMETRY",
+                        "targetCellIds", List.of("2"),
+                        "geometry", Map.of("x", 180)),
+                Map.of(
+                        "action", "SET_STYLE",
+                        "targetCellIds", List.of("2"),
+                        "styleUpdates", List.of(Map.of("property", "fillColor", "value", "#dae8fc")))));
+
+        DrawioMutationResultPostProcessor.ProcessResult result =
+                new DrawioMutationResultPostProcessor().processWithStatus(
+                        DrawioCanvasToolNames.APPLY_VISUAL_REPAIR,
+                        args,
+                        Map.of("type", DrawioCanvasToolNames.APPLY_VISUAL_REPAIR),
+                        state);
+
+        String candidate = String.valueOf(state.get(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY));
+        assertTrue(result.mutationApplied());
+        assertEquals(DrawioCanvasToolNames.PATCH_CELLS, result.response().get("type"));
+        assertTrue(String.valueOf(result.response().get("cells")).contains("id=\"2\""));
+        assertFalse(String.valueOf(result.response().get("cells")).contains("id=\"3\""));
+        assertTrue(candidate.contains("x=\"180\""));
+        assertTrue(candidate.contains("fillColor=#dae8fc"));
+        assertTrue(candidate.contains("value=\"Worker\""));
+    }
+
+    @Test
+    public void invalidVisualRepairBatchIsAtomic() {
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'>
+                    <mxGeometry x='100' y='100' width='120' height='60' as='geometry'/>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+        Map<String, Object> state = new HashMap<>();
+        state.put(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentXml);
+        Map<String, Object> args = Map.of("repairs", List.of(
+                Map.of(
+                        "action", "SET_GEOMETRY",
+                        "targetCellIds", List.of("2"),
+                        "geometry", Map.of("x", 180)),
+                Map.of(
+                        "action", "SET_STYLE",
+                        "targetCellIds", List.of("missing"),
+                        "styleUpdates", List.of(Map.of("property", "fillColor", "value", "#dae8fc")))));
+
+        DrawioMutationResultPostProcessor.ProcessResult result =
+                new DrawioMutationResultPostProcessor().processWithStatus(
+                        DrawioCanvasToolNames.APPLY_VISUAL_REPAIR,
+                        args,
+                        Map.of("type", DrawioCanvasToolNames.APPLY_VISUAL_REPAIR),
+                        state);
+
+        assertFalse(result.mutationApplied());
+        assertEquals(DrawioCanvasToolNames.NO_SAFE_CANDIDATE, result.response().get("type"));
+        assertEquals(currentXml, state.get(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY));
+    }
+
+    @Test
+    public void visualRepairCanAttachAndRerouteOneGroundedDanglingEdge() {
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='80' width='100' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='New target' vertex='1' parent='1'><mxGeometry x='360' y='260' width='100' height='60' as='geometry'/></mxCell>
+                <mxCell id='5' edge='1' parent='1' source='2'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
+        Map<String, Object> state = new HashMap<>();
+        state.put(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentXml);
+        Map<String, Object> args = Map.of("repairs", List.of(Map.of(
+                "action", "RECONNECT_EDGE",
+                "targetCellIds", List.of("5"),
+                "targetCellId", "4",
+                "routing", "ORTHOGONAL")));
+
+        DrawioMutationResultPostProcessor.ProcessResult result =
+                new DrawioMutationResultPostProcessor().processWithStatus(
+                        DrawioCanvasToolNames.APPLY_VISUAL_REPAIR,
+                        args,
+                        Map.of("type", DrawioCanvasToolNames.APPLY_VISUAL_REPAIR),
+                        state);
+
+        String changedCells = String.valueOf(result.response().get("cells"));
+        assertTrue(result.mutationApplied());
+        assertTrue(changedCells.contains("id=\"5\""));
+        assertTrue(changedCells.contains("source=\"2\""));
+        assertTrue(changedCells.contains("target=\"4\""));
+        assertTrue(changedCells.contains("edgeStyle=orthogonalEdgeStyle"));
+    }
+
+    @Test
+    public void visualRepairAlignsAndDistributesOnlyTheNamedCells() {
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='80' height='40' as='geometry'/></mxCell>
+                <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='250' y='180' width='80' height='40' as='geometry'/></mxCell>
+                <mxCell id='4' value='C' vertex='1' parent='1'><mxGeometry x='500' y='260' width='80' height='40' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
+        Map<String, Object> state = new HashMap<>();
+        state.put(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentXml);
+        Map<String, Object> args = Map.of("repairs", List.of(
+                Map.of(
+                        "action", "ALIGN_CELLS",
+                        "targetCellIds", List.of("2", "3", "4"),
+                        "alignment", "TOP"),
+                Map.of(
+                        "action", "DISTRIBUTE_CELLS",
+                        "targetCellIds", List.of("2", "3", "4"),
+                        "axis", "HORIZONTAL")));
+
+        DrawioMutationResultPostProcessor.ProcessResult result =
+                new DrawioMutationResultPostProcessor().processWithStatus(
+                        DrawioCanvasToolNames.APPLY_VISUAL_REPAIR,
+                        args,
+                        Map.of("type", DrawioCanvasToolNames.APPLY_VISUAL_REPAIR),
+                        state);
+
+        String candidate = String.valueOf(state.get(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY));
+        assertTrue(result.mutationApplied());
+        assertTrue(candidate.contains("id=\"3\" value=\"B\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"300\" y=\"100\""));
+        assertTrue(candidate.contains("id=\"4\" value=\"C\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"500\" y=\"100\""));
     }
 }

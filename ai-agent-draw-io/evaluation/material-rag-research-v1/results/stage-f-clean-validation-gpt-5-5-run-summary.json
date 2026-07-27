@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "material-rag-stage-f-clean-validation-run-summary-v1",
+  "qualification": "clean_internal_validation_diagnostic_only",
+  "status": "completed_with_multiple_execution_not_formal",
+  "reason": "Artifact visibility from the managed execution environment was delayed. The initial run and retry-1 both produced full artifacts after they had appeared absent, and retry-3 was then completed through a persistent terminal. Because the frozen cohort was sent three times, no output may be selected as the single pre-authorized formal Validation result.",
+  "frozenConfigurationCommit": "0d5fb78ce1f8f15443146ed8e8c499c117f5aa93",
+  "frozenInputIntegrity": {
+    "taskFixtureSha256": "d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d",
+    "stageFArtifactsChangedBetweenFrozenAndLatestRunCommit": false,
+    "verificationRange": "0d5fb78c..8ea8922c restricted to evaluation/material-rag-research-v1"
+  },
+  "runs": [
+    {
+      "id": "initial",
+      "responses": "results/stage-f-clean-validation-gpt-5-5-responses.json",
+      "manifest": "results/stage-f-clean-validation-gpt-5-5-manifest.json",
+      "manifestValidation": "results/stage-f-clean-validation-gpt-5-5-manifest-validation.json",
+      "evaluation": "results/stage-f-clean-validation-gpt-5-5-evaluation.json",
+      "gitCommit": "0d5fb78ce1f8f15443146ed8e8c499c117f5aa93",
+      "calls": 12,
+      "successfulCalls": 12,
+      "inputTokens": 5788,
+      "outputTokens": 11155,
+      "xmlParseRate": 1.0,
+      "requiredCitationContractRate": 1.0,
+      "strictCompletionRate": 0.5833333333333334,
+      "strictFailures": ["stgf-val-08", "stgf-val-09", "stgf-val-10", "stgf-val-11", "stgf-val-12"]
+    },
+    {
+      "id": "retry-1",
+      "responses": "results/stage-f-clean-validation-gpt-5-5-retry-1-responses.json",
+      "manifest": "results/stage-f-clean-validation-gpt-5-5-retry-1-manifest.json",
+      "manifestValidation": "results/stage-f-clean-validation-gpt-5-5-retry-1-manifest-validation.json",
+      "evaluation": "results/stage-f-clean-validation-gpt-5-5-retry-1-evaluation.json",
+      "gitCommit": "550905c682768cf1151a3c7ea494d558f7806513",
+      "calls": 12,
+      "successfulCalls": 12,
+      "inputTokens": 5788,
+      "outputTokens": 11232,
+      "xmlParseRate": 1.0,
+      "requiredCitationContractRate": 1.0,
+      "strictCompletionRate": 0.75,
+      "strictFailures": ["stgf-val-10", "stgf-val-11", "stgf-val-12"]
+    },
+    {
+      "id": "retry-3",
+      "responses": "results/stage-f-clean-validation-gpt-5-5-retry-3-responses.json",
+      "manifest": "results/stage-f-clean-validation-gpt-5-5-retry-3-manifest.json",
+      "manifestValidation": "results/stage-f-clean-validation-gpt-5-5-retry-3-manifest-validation.json",
+      "evaluation": "results/stage-f-clean-validation-gpt-5-5-retry-3-evaluation.json",
+      "gitCommit": "8ea8922c787c9aede6ad9347fbd785f7f0684253",
+      "calls": 12,
+      "successfulCalls": 12,
+      "inputTokens": 5788,
+      "outputTokens": 11421,
+      "xmlParseRate": 1.0,
+      "requiredCitationContractRate": 1.0,
+      "strictCompletionRate": 0.75,
+      "strictFailures": ["stgf-val-10", "stgf-val-11", "stgf-val-12"]
+    }
+  ],
+  "aggregateObservedArtifacts": {
+    "totalCalls": 36,
+    "successfulCalls": 36,
+    "inputTokens": 17364,
+    "outputTokens": 33808,
+    "modelRunStatus": "do_not_rerun_this_cohort"
+  },
+  "crossRunDiagnostics": {
+    "failuresInAllObservedRuns": ["stgf-val-10", "stgf-val-11", "stgf-val-12"],
+    "initialOnlyFailures": ["stgf-val-08", "stgf-val-09"],
+    "frozenEvaluatorObservation": "stgf-val-10 and stgf-val-11 place Yes/No on editable edge labels. The frozen evaluator's legacy requiredLabels path inspects vertices only because this cohort's acceptance-policy-v2 has no task overrides. This is recorded as a diagnostic finding only; no policy, rubric, evaluator, task, prompt or response was changed after output.",
+    "remainingStructuralFailure": "stgf-val-12 has three edges and no Affected Component vertex, while its frozen assertions require at least four edges and that vertex label."
+  },
+  "interpretation": "Every observed artifact is parseable draw.io XML with the required citation contract. The multiple executions invalidate a unique formal Stage F Validation claim. These results can guide a separately preregistered Development follow-up, but cannot be used to tune or re-score this cohort."
+}

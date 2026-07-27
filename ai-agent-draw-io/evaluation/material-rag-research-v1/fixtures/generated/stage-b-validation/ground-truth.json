@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "material-rag-stage-b-validation-ground-truth-v1",
+  "anchors": [
+    {
+      "anchorId": "rc-design",
+      "source": "sv-release-control",
+      "version": "v1",
+      "page": 1,
+      "text": "Design Review approves Deployment Package before Release Authorization."
+    },
+    {
+      "anchorId": "rc-audit",
+      "source": "sv-release-control",
+      "version": "v1",
+      "page": 1,
+      "text": "Release Authorization writes the approval event to Control Ledger."
+    },
+    {
+      "anchorId": "ib-lead",
+      "source": "sv-incident-bridge",
+      "version": "v1",
+      "page": 1,
+      "text": "Bridge Lead coordinates the incident bridge and assigns an Investigation Owner."
+    },
+    {
+      "anchorId": "ib-window",
+      "source": "sv-incident-bridge",
+      "version": "v1",
+      "page": 1,
+      "text": "Unacknowledged critical alerts escalate to Bridge Lead within 10 minutes."
+    },
+    {
+      "anchorId": "rd-disposal",
+      "source": "sv-record-disposal",
+      "version": "v1",
+      "page": 1,
+      "text": "Evidence Vault retains closed investigation records for five years before Secure Disposal."
+    },
+    {
+      "anchorId": "aa-dual",
+      "source": "sv-access-approval",
+      "version": "v1",
+      "page": 1,
+      "text": "Security Reviewer and System Owner must both approve a privileged access request."
+    },
+    {
+      "anchorId": "aa-ticket",
+      "source": "sv-access-approval",
+      "version": "v1",
+      "page": 1,
+      "text": "The approval relationship must carry control ticket AC-771."
+    },
+    {
+      "anchorId": "db-route",
+      "source": "sv-data-boundary",
+      "version": "v1",
+      "page": 1,
+      "text": "External Intake data must pass through Redaction Service before entering Trusted Analytics."
+    },
+    {
+      "anchorId": "pc-owner",
+      "source": "sv-platform-catalog",
+      "version": "v1",
+      "page": 1,
+      "text": "Canonical services are Event Router, Invoice Processor and Compliance Archive, owned by Integration Team, Revenue Team and Risk Team respectively."
+    },
+    {
+      "anchorId": "cw-owner",
+      "source": "sv-change-window",
+      "version": "v1",
+      "page": 1,
+      "text": "Infrastructure Change is assigned to Operations Owner and Schema Change to Data Owner."
+    },
+    {
+      "anchorId": "cw-window",
+      "source": "sv-change-window",
+      "version": "v1",
+      "page": 1,
+      "text": "Both changes use the approval window Thu 13:00\u201315:00."
+    },
+    {
+      "anchorId": "pv-flow",
+      "source": "sv-procurement-visual",
+      "version": "v1",
+      "page": 1,
+      "text": "Request goes to Procurement Review. If Budget available? is Yes, Issue PO then Supplier Confirmation. If No, Finance Escalation then Reprioritize Request."
+    },
+    {
+      "anchorId": "ms-flow",
+      "source": "sv-maintenance-scan",
+      "version": "v1",
+      "page": 1,
+      "text": "Technician captures readings. If Within tolerance? is Yes, Close work order. If No, Engineering Triage then Schedule follow-up."
+    },
+    {
+      "anchorId": "rr-rollback",
+      "source": "sv-release-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "When smoke verification fails, Release Decision rolls back to the last verified deployment."
+    },
+    {
+      "anchorId": "ce-normal",
+      "source": "sv-capacity-envelope",
+      "version": "v1",
+      "page": 1,
+      "text": "Normal operation supports 650 events per second."
+    },
+    {
+      "anchorId": "ce-surge",
+      "source": "sv-capacity-envelope",
+      "version": "v1",
+      "page": 1,
+      "text": "Surge operation supports 950 events per second."
+    },
+    {
+      "anchorId": "eh-coordinator",
+      "source": "sv-escalation-handoff",
+      "version": "v1",
+      "page": 1,
+      "text": "Escalation Coordinator owns triage priority and hands the case to Customer Liaison."
+    },
+    {
+      "anchorId": "eh-liaison",
+      "source": "sv-escalation-handoff",
+      "version": "v1",
+      "page": 1,
+      "text": "Customer Liaison owns customer updates after the handoff."
+    }
+  ]
+}

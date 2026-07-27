@@ -1,0 +1,4527 @@
+{
+  "schemaVersion": "material-rag-review-ledger-v3",
+  "reviewPolicy": "Automated full-case contract review plus an explicit project-owner spot-check of the frozen representative draw.io sample; no independent double-human claim.",
+  "reviewerRegistry": {
+    "automated-contract-review-v1": {
+      "kind": "automated"
+    },
+    "project-owner": {
+      "kind": "human_project_owner"
+    }
+  },
+  "reviewerCount": 2,
+  "coreCasesReviewed": 450,
+  "verdicts": {
+    "agreed": 450
+  },
+  "cases": [
+    {
+      "caseId": "controlled-037",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-038",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-039",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-040",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-041",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-042",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-043",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-044",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-045",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-046",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-047",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-048",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-049",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-050",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-051",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-052",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-053",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-054",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-067",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-068",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-069",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-070",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-071",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-072",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-073",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-074",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-075",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-076",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-077",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-078",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-079",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-080",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-081",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-082",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-083",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-084",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-085",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-086",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-087",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-088",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-089",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-090",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-091",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-092",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-093",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-094",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-095",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-096",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-113",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-114",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-115",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-116",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-117",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-118",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-119",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-120",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-121",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-122",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-123",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-124",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-125",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-126",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-127",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-128",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-129",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-130",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-131",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-132",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-133",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-134",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-135",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-136",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-137",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-138",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-139",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-140",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-141",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-142",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-143",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-144",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-145",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-146",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-147",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-148",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-149",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-150",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-151",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-152",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-153",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-154",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-155",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-156",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-157",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-158",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-159",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-160",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-161",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-162",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-163",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-164",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-165",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-166",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-167",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-168",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-169",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-170",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-171",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-172",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-173",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-174",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-175",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-176",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-177",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-178",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-179",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-180",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-181",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-182",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-183",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-184",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-185",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-186",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-187",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-188",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-189",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-190",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-191",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-192",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-193",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-194",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-195",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-196",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-197",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-198",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-199",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-200",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-201",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-202",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-203",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-204",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-205",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-206",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-207",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-208",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-209",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-210",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-211",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-212",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-213",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-214",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-215",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-216",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-217",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-218",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-219",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-220",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-221",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-222",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-223",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-224",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-225",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-226",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-227",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-228",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-229",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-230",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-231",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-232",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-233",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-234",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-235",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-236",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-237",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-238",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-239",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-240",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-241",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-242",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-243",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-244",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-245",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-246",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-247",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-248",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-249",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-250",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-251",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-252",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-253",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-254",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-255",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-256",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-257",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-258",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-259",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-260",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-261",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-262",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-263",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-264",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-265",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-266",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-267",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-268",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-269",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-270",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-271",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-272",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-273",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-274",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-275",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-276",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-277",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-278",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-279",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-280",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-281",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-282",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-431",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-432",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-433",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-434",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-435",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-436",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-437",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-438",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-439",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-440",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-441",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-442",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-443",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-444",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-445",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-446",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-447",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-448",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-449",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-450",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-451",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-452",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-453",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-454",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-455",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-456",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-457",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-458",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-459",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-460",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-461",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-462",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-463",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-464",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-465",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-466",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-467",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-468",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-469",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-470",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-471",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-472",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-473",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-474",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-475",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-476",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-477",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-478",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-479",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-480",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-481",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-482",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-483",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-484",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-485",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-486",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-487",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-488",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-489",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-490",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-491",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-492",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-493",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-494",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-495",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-496",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-497",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-498",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-499",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-500",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-501",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-502",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-503",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-504",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-505",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-506",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-507",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-508",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-509",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-510",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-511",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-512",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-513",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-514",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-515",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-516",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-517",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-518",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-519",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-520",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-521",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-522",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-523",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-524",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-525",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-526",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-527",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-528",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-529",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-530",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-531",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-532",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-533",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-534",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-535",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-536",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-537",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-538",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-539",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-540",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-541",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-542",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-543",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-544",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-545",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-546",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-547",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-548",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-549",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-550",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-551",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-552",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-553",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-554",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-555",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-556",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-557",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-558",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-559",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-560",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-561",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-562",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-563",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-564",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-565",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-566",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-567",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-568",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-569",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-570",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-571",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-572",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-573",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-574",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-575",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-576",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-577",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-578",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-579",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-580",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-581",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-582",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-583",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-584",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-585",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-586",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-587",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-588",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-589",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-590",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-591",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-592",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-593",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-594",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-595",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-596",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-597",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-598",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-599",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-600",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-601",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-602",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-603",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-604",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-605",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-606",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-607",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-608",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-609",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-610",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-611",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-612",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-617",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-618",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-619",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-620",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-621",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-622",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-624",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-625",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-626",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-627",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-628",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-629",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-630",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-631",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-632",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-633",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-634",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-635",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-636",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-637",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-638",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-639",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-640",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-641",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-642",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-643",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-644",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-645",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-690",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-691",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-692",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-693",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-694",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-695",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-696",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-697",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-698",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-699",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-700",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-701",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-702",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-703",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-704",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-705",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-706",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-707",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-708",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-709",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-710",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    },
+    {
+      "caseId": "controlled-711",
+      "reviewers": [
+        "automated-contract-review-v1"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "Automated contract checks passed"
+    }
+  ],
+  "reviewMethod": "automated-full-owner-spot-check-v1",
+  "ownerSpotCheckArtifact": {
+    "reviewerId": "project-owner",
+    "path": "owner-spot-check.json",
+    "sha256": "45d2b199edbc9fedcb00ae593887720cb76638a4f016a49db7820bf6d5410ce0",
+    "policyPath": "owner-spot-check-policy-v1.json",
+    "policySha256": "cf8261abd24a0e40cbec690941af893ea1c60aac22d5e1e38e420610d318d8ac"
+  }
+}

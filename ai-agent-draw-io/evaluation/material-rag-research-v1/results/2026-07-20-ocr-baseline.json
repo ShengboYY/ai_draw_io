@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "material-rag-ocr-result-v1",
+  "runtime": {
+    "tesseractVersion": "4.1.1",
+    "languages": "eng+chi_sim"
+  },
+  "pageMetrics": [
+    {
+      "page": 1,
+      "characters": 182,
+      "editDistance": 0,
+      "characterErrorRate": 0.0
+    },
+    {
+      "page": 2,
+      "characters": 68,
+      "editDistance": 5,
+      "characterErrorRate": 0.07352941176470588
+    },
+    {
+      "page": 3,
+      "characters": 100,
+      "editDistance": 0,
+      "characterErrorRate": 0.0
+    }
+  ],
+  "overallCharacterErrorRate": 0.014285714285714285,
+  "anchorRecall": 1.0,
+  "anchorResults": {
+    "ocr-en-code": true,
+    "ocr-en-threshold": true,
+    "ocr-zh-code": true,
+    "ocr-zh-threshold": true,
+    "ocr-zone-east": true
+  }
+}

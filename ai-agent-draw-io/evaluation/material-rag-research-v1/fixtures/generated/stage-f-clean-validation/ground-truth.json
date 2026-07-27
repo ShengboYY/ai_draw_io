@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "material-rag-stage-f-clean-validation-ground-truth-v1",
+  "anchors": [
+    {
+      "anchorId": "ib-route",
+      "source": "sf-incident-briefing",
+      "version": "v1",
+      "page": 1,
+      "text": "Incident Commander sends a customer-impact summary to Executive Review before the recovery decision is published."
+    },
+    {
+      "anchorId": "ib-owner",
+      "source": "sf-incident-briefing",
+      "version": "v1",
+      "page": 1,
+      "text": "The recovery decision names the accountable Operations Lead."
+    },
+    {
+      "anchorId": "re-assess",
+      "source": "sf-release-exception",
+      "version": "v1",
+      "page": 1,
+      "text": "Release Exception goes to Risk Assessment before Change Owner approval."
+    },
+    {
+      "anchorId": "re-record",
+      "source": "sf-release-exception",
+      "version": "v1",
+      "page": 1,
+      "text": "Approved Release Exception is recorded in the Deployment Register."
+    },
+    {
+      "anchorId": "vo-screen",
+      "source": "sf-vendor-onboarding-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Vendor Intake goes to Security Screening before Contract Setup."
+    },
+    {
+      "anchorId": "vo-owner",
+      "source": "sf-vendor-onboarding-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Contract Setup is owned by Procurement Operations."
+    },
+    {
+      "anchorId": "ar-review",
+      "source": "sf-access-review-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Access Request goes to Entitlement Review before Manager Approval."
+    },
+    {
+      "anchorId": "ar-close",
+      "source": "sf-access-review-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Manager Approval creates an Access Record for the requester."
+    },
+    {
+      "anchorId": "le-roles",
+      "source": "sf-layout-escalation",
+      "version": "v1",
+      "page": 1,
+      "text": "Duty Manager, Incident Lead and Communications Owner are the existing escalation roles."
+    },
+    {
+      "anchorId": "lv-states",
+      "source": "sf-layout-evidence",
+      "version": "v1",
+      "page": 1,
+      "text": "Captured, Verified and Retained are the existing evidence states."
+    },
+    {
+      "anchorId": "ca-route",
+      "source": "sf-catalog-approval",
+      "version": "v7",
+      "page": 1,
+      "text": "Catalog Analyst submits Version 7 to Product Steward before Catalog Publish."
+    },
+    {
+      "anchorId": "ca-scope",
+      "source": "sf-catalog-approval",
+      "version": "v7",
+      "page": 1,
+      "text": "Only Version 7 is authorized for this edit."
+    },
+    {
+      "anchorId": "es-block",
+      "source": "sf-evidence-sync-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "When Evidence Sync is Unavailable, grounded publishing is blocked while Manual Notes remain available."
+    },
+    {
+      "anchorId": "es-resume",
+      "source": "sf-evidence-sync-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "Retry Sync may continue only after Evidence Sync is restored."
+    },
+    {
+      "anchorId": "cs-preserve",
+      "source": "sf-canvas-save-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "Canvas Save Failed preserves the editable diagram and offers Retry Save."
+    },
+    {
+      "anchorId": "cs-escalate",
+      "source": "sf-canvas-save-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "After repeated save failure, the case is routed to Workspace Support."
+    },
+    {
+      "anchorId": "cc-flow",
+      "source": "sf-change-closure-visual",
+      "version": "v1",
+      "page": 1,
+      "text": "Change Implemented goes to Verify Outcome. If Outcome accepted? is Yes, Record Closure then Publish Change Note. If No, Plan Remediation then Recheck Outcome."
+    },
+    {
+      "anchorId": "pe-flow",
+      "source": "sf-privacy-escalation-visual",
+      "version": "v1",
+      "page": 1,
+      "text": "Privacy Alert goes to Assess Exposure. If External notice required? is Yes, Notify Privacy Lead then Send Notice. If No, Document Assessment then Monitor Follow-up."
+    },
+    {
+      "anchorId": "sr-diagnose",
+      "source": "sf-service-restoration",
+      "version": "v1",
+      "page": 1,
+      "text": "Service Triage sends an affected component to Restoration Work before Service Verification."
+    },
+    {
+      "anchorId": "sr-close",
+      "source": "sf-service-restoration",
+      "version": "v1",
+      "page": 1,
+      "text": "Service Verification records the restoration result in the Incident Timeline."
+    }
+  ]
+}

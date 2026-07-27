@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "material-rag-drawio-generation-acceptance-policy-v2",
+  "status": "frozen_pre_run_validation",
+  "sourceRun": {"taskFixtureSha256": "e4e4b8aa49250df450e971b1c8ec8d683d90356ead7c79a67fb36249050a965a"},
+  "rules": {"visibleLocations": ["vertex", "edge"], "normalization": ["strip_html", "collapse_whitespace", "casefold"], "boundary": "No post-output synonyms, relaxed cardinalities, or task changes are permitted."},
+  "taskOverrides": {}
+}

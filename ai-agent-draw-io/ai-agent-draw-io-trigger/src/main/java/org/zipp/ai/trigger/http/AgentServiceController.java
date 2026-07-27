@@ -1,5 +1,7 @@
 package org.zipp.ai.trigger.http;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import org.zipp.ai.api.IAgentService;
 import org.zipp.ai.api.dto.*;
 import org.zipp.ai.api.response.Response;
@@ -25,22 +27,32 @@ import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
-import org.zipp.ai.trigger.http.service.AgentConversationService;
+import org.zipp.ai.domain.citation.model.valobj.AnswerCitationView;
+import org.zipp.ai.domain.citation.service.CitationQueryService;
+import org.zipp.ai.trigger.http.service.AnonymousWorkspaceClaimService;
+import org.zipp.ai.trigger.http.service.ManualCanvasCommitCoordinator;
+import org.zipp.ai.trigger.http.turn.TurnV2ProductIngressAdapter;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
-import org.zipp.ai.types.util.SecretLogSanitizer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.MDC;
+import org.springframework.http.MediaType;
 import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import javax.annotation.Resource;
+import java.io.IOException;
 import java.util.Base64;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,21 +62,18 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/v1/")
 public class AgentServiceController implements IAgentService {
 
-    private static final Pattern ANONYMOUS_WORKSPACE_ID = Pattern.compile(
-            "^anon_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
     private static final String PNG_DATA_URL_PREFIX = "data:image/png;base64,";
     private static final int MAX_THUMBNAIL_BYTES = 512 * 1024;
     private static final int MAX_THUMBNAIL_DATA_URL_LENGTH = 750 * 1024;
     private static final int MAX_CANVAS_XML_LENGTH = 2 * 1024 * 1024;
     private static final String REQUEST_ID_HEADER = "X-Request-Id";
     private static final String RUN_ID_HEADER = "X-Agent-Run-Id";
+    private static final String V2_INGRESS_NOT_READY = "TURN_V2_PRODUCT_INGRESS_NOT_READY";
+    private static final MediaType NDJSON = MediaType.parseMediaType("application/x-ndjson");
     private static final Pattern CORRELATION_ID = Pattern.compile("^[A-Za-z0-9._:-]{8,128}$");
 
     @Resource
     private IChatService chatService;
-
-    @Resource
-    private AgentConversationService agentConversationService;
 
     @Resource
     private ICanvasStateStore canvasStateStore;
@@ -72,11 +81,23 @@ public class AgentServiceController implements IAgentService {
     @Resource
     private CanvasMutationGate canvasMutationGate;
 
+    @Autowired(required = false)
+    private ManualCanvasCommitCoordinator manualCanvasCommitCoordinator;
+
+    @Autowired(required = false)
+    private TurnV2ProductIngressAdapter turnV2ProductIngressAdapter;
+
     @Resource
     private IDiagramConversationStore diagramConversationStore;
 
     @Resource
     private CurrentOwnerHttpResolver currentOwnerHttpResolver;
+
+    @Resource
+    private AnonymousWorkspaceClaimService anonymousWorkspaceClaimService;
+
+    @Resource
+    private AnonymousWorkspaceCookie anonymousWorkspaceCookie;
 
     @Resource
     private AnonymousDemoQuotaService anonymousDemoQuotaService;
@@ -86,6 +107,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
+
+    @Autowired(required = false)
+    private CitationQueryService citationQueryService;
 
     @RequestMapping(value = "query_ai_agent_config_list", method = RequestMethod.GET)
     @Override
@@ -297,7 +321,7 @@ public class AgentServiceController implements IAgentService {
             CanvasState current = canvasStateStore.find(workspaceId, diagramId).orElse(null);
             boolean manualEditAfterRepair = isManualEditAfterVisualRepair(
                     requestDTO, workspaceId, diagramId, current);
-            CanvasMutationDecision decision = canvasMutationGate.evaluate(new CanvasMutationCommand(
+            CanvasMutationCommand mutationCommand = new CanvasMutationCommand(
                     current == null ? CanvasMutationPurpose.USER_CREATE : CanvasMutationPurpose.USER_EDIT,
                     current == null ? "" : current.getCurrentXml(),
                     canvasXml,
@@ -306,7 +330,10 @@ public class AgentServiceController implements IAgentService {
                     workspaceId,
                     diagramId,
                     requestDTO.getExpectedVersion(),
-                    requestDTO.getExpectedContentHash()));
+                    requestDTO.getExpectedContentHash());
+            CanvasMutationDecision decision = manualCanvasCommitCoordinator == null
+                    ? canvasMutationGate.evaluate(mutationCommand)
+                    : manualCanvasCommitCoordinator.commit(mutationCommand);
             if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
                 return Response.<DiagramCanvasStateResponseDTO>builder()
                         .code(ResponseCode.CANVAS_VERSION_CONFLICT.getCode())
@@ -402,6 +429,7 @@ public class AgentServiceController implements IAgentService {
             List<DiagramConversationMessageDTO> messages = diagramConversationStore.listMessages(workspaceId, diagramId).stream()
                     .map(this::toDiagramConversationMessageDTO)
                     .collect(Collectors.toList());
+            attachAnswerCitations(workspaceId, diagramId, messages);
             return Response.<List<DiagramConversationMessageDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
@@ -474,18 +502,19 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
-        try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
-             MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
-            log.info("智能体对话 agentId:{} userId:{} sessionId:{} requestId:{} runId:{} messageChars:{}",
-                    requestDTO.getAgentId(),
-                    SecretLogSanitizer.maskCapability(requestDTO.getUserId()),
-                    requestDTO.getSessionId(),
-                    requestId,
-                    runId,
-                    safeLength(requestDTO.getMessage()));
-            ChatResponseDTO responseDTO = agentConversationService.chat(requestDTO);
-            writeCorrelationHeaders(httpResponse, requestId, responseDTO == null ? runId : responseDTO.getRunId());
-
+        if (turnV2ProductIngressAdapter == null) {
+            // Product chat is fail-closed after the Legacy executor is removed.
+            return Response.<ChatResponseDTO>builder()
+                    .code(V2_INGRESS_NOT_READY)
+                    .info(V2_INGRESS_NOT_READY)
+                    .build();
+        }
+        try {
+            ChatResponseDTO responseDTO = turnV2ProductIngressAdapter.chat(
+                    workspaceId, requestDTO, requestId, runId);
+            responseDTO.setRequestId(requestId);
+            responseDTO.setRunId(runId);
+            writeCorrelationHeaders(httpResponse, requestId, runId);
             return Response.<ChatResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
@@ -535,20 +564,11 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
-        try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
-             MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
-            log.info("流式对话 agentId:{} userId:{} sessionId:{} requestId:{} runId:{} messageChars:{}",
-                    requestDTO.getAgentId(),
-                    SecretLogSanitizer.maskCapability(requestDTO.getUserId()),
-                    requestDTO.getSessionId(),
-                    requestId,
-                    runId,
-                    safeLength(requestDTO.getMessage()));
-            agentConversationService.stream(requestDTO, emitter);
-        } catch (Exception e) {
-            log.error("流式对话失败 requestId:{} runId:{}", requestId, runId, e);
-            emitter.completeWithError(e);
+        if (turnV2ProductIngressAdapter == null) {
+            sendV2IngressError(emitter, V2_INGRESS_NOT_READY);
+            return emitter;
         }
+        turnV2ProductIngressAdapter.stream(workspaceId, requestDTO, requestId, runId, emitter);
         return emitter;
     }
 
@@ -565,21 +585,27 @@ public class AgentServiceController implements IAgentService {
 
     @RequestMapping(value = "workspaces/anonymous/import", method = RequestMethod.POST)
     public Response<ImportAnonymousWorkspaceResponseDTO> importAnonymousWorkspace(
-            @RequestBody ImportAnonymousWorkspaceRequestDTO requestDTO) {
+            @RequestBody(required = false) ImportAnonymousWorkspaceRequestDTO requestDTO,
+            HttpServletRequest servletRequest,
+            HttpServletResponse servletResponse) {
         ResolvedOwner owner = ownerHttpResolver().resolve(null).orElse(null);
         if (owner == null || OwnerType.USER != owner.getOwnerType() || !owner.isAuthenticated()) {
             return illegalWorkspaceResponse();
         }
 
-        String anonymousWorkspaceId = normalizeAnonymousWorkspaceId(
-                requestDTO == null ? null : requestDTO.getAnonymousWorkspaceId());
-        if (StringUtils.isBlank(anonymousWorkspaceId)) {
+        String rawCredential = anonymousWorkspaceCookie == null
+                ? null
+                : anonymousWorkspaceCookie.read(servletRequest).orElse(null);
+        if (StringUtils.isBlank(rawCredential) || anonymousWorkspaceClaimService == null) {
             return illegalWorkspaceResponse();
         }
 
         try {
-            List<CanvasState> imported = canvasStateStore.importAnonymousWorkspace(
-                    anonymousWorkspaceId, owner.getOwnerId());
+            // The request body is intentionally ignored: only possession of the server-issued
+            // HttpOnly credential authorizes migration from an anonymous owner.
+            List<CanvasState> imported = anonymousWorkspaceClaimService.claim(
+                    rawCredential, owner.getOwnerId());
+            anonymousWorkspaceCookie.clear(servletResponse);
             ImportAnonymousWorkspaceResponseDTO responseDTO = new ImportAnonymousWorkspaceResponseDTO();
             responseDTO.setImportedCount(imported.size());
             responseDTO.setDiagrams(imported.stream()
@@ -591,14 +617,24 @@ public class AgentServiceController implements IAgentService {
                     .data(responseDTO)
                     .build();
         } catch (Exception e) {
-            log.error("导入匿名工作区失败 sourceOwnerId:{} targetOwnerId:{}",
-                    CurrentOwnerHttpResolver.mask(anonymousWorkspaceId),
+            log.error("导入匿名工作区失败 targetOwnerId:{}",
                     CurrentOwnerHttpResolver.mask(owner.getOwnerId()), e);
             return Response.<ImportAnonymousWorkspaceResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .build();
         }
+    }
+
+    /** Compatibility overload for direct controller tests; it does not restore body-id authority. */
+    public Response<ImportAnonymousWorkspaceResponseDTO> importAnonymousWorkspace(
+            ImportAnonymousWorkspaceRequestDTO requestDTO) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            return illegalWorkspaceResponse();
+        }
+        return importAnonymousWorkspace(
+                requestDTO, attributes.getRequest(), attributes.getResponse());
     }
 
     private DiagramSummaryResponseDTO toDiagramSummary(CanvasState state) {
@@ -645,11 +681,48 @@ public class AgentServiceController implements IAgentService {
     private DiagramConversationMessageDTO toDiagramConversationMessageDTO(DiagramConversationMessage message) {
         DiagramConversationMessageDTO dto = new DiagramConversationMessageDTO();
         dto.setClientMessageId(message.getClientMessageId());
+        dto.setTurnId(message.getTurnId());
         dto.setSessionId(message.getSessionId());
         dto.setRole(message.getRole());
         dto.setContent(message.getContent());
+        dto.setAttachmentRefs(message.getAttachmentRefs());
         dto.setCreatedAt(message.getCreatedAt());
         return dto;
+    }
+
+    private void attachAnswerCitations(String ownerKey, String diagramId,
+                                       List<DiagramConversationMessageDTO> messages) {
+        if (citationQueryService == null || messages.isEmpty()) return;
+        List<AnswerCitationView> citations = citationQueryService.findAnswers(ownerKey, diagramId,
+                messages.stream().map(DiagramConversationMessageDTO::getClientMessageId).toList());
+        Map<String, List<AnswerCitationView>> byMessage = citations.stream()
+                .collect(Collectors.groupingBy(AnswerCitationView::messageId, LinkedHashMap::new, Collectors.toList()));
+        for (DiagramConversationMessageDTO message : messages) {
+            List<AnswerCitationView> claims = byMessage.getOrDefault(message.getClientMessageId(), List.of());
+            if (claims.isEmpty()) continue;
+            List<DiagramConversationMessageDTO.EvidenceClaimDTO> claimDtos = new ArrayList<>();
+            LinkedHashMap<String, DiagramConversationMessageDTO.EvidenceSourceDTO> sourceDtos = new LinkedHashMap<>();
+            for (AnswerCitationView claim : claims) {
+                DiagramConversationMessageDTO.EvidenceClaimDTO claimDto = new DiagramConversationMessageDTO.EvidenceClaimDTO();
+                claimDto.setClaimKey(claim.claimKey());
+                claimDto.setSupportType(claim.supportType());
+                claimDto.setCitationKeys(claim.sources().stream().map(AnswerCitationView.AnswerSourceView::citationKey).toList());
+                claimDtos.add(claimDto);
+                for (AnswerCitationView.AnswerSourceView source : claim.sources()) {
+                    sourceDtos.computeIfAbsent(source.citationKey(), ignored -> {
+                        DiagramConversationMessageDTO.EvidenceSourceDTO sourceDto = new DiagramConversationMessageDTO.EvidenceSourceDTO();
+                        sourceDto.setCitationKey(source.citationKey());
+                        sourceDto.setSourceLabel(source.sourceLabel());
+                        sourceDto.setPageNumber(source.pageNumber());
+                        sourceDto.setModality(source.modality());
+                        sourceDto.setOrigin(source.origin());
+                        return sourceDto;
+                    });
+                }
+            }
+            message.setEvidenceClaims(List.copyOf(claimDtos));
+            message.setEvidenceSources(List.copyOf(sourceDtos.values()));
+        }
     }
 
     private DiagramConversationMessage toDiagramConversationMessage(SaveDiagramMessagesRequestDTO requestDTO,
@@ -664,6 +737,7 @@ public class AgentServiceController implements IAgentService {
                 .clientMessageId(message.getClientMessageId())
                 .role(message.getRole())
                 .content(message.getContent())
+                .attachmentRefs(message.getAttachmentRefs() == null ? List.of() : message.getAttachmentRefs())
                 .build();
     }
 
@@ -701,15 +775,6 @@ public class AgentServiceController implements IAgentService {
 
     private String resolveOwnerId(String legacyOwnerId) {
         return ownerHttpResolver().resolveOwnerId(legacyOwnerId).orElse(null);
-    }
-
-    private String normalizeAnonymousWorkspaceId(String workspaceId) {
-        if (StringUtils.isBlank(workspaceId)) {
-            return null;
-        }
-        String normalized = workspaceId.trim().toLowerCase(Locale.ROOT);
-        // Import moves data between owners; only browser-generated anonymous workspace ids are accepted.
-        return ANONYMOUS_WORKSPACE_ID.matcher(normalized).matches() ? normalized : null;
     }
 
     private String normalizeThumbnailDataUrl(String value) {
@@ -780,8 +845,21 @@ public class AgentServiceController implements IAgentService {
         response.getHeaders().set(RUN_ID_HEADER, StringUtils.defaultIfBlank(runId, ""));
     }
 
-    private int safeLength(String value) {
-        return value == null ? 0 : value.length();
+    private void sendV2IngressError(ResponseBodyEmitter emitter, String errorCode) {
+        try {
+            // Keep startup/configuration failures inside the same NDJSON contract as V2 turns.
+            JSONObject chunk = new JSONObject();
+            chunk.put("type", "error");
+            chunk.put("content", errorCode);
+            chunk.put("code", errorCode);
+            JSONObject event = new JSONObject();
+            event.put("phase", "error");
+            event.put("chunk", chunk);
+            emitter.send(JSON.toJSONString(event) + "\n", NDJSON);
+            emitter.complete();
+        } catch (IOException failure) {
+            emitter.completeWithError(failure);
+        }
     }
 
     private CurrentOwnerHttpResolver ownerHttpResolver() {

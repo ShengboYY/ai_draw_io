@@ -1,0 +1,71 @@
+spring:
+  config:
+    # Keep Maven and IntelliJ Worker launches aligned with the local app configuration.
+    import: optional:file:.env[.properties]
+  application:
+    name: ai-agent-draw-io-ingestion-worker
+  main:
+    web-application-type: none
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  mapper-locations:
+    - classpath*:/mybatis/mapper/*.xml
+  configuration:
+    # Mapper queries alias database snake_case columns while persistence objects use camelCase fields.
+    map-underscore-to-camel-case: true
+
+worker:
+  id: ${WORKER_ID:${HOSTNAME:worker-local}}
+  storage: ${MATERIAL_UPLOAD_STORAGE:local}
+  local-upload-root: ${MATERIAL_UPLOAD_LOCAL_ROOT:./data/material-uploads}
+  local-materials-root: ${MATERIAL_LOCAL_ROOT:./data/material-objects}
+  aws-region: ${AWS_REGION:ap-southeast-2}
+  materials-bucket: ${MATERIALS_BUCKET:}
+  materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}
+  document-processing-enabled: ${MATERIAL_DOCUMENT_PROCESSING_ENABLED:false}
+  vector-projection-enabled: ${MATERIAL_VECTOR_PROJECTION_ENABLED:false}
+  material-deletion-enabled: ${MATERIAL_DELETION_ENABLED:false}
+  deletion-poll-delay-ms: ${MATERIAL_DELETION_POLL_DELAY_MS:1000}
+  deletion-reaper-delay-ms: ${MATERIAL_DELETION_REAPER_DELAY_MS:60000}
+  poll-delay-ms: ${WORKER_POLL_DELAY_MS:1000}
+  reaper-delay-ms: ${WORKER_REAPER_DELAY_MS:60000}
+  stalled-recovery-delay-ms: ${WORKER_STALLED_RECOVERY_DELAY_MS:60000}
+  generation-sync-delay-ms: ${GENERATION_SYNC_DELAY_MS:5000}
+  generation-sync-batch-size: ${GENERATION_SYNC_BATCH_SIZE:100}
+  projection-maintenance-delay-ms: ${PROJECTION_MAINTENANCE_DELAY_MS:86400000}
+  projection-reconciliation-interval-hours: ${PROJECTION_RECONCILIATION_INTERVAL_HOURS:24}
+  projection-maintenance-batch-size: ${PROJECTION_MAINTENANCE_BATCH_SIZE:100}
+  retired-generation-cleanup-grace-hours: ${RETIRED_GENERATION_CLEANUP_GRACE_HOURS:24}
+  clamav:
+    host: ${CLAMAV_HOST:127.0.0.1}
+    port: ${CLAMAV_PORT:3310}
+    timeout-seconds: ${CLAMAV_TIMEOUT_SECONDS:60}
+  document:
+    render-dpi: ${DOCUMENT_RENDER_DPI:200}
+  retrieval:
+    tokenizer-path: ${E5_TOKENIZER_PATH:/worker/tokenizer.json}
+    tokenizer-sha256: ${E5_TOKENIZER_SHA256:62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626}
+  pinecone:
+    api-key: ${PINECONE_API_KEY:}
+    index-host: ${PINECONE_INDEX_HOST:}
+    index-name: ${PINECONE_INDEX_NAME:drawio-retrieval-v1}
+    namespace: ${PINECONE_NAMESPACE:prod}
+    tenant-hmac-secret: ${PINECONE_TENANT_HMAC_SECRET:}
+  tesseract:
+    executable: ${TESSERACT_EXECUTABLE:tesseract}
+    # Comma-separated paths from older deployments that use the same verified Tesseract runtime.
+    legacy-equivalent-executables: ${TESSERACT_LEGACY_EQUIVALENT_EXECUTABLES:}
+    languages: ${TESSERACT_LANGUAGES:eng+chi_sim}
+    timeout-seconds: ${TESSERACT_TIMEOUT_SECONDS:120}
+    runtime-version: ${TESSERACT_RUNTIME_VERSION:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

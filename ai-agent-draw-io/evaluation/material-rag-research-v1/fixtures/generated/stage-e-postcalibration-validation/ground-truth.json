@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "material-rag-stage-e-postcalibration-validation-ground-truth-v1",
+  "anchors": [
+    {
+      "anchorId": "rg-route",
+      "source": "pe-release-governance",
+      "version": "v1",
+      "page": 1,
+      "text": "Release Coordinator sends a Signed Build to Change Approval before Authorized Deployment."
+    },
+    {
+      "anchorId": "rg-owner",
+      "source": "pe-release-governance",
+      "version": "v1",
+      "page": 1,
+      "text": "Authorized Deployment is owned by Platform Operations."
+    },
+    {
+      "anchorId": "er-retain",
+      "source": "pe-evidence-retention",
+      "version": "v1",
+      "page": 1,
+      "text": "Case Archive retains closed evidence for 90 days before Review Archive."
+    },
+    {
+      "anchorId": "er-dispose",
+      "source": "pe-evidence-retention",
+      "version": "v1",
+      "page": 1,
+      "text": "Review Archive sends expired evidence to Certified Disposal."
+    },
+    {
+      "anchorId": "cc-impact",
+      "source": "pe-customer-change",
+      "version": "v1",
+      "page": 1,
+      "text": "Change Request is assessed by Impact Review before Customer Notice."
+    },
+    {
+      "anchorId": "cc-approval",
+      "source": "pe-customer-change",
+      "version": "v1",
+      "page": 1,
+      "text": "Customer Notice may be issued only after Change Authority approval."
+    },
+    {
+      "anchorId": "oh-handoff",
+      "source": "pe-oncall-handoff-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Primary Responder hands an acknowledged incident to the Secondary Responder."
+    },
+    {
+      "anchorId": "oh-note",
+      "source": "pe-oncall-handoff-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Secondary Responder records the handoff note before shift close."
+    },
+    {
+      "anchorId": "be-route",
+      "source": "pe-billing-exception-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Billing Exception goes to Revenue Review before Account Correction."
+    },
+    {
+      "anchorId": "be-owner",
+      "source": "pe-billing-exception-edit",
+      "version": "v1",
+      "page": 1,
+      "text": "Account Correction is owned by Revenue Operations."
+    },
+    {
+      "anchorId": "lr-roles",
+      "source": "pe-layout-roles",
+      "version": "v1",
+      "page": 1,
+      "text": "Submitter, Approver and Observer are the existing process roles."
+    },
+    {
+      "anchorId": "ls-states",
+      "source": "pe-layout-states",
+      "version": "v1",
+      "page": 1,
+      "text": "Pending, Validated, and Archived are the existing lifecycle states."
+    },
+    {
+      "anchorId": "ca-v4",
+      "source": "pe-catalog-approval",
+      "version": "v4",
+      "page": 1,
+      "text": "Catalog Analyst submits Version 4 to Product Approver before Catalog Publish."
+    },
+    {
+      "anchorId": "ca-scope",
+      "source": "pe-catalog-approval",
+      "version": "v4",
+      "page": 1,
+      "text": "Only Version 4 is authorized for this edit."
+    },
+    {
+      "anchorId": "rr-block",
+      "source": "pe-retrieval-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "When Evidence Retrieval is Unavailable, source-grounded generation is blocked while Manual Diagramming remains available."
+    },
+    {
+      "anchorId": "rr-resume",
+      "source": "pe-retrieval-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "Retry Retrieval may continue only after Evidence Retrieval is restored."
+    },
+    {
+      "anchorId": "ec-flow",
+      "source": "pe-evidence-completeness-visual",
+      "version": "v1",
+      "page": 1,
+      "text": "Field Request goes to Evidence Check. If Evidence complete? is Yes, Approve Request then Issue Work Order. If No, Request Missing Evidence then Await Resubmission."
+    },
+    {
+      "anchorId": "sr-flow",
+      "source": "pe-service-recovery-visual",
+      "version": "v1",
+      "page": 1,
+      "text": "Alert Received goes to Assess Service. If Service restored? is Yes, Record Resolution. If No, Start Recovery then Notify Incident Lead then Reassess Service."
+    },
+    {
+      "anchorId": "ss-preserve",
+      "source": "pe-save-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "Diagram Save Failed preserves the editable canvas and offers Retry Save."
+    },
+    {
+      "anchorId": "ss-escalate",
+      "source": "pe-save-recovery",
+      "version": "v1",
+      "page": 1,
+      "text": "After a repeated save failure, the agent routes the case to Storage Support."
+    }
+  ]
+}

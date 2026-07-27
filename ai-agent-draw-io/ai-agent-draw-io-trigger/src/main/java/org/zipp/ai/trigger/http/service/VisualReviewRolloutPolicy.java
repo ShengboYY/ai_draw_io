@@ -23,8 +23,8 @@ public class VisualReviewRolloutPolicy {
             @Value("${zipp.visual-review.enabled:false}") boolean enabled,
             @Value("${zipp.visual-review.auto-repair-enabled:false}") boolean autoRepairEnabled,
             @Value("${zipp.visual-review.rollout-percent:${ZIPP_VISUAL_REVIEW_ROLLOUT_PERCENT:100}}") int reviewerRolloutPercent,
-            @Value("${zipp.visual-review.round-1-rollout-percent:${ZIPP_VISUAL_REVIEW_ROUND_1_ROLLOUT_PERCENT:0}}") int roundOneRolloutPercent,
-            @Value("${zipp.visual-review.round-2-rollout-percent:${ZIPP_VISUAL_REVIEW_ROUND_2_ROLLOUT_PERCENT:0}}") int roundTwoRolloutPercent) {
+            @Value("${zipp.visual-review.round-1-rollout-percent:${ZIPP_VISUAL_REVIEW_ROUND_1_ROLLOUT_PERCENT:100}}") int roundOneRolloutPercent,
+            @Value("${zipp.visual-review.round-2-rollout-percent:${ZIPP_VISUAL_REVIEW_ROUND_2_ROLLOUT_PERCENT:100}}") int roundTwoRolloutPercent) {
         this.enabled = enabled;
         this.autoRepairEnabled = autoRepairEnabled;
         this.reviewerRolloutPercent = boundedPercent(reviewerRolloutPercent);

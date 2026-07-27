@@ -1,0 +1,6 @@
+# Durable source preparation release after 20260801.
+# Source snapshots must exist before Direct preparation can be replayed after takeover.
+2026-08-10-create-request-source-snapshots.sql
+2026-08-11-add-request-source-display-name.sql
+2026-08-12-add-request-source-processing-flag.sql
+2026-08-13-create-source-aware-direct-preparations.sql

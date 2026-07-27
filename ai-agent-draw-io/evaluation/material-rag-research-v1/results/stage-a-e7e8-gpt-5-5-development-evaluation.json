@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "material-rag-drawio-generation-evaluation-v2",
+  "split": "development",
+  "taskCount": 12,
+  "taskFixtureSha256": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440",
+  "results": [
+    {
+      "taskId": "stagb-dev-01",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stagb-dev-02",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stagb-dev-03",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stagb-dev-04",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stagb-dev-05",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stagb-dev-06",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stagb-dev-07",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stagb-dev-08",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stagb-dev-09",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stagb-dev-10",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stagb-dev-11",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stagb-dev-12",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    }
+  ],
+  "xmlParseRate": 1.0,
+  "requiredCitationContractRate": 1.0,
+  "completionRate": 0.5833333333333334,
+  "claimMetricsStatus": "not_evaluated"
+}

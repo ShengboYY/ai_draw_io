@@ -1,14 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
+import { AdminAccountMenu } from '@/app/admin/admin-account-menu';
 import { getUserInfo } from '@/utils/cookie';
 
 // Brand accent from the Free Draw Redesign spec.
 const ACCENT = '#34333b';
 const DISPLAY = 'var(--font-display)';
 const MONO = 'var(--font-mono)';
+// Align desktop content with the OpenAI API page's measured outer gutters.
+const PAGE_MAX_WIDTH = 1440;
+const HOME_INTRO_SESSION_KEY = 'freedraw_home_intro_seen';
 
 // Palette used by the product-preview canvas art (mirrors the design's PAL).
 const PAL = {
@@ -29,6 +35,7 @@ const HERO_EXAMPLES = [
 // Public labels for the diagram shapes currently covered by built-in drawio-* skills.
 const DIAGRAM_TYPES = ['Flowchart', 'Architecture', 'UML Class', 'Sequence', 'ER Diagram', 'Use Case', 'State', 'Concept Map'];
 
+// Homepage feature copy reflects the product's supported creation, import, and skill workflows.
 const FEATURES = [
   {
     title: 'Natural-language generation',
@@ -40,19 +47,20 @@ const FEATURES = [
     ),
   },
   {
-    title: 'The full draw.io',
-    body: 'Not a stripped-down clone — every draw.io shape and tool you know is here, ready for manual fine-tuning.',
+    title: 'Multimodal import & creation',
+    body: 'Import PDFs and images, then ask the Agent to understand their text, tables and diagrams, answer questions, summarize key points or turn the source into an editable diagram.',
     icon: (
       <svg viewBox="0 0 24 24" width={22} height={22} fill="none">
-        <rect x={4} y={4} width={7} height={7} rx={1.5} stroke="currentColor" strokeWidth={2} />
-        <rect x={13} y={13} width={7} height={7} rx={1.5} stroke="currentColor" strokeWidth={2} />
-        <path d="M11 7h4v6" stroke="currentColor" strokeWidth={2} />
+        <path d="M6 3.5h8l4 4v12A1.5 1.5 0 0 1 16.5 21h-9A1.5 1.5 0 0 1 6 19.5v-14A2 2 0 0 1 6 3.5Z" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" />
+        <path d="M14 3.5v4h4" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" />
+        <circle cx={10} cy={11} r={1.1} fill="currentColor" />
+        <path d="m8.5 17 2.6-2.7 1.8 1.8 1.5-1.6 1.9 2.5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
   {
-    title: 'Diagram-specific skill evolution',
-    body: 'Flowcharts, UML, ER, sequence and other diagram types each get focused skills that keep improving as new drawing patterns are explored.',
+    title: 'Built-in & custom skills',
+    body: 'Start with focused skills for flowcharts, UML, ER and sequence diagrams, or create your own skill for a specific domain, workflow or drawing style.',
     icon: (
       <svg viewBox="0 0 24 24" width={22} height={22} fill="none">
         <rect x={4} y={5} width={6} height={5} rx={1.2} stroke="currentColor" strokeWidth={2} />
@@ -64,13 +72,17 @@ const FEATURES = [
   },
 ];
 
-// FreeDraw pencil mark, reused across the nav, CTA and intro.
-function PencilMark({ size = 17 }: { size?: number }) {
+// The supplied app icon is reused anywhere the compact brand mark is needed.
+function BrandAppIcon({ size = 32, className = '' }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M4 20 L14 6 M14 6 L20 12 M14 6 L11 4" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={6} cy={18} r={2.4} fill="#fff" />
-    </svg>
+    <Image
+      src="/brand/freedraw-app-icon-brush.png"
+      alt=""
+      width={size}
+      height={size}
+      className={className}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -143,26 +155,53 @@ function CanvasArt() {
 
 export default function Home() {
   const router = useRouter();
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [introVariant, setIntroVariant] = useState<'full' | 'quick'>('full');
+  const [showIntro, setShowIntro] = useState(true);
   const [landingInput, setLandingInput] = useState('');
   const [landingFocus, setLandingFocus] = useState(false);
 
-  // Detect a signed-in user (7-day login cookie, then the authoritative session
-  // check) and take them straight to their diagrams instead of the marketing page.
+  useEffect(() => {
+    let hideTimer: number | undefined;
+    // Defer client-only session and motion checks until after hydration.
+    const frame = window.requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let hasSeenIntro = false;
+
+      try {
+        hasSeenIntro = window.sessionStorage.getItem(HOME_INTRO_SESSION_KEY) === '1';
+        window.sessionStorage.setItem(HOME_INTRO_SESSION_KEY, '1');
+      } catch {
+        // A blocked session store should not prevent the homepage from opening.
+      }
+
+      const nextVariant = hasSeenIntro || reduceMotion ? 'quick' : 'full';
+      setIntroVariant(nextVariant);
+      // Leave enough time for the icon to settle before the page becomes fully visible.
+      hideTimer = window.setTimeout(
+        () => setShowIntro(false),
+        reduceMotion ? 0 : nextVariant === 'full' ? 4300 : 850,
+      );
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (hideTimer !== undefined) window.clearTimeout(hideTimer);
+    };
+  }, []);
+
+  // Keep the public homepage available while reflecting the existing session.
   useEffect(() => {
     let cancelled = false;
-    if (getUserInfo()) {
-      router.replace('/diagrams');
-      return;
-    }
+    const browserUserInfo = getUserInfo();
     agentApi
       .me()
       .then(({ data }) => {
-        if (!cancelled && data?.status === 'SUCCESS' && data.userId) {
-          router.replace('/diagrams');
-        }
+        if (!cancelled) setIsSignedIn(Boolean(data?.status === 'SUCCESS' && data.userId));
       })
       .catch(() => {
-        // No session — stay on the landing page.
+        // Retain the local session hint if the account check is temporarily unavailable.
+        if (!cancelled) setIsSignedIn(Boolean(browserUserInfo));
       });
     return () => {
       cancelled = true;
@@ -180,34 +219,43 @@ export default function Home() {
   const landingBorder = landingFocus ? ACCENT : 'rgba(0,0,0,.1)';
 
   return (
-    <div style={{ minHeight: '100vh', ['--accent' as string]: ACCENT }}>
+    <div className={`fd-intro-${introVariant}`} style={{ minHeight: '100vh', ['--accent' as string]: ACCENT }}>
       <style>{`
-        @keyframes fdDraw{to{stroke-dashoffset:0}}
-        @keyframes fdDot{0%{opacity:0;transform:scale(0)}60%{opacity:1;transform:scale(1.4)}100%{opacity:1;transform:scale(1)}}
-        @keyframes fdBoxFill{to{fill-opacity:1}}
-        @keyframes fdMarkWhite{to{stroke:#fff}}
-        @keyframes fdBlobWhite{to{fill:#fff}}
-        @keyframes fdSettle{0%{transform:scale(1)}45%{transform:scale(1.07)}100%{transform:scale(1)}}
-        @keyframes fdLift{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-52px) scale(.3);opacity:0}}
+        @keyframes fdReveal{0%{opacity:0;transform:scale(.82)}100%{opacity:1;transform:scale(1)}}
+        @keyframes fdDock{0%{transform:translate3d(0,0,0) scale(1);opacity:1}100%{transform:translate3d(var(--fd-dock-x),var(--fd-dock-y),0) scale(.18);opacity:0}}
         @keyframes fdVeil{0%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
         @keyframes fdRiseLine{0%{transform:translateY(112%)}100%{transform:translateY(0)}}
         @keyframes fdRise{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:none}}
+        @keyframes fdNavLogo{0%{opacity:0}100%{opacity:1}}
         .fd-scroll::-webkit-scrollbar{width:9px;height:9px}
         .fd-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.14);border-radius:9px;border:2px solid transparent;background-clip:padding-box}
         .fd-scroll::-webkit-scrollbar-track{background:transparent}
-        .fd-veil{position:fixed;inset:0;z-index:60;background:#f5f5f4;display:flex;align-items:center;justify-content:center;animation:fdVeil .6s ease 3.2s forwards;pointer-events:none}
-        .fd-scene{transform-origin:center;animation:fdSettle .5s ease 2.5s,fdLift .7s cubic-bezier(.6,0,.25,1) 3s forwards}
-        .fd-box{fill:#34333b;fill-opacity:0;stroke-dasharray:100;stroke-dashoffset:100;animation:fdDraw 1.15s cubic-bezier(.6,0,.4,1) .15s forwards,fdBoxFill .28s ease 2.48s forwards}
-        .fd-mark{stroke-dasharray:100;stroke-dashoffset:100;animation:fdDraw 1.2s cubic-bezier(.55,0,.45,1) 1.3s forwards,fdMarkWhite .4s ease 2.5s forwards}
-        .fd-blob{opacity:0;transform-box:fill-box;transform-origin:center;animation:fdDot .34s ease 1.15s forwards,fdBlobWhite .4s ease 2.5s forwards}
+        .fd-veil{--fd-dock-x:calc(-50vw + max(90px,calc((100vw - 1440px)/2 + 90px)));--fd-dock-y:calc(-50vh + 32px);position:fixed;inset:0;z-index:60;background:#f5f5f4;display:flex;align-items:center;justify-content:center;pointer-events:none}
+        .fd-veil-full{animation:fdVeil .6s ease 3.45s forwards}
+        .fd-veil-quick{animation:fdVeil .62s ease forwards}
+        /* Clip the PNG's faint edge matte so it blends cleanly into the intro veil. */
+        .fd-scene{display:block;background:#14161a;border-radius:24%;transform-origin:center;will-change:transform,opacity}
+        .fd-scene-full{animation:fdReveal 2s ease-out both,fdDock 1.3s cubic-bezier(.5,0,.18,1) 2.15s forwards}
+        .fd-scene-quick{display:none}
         .fd-h-line{display:block;overflow:hidden}
-        .fd-h-line>span{display:inline-block;transform:translateY(112%);animation:fdRiseLine .75s cubic-bezier(.5,0,.15,1) forwards}
-        .fd-in{opacity:0;animation:fdRise .7s cubic-bezier(.4,0,.2,1) forwards}
+        .fd-h-line>span{display:inline-block;transform:translateY(112%)}
+        .fd-in{opacity:0}
+        .fd-intro-full .fd-title-primary{animation:fdRiseLine .9s cubic-bezier(.5,0,.15,1) 3.05s forwards}
+        .fd-intro-full .fd-title-secondary{animation:fdRiseLine .9s cubic-bezier(.5,0,.15,1) 3.25s forwards}
+        .fd-intro-full .fd-hero-copy{animation:fdRise .8s cubic-bezier(.4,0,.2,1) 3.5s forwards}
+        .fd-intro-full .fd-prompt-shell{animation:fdRise .85s cubic-bezier(.4,0,.2,1) 3.72s forwards}
+        .fd-intro-full .fd-nav-logo{opacity:0;animation:fdNavLogo .45s ease 3.4s forwards}
+        .fd-intro-quick .fd-title-primary{animation:fdRiseLine .7s cubic-bezier(.5,0,.15,1) .18s forwards}
+        .fd-intro-quick .fd-title-secondary{animation:fdRiseLine .7s cubic-bezier(.5,0,.15,1) .3s forwards}
+        .fd-intro-quick .fd-hero-copy{animation:fdRise .65s cubic-bezier(.4,0,.2,1) .42s forwards}
+        .fd-intro-quick .fd-prompt-shell{animation:fdRise .7s cubic-bezier(.4,0,.2,1) .58s forwards}
+        .fd-intro-quick .fd-nav-logo{animation:fdNavLogo .4s ease .12s forwards}
         .fd-nav-signin:hover{background:rgba(0,0,0,.05)}
         .fd-btn-accent:hover{filter:brightness(1.12)}
         .fd-chip:hover{border-color:#bdbbb4;color:#17171a}
         .fd-cta-ghost:hover{background:#faf9f7}
         @media (max-width: 767px) {
+          .fd-veil{--fd-dock-x:calc(-50vw + 76px);--fd-dock-y:calc(-50vh + 34px)}
           .fd-nav{padding:16px 18px!important;gap:12px!important}
           .fd-nav-actions{gap:6px!important}
           .fd-nav-signin,.fd-nav-actions .fd-btn-accent{height:36px!important;padding:0 12px!important;font-size:13px!important}
@@ -241,6 +289,10 @@ export default function Home() {
           .fd-agent-preview{width:240px!important}
           .fd-preview-body{height:440px!important}
         }
+        @media (prefers-reduced-motion: reduce) {
+          .fd-veil{display:none}
+          .fd-h-line>span,.fd-in,.fd-nav-logo{animation:none!important;opacity:1!important;transform:none!important}
+        }
       `}</style>
 
       <div
@@ -251,55 +303,40 @@ export default function Home() {
             'radial-gradient(900px 460px at 50% -8%,rgba(0,0,0,.045),transparent 60%),#f5f5f4',
         }}
       >
-        {/* intro veil: draws the FreeDraw app icon, then it settles and lifts away */}
-        <div className="fd-veil">
-          <svg className="fd-scene" width={172} height={172} viewBox="0 0 24 24" fill="none">
-            <path
-              className="fd-box"
-              pathLength={100}
-              d="M12 22 L8 22 Q2 22 2 16 L2 8 Q2 2 8 2 L16 2 Q22 2 22 8 L22 16 Q22 22 16 22 L12 22 Z"
-              stroke="#34333b"
-              strokeWidth={1.1}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              className="fd-mark"
-              pathLength={100}
-              d="M4.6 19 L14 6 L11 4 L14 6 L19.4 12"
-              stroke="#34333b"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle className="fd-blob" cx={6.3} cy={17.4} r={1.5} fill="#34333b" />
-          </svg>
-        </div>
+        {/* The full intro runs once per tab; return visits get only a short fade. */}
+        {showIntro && (
+          <div className={`fd-veil fd-veil-${introVariant}`} aria-hidden="true">
+            <BrandAppIcon size={172} className={`fd-scene fd-scene-${introVariant}`} />
+          </div>
+        )}
 
         {/* nav */}
-        <div className="fd-nav" style={{ display: 'flex', alignItems: 'center', gap: 20, maxWidth: 1140, margin: '0 auto', padding: '22px 32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <PencilMark size={17} />
-            </div>
-            <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 19, letterSpacing: '-.02em' }}>FreeDraw</span>
-          </div>
+        <div className="fd-nav" style={{ display: 'flex', alignItems: 'center', gap: 20, maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '22px 32px' }}>
+          <Link className="fd-nav-logo" href="/" aria-label="FreeDraw home" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Image src="/brand/freedraw-wordmark-brush-on-light.png" alt="FreeDraw" width={116} height={20} priority />
+          </Link>
           <div style={{ flex: 1 }} />
           <div className="fd-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              className="fd-nav-signin"
-              onClick={goSignin}
-              style={{ height: 38, padding: '0 16px', background: 'transparent', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, color: '#4a4a4a', cursor: 'pointer' }}
-            >
-              Sign in
-            </button>
-            <button
-              className="fd-btn-accent"
-              onClick={goSignup}
-              style={{ height: 38, padding: '0 17px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 6px rgba(50,48,45,.15)' }}
-            >
-              Sign up
-            </button>
+            {isSignedIn ? (
+              <AdminAccountMenu logoutHref="/" />
+            ) : (
+              <>
+                <button
+                  className="fd-nav-signin"
+                  onClick={goSignin}
+                  style={{ height: 38, padding: '0 16px', background: 'transparent', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, color: '#4a4a4a', cursor: 'pointer' }}
+                >
+                  Sign in
+                </button>
+                <button
+                  className="fd-btn-accent"
+                  onClick={goSignup}
+                  style={{ height: 38, padding: '0 17px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 6px rgba(50,48,45,.15)' }}
+                >
+                  Sign up
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -307,18 +344,18 @@ export default function Home() {
         <div className="fd-hero" style={{ maxWidth: 800, margin: '0 auto', padding: '56px 32px 0', textAlign: 'center' }}>
           <h1 className="fd-hero-title" style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: 56, lineHeight: 1.05, letterSpacing: '-.03em', color: '#17171a', margin: '48px 0 20px' }}>
             <span className="fd-h-line">
-              <span style={{ animationDelay: '3.3s' }}>Describe it.</span>
+              <span className="fd-title-primary">Describe it.</span>
             </span>
             <span className="fd-h-line" style={{ position: 'relative', display: 'inline-block' }}>
-              <span style={{ animationDelay: '3.47s' }}>Watch it draw.</span>
+              <span className="fd-title-secondary">Watch it draw.</span>
             </span>
           </h1>
-          <p className="fd-in fd-hero-copy" style={{ fontSize: 17, lineHeight: 1.6, color: '#6f6c64', maxWidth: 500, margin: '0 auto 34px', animationDelay: '3.7s' }}>
+          <p className="fd-in fd-hero-copy" style={{ fontSize: 17, lineHeight: 1.6, color: '#6f6c64', maxWidth: 500, margin: '0 auto 34px' }}>
             Describe any diagram in plain words and watch it take shape — inside the full draw.io editor, with an AI copilot that edits right alongside you.
           </p>
 
           {/* prompt bar (main visual) */}
-          <div className="fd-in fd-prompt-shell" style={{ maxWidth: 600, margin: '0 auto', animationDelay: '3.85s' }}>
+          <div className="fd-in fd-prompt-shell" style={{ maxWidth: 600, margin: '0 auto' }}>
             <div className="fd-prompt-bar" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', border: `1.5px solid ${landingBorder}`, borderRadius: 16, padding: '9px 9px 9px 18px', boxShadow: '0 10px 34px rgba(40,38,36,.09)', transition: 'border-color .15s' }}>
               <svg width={19} height={19} viewBox="0 0 24 24" fill="none" style={{ flex: 'none', color: '#9a968c' }}>
                 <path d="M12 3l2.1 6.3L20.5 11l-6.4 1.7L12 19l-2.1-6.3L3.5 11l6.4-1.7z" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" />
@@ -366,7 +403,7 @@ export default function Home() {
         </div>
 
         {/* product preview */}
-        <div className="fd-preview-section" style={{ maxWidth: 1000, margin: '56px auto 0', padding: '0 32px' }}>
+        <div className="fd-preview-section" style={{ maxWidth: PAGE_MAX_WIDTH, margin: '56px auto 0', padding: '0 32px' }}>
           <div className="fd-browser-preview" style={{ borderRadius: '16px 16px 0 0', border: '1px solid rgba(0,0,0,.1)', borderBottom: 'none', background: '#fff', overflow: 'hidden', boxShadow: '0 -1px 0 rgba(255,255,255,.6),0 24px 60px rgba(40,38,36,.12)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, height: 38, padding: '0 15px', background: '#fafafa', borderBottom: '1px solid #ececec' }}>
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#e0ded9' }} />
@@ -401,7 +438,7 @@ export default function Home() {
         </div>
 
         {/* diagram types */}
-        <div className="fd-types-section" style={{ maxWidth: 1000, margin: '60px auto 0', padding: '0 32px', textAlign: 'center' }}>
+        <div className="fd-types-section" style={{ maxWidth: PAGE_MAX_WIDTH, margin: '60px auto 0', padding: '0 32px', textAlign: 'center' }}>
           <div style={{ fontFamily: MONO, fontSize: 11.5, letterSpacing: '.08em', color: '#a5a29a', textTransform: 'uppercase', marginBottom: 20 }}>
             Built-in skill coverage
           </div>
@@ -418,7 +455,7 @@ export default function Home() {
         </div>
 
         {/* features */}
-        <div className="fd-features-section" style={{ maxWidth: 1000, margin: '64px auto 0', padding: '0 32px' }}>
+        <div className="fd-features-section" style={{ maxWidth: PAGE_MAX_WIDTH, margin: '64px auto 0', padding: '0 32px' }}>
           <div className="fd-feature-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
             {FEATURES.map(f => (
               <div key={f.title} className="fd-feature-card" style={{ background: '#fff', border: '1px solid rgba(0,0,0,.08)', borderRadius: 16, padding: '24px 22px' }}>
@@ -433,11 +470,11 @@ export default function Home() {
         </div>
 
         {/* closing CTA */}
-        <div className="fd-cta-section" style={{ maxWidth: 1000, margin: '64px auto 0', padding: '0 32px 80px' }}>
+        <div className="fd-cta-section" style={{ maxWidth: PAGE_MAX_WIDTH, margin: '64px auto 0', padding: '0 32px 80px' }}>
           <div className="fd-cta-card" style={{ position: 'relative', overflow: 'hidden', background: '#fff', border: '1px solid rgba(0,0,0,.09)', borderRadius: 22, padding: '52px 40px', textAlign: 'center', boxShadow: '0 12px 40px rgba(40,38,36,.07)' }}>
             <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(0,0,0,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.028) 1px,transparent 1px)', backgroundSize: '22px 22px', WebkitMaskImage: 'radial-gradient(circle at 50% 40%,#000,transparent 72%)', maskImage: 'radial-gradient(circle at 50% 40%,#000,transparent 72%)' }} />
-            <div style={{ position: 'relative', width: 52, height: 52, margin: '0 auto 20px', borderRadius: 14, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(50,48,45,.22)' }}>
-              <PencilMark size={26} />
+            <div style={{ position: 'relative', width: 52, height: 52, margin: '0 auto 20px', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 14px rgba(50,48,45,.22)' }}>
+              <BrandAppIcon size={52} />
             </div>
             <h2 className="fd-cta-title" style={{ position: 'relative', fontFamily: DISPLAY, fontWeight: 600, fontSize: 32, letterSpacing: '-.02em', color: '#17171a', margin: '0 0 12px' }}>
               Start your first diagram

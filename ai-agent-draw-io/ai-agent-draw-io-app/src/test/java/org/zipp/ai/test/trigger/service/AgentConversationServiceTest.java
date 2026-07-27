@@ -28,10 +28,11 @@ import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
-import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.VisualRepairContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
+import org.zipp.ai.domain.agent.service.armory.matter.tool.DrawioToolAccessContext;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
@@ -56,14 +57,17 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class AgentConversationServiceTest {
@@ -188,21 +192,28 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldBypassIntentRoutingWhenContinuingTheDrawer() throws Exception {
+    public void shouldBypassIntentRoutingForDedicatedVisualRepair() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         CountingIntentRoutingService routingService = new CountingIntentRoutingService();
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         injectField(service, "chatService", chatService);
         injectField(service, "intentRoutingService", routingService);
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
         ChatRequestDTO request = platformRequest();
+        request.setAgentId("300029");
+        request.setRunId("aru_repair_trace");
+        request.setSourceRunId("aru_source_trace");
+        request.setParentRunId("aru_visual_trace");
+        request.setVisualRepairRound(1);
         request.setDiagramId("diagram-1");
         request.setCanvasXml(storedCanvasXml());
         request.setMaxDeterministicRepairRounds(3);
         request.setMessage("Fix only the cited spacing issue and preserve everything else.");
 
-        service.continueDrawing(
+        service.continueVisualRepair(
                 request,
-                new DrawerContinuationContext(
+                new VisualRepairContext(
                         "architecture",
                         CanvasMutationAuthorization.unrestricted()),
                 new CapturingEmitter());
@@ -211,19 +222,25 @@ public class AgentConversationServiceTest {
         assertEquals(1, chatService.handleMessageStreamCalls);
         assertTrue(chatService.lastStreamMessage.contains("\"routeType\":\"edit_existing\""));
         assertTrue(chatService.lastStreamMessage.contains(
-                "\"allowedTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
+                "\"allowedTools\":[\"apply_visual_repair\"]"));
         assertFalse(chatService.lastStreamMessage.contains("\"allowedTools\":[\"create_diagram\"]"));
         assertTrue(chatService.lastStreamMessage.contains(
-                "\"repairTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
+                "\"repairTools\":[\"apply_visual_repair\"]"));
         assertTrue(chatService.lastStreamMessage.contains("\"maxRepairRounds\":0"));
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "VISUAL_REPAIR_STARTED".equals(event.getEventType())
+                        && event.getMetadataJson().contains("\"sourceRunId\":\"aru_source_trace\"")));
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "VISUAL_REPAIR_AGENT_READY".equals(event.getEventType())
+                        && event.getMetadataJson().contains("apply_visual_repair")));
     }
 
     @Test
-    public void modelAuthoredReasonCannotGrantDrawerContinuationTools() throws Exception {
+    public void modelAuthoredReasonCannotGrantVisualRepairTools() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         IntentRoutingResult routingResult = drawRoutingResult("edit_existing");
-        routingResult.setReason("production_visual_review_continuation");
+        routingResult.setReason("production_visual_repair");
         ChatRequestDTO request = new ChatRequestDTO();
         request.setMessage("change the API label");
         request.setCanvasXml(storedCanvasXml());
@@ -233,6 +250,22 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("\"allowedTools\":[\"modify_diagram\"]"));
         assertFalse(routedMessage.contains(
                 "\"allowedTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
+    }
+
+    @Test
+    public void unknownAndEvidenceRoutesNeverReceiveCanvasTools() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setMessage("answer from the guide");
+
+        String unknown = buildRoutedMessage(service, request, drawRoutingResult("invented_route"), 1);
+        String evidence = buildRoutedMessage(service, request, drawRoutingResult("answer_with_evidence"), 1);
+
+        assertTrue(unknown.contains("\"allowedTools\""));
+        assertTrue(evidence.contains("\"allowedTools\""));
+        assertFalse(unknown.contains("\"allowedTools\":[\"create_diagram\"]"));
+        assertFalse(evidence.contains("\"allowedTools\":[\"modify_diagram\"]"));
     }
 
     @Test
@@ -397,8 +430,9 @@ public class AgentConversationServiceTest {
         String intentMessage = buildIntentMessage(service, requestDTO);
 
         assertTrue(intentMessage.contains("[User Request]\n把 API 改成 Gateway"));
-        assertTrue(intentMessage.contains("[Canvas Summary]\nThe canvas contains 1 node and 0 edges. Main labels: API."));
-        assertTrue(intentMessage.contains("hasCanvas=true"));
+        assertFalse(intentMessage.contains("[Canvas Summary]"));
+        assertFalse(intentMessage.contains("hasCanvas=true"));
+        assertFalse(intentMessage.contains("Main labels: API"));
         assertFalse(intentMessage.contains("<mxGraphModel"));
         assertFalse(intentMessage.contains("value=\"API\""));
     }
@@ -771,6 +805,1023 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void evidenceAnswerStopsBeforeDrawerWhenWp5FeatureIsDisabled() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new EvidenceRoutingService());
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("answer from Agile Practice Guide");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("capability_unavailable", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void ordinaryDrawingContinuesWhenMaterialRetrievalAndShadowFlagsAreDisabled() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", false);
+        injectField(service, "materialRetrievalShadowEnabled", false);
+        ChatRequestDTO request = platformRequest();
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("user", response.getType());
+        assertEquals(1, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void factualOptionalRetrievalStopsBeforeDrawerWhenEvidenceIsInsufficient() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.InsufficientEvidence(
+                                        List.of("REQUEST_SUPPORT_INCOMPLETE"))));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("insufficient_evidence", response.getType());
+        assertTrue(response.getContent().contains("narrow"));
+        assertTrue(response.getContent().contains("upload"));
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void insufficientEvidenceNamesTheSafeMissingSubject() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.InsufficientEvidence(
+                                        List.of("REQUIRED_EXACT_TERM_MISSING"), "version 2.1")));
+        ChatRequestDTO request = platformRequest();
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("insufficient_evidence", response.getType());
+        assertTrue(response.getContent().contains("version 2.1"));
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void degradedRetrievalStopsBeforeDrawerWithRetryableResponse() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.DegradedDependency(
+                                        List.of("DENSE_UNAVAILABLE", "LEXICAL_DEGRADED"))));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("retrieval_degraded", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void evidenceStreamPreservesInsufficientAndDegradedOutcomeTypes() throws Exception {
+        AgentConversationService insufficientService = quotaAwareService();
+        CountingChatService insufficientChat = new CountingChatService();
+        injectField(insufficientService, "chatService", insufficientChat);
+        injectField(insufficientService, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(insufficientService, "materialRagEnabled", true);
+        injectField(insufficientService, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.InsufficientEvidence(
+                                        List.of("NO_RETRIEVAL_MATCH"), "Kafka retention policy")));
+        ChatRequestDTO insufficientRequest = verifiedPlatformRequest();
+        insufficientRequest.setSessionId("session-insufficient");
+        insufficientRequest.setDiagramId("diagram-insufficient");
+        CapturingEmitter insufficientEmitter = new CapturingEmitter();
+
+        insufficientService.stream(insufficientRequest, insufficientEmitter);
+
+        String insufficientOutput = String.join("\n", insufficientEmitter.sent);
+        assertTrue(insufficientOutput.contains("\"type\":\"degraded\""));
+        assertTrue(insufficientOutput.contains("\"outcomeType\":\"insufficient_evidence\""));
+        assertEquals(0, insufficientChat.handleMessageStreamCalls);
+        assertTrue(insufficientEmitter.completed);
+        // A terminal evidence response must release the session for the user's next request.
+        DrawioToolAccessContext.openSession("session-insufficient", "next-run");
+        assertTrue(DrawioToolAccessContext.closeSession("session-insufficient", "next-run"));
+
+        AgentConversationService degradedService = quotaAwareService();
+        CountingChatService degradedChat = new CountingChatService();
+        injectField(degradedService, "chatService", degradedChat);
+        injectField(degradedService, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(degradedService, "materialRagEnabled", true);
+        injectField(degradedService, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.DegradedDependency(
+                                        List.of("DENSE_DEGRADED"))));
+        ChatRequestDTO degradedRequest = verifiedPlatformRequest();
+        degradedRequest.setSessionId("session-degraded");
+        degradedRequest.setDiagramId("diagram-degraded");
+        CapturingEmitter degradedEmitter = new CapturingEmitter();
+
+        degradedService.stream(degradedRequest, degradedEmitter);
+
+        String degradedOutput = String.join("\n", degradedEmitter.sent);
+        assertTrue(degradedOutput.contains("\"type\":\"degraded\""));
+        assertTrue(degradedOutput.contains("\"outcomeType\":\"retrieval_degraded\""));
+        assertEquals(0, degradedChat.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void unexpectedEvidenceFailureFailsClosedBeforeDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.Failed(
+                                        "EVIDENCE_PREPARATION_FAILED")));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("retrieval_degraded", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void ambiguousEvidenceTargetReturnsCandidatesWithoutCallingDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.ClarificationNeeded(
+                                        "AMBIGUOUS_TARGET", List.of(
+                                        new org.zipp.ai.domain.retrieval.TargetCandidate(
+                                                "api-a", "NODE", "API", "LABEL_MATCH"),
+                                        new org.zipp.ai.domain.retrieval.TargetCandidate(
+                                                "api-b", "NODE", "API", "LABEL_MATCH")))));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Update the API node from the available material.");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("target_clarification", response.getType());
+        assertEquals(List.of("api-a", "api-b"),
+                response.getTargetCandidates().stream()
+                        .map(org.zipp.ai.api.dto.ChatResponseDTO.TargetCandidateDTO::getCellId).toList());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void optionalFactualRequestStopsWhenMaterialRagIsDisabled() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", false);
+        injectField(service, "materialRetrievalShadowEnabled", false);
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("capability_unavailable", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void optionalFactualRequestStopsWhenEvidenceModuleIsMissing() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule", null);
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("capability_unavailable", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void exceptionalEvidenceFutureFailsClosedBeforeDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.failedFuture(
+                                new IllegalStateException("provider unavailable")));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("retrieval_degraded", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void synchronousEvidenceFailureFailsClosedBeforeDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) -> {
+                    throw new IllegalStateException("module unavailable");
+                });
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("retrieval_degraded", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void sourceClarificationAsksForASourceWithoutTargetCandidates() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.ClarificationNeeded(
+                                        "AMBIGUOUS_SOURCE", List.of())));
+        ChatRequestDTO request = platformRequest();
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("source_clarification", response.getType());
+        assertTrue(response.getContent().contains("source"));
+        assertTrue(response.getTargetCandidates() == null || response.getTargetCandidates().isEmpty());
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void claimClarificationAsksForTheClaimWithoutTargetCandidates() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.ClarificationNeeded(
+                                        "AMBIGUOUS_CLAIM", List.of())));
+        ChatRequestDTO request = platformRequest();
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("claim_clarification", response.getType());
+        assertTrue(response.getContent().contains("claim"));
+        assertTrue(response.getTargetCandidates() == null || response.getTargetCandidates().isEmpty());
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void shadowRetrievalRecordsAnAttemptWithoutChangingTheDrawingResponse() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger shadowAttempts = new AtomicInteger();
+        AtomicInteger materialProbeCalls = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRetrievalShadowEnabled", true);
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command -> {
+                    materialProbeCalls.incrementAndGet();
+                    throw new AssertionError("shadow probe must not affect the primary router");
+                });
+        injectField(service, "evidencePreparationModule", new org.zipp.ai.domain.retrieval.EvidencePreparationModule() {
+            @Override
+            public java.util.concurrent.CompletionStage<org.zipp.ai.domain.retrieval.PreparationOutcome> prepare(
+                    org.zipp.ai.domain.retrieval.EvidencePreparationCommand command,
+                    org.zipp.ai.domain.retrieval.RunResourceDomain resources,
+                    org.zipp.ai.domain.retrieval.EvidenceProgressListener progress,
+                    org.zipp.ai.domain.retrieval.CancellationSignal cancellation) {
+                throw new AssertionError("shadow must not use synchronous evidence preparation");
+            }
+
+            @Override
+            public java.util.concurrent.CompletionStage<Void> observe(
+                    org.zipp.ai.domain.retrieval.EvidencePreparationCommand command) {
+                    shadowAttempts.incrementAndGet();
+                    return java.util.concurrent.CompletableFuture.completedFuture(null);
+            }
+        });
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(platformRequest());
+
+        assertEquals("user", response.getType());
+        assertEquals(1, shadowAttempts.get());
+        assertEquals(0, materialProbeCalls.get());
+        assertEquals(1, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void evidenceAnswerCommitsBeforeReturningAndNeverCallsDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger commits = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new EvidenceRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(storedCanvasXml()));
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "groundedRunControlPort", new org.zipp.ai.domain.grounding.port.GroundedRunControlPort() {
+            @Override public void start(RunIdentity identity) { }
+            @Override public CancelResult cancel(RunIdentity identity) { return CancelResult.ALREADY_COMPLETED; }
+        });
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) -> {
+                    resources.markPrepared();
+                    org.zipp.ai.domain.retrieval.EvidenceBundle bundle = new org.zipp.ai.domain.retrieval.EvidenceBundle(
+                            "bundle-1", command.requestId(), command.runId(), org.zipp.ai.domain.retrieval.SourceMode.AUTO,
+                            List.of(new org.zipp.ai.domain.retrieval.EvidenceBundleItem(
+                                    "E1", "evidence-1", "material-1", "version-1", "revision-1",
+                                    "Agile Guide", 4, "TEXT", "Teams inspect progress every day")));
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new org.zipp.ai.domain.retrieval.PreparationOutcome.Ready(
+                                    new org.zipp.ai.domain.retrieval.PreparedEvidence(bundle, resources),
+                                    new org.zipp.ai.domain.retrieval.RetrievalDiagnostics(
+                                            org.zipp.ai.domain.retrieval.RetrievalRoute.TEXT, List.of())));
+                });
+        org.zipp.ai.domain.citation.answer.AnswerClaim claim = new org.zipp.ai.domain.citation.answer.AnswerClaim(
+                "C1", "Teams inspect progress every day", List.of("E1"),
+                org.zipp.ai.domain.citation.answer.AnswerSupportType.DIRECT,
+                List.of(new org.zipp.ai.domain.citation.model.valobj.SupportAtom(
+                        "A1", "E1", "Teams inspect progress every day",
+                        org.zipp.ai.domain.citation.model.valobj.SupportAtomRole.DIRECT_QUOTE)));
+        injectField(service, "evidenceAnswerService", new org.zipp.ai.domain.citation.answer.EvidenceAnswerService(
+                command -> new org.zipp.ai.domain.citation.answer.AnswerProposal(List.of(claim), List.of(), List.of()),
+                new org.zipp.ai.domain.citation.answer.EvidenceAnswerGuard(requests -> List.of()),
+                plan -> { commits.incrementAndGet(); return org.zipp.ai.domain.citation.answer.EvidenceAnswerCommitPort.CommitStatus.COMMITTED; }));
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-evidence-1");
+        request.setResponseMessageId("message-evidence-1");
+        request.setMessage("answer from Agile Practice Guide");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("evidence_answer", response.getType());
+        assertTrue(response.getContent().contains("[C1]"));
+        assertEquals(1, commits.get());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void singleReadyImageDirectRequestCommitsBeforeReturningAndNeverCallsDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        DirectImageRoutingService routingService = new DirectImageRoutingService();
+        AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
+                new AtomicReference<>();
+        String convertedXml = "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                + "<mxCell id=\"direct-node-a\" value=\"A\" vertex=\"1\" parent=\"1\"/>"
+                + "</root></mxGraphModel>";
+        CanvasState saved = CanvasState.builder().userId("anon_123e4567-e89b-42d3-a456-426614174000")
+                .diagramId("diagram-1").diagramType("flowchart").currentXml(convertedXml)
+                .contentHash("direct-hash").version(1L).build();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", routingService);
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        readyImageSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) -> {
+                            executed.set(command);
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome.Committed(
+                                            convertedXml,
+                                            org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult
+                                                    .created(saved)));
+                        });
+        ChatRequestDTO request = platformRequest();
+        request.setSessionId(null);
+        request.setRequestId("request-direct-1");
+        ChatRequestDTO.DirectClarificationDTO clarification =
+                new ChatRequestDTO.DirectClarificationDTO();
+        clarification.setReasonCode("UNRESOLVED_EDGE_DIRECTION:e1");
+        clarification.setResolution("FORWARD");
+        clarification.setObservedFingerprint(
+                org.zipp.ai.domain.multimodal.DirectObservationFingerprint.of("a → b"));
+        request.setDirectClarifications(List.of(clarification));
+        request.setDirectConfirmationSourceVersionId("version-1");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("drawio", response.getType());
+        assertEquals(convertedXml, response.getContent());
+        assertEquals(Long.valueOf(1L), response.getCanvasVersion());
+        assertEquals("direct-hash", response.getContentHash());
+        assertEquals("", executed.get().source().attachmentUploadId());
+        assertEquals("session-1", executed.get().source().conversationId());
+        assertEquals(List.of(), executed.get().source().selectedVersionIds());
+        assertEquals("UNRESOLVED_EDGE_DIRECTION:e1",
+                executed.get().source().clarifications().get(0).reasonCode());
+        assertEquals(org.zipp.ai.domain.multimodal.DirectClarification.Resolution.FORWARD,
+                executed.get().source().clarifications().get(0).resolution());
+        assertEquals(org.zipp.ai.domain.multimodal.DirectObservationFingerprint.of("a → b"),
+                executed.get().source().clarifications().get(0).observedFingerprint());
+        assertEquals("version-1", executed.get().source().confirmationSourceVersionId());
+        // H0 routes before resolving sources; the later source-aware branch still commits the image conversion.
+        assertFalse(routingService.lastCommand.getRequestProbe().hasSingleReadyImageAttachment());
+        assertEquals(0, routingService.lastCommand.getRequestProbe().readyAttachmentCount());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void explicitlySelectedLibraryImageWinsOverAutomaticDirectCandidates() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
+                new AtomicReference<>();
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        explicitLibraryAndAutomaticImageSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) -> {
+                            executed.set(command);
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome.Unavailable(
+                                            "test-stop"));
+                        });
+        ChatRequestDTO request = verifiedPlatformRequest();
+        request.setRequestId("request-explicit-library-direct");
+
+        service.chat(request);
+
+        assertEquals("version-library", executed.get().source().primaryDirectVersionId());
+        assertEquals(List.of("version-library"),
+                executed.get().source().resolvedSources().sources().stream()
+                        .map(org.zipp.ai.domain.retrieval.ResolvedSource::versionId).toList());
+    }
+
+    @Test
+    public void singleReadyImageDirectStreamEmitsPersistedCanvasWithoutCallingDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
+                new AtomicReference<>();
+        String convertedXml = "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                + "<mxCell id=\"direct-node-a\" value=\"A\" vertex=\"1\" parent=\"1\"/>"
+                + "</root></mxGraphModel>";
+        CanvasState saved = CanvasState.builder().userId("anon_123e4567-e89b-42d3-a456-426614174000")
+                .diagramId("diagram-1").diagramType("flowchart").currentXml(convertedXml)
+                .contentHash("direct-hash").version(2L).build();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        readyImageSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) -> {
+                            executed.set(command);
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                        new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome.Committed(
+                                                convertedXml,
+                                                org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult
+                                                        .updated(saved)));
+                        });
+        ChatRequestDTO request = platformRequest();
+        request.setSessionId(null);
+        request.setRequestId("request-direct-stream-1");
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"drawio_done\""));
+        assertTrue(output.contains("\"version\":2"));
+        assertTrue(output.contains("\"contentHash\":\"direct-hash\""));
+        assertTrue(output.contains("\"type\":\"done\""));
+        assertEquals("session-1", executed.get().source().conversationId());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void laterTurnCanDirectlyReuseTheOnlyReadyConversationImage() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
+                new AtomicReference<>();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        automaticImageSourceSnapshot(
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
+                                "session-1", "current-flow.png", "version-conversation"));
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) -> {
+                            executed.set(command);
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome.Unavailable(
+                                            "TEST_STOP_AFTER_PLANNING"));
+                        });
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-direct-conversation");
+        request.setMessage("Reconstruct the image from this conversation.");
+
+        service.chat(request);
+
+        assertEquals("version-conversation", executed.get().source().primaryDirectVersionId());
+        assertEquals("", executed.get().source().attachmentUploadId());
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void namedChartbookImageWinsAmongMultipleReadyImages() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
+                new AtomicReference<>();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        namedDirectSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) -> {
+                            executed.set(command);
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome.Unavailable(
+                                            "TEST_STOP_AFTER_PLANNING"));
+                        });
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-direct-chartbook");
+        request.setMessage("Reconstruct incident.png exactly.");
+
+        service.chat(request);
+
+        assertEquals("version-chartbook", executed.get().source().primaryDirectVersionId());
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void unqualifiedRequestPrefersTheSoleConversationImageOverChartbookImages() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
+                new AtomicReference<>();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        namedDirectSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) -> {
+                            executed.set(command);
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome.Unavailable(
+                                            "TEST_STOP_AFTER_PLANNING"));
+                        });
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-direct-conversation-priority");
+        request.setMessage("Reconstruct the image from this conversation.");
+
+        service.chat(request);
+
+        assertEquals("version-conversation", executed.get().source().primaryDirectVersionId());
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void directConfirmationStreamPreservesTypedOutcomeAndDoesNotCallDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        readyImageSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) ->
+                                java.util.concurrent.CompletableFuture.completedFuture(
+                                        new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome
+                                                .NeedsConfirmation(List.of("AMBIGUOUS_DIRECTION"))));
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-direct-confirmation");
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"direct_confirmation_required\""));
+        assertTrue(output.contains("\"reasons\":[\"AMBIGUOUS_DIRECTION\"]"));
+        assertTrue(output.contains("\"sourceVersionId\":\"version-1\""));
+        assertTrue(output.contains("\"type\":\"done\""));
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void directAndRetrievalStreamUsesTheDirectCanvasAndExcludesAttachmentFromRetrieval() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CompositeDiagramChatService chatService = new CompositeDiagramChatService();
+        AtomicReference<org.zipp.ai.domain.retrieval.ResolvedSourceSet> retrievedSources =
+                new AtomicReference<>();
+        AtomicReference<org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort.CommitPlan> committed =
+                new AtomicReference<>();
+        AtomicInteger commitCalls = new AtomicInteger();
+        org.zipp.ai.domain.retrieval.ResolvedSourceSet frozenSources =
+                directAndLibrarySourceSnapshot();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new DirectAndRetrievalRoutingService());
+        FixedCanvasStateStore canvasStore = new FixedCanvasStateStore("");
+        injectField(service, "canvasStateStore", canvasStore);
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate mutationGate =
+                new org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate(
+                        canvasStore, new org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer());
+        injectField(writer, "canvasMutationGate", mutationGate);
+        injectField(writer, "canvasCommitModule", new org.zipp.ai.domain.grounding.CanvasCommitModule(
+                mutationGate,
+                new org.zipp.ai.domain.citation.service.CitationGuard(requests -> List.of()),
+                new org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort() {
+                    @Override
+                    public Map<String, InheritedProvenance> findPersistedProvenance(InheritanceQuery query) {
+                        return Map.of();
+                    }
+
+                    @Override
+                    public org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult commit(
+                            CommitPlan plan) {
+                        commitCalls.incrementAndGet();
+                        committed.set(plan);
+                        return org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult.created(
+                                CanvasState.builder().userId("anon_123e4567-e89b-42d3-a456-426614174000")
+                                        .diagramId("diagram-1").diagramType("flowchart")
+                                        .currentXml(plan.canvasXml()).contentHash(plan.contentHash())
+                                        .version(1L).build());
+                    }
+                }));
+        injectField(service, "streamResponseWriter", writer);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        frozenSources);
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directSourcePreparationModule",
+                (org.zipp.ai.domain.multimodal.DirectSourcePreparationModule)
+                        (command, resources, progress, cancellation) -> {
+                            assertEquals(List.of("version-1"),
+                                    command.resolvedSources().sources().stream()
+                                            .map(org.zipp.ai.domain.retrieval.ResolvedSource::versionId)
+                                            .toList());
+                            resources.markPrepared();
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    preparedDirectSource(command.runId()));
+                        });
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule)
+                        (command, resources, progress, cancellation) -> {
+                            retrievedSources.set(command.resolvedSources());
+                            assertEquals(0, command.resolvedSources().processingSourceCount());
+                            resources.markPrepared();
+                            org.zipp.ai.domain.retrieval.EvidenceBundle bundle =
+                                    new org.zipp.ai.domain.retrieval.EvidenceBundle(
+                                            "retrieval-bundle", command.requestId(), command.runId(),
+                                            org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY,
+                                            List.of(new org.zipp.ai.domain.retrieval.EvidenceBundleItem(
+                                                    "E1", "retrieved-evidence", "library-material",
+                                                    "library-version", "library-revision", "library", 1,
+                                                    "TEXT", "Supplemental fact")));
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.retrieval.PreparationOutcome.Ready(
+                                            new org.zipp.ai.domain.retrieval.PreparedEvidence(bundle, resources),
+                                            new org.zipp.ai.domain.retrieval.RetrievalDiagnostics(
+                                                    org.zipp.ai.domain.retrieval.RetrievalRoute.HYBRID,
+                                                    List.of())));
+                        });
+        injectField(service, "evidencePromptAssembler",
+                new org.zipp.ai.domain.grounding.EvidencePromptAssembler());
+        injectField(service, "materialRagEnabled", true);
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-composite-1");
+
+        CapturingEmitter emitter = new CapturingEmitter();
+        service.stream(request, emitter);
+
+        assertEquals(1, chatService.streamCalls());
+        assertTrue(chatService.streamMessage().contains("[Direct + Retrieval Composition Contract]"));
+        assertTrue(chatService.initialState.toString().contains("direct-node-a"));
+        assertFalse(chatService.streamMessage().contains("aiKnowledgeAllowed=true"));
+        assertEquals(List.of("library-version"),
+                retrievedSources.get().sources().stream()
+                        .map(org.zipp.ai.domain.retrieval.ResolvedSource::versionId).toList());
+        assertEquals(String.join("\n", emitter.sent), 1, commitCalls.get());
+        assertEquals(List.of("direct-node-a", "retrieved-node"),
+                committed.get().citations().stream()
+                        .map(org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort.CitationWrite::cellId)
+                        .toList());
+        assertEquals(List.of(
+                        org.zipp.ai.domain.retrieval.EvidenceOrigin.DIRECT_ATTACHMENT,
+                        org.zipp.ai.domain.retrieval.EvidenceOrigin.SEARCH),
+                committed.get().citations().stream()
+                        .flatMap(citation -> citation.evidenceLinks().stream())
+                        .map(org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort.EvidenceLink::origin)
+                        .toList());
+        assertTrue(committed.get().canvasXml().contains("id=\"direct-node-a\""));
+        assertTrue(committed.get().canvasXml().contains("id=\"retrieved-node\""));
+        assertTrue(String.join("\n", emitter.sent).contains("\"type\":\"drawio_done\""));
+    }
+
+    @Test
+    public void multipleUnqualifiedImagesAskForClarificationWithoutCallingDirectOrDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger directExecutions = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        multipleConversationImageSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) -> {
+                            directExecutions.incrementAndGet();
+                            throw new AssertionError("Multiple conversation images must not enter direct conversion");
+                        });
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-direct-multiple");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("source_clarification", response.getType());
+        assertEquals(0, directExecutions.get());
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void probeAndEvidencePreparationShareOneResolvedSourceSnapshot() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        AtomicInteger resolutions = new AtomicInteger();
+        AtomicReference<org.zipp.ai.domain.retrieval.RequestSourceResolutionCommand> resolutionCommand =
+                new AtomicReference<>();
+        AtomicReference<org.zipp.ai.domain.retrieval.ResolvedSourceSet> probed = new AtomicReference<>();
+        AtomicReference<org.zipp.ai.domain.retrieval.ResolvedSourceSet> prepared = new AtomicReference<>();
+        org.zipp.ai.domain.retrieval.ResolvedSourceSet snapshot =
+                new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                        org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY, List.of(), 1, 0);
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new EvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
+                    resolutions.incrementAndGet();
+                    resolutionCommand.set(command);
+                    return snapshot;
+                });
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command -> {
+                    probed.set(command.resolvedSources());
+                    return new org.zipp.ai.domain.retrieval.RequestProbe(
+                            snapshot.toProbe(), org.zipp.ai.domain.retrieval.CanvasProbe.unavailableProbe());
+                });
+        injectField(service, "groundedRunControlPort", new org.zipp.ai.domain.grounding.port.GroundedRunControlPort() {
+            @Override public void start(RunIdentity identity) { }
+            @Override public CancelResult cancel(RunIdentity identity) { return CancelResult.ALREADY_CANCELLED; }
+        });
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) -> {
+                    prepared.set(command.resolvedSources());
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new org.zipp.ai.domain.retrieval.PreparationOutcome.Waiting(List.of()));
+                });
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-source-snapshot-1");
+        request.setMessage("answer from the current conversation");
+        request.setSelectedLibraryVersionIds(List.of(" library-version-1 ", "library-version-1"));
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("material_waiting", response.getType());
+        assertEquals(1, resolutions.get());
+        assertEquals(List.of("library-version-1"), resolutionCommand.get().selectedVersionIds());
+        assertSame(snapshot, probed.get());
+        assertSame(snapshot, prepared.get());
+    }
+
+    @Test
+    public void chartbookImageReconstructionAddsTopologyEvidenceToDrawerPrompt() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicReference<org.zipp.ai.domain.retrieval.EvidencePreparationCommand> prepared =
+                new AtomicReference<>();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        readyChartbookImageSourceSnapshot());
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule)
+                        (command, resources, progress, cancellation) -> {
+                            prepared.set(command);
+                            resources.markPrepared();
+                            org.zipp.ai.domain.retrieval.EvidenceBundle bundle =
+                                    new org.zipp.ai.domain.retrieval.EvidenceBundle(
+                                            "bundle-graph", command.requestId(), command.runId(),
+                                            org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY,
+                                            List.of(new org.zipp.ai.domain.retrieval.EvidenceBundleItem(
+                                                    "cite_1", "evidence-visual", "material-1",
+                                                    "version-1", "revision-1",
+                                                    "risk-escalation-flow.png", 1, "VISUAL",
+                                                    "[DIAGRAM_GRAPH]\n"
+                                                            + "node id=assess label=\"ASSESS RELEASE\"\n"
+                                                            + "node id=review label=\"HUMAN REVIEW\"\n"
+                                                            + "edge id=rejected source=assess target=review "
+                                                            + "lineStyle=DASHED")));
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.retrieval.PreparationOutcome.Ready(
+                                            new org.zipp.ai.domain.retrieval.PreparedEvidence(bundle, resources),
+                                            new org.zipp.ai.domain.retrieval.RetrievalDiagnostics(
+                                                    org.zipp.ai.domain.retrieval.RetrievalRoute.VISUAL_EXACT,
+                                                    List.of())));
+                        });
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-library-image-reconstruction");
+        request.setMessage("Faithfully reconstruct the chartbook image.");
+
+        service.stream(request, new CapturingEmitter());
+
+        assertTrue(prepared.get().diagramReconstructionRequested());
+        assertTrue(chatService.lastStreamMessage.contains("[DIAGRAM_GRAPH]"));
+        assertTrue(chatService.lastStreamMessage.contains("source=assess target=review"));
+        assertFalse(chatService.lastStreamMessage.contains("Process step"));
+    }
+
+    @Test
+    public void sourceSnapshotInfrastructureFailureDoesNotStopOrdinaryDrawing() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger sourceResolutionCalls = new AtomicInteger();
+        AtomicInteger sourceProbeCalls = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
+                    sourceResolutionCalls.incrementAndGet();
+                    throw new IllegalStateException("snapshot store unavailable");
+                });
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command -> {
+                    sourceProbeCalls.incrementAndGet();
+                    throw new AssertionError("ordinary drawing must not probe source infrastructure");
+                });
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(platformRequest());
+
+        // A generic drawing has no evidence dependency, so the Drawer remains available.
+        assertEquals("user", response.getType());
+        assertEquals(1, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+        assertEquals(0, sourceResolutionCalls.get());
+        assertEquals(0, sourceProbeCalls.get());
+    }
+
+    @Test
+    public void sourceSnapshotInfrastructureFailureDoesNotStopOrdinaryDrawingStream() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger sourceResolutionCalls = new AtomicInteger();
+        AtomicInteger sourceProbeCalls = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
+                    sourceResolutionCalls.incrementAndGet();
+                    throw new IllegalStateException("snapshot store unavailable");
+                });
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command -> {
+                    sourceProbeCalls.incrementAndGet();
+                    throw new AssertionError("ordinary drawing must not probe source infrastructure");
+                });
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(platformRequest(), emitter);
+
+        // The UI uses the stream endpoint, which must reach the Drawer for the same generic request.
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(1, chatService.handleMessageStreamCalls);
+        assertFalse(String.join("\n", emitter.sent).contains("source_resolution_failed"));
+        assertEquals(0, sourceResolutionCalls.get());
+        assertEquals(0, sourceProbeCalls.get());
+    }
+
+    @Test
+    public void sourceSnapshotInfrastructureFailureStillStopsEvidenceDrawing() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
+                    throw new IllegalStateException("snapshot store unavailable");
+                });
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command ->
+                        new org.zipp.ai.domain.retrieval.RequestProbe(
+                                command.resolvedSources().toProbe(),
+                                org.zipp.ai.domain.retrieval.CanvasProbe.unavailableProbe()));
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(platformRequest());
+
+        // Evidence-backed drawing still fails closed because its source set must be reproducible.
+        assertEquals("source_resolution_failed", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
     public void shouldAttachRequestAndRunIdsToBlockingChatResponseAndAdkRunContext() throws Exception {
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         AgentConversationService service = quotaAwareService();
@@ -817,6 +1868,31 @@ public class AgentConversationServiceTest {
         assertEquals("aru_stream_run_1", chatService.lastStreamRunContext.runId());
         assertTrue(telemetryStore.traceEvents.stream().anyMatch(event -> "STREAM_META_SENT".equals(event.getEventType())));
         assertTrue(telemetryStore.traceEvents.stream().anyMatch(event -> "STREAM_DONE".equals(event.getEventType())));
+    }
+
+    @Test
+    public void shouldCaptureStreamLifecyclePayloadsWithoutAnExplicitControl() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        FakeDebugTraceStore debugStore = new FakeDebugTraceStore();
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "agentDebugTraceService", new AgentDebugTraceService(debugStore, null));
+        injectField(service, "chatService", new StreamingContentChatService());
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRunId("aru_stream_lifecycle_payload");
+
+        service.stream(requestDTO, new CapturingEmitter());
+
+        String streamDoneSpanId = telemetryStore.traceEvents.stream()
+                .filter(event -> "STREAM_DONE".equals(event.getEventType()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+        // Selecting STREAM_DONE in Trace Analysis must show its persisted lifecycle result.
+        assertTrue(debugStore.captures.stream().anyMatch(capture ->
+                streamDoneSpanId.equals(capture.getSpanId())
+                        && "OUTPUT".equals(capture.getPayloadKind())));
     }
 
     @Test
@@ -1050,6 +2126,144 @@ public class AgentConversationServiceTest {
         return requestDTO;
     }
 
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet readyImageSourceSnapshot() {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY,
+                List.of(new org.zipp.ai.domain.retrieval.ResolvedSource(
+                        "material-1", "version-1", "revision-1", "IMAGE", "upload.png",
+                        org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
+                        "session-1", "READY",
+                        org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
+                        false, true, false)), 0, 0);
+    }
+
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet automaticImageSourceSnapshot(
+            org.zipp.ai.domain.material.model.valobj.MaterialScopeType scopeType,
+            String scopeKey, String displayName, String versionId) {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.AUTO,
+                List.of(new org.zipp.ai.domain.retrieval.ResolvedSource(
+                        "material-" + versionId, versionId, "revision-" + versionId, "IMAGE",
+                        displayName, scopeType, scopeKey, "READY",
+                        org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
+                        false, true, false)), 0, 0);
+    }
+
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet explicitLibraryAndAutomaticImageSourceSnapshot() {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.AUTO,
+                List.of(
+                        new org.zipp.ai.domain.retrieval.ResolvedSource(
+                                "material-library", "version-library", "revision-library",
+                                "IMAGE", "library.png",
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.LIBRARY,
+                                "usr_alice", "READY",
+                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.EXPLICIT,
+                                false, true, false),
+                        automaticImageSourceSnapshot(
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CHARTBOOK,
+                                "chartbook-1", "shared.png", "version-shared").sources().get(0)),
+                0, 0);
+    }
+
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet namedDirectSourceSnapshot() {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.AUTO,
+                List.of(
+                        automaticImageSourceSnapshot(
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
+                                "session-1", "current-flow.png", "version-conversation").sources().get(0),
+                        automaticImageSourceSnapshot(
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CHARTBOOK,
+                                "chartbook-1", "incident.png", "version-chartbook").sources().get(0)),
+                0, 0);
+    }
+
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet multipleConversationImageSourceSnapshot() {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.AUTO,
+                List.of(
+                        new org.zipp.ai.domain.retrieval.ResolvedSource(
+                                "material-1", "version-1", "revision-1", "IMAGE", "first.png",
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
+                                "session-1", "READY",
+                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
+                                false, true, false),
+                        new org.zipp.ai.domain.retrieval.ResolvedSource(
+                                "material-2", "version-2", "revision-2", "IMAGE", "second.png",
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
+                                "session-1", "READY",
+                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
+                                false, true, false)),
+                0, 0);
+    }
+
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet readyChartbookImageSourceSnapshot() {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.AUTO,
+                List.of(new org.zipp.ai.domain.retrieval.ResolvedSource(
+                        "material-1", "version-1", "revision-1", "IMAGE",
+                        org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CHARTBOOK,
+                        "chartbook-1",
+                        "READY", org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
+                        false, true, false)), 0, 0);
+    }
+
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet directAndLibrarySourceSnapshot() {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY,
+                List.of(
+                        new org.zipp.ai.domain.retrieval.ResolvedSource(
+                                "material-1", "version-1", "revision-1", "IMAGE", "upload.png",
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
+                                "session-1", "PROCESSING",
+                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.ATTACHMENT,
+                                false, true, false),
+                        new org.zipp.ai.domain.retrieval.ResolvedSource(
+                                "library-material", "library-version", "library-revision", "TEXT",
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.LIBRARY,
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.PERSONAL_LIBRARY_KEY,
+                                "READY", org.zipp.ai.domain.retrieval.RequestSourceOrigin.EXPLICIT,
+                                true, false, false)),
+                1, 0);
+    }
+
+    private org.zipp.ai.domain.multimodal.DirectSourceOutcome.Prepared preparedDirectSource(String runId) {
+        org.zipp.ai.domain.retrieval.EvidenceBundle bundle =
+                new org.zipp.ai.domain.retrieval.EvidenceBundle(
+                        "direct-bundle", "request-composite-1", runId,
+                        org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY,
+                        List.of(new org.zipp.ai.domain.retrieval.EvidenceBundleItem(
+                                "D1", "direct-evidence", "material-1", "version-1", "revision-1",
+                                "original image", 1, "VISUAL", "A",
+                                org.zipp.ai.domain.retrieval.EvidenceSupportRole.SUPPORT,
+                                org.zipp.ai.domain.retrieval.EvidenceOrigin.DIRECT_ATTACHMENT)));
+        org.zipp.ai.domain.citation.model.valobj.CitationBinding binding =
+                new org.zipp.ai.domain.citation.model.valobj.CitationBinding(
+                        "direct-node-a", "direct-statement-a",
+                        org.zipp.ai.domain.citation.model.valobj.StatementKind.NODE_TEXT,
+                        "A", null, null, List.of("D1"),
+                        List.of(new org.zipp.ai.domain.citation.model.valobj.SupportAtom(
+                                "direct-atom-a", "D1", "A",
+                                org.zipp.ai.domain.citation.model.valobj.SupportAtomRole.DIRECT_QUOTE)),
+                        org.zipp.ai.domain.citation.model.valobj.SupportType.EVIDENCE);
+        return new org.zipp.ai.domain.multimodal.DirectSourceOutcome.Prepared(
+                new org.zipp.ai.domain.multimodal.ObservedDiagramGraph(
+                        List.of(new org.zipp.ai.domain.multimodal.ObservedDiagramGraph.Node(
+                                "a", "A", org.zipp.ai.domain.multimodal.ObservedDiagramGraph.Shape.RECTANGLE,
+                                new org.zipp.ai.domain.multimodal.ObservationBounds(0.1, 0.1, 0.2, 0.1),
+                                "", "direct-evidence", 0.99)),
+                        List.of(), List.of(), List.of()),
+                "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                        + "<mxCell id=\"direct-node-a\" value=\"A\" vertex=\"1\" parent=\"1\">"
+                        + "<mxGeometry x=\"0\" y=\"0\" width=\"160\" height=\"60\" as=\"geometry\"/>"
+                        + "</mxCell>"
+                        + "</root></mxGraphModel>",
+                List.of("direct-node-a"),
+                org.zipp.ai.domain.grounding.EvidenceAccessContext.from(bundle, false),
+                List.of(binding));
+    }
+
     private static IntentRoutingResult drawRoutingResult(String routeType) {
         IntentRoutingResult result = new IntentRoutingResult();
         result.setRouteType(routeType);
@@ -1140,6 +2354,17 @@ public class AgentConversationServiceTest {
         }
     }
 
+    private static class OptionalEvidenceRoutingService implements IIntentRoutingService {
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            IntentRoutingResult result = drawRoutingResult("create_new");
+            result.setEvidenceNeed("OPTIONAL");
+            result.setTargetNeed("NONE");
+            result.setSourceUse("RETRIEVAL");
+            return result;
+        }
+    }
+
     private static class NullDirectAnswerRoutingService implements IIntentRoutingService {
         @Override
         public IntentRoutingResult route(IntentRoutingCommand command) {
@@ -1163,6 +2388,40 @@ public class AgentConversationServiceTest {
             result.setSkillName("none");
             result.setAnswer("");
             result.setReason("test");
+            return result;
+        }
+    }
+
+    private static class EvidenceRoutingService implements IIntentRoutingService {
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            IntentRoutingResult result = drawRoutingResult("answer_with_evidence");
+            result.setEvidenceNeed("REQUIRED");
+            result.setTargetNeed("NONE");
+            return result;
+        }
+    }
+
+    private static class DirectImageRoutingService implements IIntentRoutingService {
+        private IntentRoutingCommand lastCommand;
+
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            lastCommand = command;
+            IntentRoutingResult result = drawRoutingResult("create_new");
+            result.setDiagramType("flowchart");
+            result.setSourceUse("DIRECT");
+            return result;
+        }
+    }
+
+    private static class DirectAndRetrievalRoutingService implements IIntentRoutingService {
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            IntentRoutingResult result = drawRoutingResult("create_new");
+            result.setDiagramType("flowchart");
+            result.setSourceUse("DIRECT_AND_RETRIEVAL");
+            result.setEvidenceNeed("REQUIRED");
             return result;
         }
     }
@@ -1217,10 +2476,10 @@ public class AgentConversationServiceTest {
 
     private static class CountingChatService implements IChatService {
         private int handleMessageCalls;
-        private int handleMessageStreamCalls;
+        protected int handleMessageStreamCalls;
         private AgentUsageTelemetryContext.RunContext lastRunContext;
         private AgentUsageTelemetryContext.RunContext lastStreamRunContext;
-        private String lastStreamMessage = "";
+        protected String lastStreamMessage = "";
 
         @Override
         public List<AiAgentConfigTableVO.Agent> queryAiAgentConfigList() {
@@ -1301,6 +2560,14 @@ public class AgentConversationServiceTest {
     private static final class InitialStateCapturingChatService extends CountingChatService {
         private Map<String, Object> initialState = Map.of();
 
+        private int streamCalls() {
+            return super.handleMessageStreamCalls;
+        }
+
+        private String streamMessage() {
+            return super.lastStreamMessage;
+        }
+
         @Override
         public Flowable<Event> handleMessageStream(String agentId,
                                                    String userId,
@@ -1309,7 +2576,63 @@ public class AgentConversationServiceTest {
                                                    AgentUsageTelemetryContext.RunContext runContext,
                                                    Map<String, Object> initialState) {
             this.initialState = initialState;
+            super.handleMessageStream(agentId, userId, sessionId, message, runContext);
             return Flowable.empty();
+        }
+    }
+
+    private static final class CompositeDiagramChatService extends CountingChatService {
+        private Map<String, Object> initialState = Map.of();
+
+        private int streamCalls() {
+            return super.handleMessageStreamCalls;
+        }
+
+        private String streamMessage() {
+            return super.lastStreamMessage;
+        }
+
+        @Override
+        public Flowable<Event> handleMessageStream(String agentId,
+                                                   String userId,
+                                                   String sessionId,
+                                                   String message,
+                                                   AgentUsageTelemetryContext.RunContext runContext,
+                                                   Map<String, Object> initialState) {
+            this.initialState = initialState;
+            super.handleMessageStream(agentId, userId, sessionId, message, runContext);
+            String xml = "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                    + "<mxCell id=\"direct-node-a\" value=\"A\" vertex=\"1\" parent=\"1\">"
+                    + "<mxGeometry x=\"0\" y=\"0\" width=\"160\" height=\"60\" as=\"geometry\"/>"
+                    + "</mxCell><mxCell id=\"retrieved-node\" value=\"Supplemental fact\" "
+                    + "vertex=\"1\" parent=\"1\"><mxGeometry x=\"260\" y=\"0\" width=\"180\" "
+                    + "height=\"60\" as=\"geometry\"/></mxCell></root></mxGraphModel>";
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("content", xml);
+            response.put("citationBindings", List.of(Map.of(
+                    "cellId", "retrieved-node",
+                    "statementKey", "retrieved-statement",
+                    "statementKind", "NODE_TEXT",
+                    "statementText", "Supplemental fact",
+                    "citationKeys", List.of("E1"),
+                    "supportAtoms", List.of(Map.of(
+                            "atomKey", "retrieved-atom",
+                            "citationKey", "E1",
+                            "anchorText", "Supplemental fact",
+                            "role", "DIRECT_QUOTE")),
+                    "supportType", "EVIDENCE")));
+            Event event = Event.builder()
+                    .id("evt_composite_diagram")
+                    .invocationId("inv_composite_diagram")
+                    .author("drawing_agent")
+                    .content(com.google.genai.types.Content.builder()
+                            .role("model")
+                            .parts(List.of(com.google.genai.types.Part.fromFunctionResponse(
+                                    "create_diagram", response)))
+                            .build())
+                    .partial(false)
+                    .build();
+            return Flowable.just(event);
         }
     }
 

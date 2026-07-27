@@ -59,6 +59,11 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+/* The rounded composer shell provides focus feedback, so its textarea has no inner frame. */
+textarea.composer-textarea:focus-visible {
+  outline: none;
+}
+
 /* Utility classes for the shared app theme. */
 .theme-bg-gradient {
   background:

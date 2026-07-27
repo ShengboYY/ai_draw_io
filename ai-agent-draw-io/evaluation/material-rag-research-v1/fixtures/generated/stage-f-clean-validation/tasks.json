@@ -1,0 +1,526 @@
+{
+  "schemaVersion": "material-rag-stage-f-clean-validation-tasks-v1",
+  "purpose": "New local internal validation inputs after Stage E duplicate-run diagnostics; unseen by the generation model and not an external independent holdout.",
+  "tasks": [
+    {
+      "taskId": "stgf-val-01",
+      "split": "validation",
+      "sourceVersion": "sf-incident-briefing:v1",
+      "selectedMaterialVersion": "sf-incident-briefing:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Create an editable incident-briefing flow.",
+      "requiredAnchors": [
+        "ib-route",
+        "ib-owner"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Incident Commander",
+          "Customer-impact Summary",
+          "Executive Review",
+          "Recovery Decision",
+          "Operations Lead"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ib-route",
+          "ib-owner"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ib-route",
+            "description": "Incident Commander sends a customer-impact summary to Executive Review before the recovery decision is published.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ib-owner",
+            "description": "The recovery decision names the accountable Operations Lead.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgf-val-02",
+      "split": "validation",
+      "sourceVersion": "sf-release-exception:v1",
+      "selectedMaterialVersion": "sf-release-exception:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Draw the approved release-exception route.",
+      "requiredAnchors": [
+        "re-assess",
+        "re-record"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Release Exception",
+          "Risk Assessment",
+          "Change Owner",
+          "Deployment Register"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "re-assess",
+          "re-record"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "re-assess",
+            "description": "Release Exception goes to Risk Assessment before Change Owner approval.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "re-record",
+            "description": "Approved Release Exception is recorded in the Deployment Register.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgf-val-03",
+      "split": "validation",
+      "sourceVersion": "sf-vendor-onboarding-edit:v1",
+      "selectedMaterialVersion": "sf-vendor-onboarding-edit:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "structural_edit",
+      "request": "Update the selected vendor-onboarding subgraph from the approved material.",
+      "requiredAnchors": [
+        "vo-screen",
+        "vo-owner"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Vendor Intake",
+          "Security Screening",
+          "Contract Setup",
+          "Procurement Operations"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "vo-screen",
+          "vo-owner"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "vo-screen",
+            "description": "Vendor Intake goes to Security Screening before Contract Setup.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "vo-owner",
+            "description": "Contract Setup is owned by Procurement Operations.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected' value='Selected step' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgf-val-04",
+      "split": "validation",
+      "sourceVersion": "sf-access-review-edit:v1",
+      "selectedMaterialVersion": "sf-access-review-edit:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "structural_edit",
+      "request": "Edit the selected access-review branch using the selected source.",
+      "requiredAnchors": [
+        "ar-review",
+        "ar-close"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Access Request",
+          "Entitlement Review",
+          "Manager Approval",
+          "Access Record"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ar-review",
+          "ar-close"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ar-review",
+            "description": "Access Request goes to Entitlement Review before Manager Approval.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ar-close",
+            "description": "Manager Approval creates an Access Record for the requester.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected' value='Selected step' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgf-val-05",
+      "split": "validation",
+      "sourceVersion": "sf-layout-escalation:v1",
+      "selectedMaterialVersion": "sf-layout-escalation:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "layout_only_edit",
+      "request": "Separate the existing escalation roles for readability without changing their content or style.",
+      "requiredAnchors": [
+        "le-roles"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Duty Manager",
+          "Incident Lead",
+          "Communications Owner"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "le-roles"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "le-roles",
+            "description": "Duty Manager, Incident Lead and Communications Owner are the existing escalation roles.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Duty Manager' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='45' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Incident Lead' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='90' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Communications Owner' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='135' y='45' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>",
+      "editAssertions": {
+        "geometryOnly": true
+      }
+    },
+    {
+      "taskId": "stgf-val-06",
+      "split": "validation",
+      "sourceVersion": "sf-layout-evidence:v1",
+      "selectedMaterialVersion": "sf-layout-evidence:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "layout_only_edit",
+      "request": "Improve spacing of the existing evidence states without changing their content or style.",
+      "requiredAnchors": [
+        "lv-states"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Captured",
+          "Verified",
+          "Retained"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "lv-states"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "lv-states",
+            "description": "Captured, Verified and Retained are the existing evidence states.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Captured' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='45' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Verified' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='90' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Retained' style='rounded=1;fillColor=#f8fafc;' vertex='1' parent='1'><mxGeometry x='135' y='45' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>",
+      "editAssertions": {
+        "geometryOnly": true
+      }
+    },
+    {
+      "taskId": "stgf-val-07",
+      "split": "validation",
+      "sourceVersion": "sf-catalog-approval:v7",
+      "selectedMaterialVersion": "sf-catalog-approval:v7",
+      "sourceScopeMode": "selected_only",
+      "type": "version_and_authorization_safe_edit",
+      "request": "Draw the selected, authorized catalog approval route.",
+      "requiredAnchors": [
+        "ca-route",
+        "ca-scope"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Catalog Analyst",
+          "Version 7",
+          "Product Steward",
+          "Catalog Publish"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ca-route",
+          "ca-scope"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ca-route",
+            "description": "Catalog Analyst submits Version 7 to Product Steward before Catalog Publish.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ca-scope",
+            "description": "Only Version 7 is authorized for this edit.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgf-val-08",
+      "split": "validation",
+      "sourceVersion": "sf-evidence-sync-recovery:v1",
+      "selectedMaterialVersion": "sf-evidence-sync-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "failure_and_recovery",
+      "request": "Create the safe evidence-sync recovery diagram.",
+      "requiredAnchors": [
+        "es-block",
+        "es-resume"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Evidence Sync Unavailable",
+          "Manual Notes",
+          "Retry Sync",
+          "Evidence Sync restored"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "es-block",
+          "es-resume"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "es-block",
+            "description": "When Evidence Sync is Unavailable, grounded publishing is blocked while Manual Notes remain available.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "es-resume",
+            "description": "Retry Sync may continue only after Evidence Sync is restored.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgf-val-09",
+      "split": "validation",
+      "sourceVersion": "sf-canvas-save-recovery:v1",
+      "selectedMaterialVersion": "sf-canvas-save-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "failure_and_recovery",
+      "request": "Draw the safe canvas-save recovery path.",
+      "requiredAnchors": [
+        "cs-preserve",
+        "cs-escalate"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Canvas Save Failed",
+          "Retry Save",
+          "editable diagram",
+          "Workspace Support"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "cs-preserve",
+          "cs-escalate"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "cs-preserve",
+            "description": "Canvas Save Failed preserves the editable diagram and offers Retry Save.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "cs-escalate",
+            "description": "After repeated save failure, the case is routed to Workspace Support.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgf-val-10",
+      "split": "validation",
+      "sourceVersion": "sf-change-closure-visual:v1",
+      "selectedMaterialVersion": "sf-change-closure-visual:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "visual_or_ocr_to_editable_xml",
+      "request": "Reconstruct the selected change-closure figure as editable draw.io XML.",
+      "requiredAnchors": [
+        "cc-flow"
+      ],
+      "xmlAssertions": {
+        "minVertices": 7,
+        "minEdges": 6,
+        "requiredLabels": [
+          "Change Implemented",
+          "Verify Outcome",
+          "Outcome accepted?",
+          "Record Closure",
+          "Publish Change Note",
+          "Plan Remediation",
+          "Recheck Outcome",
+          "Yes",
+          "No"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "cc-flow"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "cc-flow",
+            "description": "Change Implemented goes to Verify Outcome. If Outcome accepted? is Yes, Record Closure then Publish Change Note. If No, Plan Remediation then Recheck Outcome.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgf-val-11",
+      "split": "validation",
+      "sourceVersion": "sf-privacy-escalation-visual:v1",
+      "selectedMaterialVersion": "sf-privacy-escalation-visual:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "visual_or_ocr_to_editable_xml",
+      "request": "Convert the selected privacy-escalation figure into editable draw.io XML.",
+      "requiredAnchors": [
+        "pe-flow"
+      ],
+      "xmlAssertions": {
+        "minVertices": 7,
+        "minEdges": 6,
+        "requiredLabels": [
+          "Privacy Alert",
+          "Assess Exposure",
+          "External notice required?",
+          "Notify Privacy Lead",
+          "Send Notice",
+          "Document Assessment",
+          "Monitor Follow-up",
+          "Yes",
+          "No"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "pe-flow"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "pe-flow",
+            "description": "Privacy Alert goes to Assess Exposure. If External notice required? is Yes, Notify Privacy Lead then Send Notice. If No, Document Assessment then Monitor Follow-up.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgf-val-12",
+      "split": "validation",
+      "sourceVersion": "sf-service-restoration:v1",
+      "selectedMaterialVersion": "sf-service-restoration:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Create an editable service-restoration flow.",
+      "requiredAnchors": [
+        "sr-diagnose",
+        "sr-close"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 4,
+        "requiredLabels": [
+          "Service Triage",
+          "Affected Component",
+          "Restoration Work",
+          "Service Verification",
+          "Incident Timeline"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "sr-diagnose",
+          "sr-close"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "sr-diagnose",
+            "description": "Service Triage sends an affected component to Restoration Work before Service Verification.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "sr-close",
+            "description": "Service Verification records the restoration result in the Incident Timeline.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    }
+  ]
+}

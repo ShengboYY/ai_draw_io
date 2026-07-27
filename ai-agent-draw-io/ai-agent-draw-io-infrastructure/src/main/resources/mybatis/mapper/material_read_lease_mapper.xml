@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IMaterialReadLeaseMapper">
+    <resultMap id="readLeaseMap" type="org.zipp.ai.infrastructure.dao.material.po.EvidenceReadLeasePO">
+        <id property="id" column="id"/>
+        <result property="ownerKey" column="owner_key"/>
+        <result property="materialId" column="material_id"/>
+        <result property="versionId" column="version_id"/>
+        <result property="revisionId" column="revision_id"/>
+        <result property="runId" column="run_id"/>
+        <result property="status" column="status"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="maxExpiresAt" column="max_expires_at"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="lockAuthorizedMaterial" resultType="string">
+        SELECT m.id
+        FROM material m
+        JOIN material_version v ON v.id = #{versionId} AND v.material_id = m.id
+        JOIN material_processing_revision r ON r.id = #{revisionId} AND r.version_id = v.id
+        WHERE m.id = #{materialId} AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; #{now})
+          AND (r.state = 'READY' OR (r.state = 'PARTIAL_READY' AND #{partialReadyAccepted} = TRUE))
+          AND (
+            EXISTS (SELECT 1 FROM material_scope_link link
+                    WHERE link.material_id = m.id AND link.scope_type = #{scopeType}
+                      AND (link.scope_key = #{scopeKey}
+                           OR (#{scopeType} = 'LIBRARY'
+                               AND link.scope_key IN ('personal', 'library', #{ownerKey}))))
+            OR (#{scopeType} = 'DIAGRAM' AND EXISTS (
+                SELECT 1 FROM diagram_source_pin pin
+                JOIN diagram d ON d.id = pin.diagram_id AND d.user_id = #{ownerKey} AND d.deleted = 0
+                WHERE pin.diagram_id = #{scopeKey} AND pin.material_id = m.id
+                  AND pin.version_id = v.id AND pin.processing_revision_id = r.id
+            ))
+          )
+        FOR UPDATE
+    </select>
+
+    <select id="selectRunSourceForUpdate" resultMap="readLeaseMap">
+        SELECT lease.*, v.material_id
+        FROM evidence_read_lease lease
+        JOIN material_version v ON v.id = lease.version_id
+        WHERE lease.owner_key = #{ownerKey} AND lease.run_id = #{runId}
+          AND lease.version_id = #{versionId} AND lease.revision_id = #{revisionId}
+        FOR UPDATE
+    </select>
+
+    <insert id="insertLease">
+        INSERT INTO evidence_read_lease
+            (id, owner_key, version_id, revision_id, run_id, status,
+             expires_at, max_expires_at, created_at, updated_at)
+        VALUES (#{id}, #{ownerKey}, #{versionId}, #{revisionId}, #{runId}, #{status},
+                #{expiresAt}, #{maxExpiresAt}, #{createdAt}, #{createdAt})
+    </insert>
+
+    <select id="selectOwnedLease" resultMap="readLeaseMap">
+        SELECT lease.*, v.material_id
+        FROM evidence_read_lease lease
+        JOIN material_version v ON v.id = lease.version_id
+        JOIN material m ON m.id = v.material_id
+        WHERE lease.id = #{leaseId} AND lease.run_id = #{runId}
+          AND lease.owner_key = #{ownerKey}
+          AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+    </select>
+
+    <update id="updateLease">
+        UPDATE evidence_read_lease
+        SET status = #{status}, expires_at = #{expiresAt}
+        WHERE id = #{leaseId} AND owner_key = #{ownerKey}
+          AND status = #{expectedStatus} AND expires_at &gt; UTC_TIMESTAMP(3)
+    </update>
+
+    <update id="expireDue">
+        UPDATE evidence_read_lease
+        SET status = 'EXPIRED'
+        WHERE status = 'ACTIVE' AND expires_at &lt;= #{now}
+        ORDER BY expires_at LIMIT #{limit}
+    </update>
+</mapper>

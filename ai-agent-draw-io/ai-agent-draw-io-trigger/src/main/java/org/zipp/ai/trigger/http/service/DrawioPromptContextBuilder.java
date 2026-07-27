@@ -37,17 +37,11 @@ public class DrawioPromptContextBuilder {
     }
 
     public String buildIntentMessage(ChatRequestDTO requestDTO) {
-        String canvasXml = resolveCanvasXml(requestDTO);
-        String canvasSummary = resolveCanvasSummary(requestDTO, canvasXml);
-        // The router only needs lightweight canvas facts; full XML stays out to avoid intent pollution.
+        // Canvas facts are supplied separately by RequestProbe; never include client XML/summary here.
         return "[User Request]\n"
                 + rawUserMessage(requestDTO)
                 + "\n\n"
-                + buildConversationContext(requestDTO)
-                + "\n\n[Canvas State]\n"
-                + "hasCanvas=" + hasDrawableCanvas(canvasXml)
-                + "\n\n[Canvas Summary]\n"
-                + canvasSummary;
+                + buildConversationContext(requestDTO);
     }
 
     public String buildDrawingContextMessage(ChatRequestDTO requestDTO, IntentRoutingResult routingResult) {

@@ -40,10 +40,11 @@ test('isAccountMenuTarget treats clicks inside the account menu controls as inte
 });
 
 test('home account menu opens from hover and stays reachable after leaving the trigger', () => {
-  const pagePath = fileURLToPath(new URL('../src/app/diagrams/page.tsx', import.meta.url));
+  // The account menu lives in the shared workspace header used by every signed-in surface.
+  const pagePath = fileURLToPath(new URL('../src/features/workspace/WorkspaceHeader.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
 
-  assert.match(pageSource, /onMouseEnter=\{openAccountMenu\}/);
+  assert.match(pageSource, /onMouseEnter=\{openMenu\}/);
   assert.match(pageSource, /document\.addEventListener\('pointerdown', closeMenuOnOutsidePointerDown\)/);
   assert.doesNotMatch(pageSource, /onMouseLeave=\{closeAccountMenu\}/);
 });
@@ -62,7 +63,7 @@ test('home places the new diagram action as the first recent diagram card', () =
   assert.match(pageSource, /cursor-pointer/);
   assert.match(pageSource, /bg-zinc-800/);
   assert.doesNotMatch(pageSource, /#fbbc04|#4285f4|#ea4335|#34a853/);
-  assert.ok(pageSource.indexOf('aria-label="Create new diagram"') < pageSource.indexOf('{visibleDiagrams.map'));
+  assert.ok(pageSource.indexOf('aria-label="Create new diagram"') < pageSource.indexOf('{gridDiagrams.map'));
 });
 
 test('home diagram card metadata only shows the updated date', () => {
@@ -81,7 +82,7 @@ test('home diagram card metadata only shows the updated date', () => {
 test('home diagram cards use pointer cursors and stronger preview shadows', () => {
   const pagePath = fileURLToPath(new URL('../src/app/diagrams/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
-  const diagramListSource = pageSource.slice(pageSource.indexOf('{visibleDiagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
+  const diagramListSource = pageSource.slice(pageSource.indexOf('{gridDiagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
 
   assert.match(diagramListSource, /cursor-pointer[^"]*shadow-md[^"]*hover:shadow-lg/);
   assert.match(diagramListSource, /line-clamp-2[^"]*cursor-pointer/);
@@ -90,7 +91,7 @@ test('home diagram cards use pointer cursors and stronger preview shadows', () =
 test('home diagram cards leave missing thumbnails blank', () => {
   const pagePath = fileURLToPath(new URL('../src/app/diagrams/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
-  const diagramListSource = pageSource.slice(pageSource.indexOf('{visibleDiagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
+  const diagramListSource = pageSource.slice(pageSource.indexOf('{gridDiagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
 
   assert.match(diagramListSource, /Missing thumbnails intentionally render as an empty white preview/);
   assert.doesNotMatch(diagramListSource, /h-12 w-16|rounded-full bg-zinc-200|grid grid-cols-2 gap-2/);

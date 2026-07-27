@@ -2,7 +2,10 @@ package org.zipp.ai.test.trigger.service;
 
 import org.junit.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 import org.zipp.ai.trigger.http.service.VisualReviewRolloutPolicy;
+
+import java.util.Map;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -15,6 +18,25 @@ public class VisualReviewRolloutPolicyTest {
         try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
                 VisualReviewRolloutPolicy.class)) {
             assertTrue(context.containsBean("visualReviewRolloutPolicy"));
+        }
+    }
+
+    @Test
+    public void enablingReviewAndAutoRepairCoversEveryDiagramByDefault() {
+        // The two explicit feature flags are sufficient for a single-instance all-on deployment.
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
+                    "visualReviewTest",
+                    Map.of(
+                            "zipp.visual-review.enabled", true,
+                            "zipp.visual-review.auto-repair-enabled", true)));
+            context.register(VisualReviewRolloutPolicy.class);
+            context.refresh();
+
+            VisualReviewRolloutPolicy policy = context.getBean(VisualReviewRolloutPolicy.class);
+            assertTrue(policy.isReviewEnabled("usr-1", "diagram-1"));
+            assertTrue(policy.isAutoRepairEnabled("usr-1", "diagram-1", 1));
+            assertTrue(policy.isAutoRepairEnabled("usr-1", "diagram-1", 2));
         }
     }
 

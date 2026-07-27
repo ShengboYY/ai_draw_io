@@ -1,0 +1,2912 @@
+{
+  "schemaVersion": "material-rag-e6-context-selection-v2",
+  "selector": "source-aware-top8-v1",
+  "limit": 8,
+  "caseCount": 26,
+  "changedCaseCount": 26,
+  "changedCaseRate": 1.0,
+  "minimumChangeRate": 0.2,
+  "effectiveExperiment": true,
+  "metrics": {
+    "controlMeanGoldEvidenceRecall": 0.5096153846153846,
+    "candidateMeanGoldEvidenceRecall": 0.5673076923076923,
+    "controlMeanSourceCount": 2.4615384615384617,
+    "candidateMeanSourceCount": 3.9615384615384617,
+    "pairedGoldEvidenceRecallDelta95CI": [
+      0.0,
+      0.1346153846153846
+    ],
+    "pairedSourceCountDelta95CI": [
+      1.1923076923076923,
+      1.8076923076923077
+    ]
+  },
+  "slices": {
+    "language:en": {
+      "count": 13,
+      "controlMeanGoldEvidenceRecall": 0.5384615384615384,
+      "candidateMeanGoldEvidenceRecall": 0.5961538461538461
+    },
+    "language:zh": {
+      "count": 13,
+      "controlMeanGoldEvidenceRecall": 0.4807692307692308,
+      "candidateMeanGoldEvidenceRecall": 0.5384615384615384
+    },
+    "primaryCategory:multiEvidence": {
+      "count": 26,
+      "controlMeanGoldEvidenceRecall": 0.5096153846153846,
+      "candidateMeanGoldEvidenceRecall": 0.5673076923076923
+    }
+  },
+  "bundles": [
+    {
+      "caseId": "e4cb-dev-001",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_329",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_881ea4259a648970c5d99134d3fca2a09ee158a4"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_329",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_881ea4259a648970c5d99134d3fca2a09ee158a4"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 4,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-002",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_431",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_119",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_e174b754c542145d46f352b034cd5e9f794e802f"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_431",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 33,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_119",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_e174b754c542145d46f352b034cd5e9f794e802f"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-003",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_290",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 15,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_290",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        }
+      ],
+      "controlGoldEvidenceRecall": 1.0,
+      "candidateGoldEvidenceRecall": 1.0,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-004",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_449",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_449",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 10,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 16,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.25,
+      "candidateGoldEvidenceRecall": 1.0,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-005",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_299",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_442",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_293",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_309",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_442",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 9,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 18,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_339",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_51a810dad307727933fd1602c444b16232aef94b"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_299",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.0,
+      "candidateGoldEvidenceRecall": 0.0,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-006",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_449",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_439",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_326",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_40fc45a7df7077d33c6fff2e344bb6cb8f0250cf"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 27,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_309",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_449",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_439",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.3333333333333333,
+      "candidateGoldEvidenceRecall": 0.3333333333333333,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-007",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_287",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_289",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_288",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_311",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_287",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 11,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_110",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_d5170ca695c1d02d8943370a3e93d3e54177d774"
+        },
+        {
+          "rank": 13,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 21,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_289",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.0,
+      "candidateGoldEvidenceRecall": 0.0,
+      "controlSourceCount": 1,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-008",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_431",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_327",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_af30e13327af5f9b9e9f948bb0b599e59320cc5d"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_328",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_fd2c280e663ccd2897563e32ac89f54dbc99b617"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_350",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_536e17497dc1763c9bddb593984e3ba6c8e08371"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_431",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 30,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_327",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_af30e13327af5f9b9e9f948bb0b599e59320cc5d"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_328",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_fd2c280e663ccd2897563e32ac89f54dbc99b617"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_350",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_536e17497dc1763c9bddb593984e3ba6c8e08371"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.0,
+      "candidateGoldEvidenceRecall": 0.0,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-009",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_111",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_58d9c0f2ae687552e202c0232fa6569240c00fc4"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_116",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_69f8434b3aadcdc203f78ccb07733d0d185330d8"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_305",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_302",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_304",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_111",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_58d9c0f2ae687552e202c0232fa6569240c00fc4"
+        },
+        {
+          "rank": 17,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 23,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_116",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_69f8434b3aadcdc203f78ccb07733d0d185330d8"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_305",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_302",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        }
+      ],
+      "controlGoldEvidenceRecall": 1.0,
+      "candidateGoldEvidenceRecall": 1.0,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-010",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_111",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_58d9c0f2ae687552e202c0232fa6569240c00fc4"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_116",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_69f8434b3aadcdc203f78ccb07733d0d185330d8"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_107",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_38206bfc2ed9886f8591123649a9724a3588ed2f"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_122",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_9851541628d371d03b3e26d19ed61489b234add6"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_340",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_efe44a5beb5aa2e94e65f35a50e10bd7930571a5"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 9,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 39,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_111",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_58d9c0f2ae687552e202c0232fa6569240c00fc4"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_116",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_69f8434b3aadcdc203f78ccb07733d0d185330d8"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_107",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_38206bfc2ed9886f8591123649a9724a3588ed2f"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_122",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_9851541628d371d03b3e26d19ed61489b234add6"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-011",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_116",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_69f8434b3aadcdc203f78ccb07733d0d185330d8"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 10,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        },
+        {
+          "rank": 14,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_447",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_116",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_69f8434b3aadcdc203f78ccb07733d0d185330d8"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        }
+      ],
+      "controlGoldEvidenceRecall": 1.0,
+      "candidateGoldEvidenceRecall": 1.0,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-012",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_116",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_69f8434b3aadcdc203f78ccb07733d0d185330d8"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_447",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 37,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_116",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_69f8434b3aadcdc203f78ccb07733d0d185330d8"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.6666666666666666,
+      "candidateGoldEvidenceRecall": 0.6666666666666666,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-013",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_110",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_d5170ca695c1d02d8943370a3e93d3e54177d774"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_119",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_e174b754c542145d46f352b034cd5e9f794e802f"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_339",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_51a810dad307727933fd1602c444b16232aef94b"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_332",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_57b5ab3de601bb66f68111edacb47d5dcd65c483"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_110",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_d5170ca695c1d02d8943370a3e93d3e54177d774"
+        },
+        {
+          "rank": 11,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_119",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_e174b754c542145d46f352b034cd5e9f794e802f"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-014",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_119",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_e174b754c542145d46f352b034cd5e9f794e802f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_327",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_af30e13327af5f9b9e9f948bb0b599e59320cc5d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_119",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_e174b754c542145d46f352b034cd5e9f794e802f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 12,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_309",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_327",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_af30e13327af5f9b9e9f948bb0b599e59320cc5d"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-015",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_299",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 16,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_339",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_51a810dad307727933fd1602c444b16232aef94b"
+        },
+        {
+          "rank": 18,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        }
+      ],
+      "controlGoldEvidenceRecall": 1.0,
+      "candidateGoldEvidenceRecall": 1.0,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-016",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_346",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2615ecc98c0b9408d5232692ad8b47182639a786"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_350",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_536e17497dc1763c9bddb593984e3ba6c8e08371"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_346",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2615ecc98c0b9408d5232692ad8b47182639a786"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_350",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_536e17497dc1763c9bddb593984e3ba6c8e08371"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        }
+      ],
+      "controlGoldEvidenceRecall": 1.0,
+      "candidateGoldEvidenceRecall": 1.0,
+      "controlSourceCount": 4,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-017",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_287",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_289",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_290",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_288",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_311",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_308",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_291",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_287",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 12,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 19,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_327",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_af30e13327af5f9b9e9f948bb0b599e59320cc5d"
+        },
+        {
+          "rank": 24,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_439",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_289",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_290",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_288",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.0,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 1,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-018",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_431",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_449",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_448",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_434",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_b0dd3078cf670ab0336d31698d48d14dc1c2c993"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_441",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_440",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_431",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 9,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 25,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_309",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_449",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_448",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_434",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_b0dd3078cf670ab0336d31698d48d14dc1c2c993"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-019",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_288",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_289",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_290",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_287",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_311",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_291",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_288",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 14,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_111",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_58d9c0f2ae687552e202c0232fa6569240c00fc4"
+        },
+        {
+          "rank": 15,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 27,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_343",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_a99dd019861fe09a153096db5a9141b22bc33aeb"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_289",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_290",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 1,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-020",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_449",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_443",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 18,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 20,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_449",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-021",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_305",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_304",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_339",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_51a810dad307727933fd1602c444b16232aef94b"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_110",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_d5170ca695c1d02d8943370a3e93d3e54177d774"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_287",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_346",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2615ecc98c0b9408d5232692ad8b47182639a786"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_305",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_339",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_51a810dad307727933fd1602c444b16232aef94b"
+        },
+        {
+          "rank": 9,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_304",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_110",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_d5170ca695c1d02d8943370a3e93d3e54177d774"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_287",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.75,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-022",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_440",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_328",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_fd2c280e663ccd2897563e32ac89f54dbc99b617"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_450",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_327",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_af30e13327af5f9b9e9f948bb0b599e59320cc5d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_326",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_40fc45a7df7077d33c6fff2e344bb6cb8f0250cf"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_120",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_47e4ca9bd5a2bcb658f3e837707ffb31082a48b7"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_328",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_fd2c280e663ccd2897563e32ac89f54dbc99b617"
+        },
+        {
+          "rank": 36,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_311",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_440",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_450",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_327",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_af30e13327af5f9b9e9f948bb0b599e59320cc5d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.5,
+      "candidateGoldEvidenceRecall": 0.5,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-023",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_302",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_117",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_3d9a2ea72d1de030e8506799d9e195ce8505a6d9"
+        },
+        {
+          "rank": 12,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_344",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_5cc7d5cd44409297db73b7b013ae49cf62885263"
+        },
+        {
+          "rank": 24,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_303",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_310",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_302",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.3333333333333333,
+      "candidateGoldEvidenceRecall": 0.3333333333333333,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-024",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_340",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_efe44a5beb5aa2e94e65f35a50e10bd7930571a5"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_344",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_5cc7d5cd44409297db73b7b013ae49cf62885263"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_109",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_0f58b64128c1408e3ce83ee6c594deb6156605f3"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_350",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_536e17497dc1763c9bddb593984e3ba6c8e08371"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_346",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2615ecc98c0b9408d5232692ad8b47182639a786"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_109",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_0f58b64128c1408e3ce83ee6c594deb6156605f3"
+        },
+        {
+          "rank": 12,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_340",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_efe44a5beb5aa2e94e65f35a50e10bd7930571a5"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_344",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_5cc7d5cd44409297db73b7b013ae49cf62885263"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_350",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_536e17497dc1763c9bddb593984e3ba6c8e08371"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.3333333333333333,
+      "candidateGoldEvidenceRecall": 0.3333333333333333,
+      "controlSourceCount": 2,
+      "candidateSourceCount": 3,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-025",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_299",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_307",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_446",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 10,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_306",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_300",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_299",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_301",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.6666666666666666,
+      "candidateGoldEvidenceRecall": 0.6666666666666666,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "en",
+      "primaryCategory": "multiEvidence"
+    },
+    {
+      "caseId": "e4cb-dev-026",
+      "changed": true,
+      "controlContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_431",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_447",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        }
+      ],
+      "candidateContext": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_431",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_333",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_f1d2743b1d2b32914f24d85fcf75adc332d55a9f"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_118",
+          "sourceVersion": "expansion-platform-resilience:v1",
+          "chunkId": "rc_c9fc8cbb23074a91cdedd49936b836ae22a41b5d"
+        },
+        {
+          "rank": 40,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_292",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_330",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_e6bc201f8e2861a381c0a81d117740022c791eee"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_432",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_349",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_31f43ec2739e81f8f5b449111459888d2c64be5f"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15_331",
+          "sourceVersion": "expansion-datacenter-change:v1",
+          "chunkId": "rc_2893881a22b2c60a950d9c6b5984ec9d281eac43"
+        }
+      ],
+      "controlGoldEvidenceRecall": 0.6666666666666666,
+      "candidateGoldEvidenceRecall": 0.6666666666666666,
+      "controlSourceCount": 3,
+      "candidateSourceCount": 4,
+      "language": "zh",
+      "primaryCategory": "multiEvidence"
+    }
+  ],
+  "inputRaw": {
+    "path": "evaluation/material-rag-research-v1/results/2026-07-22-e4b-ranked-raw-development-raw.json",
+    "sha256": "c290ba6b0d97a9572435cda0d512cddfa66ff2b0f88e8d19c89c0ab277a00f07",
+    "runId": "controlledpdfresearch_6a6865a0af3845468a981c5a29fe9a15",
+    "gitCommit": "72f817ed83117c0c1688e7efc800326efbfe4baa",
+    "corpusLockSha256": "e5c8b425df70492383e3e3cff1259d5d1b5053b8e2274f984416c2e109659bc1",
+    "split": "development"
+  },
+  "selectorScriptSha256": "f1350510d8fc409eeced5891317f20c3c8e3687a481777eed810381a477bbc97"
+}

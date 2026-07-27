@@ -36,6 +36,7 @@ public class DrawioCanvasXmlToolkit {
     private static final double LABEL_HEIGHT = 24D;
     private static final double PORT_SAFE_MIN = 0.25D;
     private static final double PORT_SAFE_MAX = 0.75D;
+    private static final int LONG_LABEL_MINIMUM_CHARS = 48;
     // A model waypoint is only trusted when it stays on the exit/entry side that routing forces.
     // Small slack absorbs rounding so a waypoint sitting exactly on the node boundary still counts.
     private static final double PORT_SIDE_TOLERANCE = 1D;
@@ -57,12 +58,13 @@ public class DrawioCanvasXmlToolkit {
         normalized = sanitizeValueAttributes(normalized);
         String graphModel = extractGraphModel(normalized);
         if (StringUtils.isNotBlank(graphModel)) {
-            return graphModel;
+            return ensureVertexLabelWrapping(graphModel);
         }
 
-        return "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+        String wrapped = "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
                 + normalized
                 + "</root></mxGraphModel>";
+        return ensureVertexLabelWrapping(wrapped);
     }
 
     public CanvasInspection inspect(String xml) {
@@ -1059,6 +1061,67 @@ public class DrawioCanvasXmlToolkit {
                 .replace("\\n", "")
                 .replace("\\/", "/")
                 .trim();
+    }
+
+    /**
+     * Diagrams.net does not wrap labels in an unstyled vertex. Preserve explicit model styles,
+     * while making the default generated-node style readable for long labels.
+     */
+    private String ensureVertexLabelWrapping(String graphModel) {
+        try {
+            Document document = DocumentHelper.parseText(graphModel);
+            Element root = document.getRootElement().element("root");
+            if (root == null) {
+                return graphModel;
+            }
+            boolean changed = false;
+            for (Object item : root.elements("mxCell")) {
+                Element cell = (Element) item;
+                if (!isWrapEligibleVertex(cell)) {
+                    continue;
+                }
+                String style = StringUtils.defaultString(cell.attributeValue("style"));
+                String wrappedStyle = addDefaultWrapping(style);
+                if (!style.equals(wrappedStyle)) {
+                    cell.addAttribute("style", wrappedStyle);
+                    changed = true;
+                }
+            }
+            return changed ? document.asXML() : graphModel;
+        } catch (Exception ignored) {
+            // Keep the existing parsing behavior: malformed candidates are rejected by the caller's analyzer.
+            return graphModel;
+        }
+    }
+
+    private boolean isWrapEligibleVertex(Element cell) {
+        if (!"1".equals(cell.attributeValue("vertex")) || StringUtils.isBlank(cell.attributeValue("value"))) {
+            return false;
+        }
+        String style = StringUtils.defaultString(cell.attributeValue("style")).toLowerCase(Locale.ROOT);
+        return cleanLabel(cell.attributeValue("value")).length() >= LONG_LABEL_MINIMUM_CHARS
+                && !style.startsWith("text;") && !style.contains("shape=text");
+    }
+
+    private String addDefaultWrapping(String style) {
+        String updated = StringUtils.trimToEmpty(style);
+        if (!hasStyleToken(updated, "whiteSpace")) {
+            updated = appendStyleToken(updated, "whiteSpace=wrap");
+        }
+        if (!hasStyleToken(updated, "html")) {
+            updated = appendStyleToken(updated, "html=1");
+        }
+        return updated;
+    }
+
+    private boolean hasStyleToken(String style, String name) {
+        return java.util.Arrays.stream(StringUtils.defaultString(style).split(";"))
+                .map(String::trim)
+                .anyMatch(token -> token.startsWith(name + "="));
+    }
+
+    private String appendStyleToken(String style, String token) {
+        return StringUtils.isBlank(style) ? token + ";" : style + (style.endsWith(";") ? "" : ";") + token + ";";
     }
 
     private String sanitizeValueAttributes(String xml) {

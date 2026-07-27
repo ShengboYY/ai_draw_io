@@ -1,0 +1,200 @@
+{
+  "responses": [
+    {
+      "taskId": "stgf-val-01",
+      "xml": "<mxGraphModel dx=\"1200\" dy=\"800\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1100\" pageHeight=\"850\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"Incident-Briefing Flow\" style=\"text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"350\" y=\"30\" width=\"400\" height=\"40\" as=\"geometry\"/></mxCell><mxCell id=\"ic\" value=\"Incident Commander\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"60\" y=\"170\" width=\"170\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"summary\" value=\"Customer-impact summary\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"290\" y=\"170\" width=\"190\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"exec\" value=\"Executive Review\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"540\" y=\"170\" width=\"180\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"decision\" value=\"Recovery decision published\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"780\" y=\"170\" width=\"210\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"ops\" value=\"Accountable Operations Lead named\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"780\" y=\"310\" width=\"210\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"edge_ic_summary\" value=\"sends\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12\" edge=\"1\" parent=\"1\" source=\"ic\" target=\"summary\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_summary_exec\" value=\"to\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12\" edge=\"1\" parent=\"1\" source=\"summary\" target=\"exec\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_exec_decision\" value=\"before publication\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12\" edge=\"1\" parent=\"1\" source=\"exec\" target=\"decision\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_decision_ops\" value=\"names\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12\" edge=\"1\" parent=\"1\" source=\"decision\" target=\"ops\"><mxGeometry relative=\"1\" as=\"geometry\"><Array as=\"points\"><mxPoint x=\"885\" y=\"275\"/></Array></mxGeometry></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "ib-route",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1
+        },
+        {
+          "anchorId": "ib-owner",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-02",
+      "xml": "<mxGraphModel dx=\"1180\" dy=\"720\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1100\" pageHeight=\"850\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"n1\" value=\"Release Exception\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"80\" y=\"160\" width=\"160\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"n2\" value=\"Risk Assessment\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"310\" y=\"160\" width=\"160\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"n3\" value=\"Change Owner Approval\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"540\" y=\"160\" width=\"190\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"n4\" value=\"Approved Release Exception\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"800\" y=\"160\" width=\"200\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"n5\" value=\"Deployment Register\" style=\"shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f8cecc;strokeColor=#b85450;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"820\" y=\"300\" width=\"160\" height=\"80\" as=\"geometry\"/></mxCell><mxCell id=\"e1\" value=\"before approval\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;\" edge=\"1\" parent=\"1\" source=\"n1\" target=\"n2\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e2\" value=\"then\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;\" edge=\"1\" parent=\"1\" source=\"n2\" target=\"n3\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e3\" value=\"approval\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;\" edge=\"1\" parent=\"1\" source=\"n3\" target=\"n4\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e4\" value=\"recorded in\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;\" edge=\"1\" parent=\"1\" source=\"n4\" target=\"n5\"><mxGeometry relative=\"1\" as=\"geometry\"><Array as=\"points\"><mxPoint x=\"900\" y=\"260\"/></Array></mxGeometry></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "re-assess",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1
+        },
+        {
+          "anchorId": "re-record",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-03",
+      "xml": "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"vendorIntake\" value=\"Vendor Intake\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"40\" y=\"40\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"securityScreening\" value=\"Security Screening\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"280\" y=\"40\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"contractSetup\" value=\"Contract Setup&#xa;Owner: Procurement Operations\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"520\" y=\"40\" width=\"220\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"edgeVendorToSecurity\" value=\"\" edge=\"1\" parent=\"1\" source=\"vendorIntake\" target=\"securityScreening\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edgeSecurityToContract\" value=\"\" edge=\"1\" parent=\"1\" source=\"securityScreening\" target=\"contractSetup\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "vo-screen",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1
+        },
+        {
+          "anchorId": "vo-owner",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-04",
+      "xml": "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"accessRequest\" value=\"Access Request\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"40\" y=\"40\" width=\"160\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"entitlementReview\" value=\"Entitlement Review\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"250\" y=\"40\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"managerApproval\" value=\"Manager Approval\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"480\" y=\"40\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"accessRecord\" value=\"Access Record for requester\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"710\" y=\"40\" width=\"220\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"edgeAccessToEntitlement\" value=\"\" edge=\"1\" parent=\"1\" source=\"accessRequest\" target=\"entitlementReview\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edgeEntitlementToManager\" value=\"\" edge=\"1\" parent=\"1\" source=\"entitlementReview\" target=\"managerApproval\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edgeManagerToRecord\" value=\"\" edge=\"1\" parent=\"1\" source=\"managerApproval\" target=\"accessRecord\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "ar-review",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1
+        },
+        {
+          "anchorId": "ar-close",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-05",
+      "xml": "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"layout-1\" value=\"Duty Manager\" style=\"rounded=1;fillColor=#f8fafc;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"45\" y=\"45\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"layout-2\" value=\"Incident Lead\" style=\"rounded=1;fillColor=#f8fafc;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"255\" y=\"45\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"layout-3\" value=\"Communications Owner\" style=\"rounded=1;fillColor=#f8fafc;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"465\" y=\"45\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "le-roles",
+          "sourceVersion": "sf-layout-escalation:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-06",
+      "xml": "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"layout-1\" value=\"Captured\" style=\"rounded=1;fillColor=#f8fafc;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"45\" y=\"45\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"layout-2\" value=\"Verified\" style=\"rounded=1;fillColor=#f8fafc;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"255\" y=\"45\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"layout-3\" value=\"Retained\" style=\"rounded=1;fillColor=#f8fafc;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"465\" y=\"45\" width=\"180\" height=\"60\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "lv-states",
+          "sourceVersion": "sf-layout-evidence:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-07",
+      "xml": "<mxGraphModel dx=\"1100\" dy=\"700\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"850\" pageHeight=\"1100\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"Authorized Catalog Approval Route: Version 7\" style=\"text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"160\" y=\"40\" width=\"520\" height=\"40\" as=\"geometry\"/></mxCell><mxCell id=\"analyst\" value=\"Catalog Analyst\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"80\" y=\"160\" width=\"180\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"submit\" value=\"Submits Version 7\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"330\" y=\"160\" width=\"180\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"steward\" value=\"Product Steward\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"580\" y=\"160\" width=\"180\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"publish\" value=\"Catalog Publish\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"330\" y=\"310\" width=\"180\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"note\" value=\"Only Version 7 is authorized for this edit.\" style=\"shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"580\" y=\"305\" width=\"180\" height=\"80\" as=\"geometry\"/></mxCell><mxCell id=\"edge1\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2\" edge=\"1\" parent=\"1\" source=\"analyst\" target=\"submit\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge2\" value=\"to\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2\" edge=\"1\" parent=\"1\" source=\"submit\" target=\"steward\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge3\" value=\"before\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2\" edge=\"1\" parent=\"1\" source=\"steward\" target=\"publish\"><mxGeometry relative=\"1\" as=\"geometry\"><Array as=\"points\"><mxPoint x=\"670\" y=\"345\"/></Array></mxGeometry></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "ca-route",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1
+        },
+        {
+          "anchorId": "ca-scope",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-08",
+      "xml": "<mxGraphModel dx=\"1180\" dy=\"760\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1100\" pageHeight=\"850\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"Safe Evidence-Sync Recovery\" style=\"text;html=1;strokeColor=none;fillColor=none;fontSize=24;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"280\" y=\"40\" width=\"540\" height=\"50\" as=\"geometry\"/></mxCell><mxCell id=\"unavailable\" value=\"Evidence Sync is unavailable\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=16;fontStyle=1;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"80\" y=\"160\" width=\"240\" height=\"90\" as=\"geometry\"/></mxCell><mxCell id=\"blocked\" value=\"Grounded publishing is blocked\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"430\" y=\"130\" width=\"260\" height=\"80\" as=\"geometry\"/></mxCell><mxCell id=\"manual\" value=\"Manual Notes remain available\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"430\" y=\"240\" width=\"260\" height=\"80\" as=\"geometry\"/></mxCell><mxCell id=\"restored\" value=\"Evidence Sync is restored\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=16;fontStyle=1;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"80\" y=\"420\" width=\"240\" height=\"90\" as=\"geometry\"/></mxCell><mxCell id=\"retry\" value=\"Retry Sync may continue\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"430\" y=\"425\" width=\"260\" height=\"80\" as=\"geometry\"/></mxCell><mxCell id=\"wait\" value=\"Retry Sync does not continue before restoration\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"750\" y=\"325\" width=\"260\" height=\"90\" as=\"geometry\"/></mxCell><mxCell id=\"cite1\" value=\"CIT-001\" style=\"text;html=1;strokeColor=none;fillColor=none;fontSize=12;fontColor=#666666;align=center;verticalAlign=middle;whiteSpace=wrap;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"690\" y=\"195\" width=\"70\" height=\"30\" as=\"geometry\"/></mxCell><mxCell id=\"cite2\" value=\"CIT-002\" style=\"text;html=1;strokeColor=none;fillColor=none;fontSize=12;fontColor=#666666;align=center;verticalAlign=middle;whiteSpace=wrap;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"690\" y=\"465\" width=\"70\" height=\"30\" as=\"geometry\"/></mxCell><mxCell id=\"e1\" value=\"while unavailable\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;\" edge=\"1\" parent=\"1\" source=\"unavailable\" target=\"blocked\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e2\" value=\"while unavailable\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;\" edge=\"1\" parent=\"1\" source=\"unavailable\" target=\"manual\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e3\" value=\"only after restoration\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;\" edge=\"1\" parent=\"1\" source=\"restored\" target=\"retry\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e4\" value=\"before restoration\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;dashed=1;fontSize=12;\" edge=\"1\" parent=\"1\" source=\"unavailable\" target=\"wait\"><mxGeometry relative=\"1\" as=\"geometry\"><Array as=\"points\"><mxPoint x=\"200\" y=\"370\"/></Array></mxGeometry></mxCell><mxCell id=\"e5\" value=\"then\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;\" edge=\"1\" parent=\"1\" source=\"wait\" target=\"restored\"><mxGeometry relative=\"1\" as=\"geometry\"><Array as=\"points\"><mxPoint x=\"880\" y=\"465\"/></Array></mxGeometry></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "es-block",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1
+        },
+        {
+          "anchorId": "es-resume",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-09",
+      "xml": "<mxGraphModel dx=\"1180\" dy=\"720\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1100\" pageHeight=\"850\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"Safe Canvas-Save Recovery Path\" style=\"text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"260\" y=\"40\" width=\"580\" height=\"40\" as=\"geometry\"/></mxCell><mxCell id=\"start\" value=\"Canvas save fails\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"100\" y=\"180\" width=\"180\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"preserve\" value=\"Editable diagram is preserved\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"350\" y=\"180\" width=\"220\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"retry\" value=\"Offer Retry Save\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"640\" y=\"180\" width=\"180\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"repeat\" value=\"Repeated save failure\" style=\"rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"885\" y=\"165\" width=\"150\" height=\"100\" as=\"geometry\"/></mxCell><mxCell id=\"support\" value=\"Route case to Workspace Support\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"800\" y=\"340\" width=\"260\" height=\"80\" as=\"geometry\"/></mxCell><mxCell id=\"note\" value=\"Safe recovery keeps the diagram editable, lets the user retry saving, and escalates after repeated failures.\" style=\"shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"245\" y=\"360\" width=\"360\" height=\"90\" as=\"geometry\"/></mxCell><mxCell id=\"e1\" value=\"\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2\" edge=\"1\" parent=\"1\" source=\"start\" target=\"preserve\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e2\" value=\"\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2\" edge=\"1\" parent=\"1\" source=\"preserve\" target=\"retry\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e3\" value=\"if save keeps failing\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=12\" edge=\"1\" parent=\"1\" source=\"retry\" target=\"repeat\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e4\" value=\"yes\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=12\" edge=\"1\" parent=\"1\" source=\"repeat\" target=\"support\"><mxGeometry relative=\"1\" as=\"geometry\"><Array as=\"points\"><mxPoint x=\"960\" y=\"300\"/><mxPoint x=\"930\" y=\"300\"/></Array></mxGeometry></mxCell><mxCell id=\"e5\" value=\"retry\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=12;dashed=1\" edge=\"1\" parent=\"1\" source=\"retry\" target=\"retry\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"730\" y=\"145\" as=\"sourcePoint\"/><mxPoint x=\"730\" y=\"145\" as=\"targetPoint\"/><Array as=\"points\"><mxPoint x=\"730\" y=\"125\"/><mxPoint x=\"730\" y=\"125\"/></Array></mxGeometry></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "cs-preserve",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1
+        },
+        {
+          "anchorId": "cs-escalate",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-10",
+      "xml": "<mxGraphModel dx=\"1078\" dy=\"430\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1100\" pageHeight=\"430\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"Change closure workflow\" style=\"text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"40\" y=\"16\" width=\"320\" height=\"40\" as=\"geometry\"/></mxCell><mxCell id=\"change_implemented\" value=\"Change Implemented\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#e3f2fd;strokeColor=#334155;fontColor=#111827;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"45\" y=\"165\" width=\"150\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"verify_outcome\" value=\"Verify Outcome\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#e3f2fd;strokeColor=#334155;fontColor=#111827;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"260\" y=\"165\" width=\"145\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"outcome_accepted\" value=\"Outcome accepted?\" style=\"rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#334155;fontColor=#111827;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"415\" y=\"125\" width=\"180\" height=\"136\" as=\"geometry\"/></mxCell><mxCell id=\"record_closure\" value=\"Record Closure\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dff5ec;strokeColor=#334155;fontColor=#111827;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"680\" y=\"80\" width=\"145\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"publish_change_note\" value=\"Publish Change Note\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dff5ec;strokeColor=#334155;fontColor=#111827;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"885\" y=\"80\" width=\"155\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"plan_remediation\" value=\"Plan Remediation\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#fde8e8;strokeColor=#334155;fontColor=#111827;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"680\" y=\"275\" width=\"155\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"recheck_outcome\" value=\"Recheck Outcome\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#fde8e8;strokeColor=#334155;fontColor=#111827;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"885\" y=\"275\" width=\"145\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"edge_change_to_verify\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeColor=#334155;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"change_implemented\" target=\"verify_outcome\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_verify_to_decision\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeColor=#334155;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"verify_outcome\" target=\"outcome_accepted\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_yes_record\" value=\"Yes\" style=\"endArrow=block;html=1;rounded=0;strokeColor=#334155;strokeWidth=2;fontSize=16;fontColor=#111827;labelBackgroundColor=none;\" edge=\"1\" parent=\"1\" source=\"outcome_accepted\" target=\"record_closure\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"612\" y=\"139\" as=\"offset\"/></mxGeometry></mxCell><mxCell id=\"edge_record_publish\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeColor=#334155;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"record_closure\" target=\"publish_change_note\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_no_plan\" value=\"No\" style=\"endArrow=block;html=1;rounded=0;strokeColor=#334155;strokeWidth=2;fontSize=16;fontColor=#111827;labelBackgroundColor=none;\" edge=\"1\" parent=\"1\" source=\"outcome_accepted\" target=\"plan_remediation\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"614\" y=\"254\" as=\"offset\"/></mxGeometry></mxCell><mxCell id=\"edge_plan_recheck\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeColor=#334155;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"plan_remediation\" target=\"recheck_outcome\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "cc-flow",
+          "sourceVersion": "sf-change-closure-visual:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-11",
+      "xml": "<mxGraphModel dx=\"1100\" dy=\"430\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1100\" pageHeight=\"430\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"Privacy escalation workflow\" style=\"text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"40\" y=\"15\" width=\"420\" height=\"45\" as=\"geometry\"/></mxCell><mxCell id=\"privacy_alert\" value=\"Privacy Alert\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E9E5FF;strokeColor=#2F3B52;strokeWidth=2;fontSize=16;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"45\" y=\"165\" width=\"135\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"assess_exposure\" value=\"Assess Exposure\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E9E5FF;strokeColor=#2F3B52;strokeWidth=2;fontSize=16;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"245\" y=\"165\" width=\"145\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"external_notice_required\" value=\"External notice&lt;br&gt;required?\" style=\"rhombus;whiteSpace=wrap;html=1;fillColor=#FFF4BF;strokeColor=#2F3B52;strokeWidth=2;fontSize=16;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"400\" y=\"125\" width=\"200\" height=\"136\" as=\"geometry\"/></mxCell><mxCell id=\"notify_privacy_lead\" value=\"Notify Privacy Lead\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FCE3E6;strokeColor=#2F3B52;strokeWidth=2;fontSize=16;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"680\" y=\"80\" width=\"145\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"send_notice\" value=\"Send Notice\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FCE3E6;strokeColor=#2F3B52;strokeWidth=2;fontSize=16;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"885\" y=\"80\" width=\"130\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"document_assessment\" value=\"Document Assessment\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#DDF7EC;strokeColor=#2F3B52;strokeWidth=2;fontSize=16;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"680\" y=\"275\" width=\"165\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"monitor_followup\" value=\"Monitor Follow-up\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#DDF7EC;strokeColor=#2F3B52;strokeWidth=2;fontSize=16;fontColor=#111827;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"890\" y=\"275\" width=\"145\" height=\"56\" as=\"geometry\"/></mxCell><mxCell id=\"edge_alert_assess\" value=\"\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2F3B52;strokeWidth=2;endArrow=block;endFill=1;\" edge=\"1\" parent=\"1\" source=\"privacy_alert\" target=\"assess_exposure\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_assess_decision\" value=\"\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2F3B52;strokeWidth=2;endArrow=block;endFill=1;\" edge=\"1\" parent=\"1\" source=\"assess_exposure\" target=\"external_notice_required\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_yes_notify\" value=\"Yes\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2F3B52;strokeWidth=2;endArrow=block;endFill=1;fontSize=16;fontColor=#111827;labelBackgroundColor=#FFFFFF;\" edge=\"1\" parent=\"1\" source=\"external_notice_required\" target=\"notify_privacy_lead\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"625\" y=\"139\" as=\"offset\"/></mxGeometry></mxCell><mxCell id=\"edge_notify_send\" value=\"\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2F3B52;strokeWidth=2;endArrow=block;endFill=1;\" edge=\"1\" parent=\"1\" source=\"notify_privacy_lead\" target=\"send_notice\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_no_document\" value=\"No\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2F3B52;strokeWidth=2;endArrow=block;endFill=1;fontSize=16;fontColor=#111827;labelBackgroundColor=#FFFFFF;\" edge=\"1\" parent=\"1\" source=\"external_notice_required\" target=\"document_assessment\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"620\" y=\"255\" as=\"offset\"/></mxGeometry></mxCell><mxCell id=\"edge_document_monitor\" value=\"\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2F3B52;strokeWidth=2;endArrow=block;endFill=1;\" edge=\"1\" parent=\"1\" source=\"document_assessment\" target=\"monitor_followup\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "pe-flow",
+          "sourceVersion": "sf-privacy-escalation-visual:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "stgf-val-12",
+      "xml": "<mxGraphModel dx=\"1000\" dy=\"700\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"850\" pageHeight=\"1100\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"Service-Restoration Flow\" style=\"text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"250\" y=\"40\" width=\"350\" height=\"40\" as=\"geometry\"/></mxCell><mxCell id=\"triage\" value=\"Service Triage\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"80\" y=\"160\" width=\"150\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"restoration\" value=\"Restoration Work\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"310\" y=\"160\" width=\"160\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"verification\" value=\"Service Verification\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"550\" y=\"160\" width=\"170\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"timeline\" value=\"Incident Timeline\" style=\"shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"550\" y=\"310\" width=\"170\" height=\"80\" as=\"geometry\"/></mxCell><mxCell id=\"edge_affected_component\" value=\"affected component\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12\" edge=\"1\" parent=\"1\" source=\"triage\" target=\"restoration\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_before_verification\" value=\"before verification\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12\" edge=\"1\" parent=\"1\" source=\"restoration\" target=\"verification\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"edge_records_result\" value=\"records restoration result\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12\" edge=\"1\" parent=\"1\" source=\"verification\" target=\"timeline\"><mxGeometry relative=\"1\" as=\"geometry\"><Array as=\"points\"><mxPoint x=\"635\" y=\"260\"/></Array></mxGeometry></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "sr-diagnose",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1
+        },
+        {
+          "anchorId": "sr-close",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    }
+  ]
+}

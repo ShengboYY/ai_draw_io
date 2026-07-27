@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "material-rag-validation-case-review-v1",
+  "taskFixtureSha256": "e4e4b8aa49250df450e971b1c8ec8d683d90356ead7c79a67fb36249050a965a",
+  "reviewers": ["product-owner", "alice-qa"],
+  "verdict": "approve_all_validation_source_evidence_claim_packages",
+  "reviewedTaskIds": ["stgb-val-01", "stgb-val-02", "stgb-val-03", "stgb-val-04", "stgb-val-05", "stgb-val-06", "stgb-val-07", "stgb-val-08", "stgb-val-09", "stgb-val-10", "stgb-val-11", "stgb-val-12"],
+  "reviewedAt": "2026-07-23",
+  "attestation": "Both named reviewers independently approved the source text, evidence anchors, frozen claims, visual/OCR artifacts, and Development isolation for every Validation task."
+}

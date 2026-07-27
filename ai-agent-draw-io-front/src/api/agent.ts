@@ -7,11 +7,11 @@ import {
     ChatRequestDTO,
     ChatResponseDTO,
     CanvasVisualReviewRequestDTO,
+    AnonymousWorkspaceResponseDTO,
     CurrentAccountResponseDTO,
     DiagramCanvasStateResponseDTO,
     DiagramSummaryResponseDTO,
     DiagramConversationMessageDTO,
-    ImportAnonymousWorkspaceRequestDTO,
     ImportAnonymousWorkspaceResponseDTO,
     SaveDiagramCanvasStateRequestDTO,
     SaveDiagramMessagesRequestDTO,
@@ -92,9 +92,8 @@ const handleResponse = async <T>(response: globalThis.Response): Promise<Respons
     return data;
 };
 
-const workspaceHeaders = (userId: string, requestId?: string) => ({
+const workspaceHeaders = (_userId: string, requestId?: string) => ({
     'Content-Type': 'application/json',
-    'X-Workspace-Id': userId,
     ...(requestId && { 'X-Request-Id': requestId }),
 });
 
@@ -214,6 +213,94 @@ export interface RouteChunk {
     routeType: string;
     diagramType?: string;
     skillName?: string;
+    /** Effective source route after applying any validated user preference. */
+    sourceUse?: 'NONE' | 'DIRECT' | 'RETRIEVAL' | 'DIRECT_AND_RETRIEVAL';
+}
+
+export interface EvidenceProgressChunk {
+    type: 'evidence_progress';
+    stage: string;
+    completed: number;
+    total: number;
+}
+
+export interface EvidenceOutcomeChunk {
+    type: 'source_wait_started' | 'source_not_ready' | 'source_clarification' | 'claim_clarification' | 'degraded' | 'stale_canvas_selection';
+    outcomeType: string;
+    content: string;
+}
+
+export interface DirectConfirmationChunk {
+    type: 'direct_confirmation_required';
+    content: string;
+    reasons: string[];
+    sourceVersionId: string;
+    issues?: Array<{
+        reasonCode: string;
+        observedValue?: string;
+        observedFingerprint?: string;
+    }>;
+}
+
+export interface TargetClarificationChunk {
+    type: 'target_clarification';
+    content: string;
+    candidates: Array<{ cellId: string; kind: string; shortLabel: string; reasonCode: string }>;
+    canvasVersion: number;
+    contentHash: string;
+}
+
+export interface EvidenceAnswerChunk {
+    type: 'evidence_answer';
+    messageId: string;
+    content: string;
+    coverage: 'FULL' | 'PARTIAL';
+    claims: Array<{
+        claimKey: string;
+        statementText: string;
+        citationKeys: string[];
+        supportType: 'DIRECT' | 'SYNTHESIZED' | 'VISUAL_VERIFIED' | 'AI_KNOWLEDGE';
+    }>;
+    sources: Array<{
+        citationKey: string;
+        sourceLabel: string;
+        pageNumber?: number;
+        modality?: string;
+        origin: 'EXISTING_REFERENCE' | 'EXPLICIT' | 'SEARCH' | 'SUPPLEMENTAL';
+    }>;
+}
+
+export interface GroundingRejectedChunk {
+    type: 'grounding_rejected';
+    code?: string;
+    content: string;
+}
+
+export interface CellCitationDTO {
+    citationId: string;
+    cellId: string;
+    provenanceRef: string;
+    statementKey?: string;
+    supportType: 'EVIDENCE' | 'AI_KNOWLEDGE' | 'MANUAL' | 'UNATTRIBUTED' | 'NONE';
+    state?: string;
+    sources: Array<{
+        citationKey: string;
+        materialId?: string;
+        displayName?: string;
+        versionId?: string;
+        versionNo?: number;
+        pageNumber?: number;
+        modality?: string;
+        sourceState?: string;
+        processingRevisionId?: string;
+        bboxJson?: string;
+        origin?: string;
+        excerptAvailable: boolean;
+        previewAvailable: boolean;
+        boundedExcerpt?: string;
+        previewUrl?: string;
+        deletedAt?: string;
+    }>;
 }
 
 export interface ReviewResultChunk {
@@ -285,10 +372,10 @@ export interface MutationRejectedChunk {
     changedCellIds?: string[];
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | DirectConfirmationChunk | TargetClarificationChunk | EvidenceAnswerChunk | GroundingRejectedChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
 
 export interface StreamEvent {
-    phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'error' | 'done' | 'generating';
+    phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'retrieval' | 'answer' | 'error' | 'done' | 'generating';
     chunk: StreamChunk;
 }
 
@@ -323,7 +410,14 @@ const openNdjsonStream = async ({
         });
         if (!response.ok) {
             const errorText = await response.text();
-            onError(new Error(`HTTP error! status: ${response.status}, message: ${errorText}`));
+            let serverCode = '';
+            try {
+                const payload = JSON.parse(errorText) as { code?: unknown };
+                serverCode = typeof payload.code === 'string' ? payload.code : '';
+            } catch {
+                // Non-JSON error bodies are intentionally not copied into the visible chat.
+            }
+            onError(new Error(`HTTP_${response.status}${serverCode ? `:${serverCode}` : ''}`));
             return controller;
         }
 
@@ -1036,6 +1130,15 @@ export const agentApi = {
         return handleResponse<LoginResponseDTO>(response);
     },
 
+    ensureAnonymousWorkspace: async (): Promise<Response<AnonymousWorkspaceResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/anonymous-workspaces`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<AnonymousWorkspaceResponseDTO>(response);
+    },
+
     /**
      * Create Session
      * Path: /api/v1/create_session
@@ -1059,13 +1162,12 @@ export const agentApi = {
         return handleResponse<DiagramSummaryResponseDTO[]>(response);
     },
 
-    importAnonymousWorkspace: async (
-        payload: ImportAnonymousWorkspaceRequestDTO,
-    ): Promise<Response<ImportAnonymousWorkspaceResponseDTO>> => {
+    importAnonymousWorkspace: async (): Promise<Response<ImportAnonymousWorkspaceResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/workspaces/anonymous/import`, {
             method: 'POST',
             headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify(payload),
+            // The source workspace comes exclusively from the HttpOnly capability cookie.
+            body: JSON.stringify({}),
             credentials: 'include',
         });
         return handleResponse<ImportAnonymousWorkspaceResponseDTO>(response);
@@ -1078,6 +1180,36 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
+    },
+
+    getCellCitations: async (
+        userId: string,
+        diagramId: string,
+        cellId: string,
+        canvasVersion?: number,
+        provenanceRef?: string,
+    ): Promise<Response<CellCitationDTO[]>> => {
+        const params = new URLSearchParams();
+        if (Number.isFinite(canvasVersion) && Number(canvasVersion) > 0) {
+            params.set('canvasVersion', String(canvasVersion));
+        }
+        if (provenanceRef) params.set('provenanceRef', provenanceRef);
+        const query = params.size ? `?${params.toString()}` : '';
+        const response = await fetch(
+            `${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/cells/${encodeURIComponent(cellId)}/citations${query}`,
+            { method: 'GET', headers: workspaceHeaders(userId), credentials: 'include' },
+        );
+        const result = await handleResponse<CellCitationDTO[]>(response);
+        result.data = (result.data || []).map(citation => ({
+            ...citation,
+            sources: citation.sources.map(source => ({
+                ...source,
+                previewUrl: source.previewUrl
+                    ? `${API_CONFIG.BASE_URL.replace(/\/$/, '')}${source.previewUrl.replace(/^\/api\/v1/, '')}`
+                    : undefined,
+            })),
+        }));
+        return result;
     },
 
     renameDiagram: async (userId: string, diagramId: string, title: string): Promise<Response<DiagramSummaryResponseDTO | null>> => {

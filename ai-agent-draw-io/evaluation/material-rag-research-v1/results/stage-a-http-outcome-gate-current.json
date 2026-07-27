@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "material-rag-stage-a-http-outcome-gate-v1",
+  "runDate": "2026-07-23",
+  "fixture": "fixtures/stage-a-evidence-decision-cohort-v1.json",
+  "fixtureStatus": "frozen_independently_reviewed",
+  "test": "org.zipp.ai.test.trigger.service.StageAEvidenceDecisionCohortTest",
+  "command": "mvn -pl ai-agent-draw-io-app -Dtest=StageAEvidenceDecisionCohortTest test",
+  "externalServices": {
+    "pinecone": 0,
+    "generationModels": 0,
+    "modelTokens": 0
+  },
+  "results": {
+    "casesRendered": 30,
+    "outcomeCounts": {
+      "Ready": 12,
+      "InsufficientEvidence": 6,
+      "ClarificationNeeded": 4,
+      "DegradedDependency": 4,
+      "NotRequired": 4
+    },
+    "blockedCasesStoppedBeforeDrawer": 14,
+    "notRequiredCasesWithoutMaterialRetrieval": 4,
+    "readyCasesHeldBeforeGroundedCommit": 12
+  },
+  "status": "passed_with_injected_outcomes",
+  "scopeLimit": "This verifies the HTTP-to-evidence rendering and no-drawer gate. It does not yet classify the fixture setup through the real EvidencePreparationModule or commit a grounded canvas mutation."
+}

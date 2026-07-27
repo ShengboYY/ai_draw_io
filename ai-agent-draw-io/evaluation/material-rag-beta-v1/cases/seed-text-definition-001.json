@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "rag-eval-case-v1",
+  "caseId": "seed-text-definition-001",
+  "datasetVersion": "rag-beta-v1-seed",
+  "category": "DIGITAL_PDF",
+  "language": "zh",
+  "locked": true,
+  "ownerFixture": {"ownerType": "USER", "ownerKeyAlias": "owner_a", "scopeType": "LIBRARY", "scopeKeyAlias": "personal"},
+  "queryShape": "FACT",
+  "targetKind": "WHOLE_DIAGRAM",
+  "query": "总结迭代计划的定义",
+  "expectedRoute": "TEXT",
+  "allowedSourceVersions": ["version_agile_v1"],
+  "goldEvidenceIds": ["evidence_iteration_definition"],
+  "hardNegativeIds": ["evidence_iteration_review"],
+  "requiredFacets": ["迭代计划"],
+  "forbiddenSourceIds": ["version_other_owner"],
+  "visualVerificationRequired": false,
+  "canvasMutationAllowed": false,
+  "expectedCitationClaims": ["iteration_planning_definition"]
+}

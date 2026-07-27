@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "material-rag-claim-reviewer-attestation-v1",
+  "reviewerId": "alice-qa",
+  "reviewerKind": "independent colleague review",
+  "reviewedAt": "2026-07-23",
+  "scope": {
+    "formalRunCommit": "3926c012",
+    "responsesSha256": "4b436e01c915d0e6d3af6eacb5712e9e173bc88ee581076fa358f9c77f1c8dee",
+    "taskFixtureSha256": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440"
+  },
+  "verdict": "accept_all_reviewed_claims",
+  "reviewedClaimIds": [
+    "rg-gateway", "rg-worker", "rg-audit-store", "ic-commander", "ic-communications",
+    "ic-escalation-window", "dr-archive-retention", "pc-two-person", "pc-control-number",
+    "nz-v3-quarantine", "so-canonical-name", "cc-owner", "cc-approval-window",
+    "wv-exception-flow", "fs-handoff-flow", "rg-rollback", "cp-steady-limit", "cp-failover-limit"
+  ],
+  "reviewedClaimOccurrences": 20,
+  "criteria": ["claimAnswered", "hasCitation", "citationSupportsClaim", "claimCorrect", "faithful"],
+  "attestation": "Alice-qa independently reviewed the same 12 formal tasks and accepts every required claim under all five criteria."
+}

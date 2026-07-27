@@ -9,6 +9,10 @@ public class ChatRequestDTO {
     private String userId;
     private String sessionId;
     private String requestId;
+    // Stable frontend user-message id persisted atomically when the V2 turn starts.
+    private String clientMessageId;
+    // Stable frontend assistant-message id used by the WP7 atomic answer transaction.
+    private String responseMessageId;
     // Server-owned correlation id; controllers overwrite any client-provided value before use.
     private String runId;
     // Visual repair lineage is server-owned and lets logs/telemetry reconstruct the outer loop.
@@ -21,6 +25,19 @@ public class ChatRequestDTO {
     private String message;
     private String canvasXml;
     private String canvasSummary;
+    // Prior direct-image reason codes and bounded user choices; never treated as free-form prompt text.
+    private java.util.List<DirectClarificationDTO> directClarifications;
+    // Exact version from the confirmation event; the server rejects stale-image confirmation reuse.
+    private String directConfirmationSourceVersionId;
+    // Library choices declare available immutable versions; routing still decides whether to use them.
+    private java.util.List<String> selectedLibraryVersionIds;
+    // Exact conversation upload ids attached to this user message; never inferred from prior turns.
+    private java.util.List<String> currentTurnAttachmentRefs;
+    // Present only when the explicit Memory action belongs to an active Chartbook.
+    private String memoryChartbookId;
+    private java.util.List<String> selectedCellIds;
+    private Long selectionCanvasVersion;
+    private String selectionContentHash;
     private String canvasImageDataUrl;
     private String canvasImageRendererVersion;
     private CanvasSnapshotDTO canvasSnapshot;
@@ -46,6 +63,13 @@ public class ChatRequestDTO {
 
     // 用户手动指定要使用的技能(名),覆盖意图路由的自动选择;可多选(组合)。为空则走自动选择。
     private java.util.List<String> skills;
+
+    @Data
+    public static class DirectClarificationDTO {
+        private String reasonCode;
+        private String resolution;
+        private String observedFingerprint;
+    }
 
     @Data
     public static class CanvasSnapshotDTO {

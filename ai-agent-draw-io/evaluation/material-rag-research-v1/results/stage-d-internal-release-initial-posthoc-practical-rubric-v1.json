@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "material-rag-stage-d-posthoc-practical-rubric-v1",
+  "status": "posthoc_internal_diagnostic_calibration_not_formal",
+  "scope": {
+    "run": "stage-d-internal-release initial only",
+    "taskFixtureSha256": "ef88b9b961b51632c3ab1d7385431a9b21f15191f1de434b0a1441810c6dfcd7",
+    "responsesSha256": "7ce8010235db21066b45a6d2855c35b3e06ce6f49ee7135839b2559439550d12"
+  },
+  "acceptanceRules": [
+    "A required fact may be represented in editable vertex text or an editable edge label when the policy declares that location.",
+    "A responsibility may be stated inside the relevant editable activity node instead of as a separate owner node.",
+    "A duration may be stated inside an editable node or transition label instead of as a standalone node.",
+    "A visual decision label may be an editable nearby label or an editable edge label when the human review accepts the diagram.",
+    "For geometryOnly edits, cell identity, content, structure and style remain protected; only mxGeometry may change."
+  ],
+  "scoring": {
+    "strictPreRunScore": "14/20",
+    "posthocPracticalScore": "18/20",
+    "retainedStrictFailures": ["stgd-int-09", "stgd-int-11"]
+  },
+  "limitations": [
+    "This rubric was created after observing outputs and therefore cannot change the frozen strict result.",
+    "It applies only to the named initial diagnostic output, not to retry-1 or any future validation cohort.",
+    "It does not qualify this locally authored, duplicate-executed cohort as an independent final holdout or release gate."
+  ]
+}

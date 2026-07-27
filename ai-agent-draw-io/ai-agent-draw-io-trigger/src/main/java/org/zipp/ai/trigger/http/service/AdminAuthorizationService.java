@@ -52,7 +52,12 @@ public class AdminAuthorizationService {
             clearStaleSession(request);
             return Optional.empty();
         }
-        return isConfiguredAdmin(user.get()) ? user : Optional.empty();
+        return isAdmin(user.get()) ? user : Optional.empty();
+    }
+
+    /** Exposes the configured admission decision for authenticated account metadata. */
+    public boolean isAdmin(UserAccount user) {
+        return isConfiguredAdmin(user);
     }
 
     public boolean isReleaseOwner(UserAccount user) {

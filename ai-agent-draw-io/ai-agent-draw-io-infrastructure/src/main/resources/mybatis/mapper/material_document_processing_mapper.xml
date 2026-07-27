@@ -1,0 +1,570 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IDocumentProcessingMapper">
+    <sql id="processableVersion">
+        (v.ingest_state = 'PROCESSING'
+         OR (v.ingest_state IN ('READY', 'PARTIAL')
+             AND v.active_revision_id IS NOT NULL AND v.active_revision_id != r.id))
+    </sql>
+
+    <select id="selectExtractionWork" resultType="org.zipp.ai.infrastructure.dao.material.po.DocumentExtractionWorkPO">
+        SELECT r.id AS revision_id,
+               v.detected_mime AS detected_media_type,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.worker_profile_fingerprint AS processing_fingerprint,
+               r.excluded_pages_json,
+               b.original_object_key AS object_key,
+               b.original_object_version_id AS object_version_id,
+               b.content_sha256 AS content_sha256,
+               b.byte_size AS byte_size,
+               b.detected_mime AS content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_content_blob b ON b.id = v.content_blob_id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage IN ('CREATED', 'EXTRACTING')
+          AND <include refid="processableVersion"/>
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND b.status = 'AVAILABLE'
+          AND j.id = #{jobId}
+          AND j.stage = 'EXTRACT_NATIVE'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <select id="selectVisualWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO">
+        SELECT r.id AS revision_id,
+               r.version_id,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.worker_profile_fingerprint AS processing_fingerprint,
+               p.id AS page_id,
+               p.page_no,
+               image.object_key AS page_image_key,
+               image.object_version_id AS page_image_version_id,
+               image.content_sha256 AS page_image_sha256,
+               image.byte_size AS page_image_size,
+               image.content_type AS page_image_content_type,
+               canonical.object_key AS canonical_key,
+               canonical.object_version_id AS canonical_version_id,
+               canonical.content_sha256 AS canonical_sha256,
+               canonical.byte_size AS canonical_size,
+               canonical.content_type AS canonical_content_type,
+               structure.object_key AS structure_key,
+               structure.object_version_id AS structure_version_id,
+               structure.content_sha256 AS structure_sha256,
+               structure.byte_size AS structure_size,
+               structure.content_type AS structure_content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_page p ON p.revision_id = r.id
+        JOIN material_page_artifact image
+          ON image.revision_id = p.revision_id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        JOIN material_page_artifact canonical
+          ON canonical.revision_id = p.revision_id AND canonical.page_no = p.page_no
+         AND canonical.artifact_kind = 'CANONICAL_PAGE'
+        JOIN material_revision_artifact structure
+          ON structure.revision_id = r.id AND structure.artifact_kind = 'DOCUMENT_STRUCTURE'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage = 'VISUAL_ANALYSIS'
+          AND <include refid="processableVersion"/>
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = 'ANALYZE_VISUALS'
+          AND j.work_key = 'root'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        ORDER BY p.page_no
+    </select>
+
+    <select id="selectEvidenceWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO">
+        SELECT r.id AS revision_id,
+               r.version_id,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.worker_profile_fingerprint AS processing_fingerprint,
+               p.id AS page_id,
+               p.page_no,
+               image.object_key AS page_image_key,
+               image.object_version_id AS page_image_version_id,
+               image.content_sha256 AS page_image_sha256,
+               image.byte_size AS page_image_size,
+               image.content_type AS page_image_content_type,
+               canonical.object_key AS canonical_key,
+               canonical.object_version_id AS canonical_version_id,
+               canonical.content_sha256 AS canonical_sha256,
+               canonical.byte_size AS canonical_size,
+               canonical.content_type AS canonical_content_type,
+               structure.object_key AS structure_key,
+               structure.object_version_id AS structure_version_id,
+               structure.content_sha256 AS structure_sha256,
+               structure.byte_size AS structure_size,
+               structure.content_type AS structure_content_type,
+               visual.object_key AS visual_manifest_key,
+               visual.object_version_id AS visual_manifest_version_id,
+               visual.content_sha256 AS visual_manifest_sha256,
+               visual.byte_size AS visual_manifest_size,
+               visual.content_type AS visual_manifest_content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_page p ON p.revision_id = r.id
+        JOIN material_page_artifact image
+          ON image.revision_id = p.revision_id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        JOIN material_page_artifact canonical
+          ON canonical.revision_id = p.revision_id AND canonical.page_no = p.page_no
+         AND canonical.artifact_kind = 'CANONICAL_PAGE'
+        JOIN material_revision_artifact structure
+          ON structure.revision_id = r.id AND structure.artifact_kind = 'DOCUMENT_STRUCTURE'
+        JOIN material_revision_artifact visual
+          ON visual.revision_id = r.id AND visual.artifact_kind = 'VISUAL_CROP_MANIFEST'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage = 'EVIDENCE_BUILD'
+          AND <include refid="processableVersion"/>
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = 'BUILD_EVIDENCE_UNITS'
+          AND j.work_key = 'root'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        ORDER BY p.page_no
+    </select>
+
+    <select id="selectProcessingGenerations" resultType="org.zipp.ai.infrastructure.dao.material.po.ProcessingGenerationPO">
+        SELECT r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.worker_profile_fingerprint AS processing_fingerprint
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <select id="selectRetrievalWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionRetrievalWorkPO">
+        SELECT r.id AS revision_id,
+               r.version_id,
+               v.material_id,
+               m.owner_type,
+               m.owner_key,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.worker_profile_fingerprint AS processing_fingerprint,
+               evidence.object_key AS evidence_manifest_key,
+               evidence.object_version_id AS evidence_manifest_version_id,
+               evidence.content_sha256 AS evidence_manifest_sha256,
+               evidence.byte_size AS evidence_manifest_size,
+               evidence.content_type AS evidence_manifest_content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact evidence
+          ON evidence.revision_id = r.id AND evidence.artifact_kind = 'EVIDENCE_MANIFEST'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage = 'INDEXING'
+          AND <include refid="processableVersion"/>
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = 'BUILD_RETRIEVAL_CHUNKS'
+          AND j.work_key = 'root'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <select id="selectPageBatch" resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionPageWorkPO">
+        SELECT p.page_no, p.width, p.height, p.ocr_status,
+               image.object_key AS page_image_key,
+               image.object_version_id AS page_image_version_id,
+               image.content_sha256 AS page_image_sha256,
+               image.byte_size AS page_image_size,
+               image.content_type AS page_image_content_type,
+               native.object_key AS native_key,
+               native.object_version_id AS native_version_id,
+               native.content_sha256 AS native_sha256,
+               native.byte_size AS native_size,
+               native.content_type AS native_content_type,
+               raw.object_key AS raw_key,
+               raw.object_version_id AS raw_version_id,
+               raw.content_sha256 AS raw_sha256,
+               raw.byte_size AS raw_size,
+               raw.content_type AS raw_content_type
+        FROM material_page p
+        JOIN material_page_artifact image
+          ON image.revision_id = p.revision_id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        JOIN material_page_artifact native
+          ON native.revision_id = p.revision_id AND native.page_no = p.page_no
+         AND native.artifact_kind = 'NATIVE_EXTRACTION'
+        LEFT JOIN material_page_artifact raw
+          ON raw.revision_id = p.revision_id AND raw.page_no = p.page_no
+         AND raw.artifact_kind = 'RAW_EXTRACTION'
+        JOIN material_processing_job j ON j.revision_id = p.revision_id
+        WHERE p.revision_id = #{revisionId}
+          AND j.id = #{jobId}
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+          AND ((j.stage = 'OCR_SELECTED_PAGES' AND j.work_key = CONCAT('page:', p.page_no)
+                AND p.ocr_status = 'REQUIRED')
+            OR (j.stage = 'NORMALIZE_CANONICAL_PAGES' AND j.work_key = CONCAT('page:', p.page_no)
+                AND p.canonical_page_key IS NULL))
+        ORDER BY p.page_no
+    </select>
+
+    <select id="countCurrentFence" resultType="int">
+        SELECT COUNT(*)
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.fence_generation = #{expectedGeneration}
+          AND m.lifecycle_generation = #{materialLifecycleGeneration}
+          AND r.state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = #{expectedStage}
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        FOR UPDATE
+    </select>
+
+    <insert id="insertPage">
+        INSERT IGNORE INTO material_page (
+            id, revision_id, page_no, width, height, native_text_status, ocr_status,
+            ocr_quality, visual_status, page_image_key, raw_extraction_key, canonical_page_key
+        ) VALUES (
+            #{id}, #{revisionId}, #{pageNo}, #{width}, #{height}, #{nativeTextStatus}, #{ocrStatus},
+            #{ocrQuality}, #{visualStatus}, #{pageImageKey}, #{rawExtractionKey}, #{canonicalPageKey}
+        )
+    </insert>
+
+    <select id="selectPage" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialPagePO">
+        SELECT * FROM material_page WHERE revision_id = #{revisionId} AND page_no = #{pageNo}
+    </select>
+
+    <insert id="insertArtifact">
+        INSERT IGNORE INTO material_page_artifact (
+            id, revision_id, page_no, artifact_kind, object_key, object_version_id,
+            content_sha256, byte_size, content_type
+        ) VALUES (
+            #{id}, #{revisionId}, #{pageNo}, #{artifactKind}, #{objectKey}, #{objectVersionId},
+            #{contentSha256}, #{byteSize}, #{contentType}
+        )
+    </insert>
+
+    <select id="selectArtifact" resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionArtifactPO">
+        SELECT * FROM material_page_artifact
+        WHERE revision_id = #{revisionId} AND page_no = #{pageNo} AND artifact_kind = #{artifactKind}
+    </select>
+
+    <update id="updatePageOcr">
+        UPDATE material_page
+        SET ocr_status = #{ocrStatus}, ocr_quality = #{ocrQuality},
+            raw_extraction_key = #{rawExtractionKey}
+        WHERE revision_id = #{revisionId} AND page_no = #{pageNo} AND ocr_status = 'REQUIRED'
+    </update>
+
+    <update id="updatePageCanonical">
+        UPDATE material_page
+        SET canonical_page_key = #{canonicalPageKey}
+        WHERE revision_id = #{revisionId} AND page_no = #{pageNo}
+          AND canonical_page_key IS NULL
+    </update>
+
+    <select id="countMissingCanonical" resultType="int">
+        SELECT COUNT(*) FROM material_page
+        WHERE revision_id = #{revisionId} AND canonical_page_key IS NULL
+    </select>
+
+    <select id="selectCanonicalHashes" resultType="string">
+        SELECT a.content_sha256
+        FROM material_page_artifact a
+        WHERE a.revision_id = #{revisionId} AND a.artifact_kind = 'CANONICAL_PAGE'
+        ORDER BY a.page_no
+    </select>
+
+    <select id="selectStructureWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO">
+        SELECT r.id AS revision_id,
+               r.version_id,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.worker_profile_fingerprint AS processing_fingerprint,
+               p.id AS page_id,
+               p.page_no,
+               image.object_key AS page_image_key,
+               image.object_version_id AS page_image_version_id,
+               image.content_sha256 AS page_image_sha256,
+               image.byte_size AS page_image_size,
+               image.content_type AS page_image_content_type,
+               canonical.object_key AS canonical_key,
+               canonical.object_version_id AS canonical_version_id,
+               canonical.content_sha256 AS canonical_sha256,
+               canonical.byte_size AS canonical_size,
+               canonical.content_type AS canonical_content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_page p ON p.revision_id = r.id
+        JOIN material_page_artifact image
+          ON image.revision_id = p.revision_id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        JOIN material_page_artifact canonical
+          ON canonical.revision_id = p.revision_id AND canonical.page_no = p.page_no
+         AND canonical.artifact_kind = 'CANONICAL_PAGE'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage = 'OCR_VISUAL'
+          AND <include refid="processableVersion"/>
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = 'BUILD_DOCUMENT_STRUCTURE'
+          AND j.work_key = 'root'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        ORDER BY p.page_no
+    </select>
+
+    <insert id="insertRevisionArtifact">
+        INSERT IGNORE INTO material_revision_artifact (
+            id, revision_id, artifact_kind, object_key, object_version_id,
+            content_sha256, byte_size, content_type
+        ) VALUES (
+            #{id}, #{revisionId}, #{artifactKind}, #{objectKey}, #{objectVersionId},
+            #{contentSha256}, #{byteSize}, #{contentType}
+        )
+    </insert>
+
+    <select id="selectRevisionArtifact"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.DocumentStructureArtifactPO">
+        SELECT * FROM material_revision_artifact
+        WHERE revision_id = #{revisionId} AND artifact_kind = #{artifactKind}
+    </select>
+
+    <insert id="insertSection">
+        INSERT IGNORE INTO material_section (
+            id, revision_id, parent_section_id, level, ordinal, page_start, page_end,
+            heading_evidence_id, structure_hash
+        ) VALUES (
+            #{id}, #{revisionId}, #{parentSectionId}, #{level}, #{ordinal}, #{pageStart}, #{pageEnd},
+            #{headingEvidenceId}, #{structureHash}
+        )
+    </insert>
+
+    <select id="selectSection" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO">
+        SELECT * FROM material_section WHERE revision_id = #{revisionId} AND ordinal = #{ordinal}
+    </select>
+
+    <select id="selectSectionById" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO">
+        SELECT * FROM material_section WHERE revision_id = #{revisionId} AND id = #{sectionId}
+    </select>
+
+    <insert id="insertVisualCrop">
+        INSERT IGNORE INTO material_visual_artifact (
+            revision_id, candidate_id, page_id, page_no, caption_block_id,
+            object_key, object_version_id, content_sha256, byte_size, content_type
+        ) VALUES (
+            #{revisionId}, #{candidateId}, #{pageId}, #{pageNo}, #{captionBlockId},
+            #{objectKey}, #{objectVersionId}, #{contentSha256}, #{byteSize}, #{contentType}
+        )
+    </insert>
+
+    <select id="selectVisualCrop"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO">
+        SELECT * FROM material_visual_artifact
+        WHERE revision_id = #{revisionId} AND candidate_id = #{candidateId}
+    </select>
+
+    <insert id="insertEvidenceUnit">
+        INSERT IGNORE INTO evidence_unit (
+            id, version_id, revision_id, page_id, section_id, unit_type, modality, source_channel,
+            display_text_object_key, display_text_object_version_id,
+            visual_object_key, visual_object_version_id, display_text_sha256, quality_json, status
+        ) VALUES (
+            #{id}, #{versionId}, #{revisionId}, #{pageId}, #{sectionId}, #{unitType}, #{modality}, #{sourceChannel},
+            #{displayTextObjectKey}, #{displayTextObjectVersionId},
+            #{visualObjectKey}, #{visualObjectVersionId}, #{displayTextSha256}, #{qualityJson}, #{status}
+        )
+    </insert>
+
+    <select id="selectEvidenceUnit"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.EvidenceUnitPO">
+        SELECT * FROM evidence_unit WHERE id = #{evidenceId}
+    </select>
+
+    <insert id="insertEvidenceRegion">
+        INSERT IGNORE INTO evidence_region (
+            evidence_id, page_id, ordinal, bbox_json, display_char_start, display_char_end, source_block_ref
+        ) VALUES (
+            #{evidenceId}, #{pageId}, #{ordinal}, #{bboxJson},
+            #{displayCharStart}, #{displayCharEnd}, #{sourceBlockRef}
+        )
+    </insert>
+
+    <select id="selectEvidenceRegion"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.EvidenceRegionPO">
+        SELECT * FROM evidence_region WHERE evidence_id = #{evidenceId} AND ordinal = #{ordinal}
+    </select>
+
+    <insert id="insertEvidenceRelation">
+        INSERT IGNORE INTO evidence_relation (
+            from_evidence_id, to_evidence_id, relation_type, weight
+        ) VALUES (
+            #{fromEvidenceId}, #{toEvidenceId}, #{relationType}, #{weight}
+        )
+    </insert>
+
+    <select id="selectEvidenceRelation"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.EvidenceRelationPO">
+        SELECT * FROM evidence_relation
+        WHERE from_evidence_id = #{fromEvidenceId}
+          AND to_evidence_id = #{toEvidenceId}
+          AND relation_type = #{relationType}
+    </select>
+
+    <update id="updateSectionHeading">
+        UPDATE material_section SET heading_evidence_id = #{evidenceId}
+        WHERE revision_id = #{revisionId} AND id = #{sectionId}
+          AND (heading_evidence_id IS NULL OR heading_evidence_id = #{evidenceId})
+    </update>
+
+    <insert id="insertRetrievalChunk">
+        INSERT IGNORE INTO retrieval_chunk (
+            id, version_id, revision_id, page_id, section_id, chunk_type, modality,
+            language_primary, citable, index_mode, duplicate_cluster_id, canonical_chunk_id,
+            retrieval_text_object_key, retrieval_text_object_version_id, retrieval_text_sha256,
+            retrieval_text_byte_size, retrieval_text_content_type,
+            parent_context_object_key, parent_context_object_version_id,
+            token_count, quality_score, structural_ordinal, status
+        ) VALUES (
+            #{id}, #{versionId}, #{revisionId}, #{pageId}, #{sectionId}, #{chunkType}, #{modality},
+            #{languagePrimary}, #{citable}, #{indexMode}, #{duplicateClusterId}, #{canonicalChunkId},
+            #{retrievalTextObjectKey}, #{retrievalTextObjectVersionId}, #{retrievalTextSha256},
+            #{retrievalTextByteSize}, #{retrievalTextContentType},
+            #{parentContextObjectKey}, #{parentContextObjectVersionId},
+            #{tokenCount}, #{qualityScore}, #{structuralOrdinal}, #{status}
+        )
+    </insert>
+
+    <select id="selectRetrievalChunk"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkPO">
+        SELECT * FROM retrieval_chunk WHERE id = #{chunkId}
+    </select>
+
+    <insert id="insertRetrievalChunkEvidence">
+        INSERT IGNORE INTO retrieval_chunk_evidence (
+            retrieval_chunk_id, evidence_id, role, ordinal, char_start, char_end
+        ) VALUES (
+            #{retrievalChunkId}, #{evidenceId}, #{role}, #{ordinal}, #{charStart}, #{charEnd}
+        )
+    </insert>
+
+    <select id="selectRetrievalChunkEvidence"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkEvidencePO">
+        SELECT * FROM retrieval_chunk_evidence
+        WHERE retrieval_chunk_id = #{chunkId} AND ordinal = #{ordinal}
+    </select>
+
+    <insert id="insertRetrievalSearchDocument">
+        INSERT IGNORE INTO retrieval_search_document (
+            retrieval_chunk_id, owner_type, owner_key, material_id, version_id, revision_id,
+            word_search_text, cjk_search_text, status
+        ) VALUES (
+            #{retrievalChunkId}, #{ownerType}, #{ownerKey}, #{materialId}, #{versionId}, #{revisionId},
+            #{wordSearchText}, #{cjkSearchText}, #{status}
+        )
+    </insert>
+
+    <select id="selectRetrievalSearchDocument"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RetrievalSearchDocumentPO">
+        SELECT * FROM retrieval_search_document WHERE retrieval_chunk_id = #{chunkId}
+    </select>
+
+    <insert id="insertRetrievalExactTerm">
+        INSERT IGNORE INTO retrieval_exact_term (
+            retrieval_chunk_id, owner_type, owner_key, version_id, revision_id, normalized_term, term_type
+        ) VALUES (
+            #{retrievalChunkId}, #{ownerType}, #{ownerKey}, #{versionId}, #{revisionId},
+            #{normalizedTerm}, #{termType}
+        )
+    </insert>
+
+    <select id="selectRetrievalExactTerm"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RetrievalExactTermPO">
+        SELECT * FROM retrieval_exact_term
+        WHERE retrieval_chunk_id = #{chunkId}
+          AND normalized_term = #{normalizedTerm}
+          AND term_type = #{termType}
+    </select>
+
+    <update id="updatePageVisualStatus">
+        UPDATE material_page SET visual_status = #{visualStatus}
+        WHERE revision_id = #{revisionId} AND page_no = #{pageNo}
+    </update>
+
+    <update id="updatePageCount">
+        UPDATE material_version v
+        JOIN material_processing_revision r ON r.version_id = v.id
+        SET v.page_count = COALESCE(v.page_count, #{pageCount})
+        WHERE r.id = #{revisionId} AND <include refid="processableVersion"/>
+    </update>
+
+    <update id="updateRevisionProgress">
+        UPDATE material_processing_revision
+        SET stage = #{stage}, progress = GREATEST(progress, #{progress})
+        WHERE id = #{revisionId} AND state = 'PROCESSING'
+    </update>
+
+    <update id="advanceRevision">
+        UPDATE material_processing_revision
+        SET stage = #{stage}, progress = #{progress}, fence_generation = fence_generation + 1
+        WHERE id = #{revisionId} AND fence_generation = #{expectedGeneration} AND state = 'PROCESSING'
+    </update>
+</mapper>

@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.debugtrace;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
@@ -25,38 +26,55 @@ public class AgentDebugTraceService {
     static final Duration DEFAULT_CONTENT_TTL = Duration.ofDays(7);
     private static final int MAX_EVENT_TYPE_LENGTH = 64;
     private static final int MAX_CONTENT_LENGTH = 64_000;
+    private static final DebugTraceControl DEFAULT_CAPTURE_CONTROL = DebugTraceControl.builder()
+            .id("dtc_default_all")
+            .createdByUserId("system")
+            .enabled(true)
+            .build();
 
     private final IAgentDebugTraceStore debugTraceStore;
     private final AdminAuditLogService auditLogService;
     private final Clock clock;
     private final AgentTelemetryMetrics metrics;
+    private final boolean captureAllByDefault;
 
     @Autowired
     public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
                                   AdminAuditLogService auditLogService,
-                                  AgentTelemetryMetrics metrics) {
-        this(debugTraceStore, auditLogService, Clock.systemUTC(), metrics);
+                                  AgentTelemetryMetrics metrics,
+                                  @Value("${zipp.telemetry.debug-payload-capture-enabled:true}")
+                                  boolean captureAllByDefault) {
+        this(debugTraceStore, auditLogService, Clock.systemUTC(), metrics, captureAllByDefault);
     }
 
     public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
                                   AdminAuditLogService auditLogService) {
-        this(debugTraceStore, auditLogService, Clock.systemUTC(), AgentTelemetryMetrics.noop());
+        this(debugTraceStore, auditLogService, Clock.systemUTC(), AgentTelemetryMetrics.noop(), true);
     }
 
     public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
                                   AdminAuditLogService auditLogService,
                                   Clock clock) {
-        this(debugTraceStore, auditLogService, clock, AgentTelemetryMetrics.noop());
+        this(debugTraceStore, auditLogService, clock, AgentTelemetryMetrics.noop(), true);
     }
 
     public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
                                   AdminAuditLogService auditLogService,
                                   Clock clock,
                                   AgentTelemetryMetrics metrics) {
+        this(debugTraceStore, auditLogService, clock, metrics, true);
+    }
+
+    public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
+                                  AdminAuditLogService auditLogService,
+                                  Clock clock,
+                                  AgentTelemetryMetrics metrics,
+                                  boolean captureAllByDefault) {
         this.debugTraceStore = debugTraceStore;
         this.auditLogService = auditLogService;
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.metrics = metrics == null ? AgentTelemetryMetrics.noop() : metrics;
+        this.captureAllByDefault = captureAllByDefault;
     }
 
     public DebugTraceControl enableControl(String actorUserId,
@@ -241,12 +259,16 @@ public class AgentDebugTraceService {
 
     private Optional<DebugTraceControl> activeControl(String userId, String runId, Instant capturedAt) {
         List<DebugTraceControl> controls = debugTraceStore.listEnabledControls();
-        if (controls == null || controls.isEmpty()) {
-            return Optional.empty();
+        Optional<DebugTraceControl> scopedControl = controls == null
+                ? Optional.empty()
+                : controls.stream()
+                        .filter(control -> matches(control, userId, runId, capturedAt))
+                        .findFirst();
+        if (scopedControl.isPresent() || !captureAllByDefault) {
+            return scopedControl;
         }
-        return controls.stream()
-                .filter(control -> matches(control, userId, runId, capturedAt))
-                .findFirst();
+        // The built-in control keeps persisted captures attributable without requiring a database seed row.
+        return Optional.of(DEFAULT_CAPTURE_CONTROL);
     }
 
     private boolean matches(DebugTraceControl control, String userId, String runId, Instant capturedAt) {

@@ -1,7 +1,9 @@
 package org.zipp.ai.trigger.http.service;
 
+import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
@@ -12,6 +14,8 @@ import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationCommand;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationDecision;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationPurpose;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationStatus;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
@@ -20,10 +24,29 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResu
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
+import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.domain.citation.model.valobj.CitationBinding;
+import org.zipp.ai.domain.citation.model.valobj.StatementKind;
+import org.zipp.ai.domain.citation.model.valobj.SupportAtom;
+import org.zipp.ai.domain.citation.model.valobj.SupportAtomRole;
+import org.zipp.ai.domain.citation.model.valobj.SupportType;
+import org.zipp.ai.domain.citation.answer.AnswerClaim;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerResult;
+import org.zipp.ai.domain.grounding.CanvasCommitCommand;
+import org.zipp.ai.domain.grounding.CanvasCommitModule;
+import org.zipp.ai.domain.grounding.CanvasCommitResult;
+import org.zipp.ai.domain.grounding.EvidenceAccessContext;
+import org.zipp.ai.domain.retrieval.RunResourceDomain;
+import org.zipp.ai.api.dto.ChatResponseDTO;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -37,6 +60,10 @@ public class DrawioStreamResponseWriter {
     private CanvasMutationGate canvasMutationGate;
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
+    @Resource
+    private AgentDebugTraceService agentDebugTraceService;
+    @Autowired(required = false)
+    private CanvasCommitModule canvasCommitModule;
     private final ConcurrentMap<String, StringBuilder> fallbackContinuationBuffers = new ConcurrentHashMap<>();
     // Invalid diagrams are held here so the review loop can repair them before final canvas emission.
     private final ConcurrentMap<ResponseBodyEmitter, PendingDiagram> pendingDiagrams = new ConcurrentHashMap<>();
@@ -47,6 +74,14 @@ public class DrawioStreamResponseWriter {
     // accumulated before the one final persistence operation.
     private final ConcurrentMap<ResponseBodyEmitter, String> baselineCanvasByEmitter = new ConcurrentHashMap<>();
     private final ConcurrentMap<ResponseBodyEmitter, CanvasStateContext> canvasStateContextByEmitter = new ConcurrentHashMap<>();
+    // Evidence and model-proposed bindings are request-local; only the server-side commit module can
+    // translate citation keys into durable evidence identities.
+    private final ConcurrentMap<ResponseBodyEmitter, EvidenceCommitContext> evidenceContextByEmitter = new ConcurrentHashMap<>();
+    private final ConcurrentMap<ResponseBodyEmitter, List<CitationBinding>> citationBindingsByEmitter = new ConcurrentHashMap<>();
+    // Composite runs seed immutable direct-image bindings before the model adds retrieval-backed cells.
+    private final ConcurrentMap<ResponseBodyEmitter, List<CitationBinding>> fixedCitationBindingsByEmitter = new ConcurrentHashMap<>();
+    private final ConcurrentMap<ResponseBodyEmitter, Set<String>> immutableCellIdsByEmitter = new ConcurrentHashMap<>();
+    private final Set<ResponseBodyEmitter> invalidCitationManifestEmitters = ConcurrentHashMap.newKeySet();
     // Last localized merge emitted per stream; multiple author buffers can carry the same patch, so skip
     // re-rendering an identical result.
     private final ConcurrentMap<ResponseBodyEmitter, String> lastPatchByEmitter = new ConcurrentHashMap<>();
@@ -71,6 +106,119 @@ public class DrawioStreamResponseWriter {
         chunk.put("runId", runId);
         envelope.put("chunk", chunk);
         emitter.send(envelope.toJSONString() + "\n");
+    }
+
+    public void sendEvidenceProgress(ResponseBodyEmitter emitter, String stage, int completed, int total)
+            throws Exception {
+        com.alibaba.fastjson.JSONObject envelope = new com.alibaba.fastjson.JSONObject();
+        envelope.put("phase", "retrieval");
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "evidence_progress");
+        chunk.put("stage", StringUtils.defaultString(stage));
+        chunk.put("completed", Math.max(0, completed));
+        chunk.put("total", Math.max(0, total));
+        envelope.put("chunk", chunk);
+        emitter.send(envelope.toJSONString() + "\n");
+    }
+
+    /** Sends a terminal evidence-path event without reusing the clarification-oriented user chunk. */
+    public void sendEvidenceOutcome(ResponseBodyEmitter emitter, String eventType, String content) throws Exception {
+        sendEvidenceOutcome(emitter, eventType, eventType, content);
+    }
+
+    /** Keeps the compatible terminal event while preserving the domain outcome for typed clients. */
+    public void sendEvidenceOutcome(ResponseBodyEmitter emitter, String eventType,
+                                    String outcomeType, String content) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", StringUtils.defaultString(eventType, "degraded"));
+        chunk.put("outcomeType", StringUtils.defaultString(outcomeType, eventType));
+        chunk.put("content", StringUtils.defaultString(content));
+        sendWrappedChunk(emitter, "retrieval", chunk);
+        sendDone(emitter);
+        emitter.complete();
+    }
+
+    /** Sends bounded reason codes so the client can collect explicit image clarifications. */
+    public void sendDirectConfirmation(ResponseBodyEmitter emitter, String content,
+                                       java.util.List<String> reasons) throws Exception {
+        sendDirectConfirmation(emitter, content, "", reasons, java.util.Map.of());
+    }
+
+    /** Binds the choices to one exact source version and exposes only bounded observed values. */
+    public void sendDirectConfirmation(ResponseBodyEmitter emitter, String content,
+                                       String sourceVersionId,
+                                       java.util.List<String> reasons,
+                                       java.util.Map<String, String> observedValues) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "direct_confirmation_required");
+        chunk.put("content", StringUtils.defaultString(content));
+        java.util.List<String> safeReasons = reasons == null ? java.util.List.of() : reasons.stream()
+                .filter(StringUtils::isNotBlank).limit(5).toList();
+        chunk.put("reasons", safeReasons);
+        chunk.put("sourceVersionId", StringUtils.defaultString(sourceVersionId));
+        com.alibaba.fastjson.JSONArray issues = new com.alibaba.fastjson.JSONArray();
+        for (String reason : safeReasons) {
+            com.alibaba.fastjson.JSONObject issue = new com.alibaba.fastjson.JSONObject();
+            issue.put("reasonCode", reason);
+            String observed = observedValues == null ? "" :
+                    StringUtils.abbreviate(StringUtils.defaultString(observedValues.get(reason)), 200);
+            issue.put("observedValue", observed);
+            String completeObserved = observedValues == null ? ""
+                    : StringUtils.defaultString(observedValues.get(reason));
+            issue.put("observedFingerprint",
+                    org.zipp.ai.domain.multimodal.DirectObservationFingerprint.of(completeObserved));
+            issues.add(issue);
+        }
+        chunk.put("issues", issues);
+        sendWrappedChunk(emitter, "drawing", chunk);
+        sendDone(emitter);
+        emitter.complete();
+    }
+
+    /** Terminal evidence answer event is emitted only after message and claim citations commit. */
+    public void sendEvidenceAnswer(ResponseBodyEmitter emitter, EvidenceAnswerResult result) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "evidence_answer");
+        chunk.put("messageId", result.messageId());
+        chunk.put("content", result.content());
+        com.alibaba.fastjson.JSONArray claims = new com.alibaba.fastjson.JSONArray();
+        for (AnswerClaim claim : result.claims()) {
+            com.alibaba.fastjson.JSONObject value = new com.alibaba.fastjson.JSONObject();
+            value.put("claimKey", claim.claimKey());
+            value.put("statementText", claim.statementText());
+            value.put("citationKeys", claim.citationKeys());
+            value.put("supportType", claim.supportType().name());
+            claims.add(value);
+        }
+        chunk.put("claims", claims);
+        com.alibaba.fastjson.JSONArray sources = new com.alibaba.fastjson.JSONArray();
+        for (org.zipp.ai.domain.retrieval.EvidenceBundleItem item : result.sources()) {
+            com.alibaba.fastjson.JSONObject value = new com.alibaba.fastjson.JSONObject();
+            value.put("citationKey", item.citationKey());
+            value.put("sourceLabel", item.sourceLabel());
+            value.put("pageNumber", item.pageNumber());
+            value.put("modality", item.modality());
+            value.put("origin", item.origin().name());
+            sources.add(value);
+        }
+        chunk.put("sources", sources);
+        chunk.put("coverage", result.gaps().isEmpty() && result.conflicts().isEmpty() ? "FULL" : "PARTIAL");
+        sendWrappedChunk(emitter, "answer", chunk);
+        sendDone(emitter);
+        emitter.complete();
+    }
+
+    /** Target candidates include the authoritative canvas tuple required by highlight actions. */
+    public void sendTargetClarification(ResponseBodyEmitter emitter, ChatResponseDTO response) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "target_clarification");
+        chunk.put("content", StringUtils.defaultString(response.getContent()));
+        chunk.put("candidates", response.getTargetCandidates());
+        chunk.put("canvasVersion", response.getCanvasVersion());
+        chunk.put("contentHash", response.getContentHash());
+        sendWrappedChunk(emitter, "retrieval", chunk);
+        sendDone(emitter);
+        emitter.complete();
     }
 
     public void sendVisualReviewStarted(ResponseBodyEmitter emitter, String stage, String sourceRunId) throws Exception {
@@ -136,7 +284,7 @@ public class DrawioStreamResponseWriter {
      * Send the selected intent route before visible agent work so clients can describe the right process.
      */
     public void sendRoute(ResponseBodyEmitter emitter, String routeType,
-                          String diagramType, String skillName) throws Exception {
+                          String diagramType, String skillName, String sourceUse) throws Exception {
         com.alibaba.fastjson.JSONObject envelope = new com.alibaba.fastjson.JSONObject();
         envelope.put("phase", "thinking");
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
@@ -144,6 +292,7 @@ public class DrawioStreamResponseWriter {
         chunk.put("routeType", StringUtils.defaultString(routeType));
         chunk.put("diagramType", StringUtils.defaultString(diagramType));
         chunk.put("skillName", StringUtils.defaultString(skillName));
+        chunk.put("sourceUse", StringUtils.defaultString(sourceUse));
         envelope.put("chunk", chunk);
         emitter.send(envelope.toJSONString() + "\n");
     }
@@ -207,6 +356,7 @@ public class DrawioStreamResponseWriter {
      * handled and the stream should continue.
      */
     private Boolean dispatchTypedJson(ResponseBodyEmitter emitter, String phase, com.alibaba.fastjson.JSONObject json) throws Exception {
+        rememberCitationBindings(emitter, json);
         String type = json.getString("type");
         if (DrawioCanvasToolNames.CONTINUE_DIAGRAM.equals(type) && json.containsKey("xmlFragment")) {
             sendFallbackContinuation(emitter, phase, json);
@@ -356,6 +506,20 @@ public class DrawioStreamResponseWriter {
         sendDrawioDone(emitter, phase, xml, true, null);
     }
 
+    /** Emits a canvas already committed by an application module without running mutation gates twice. */
+    public void sendPersistedDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
+                                        CanvasStateSaveResult saveResult) throws Exception {
+        com.alibaba.fastjson.JSONObject wrapper = new com.alibaba.fastjson.JSONObject();
+        wrapper.put("phase", StringUtils.defaultIfBlank(phase, "drawing"));
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "drawio_done");
+        chunk.put("content", StringUtils.defaultString(xml));
+        chunk.put("mode", "full");
+        appendCanvasStateMetadata(chunk, saveResult, canvasStateContextByEmitter.get(emitter));
+        wrapper.put("chunk", chunk);
+        emitter.send(wrapper.toJSONString() + "\n");
+    }
+
     public void sendDrawioStream(ResponseBodyEmitter emitter, String phase, String xml) throws Exception {
         com.alibaba.fastjson.JSONObject toolCall = new com.alibaba.fastjson.JSONObject();
         toolCall.put("type", DrawioCanvasToolNames.CREATE_DIAGRAM);
@@ -384,6 +548,111 @@ public class DrawioStreamResponseWriter {
         baselineCanvasByEmitter.remove(emitter);
         lastPatchByEmitter.remove(emitter);
         canvasStateContextByEmitter.remove(emitter);
+        evidenceContextByEmitter.remove(emitter);
+        citationBindingsByEmitter.remove(emitter);
+        fixedCitationBindingsByEmitter.remove(emitter);
+        immutableCellIdsByEmitter.remove(emitter);
+        invalidCitationManifestEmitters.remove(emitter);
+    }
+
+    public void setEvidenceContext(ResponseBodyEmitter emitter,
+                                   EvidenceAccessContext evidenceAccess,
+                                   RunResourceDomain resources,
+                                   boolean strict,
+                                   String requestId,
+                                   String runId) {
+        if (emitter == null || evidenceAccess == null || resources == null
+                || StringUtils.isBlank(requestId) || StringUtils.isBlank(runId)) {
+            return;
+        }
+        evidenceContextByEmitter.put(emitter,
+                new EvidenceCommitContext(evidenceAccess, resources, strict, requestId, runId));
+    }
+
+    /** Installs server-authored direct-image bindings that the model is not allowed to replace. */
+    public void setDirectCompositionContext(ResponseBodyEmitter emitter,
+                                            List<CitationBinding> directBindings,
+                                            Set<String> immutableCellIds) {
+        if (emitter == null) return;
+        List<CitationBinding> fixed = List.copyOf(directBindings == null ? List.of() : directBindings);
+        Set<String> immutable = Set.copyOf(immutableCellIds == null ? Set.of() : immutableCellIds);
+        Set<String> boundCells = fixed.stream().map(CitationBinding::cellId)
+                .collect(java.util.stream.Collectors.toSet());
+        if (fixed.isEmpty() || !boundCells.equals(immutable)) {
+            invalidCitationManifestEmitters.add(emitter);
+            return;
+        }
+        fixedCitationBindingsByEmitter.put(emitter, fixed);
+        immutableCellIdsByEmitter.put(emitter, immutable);
+        citationBindingsByEmitter.put(emitter, fixed);
+    }
+
+    /** Captures only the current mutation candidate's manifest; malformed manifests fail closed later. */
+    public void rememberCitationBindings(ResponseBodyEmitter emitter, com.alibaba.fastjson.JSONObject candidate) {
+        if (emitter == null || candidate == null || !candidate.containsKey("citationBindings")) {
+            return;
+        }
+        try {
+            com.alibaba.fastjson.JSONArray values = candidate.getJSONArray("citationBindings");
+            if (values == null) {
+                invalidCitationManifestEmitters.add(emitter);
+                return;
+            }
+            java.util.ArrayList<CitationBinding> bindings = new java.util.ArrayList<>();
+            for (int index = 0; index < values.size(); index++) {
+                com.alibaba.fastjson.JSONObject value = values.getJSONObject(index);
+                java.util.ArrayList<SupportAtom> atoms = new java.util.ArrayList<>();
+                com.alibaba.fastjson.JSONArray atomValues = value.getJSONArray("supportAtoms");
+                if (atomValues != null) {
+                    for (int atomIndex = 0; atomIndex < atomValues.size(); atomIndex++) {
+                        com.alibaba.fastjson.JSONObject atom = atomValues.getJSONObject(atomIndex);
+                        atoms.add(new SupportAtom(atom.getString("atomKey"), atom.getString("citationKey"),
+                                atom.getString("anchorText"), enumValue(SupportAtomRole.class, atom.getString("role"))));
+                    }
+                }
+                bindings.add(new CitationBinding(
+                        value.getString("cellId"), value.getString("statementKey"),
+                        enumValue(StatementKind.class, value.getString("statementKind")),
+                        value.getString("statementText"), value.getString("sourceCellId"),
+                        value.getString("targetCellId"), stringList(value.getJSONArray("citationKeys")),
+                        atoms, enumValue(SupportType.class, value.getString("supportType"))));
+            }
+            Set<String> immutable = immutableCellIdsByEmitter.getOrDefault(emitter, Set.of());
+            if (bindings.stream().anyMatch(binding -> immutable.contains(binding.cellId()))) {
+                throw new IllegalArgumentException("model manifest rewrites an immutable direct cell");
+            }
+            Set<String> directCitationKeys = fixedCitationBindingsByEmitter
+                    .getOrDefault(emitter, List.of()).stream()
+                    .flatMap(binding -> binding.citationKeys().stream())
+                    .collect(java.util.stream.Collectors.toSet());
+            if (bindings.stream().flatMap(binding -> binding.citationKeys().stream())
+                    .anyMatch(directCitationKeys::contains)) {
+                throw new IllegalArgumentException("supplemental cells cite direct-image evidence");
+            }
+            java.util.ArrayList<CitationBinding> combined = new java.util.ArrayList<>(
+                    fixedCitationBindingsByEmitter.getOrDefault(emitter, List.of()));
+            combined.addAll(bindings);
+            Set<String> cellIds = new java.util.HashSet<>();
+            Set<String> statementKeys = new java.util.HashSet<>();
+            if (combined.stream().anyMatch(binding -> !cellIds.add(binding.cellId())
+                    || !statementKeys.add(binding.statementKey()))) {
+                throw new IllegalArgumentException("duplicate composite citation binding");
+            }
+            citationBindingsByEmitter.put(emitter, List.copyOf(combined));
+            invalidCitationManifestEmitters.remove(emitter);
+        } catch (RuntimeException malformed) {
+            // Malformed and legitimately absent manifests are distinct; malformed always fails closed.
+            invalidCitationManifestEmitters.add(emitter);
+            citationBindingsByEmitter.remove(emitter);
+        }
+    }
+
+    private <T extends Enum<T>> T enumValue(Class<T> type, String value) {
+        return Enum.valueOf(type, StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT));
+    }
+
+    private List<String> stringList(com.alibaba.fastjson.JSONArray values) {
+        return values == null ? List.of() : values.toJavaList(String.class);
     }
 
     public void setCurrentCanvas(ResponseBodyEmitter emitter, String canvasXml) {
@@ -456,9 +725,13 @@ public class DrawioStreamResponseWriter {
         if (emitter == null || StringUtils.isBlank(userId) || StringUtils.isBlank(diagramId)) {
             return;
         }
+        AgentUsageTelemetryContext.RunContext traceContext = AgentUsageTelemetryContext.current()
+                .map(context -> StringUtils.isBlank(spanId) ? context : context.withSpan(spanId))
+                .orElse(null);
         canvasStateContextByEmitter.put(emitter, new CanvasStateContext(
                 userId, diagramId, expectedVersion, expectedContentHash,
-                DiagramType.from(diagramType), purpose, authorization, visualRepairRound, runId, spanId));
+                DiagramType.from(diagramType), purpose, authorization, visualRepairRound,
+                runId, spanId, traceContext));
     }
 
     private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
@@ -484,7 +757,7 @@ public class DrawioStreamResponseWriter {
             CanvasStateContext context = canvasStateContextByEmitter.get(emitter);
             if (context != null) {
                 String beforeXml = baselineCanvasByEmitter.get(emitter);
-                CanvasMutationDecision decision = canvasMutationGate.evaluate(new CanvasMutationCommand(
+                CanvasMutationCommand mutationCommand = new CanvasMutationCommand(
                         context.purpose() != null
                                 ? context.purpose()
                                 : (StringUtils.isBlank(beforeXml)
@@ -499,33 +772,61 @@ public class DrawioStreamResponseWriter {
                         context.userId(),
                         context.diagramId(),
                         context.expectedVersion(),
-                        context.expectedContentHash()));
-                CanvasState savedState = decision.saveResult() == null ? null : decision.saveResult().getState();
-                // One line per final candidate is enough to reconstruct save, reject, and stale outcomes.
-                log.info("[canvas-mutation] event=evaluated runId={} spanId={} purpose={} diagramId={} expectedVersion={} status={} reason={} changedCells={} savedVersion={} savedHash={}",
-                        logValue(context.runId()), logValue(context.spanId()), context.purpose(), logValue(context.diagramId()),
-                        context.expectedVersion(), decision.status(), decision.rejectionReason(),
-                        decision.changedCellIds().size(), savedState == null ? null : savedState.getVersion(),
-                        savedState == null ? "" : savedState.getContentHash());
-                if (agentUsageTelemetryService != null) {
-                    agentUsageTelemetryService.recordCanvasMutation(
-                            context.purpose() == null ? "UNKNOWN" : context.purpose().name(),
-                            decision.status().name(),
-                            decision.rejectionReason() == null ? "NONE" : decision.rejectionReason().name(),
-                            context.visualRepairRound() == null ? 0 : context.visualRepairRound());
+                        context.expectedContentHash());
+                EvidenceCommitContext evidence = evidenceContextByEmitter.get(emitter);
+                if (evidence != null) {
+                    if (canvasCommitModule == null) {
+                        sendGroundingRejected(emitter, phase, List.of("GROUNDED_COMMIT_UNAVAILABLE"));
+                        return;
+                    }
+                    CanvasCommitResult grounded = canvasCommitModule.commit(new CanvasCommitCommand(
+                            mutationCommand, evidence.requestId(), evidence.runId(), evidence.evidenceAccess(),
+                            citationBindingsByEmitter.getOrDefault(emitter, List.of()),
+                            !invalidCitationManifestEmitters.contains(emitter), evidence.strict(),
+                            immutableCellIdsByEmitter.getOrDefault(emitter, Set.of())),
+                            evidence.resources());
+                    if (!grounded.committed()) {
+                        sendGroundingRejected(emitter, phase, grounded.errors());
+                        return;
+                    }
+                    xml = grounded.canvasXml();
+                    saveResult = grounded.saveResult();
+                    CanvasState savedState = saveResult == null ? null : saveResult.getState();
+                    log.info("[grounded-canvas-commit] event=committed runId={} diagramId={} savedVersion={} bindings={}",
+                            logValue(evidence.runId()), logValue(context.diagramId()),
+                            savedState == null ? null : savedState.getVersion(),
+                            citationBindingsByEmitter.getOrDefault(emitter, List.of()).size());
+                    recordDiagramSnapshot(context, saveResult, null);
+                } else {
+                    CanvasMutationDecision decision = canvasMutationGate.evaluate(mutationCommand);
+                    CanvasState savedState = decision.saveResult() == null ? null : decision.saveResult().getState();
+                    // One line per final candidate is enough to reconstruct save, reject, and stale outcomes.
+                    log.info("[canvas-mutation] event=evaluated runId={} spanId={} purpose={} diagramId={} expectedVersion={} status={} reason={} changedCells={} savedVersion={} savedHash={}",
+                            logValue(context.runId()), logValue(context.spanId()), context.purpose(), logValue(context.diagramId()),
+                            context.expectedVersion(), decision.status(), decision.rejectionReason(),
+                            decision.changedCellIds().size(), savedState == null ? null : savedState.getVersion(),
+                            savedState == null ? "" : savedState.getContentHash());
+                    recordMutationTrace(context, decision, savedState);
+                    if (agentUsageTelemetryService != null) {
+                        agentUsageTelemetryService.recordCanvasMutation(
+                                context.purpose() == null ? "UNKNOWN" : context.purpose().name(),
+                                decision.status().name(),
+                                decision.rejectionReason() == null ? "NONE" : decision.rejectionReason().name(),
+                                context.visualRepairRound() == null ? 0 : context.visualRepairRound());
+                    }
+                    if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
+                        sendVersionConflict(emitter, phase, context, decision.currentState());
+                        return;
+                    }
+                    if (decision.status() != CanvasMutationStatus.ACCEPTED
+                            && decision.status() != CanvasMutationStatus.ACCEPTED_WITH_NOTES) {
+                        sendMutationRejected(emitter, phase, context, decision);
+                        return;
+                    }
+                    xml = decision.resultingXml();
+                    saveResult = decision.saveResult();
+                    recordDiagramSnapshot(context, saveResult, decision.changedCellIds().size());
                 }
-                if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
-                    sendVersionConflict(emitter, phase, context, decision.currentState());
-                    return;
-                }
-                if (decision.status() != CanvasMutationStatus.ACCEPTED
-                        && decision.status() != CanvasMutationStatus.ACCEPTED_WITH_NOTES) {
-                    sendMutationRejected(emitter, phase, context, decision);
-                    return;
-                }
-                xml = decision.resultingXml();
-                saveResult = decision.saveResult();
-                recordDiagramSnapshot(context, saveResult, decision.changedCellIds().size());
             }
             currentCanvasByEmitter.put(emitter, xml);
         }
@@ -541,6 +842,14 @@ public class DrawioStreamResponseWriter {
         emitter.send(wrapper.toJSONString() + "\n");
     }
 
+    private void sendGroundingRejected(ResponseBodyEmitter emitter, String phase, List<String> errors) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "grounding_rejected");
+        chunk.put("code", errors == null || errors.isEmpty() ? "GROUNDING_REJECTED" : errors.get(0));
+        chunk.put("content", "证据引用校验未通过，画布未被修改。 / Evidence validation failed; the canvas was not modified.");
+        sendWrappedChunk(emitter, phase, chunk);
+    }
+
     private void recordDiagramSnapshot(CanvasStateContext context,
                                        CanvasStateSaveResult result,
                                        Integer changedCellCount) {
@@ -551,6 +860,49 @@ public class DrawioStreamResponseWriter {
         String summary = result.getStatus() == null ? null : result.getStatus().name();
         agentUsageTelemetryService.recordDiagramSnapshot(
                 context.runId(), context.spanId(), saved, summary, changedCellCount);
+    }
+
+    private void recordMutationTrace(CanvasStateContext context,
+                                     CanvasMutationDecision decision,
+                                     CanvasState savedState) {
+        if (agentUsageTelemetryService == null || context == null || context.traceContext() == null
+                || decision == null) {
+            return;
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("purpose", context.purpose() == null ? "UNKNOWN" : context.purpose().name());
+        metadata.put("diagramId", context.diagramId());
+        metadata.put("visualRepairRound", context.visualRepairRound() == null ? 0 : context.visualRepairRound());
+        metadata.put("expectedVersion", context.expectedVersion());
+        metadata.put("status", decision.status().name());
+        metadata.put("reason", decision.rejectionReason() == null
+                ? "NONE" : decision.rejectionReason().name());
+        metadata.put("changedCellCount", decision.changedCellIds().size());
+        metadata.put("savedVersion", savedState == null ? null : savedState.getVersion());
+        metadata.put("savedCanvasHash", savedState == null
+                ? "" : StringUtils.defaultString(savedState.getContentHash()));
+        boolean accepted = decision.status() == CanvasMutationStatus.ACCEPTED
+                || decision.status() == CanvasMutationStatus.ACCEPTED_WITH_NOTES;
+        AgentTraceEvent event = agentUsageTelemetryService.recordTraceEvent(
+                context.traceContext(), "CANVAS_MUTATION_EVALUATED", "mutation_gate",
+                accepted ? "SUCCESS" : "FAILED", metadata);
+        if (agentDebugTraceService == null || event == null) {
+            return;
+        }
+        try {
+            // Use the Trace Event id so the inspector can load this gate decision directly.
+            agentDebugTraceService.captureSpanPayload(
+                    context.traceContext().userId(), context.traceContext().runId(), event.getId(),
+                    DebugTracePayloadKind.OUTPUT, "application/json",
+                    JSON.toJSONString(Map.of(
+                            "eventType", event.getEventType(),
+                            "phase", event.getPhase(),
+                            "status", event.getStatus(),
+                            "metadataJson", event.getMetadataJson())));
+        } catch (Exception e) {
+            log.warn("[canvas-mutation] event=trace_payload_failed runId={} traceEventId={} errorClass={}",
+                    logValue(context.runId()), logValue(event.getId()), e.getClass().getSimpleName());
+        }
     }
 
     private void appendCanvasStateMetadata(com.alibaba.fastjson.JSONObject chunk,
@@ -661,6 +1013,7 @@ public class DrawioStreamResponseWriter {
         if (!toolCallRenderer.supports(type)) {
             return false;
         }
+        rememberCitationBindings(emitter, toolCall);
 
         List<com.alibaba.fastjson.JSONObject> chunks = toolCallRenderer.render(toolCall);
         if (chunks.isEmpty()) {
@@ -1046,7 +1399,15 @@ public class DrawioStreamResponseWriter {
                                       CanvasMutationAuthorization authorization,
                                       Integer visualRepairRound,
                                       String runId,
-                                      String spanId) {
+                                      String spanId,
+                                      AgentUsageTelemetryContext.RunContext traceContext) {
+    }
+
+    private record EvidenceCommitContext(EvidenceAccessContext evidenceAccess,
+                                         RunResourceDomain resources,
+                                         boolean strict,
+                                         String requestId,
+                                         String runId) {
     }
 
 }

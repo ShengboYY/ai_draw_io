@@ -1,0 +1,1 @@
+{"schemaVersion":"material-rag-validation-output-adjudication-v1","reviewers":["product-owner","alice-qa"],"formalRunCommit":"c98260e2","strictCompletion":"10/12","practicalAcceptability":"12/12","adjudicatedTaskIds":["stgb-val-03","stgb-val-04"],"decision":"Both reviewers accept the two outputs; no disagreement. Strict pre-run evaluator result remains unchanged."}

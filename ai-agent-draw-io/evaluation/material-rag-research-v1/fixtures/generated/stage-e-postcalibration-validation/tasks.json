@@ -1,0 +1,524 @@
+{
+  "schemaVersion": "material-rag-stage-e-postcalibration-validation-tasks-v1",
+  "purpose": "New local validation inputs created after Stage D calibration; unseen by the generation model and not an independent external holdout.",
+  "tasks": [
+    {
+      "taskId": "stge-val-01",
+      "split": "validation",
+      "sourceVersion": "pe-release-governance:v1",
+      "selectedMaterialVersion": "pe-release-governance:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Create an editable governed release flow.",
+      "requiredAnchors": [
+        "rg-route",
+        "rg-owner"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Release Coordinator",
+          "Signed Build",
+          "Change Approval",
+          "Authorized Deployment",
+          "Platform Operations"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "rg-route",
+          "rg-owner"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "rg-route",
+            "description": "Release Coordinator sends a Signed Build to Change Approval before Authorized Deployment.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "rg-owner",
+            "description": "Authorized Deployment is owned by Platform Operations.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stge-val-02",
+      "split": "validation",
+      "sourceVersion": "pe-evidence-retention:v1",
+      "selectedMaterialVersion": "pe-evidence-retention:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Draw the approved evidence retention lifecycle.",
+      "requiredAnchors": [
+        "er-retain",
+        "er-dispose"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Case Archive",
+          "90 days",
+          "Review Archive",
+          "Certified Disposal"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "er-retain",
+          "er-dispose"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "er-retain",
+            "description": "Case Archive retains closed evidence for 90 days before Review Archive.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "er-dispose",
+            "description": "Review Archive sends expired evidence to Certified Disposal.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stge-val-03",
+      "split": "validation",
+      "sourceVersion": "pe-customer-change:v1",
+      "selectedMaterialVersion": "pe-customer-change:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Create a customer-impact change approval diagram.",
+      "requiredAnchors": [
+        "cc-impact",
+        "cc-approval"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Change Request",
+          "Impact Review",
+          "Change Authority",
+          "Customer Notice"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "cc-impact",
+          "cc-approval"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "cc-impact",
+            "description": "Change Request is assessed by Impact Review before Customer Notice.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "cc-approval",
+            "description": "Customer Notice may be issued only after Change Authority approval.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stge-val-04",
+      "split": "validation",
+      "sourceVersion": "pe-oncall-handoff-edit:v1",
+      "selectedMaterialVersion": "pe-oncall-handoff-edit:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "structural_edit",
+      "request": "Update the selected on-call handoff subgraph from the approved material.",
+      "requiredAnchors": [
+        "oh-handoff",
+        "oh-note"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Primary Responder",
+          "Secondary Responder",
+          "handoff note"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "oh-handoff",
+          "oh-note"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "oh-handoff",
+            "description": "Primary Responder hands an acknowledged incident to the Secondary Responder.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "oh-note",
+            "description": "Secondary Responder records the handoff note before shift close.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected' value='Selected step' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stge-val-05",
+      "split": "validation",
+      "sourceVersion": "pe-billing-exception-edit:v1",
+      "selectedMaterialVersion": "pe-billing-exception-edit:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "structural_edit",
+      "request": "Edit the selected billing-exception branch using the selected source.",
+      "requiredAnchors": [
+        "be-route",
+        "be-owner"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Billing Exception",
+          "Revenue Review",
+          "Account Correction",
+          "Revenue Operations"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "be-route",
+          "be-owner"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "be-route",
+            "description": "Billing Exception goes to Revenue Review before Account Correction.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "be-owner",
+            "description": "Account Correction is owned by Revenue Operations.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected' value='Selected step' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stge-val-06",
+      "split": "validation",
+      "sourceVersion": "pe-layout-roles:v1",
+      "selectedMaterialVersion": "pe-layout-roles:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "layout_only_edit",
+      "request": "Separate the existing process roles for readability without changing their content or style.",
+      "requiredAnchors": [
+        "lr-roles"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Submitter",
+          "Approver",
+          "Observer"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "lr-roles"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "lr-roles",
+            "description": "Submitter, Approver and Observer are the existing process roles.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Submitter' vertex='1' parent='1'><mxGeometry x='45' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Approver' vertex='1' parent='1'><mxGeometry x='90' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Observer' vertex='1' parent='1'><mxGeometry x='135' y='45' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>",
+      "editAssertions": {
+        "geometryOnly": true
+      }
+    },
+    {
+      "taskId": "stge-val-07",
+      "split": "validation",
+      "sourceVersion": "pe-layout-states:v1",
+      "selectedMaterialVersion": "pe-layout-states:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "layout_only_edit",
+      "request": "Improve spacing of the existing states without changing their content or style.",
+      "requiredAnchors": [
+        "ls-states"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Pending",
+          "Validated",
+          "Archived"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ls-states"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ls-states",
+            "description": "Pending, Validated, and Archived are the existing lifecycle states.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Pending' vertex='1' parent='1'><mxGeometry x='45' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Validated' vertex='1' parent='1'><mxGeometry x='90' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Archived' vertex='1' parent='1'><mxGeometry x='135' y='45' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>",
+      "editAssertions": {
+        "geometryOnly": true
+      }
+    },
+    {
+      "taskId": "stge-val-08",
+      "split": "validation",
+      "sourceVersion": "pe-catalog-approval:v4",
+      "selectedMaterialVersion": "pe-catalog-approval:v4",
+      "sourceScopeMode": "selected_only",
+      "type": "version_and_authorization_safe_edit",
+      "request": "Draw the selected, authorized catalog approval route.",
+      "requiredAnchors": [
+        "ca-v4",
+        "ca-scope"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Catalog Analyst",
+          "Version 4",
+          "Product Approver",
+          "Catalog Publish"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ca-v4",
+          "ca-scope"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ca-v4",
+            "description": "Catalog Analyst submits Version 4 to Product Approver before Catalog Publish.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ca-scope",
+            "description": "Only Version 4 is authorized for this edit.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stge-val-09",
+      "split": "validation",
+      "sourceVersion": "pe-retrieval-recovery:v1",
+      "selectedMaterialVersion": "pe-retrieval-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "failure_and_recovery",
+      "request": "Create the safe source-retrieval recovery diagram.",
+      "requiredAnchors": [
+        "rr-block",
+        "rr-resume"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Evidence Retrieval Unavailable",
+          "Manual Diagramming",
+          "Retry Retrieval",
+          "Evidence Retrieval restored"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "rr-block",
+          "rr-resume"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "rr-block",
+            "description": "When Evidence Retrieval is Unavailable, source-grounded generation is blocked while Manual Diagramming remains available.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "rr-resume",
+            "description": "Retry Retrieval may continue only after Evidence Retrieval is restored.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stge-val-10",
+      "split": "validation",
+      "sourceVersion": "pe-evidence-completeness-visual:v1",
+      "selectedMaterialVersion": "pe-evidence-completeness-visual:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "visual_or_ocr_to_editable_xml",
+      "request": "Reconstruct the selected evidence-completeness figure as editable draw.io XML.",
+      "requiredAnchors": [
+        "ec-flow"
+      ],
+      "xmlAssertions": {
+        "minVertices": 7,
+        "minEdges": 6,
+        "requiredLabels": [
+          "Field Request",
+          "Evidence Check",
+          "Evidence complete?",
+          "Approve Request",
+          "Issue Work Order",
+          "Request Missing Evidence",
+          "Await Resubmission",
+          "Yes",
+          "No"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ec-flow"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ec-flow",
+            "description": "Field Request goes to Evidence Check. If Evidence complete? is Yes, Approve Request then Issue Work Order. If No, Request Missing Evidence then Await Resubmission.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stge-val-11",
+      "split": "validation",
+      "sourceVersion": "pe-service-recovery-visual:v1",
+      "selectedMaterialVersion": "pe-service-recovery-visual:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "visual_or_ocr_to_editable_xml",
+      "request": "Convert the selected service-recovery figure into editable draw.io XML.",
+      "requiredAnchors": [
+        "sr-flow"
+      ],
+      "xmlAssertions": {
+        "minVertices": 7,
+        "minEdges": 6,
+        "requiredLabels": [
+          "Alert Received",
+          "Assess Service",
+          "Service restored?",
+          "Record Resolution",
+          "Start Recovery",
+          "Notify Incident Lead",
+          "Reassess Service",
+          "Yes",
+          "No"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "sr-flow"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "sr-flow",
+            "description": "Alert Received goes to Assess Service. If Service restored? is Yes, Record Resolution. If No, Start Recovery then Notify Incident Lead then Reassess Service.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stge-val-12",
+      "split": "validation",
+      "sourceVersion": "pe-save-recovery:v1",
+      "selectedMaterialVersion": "pe-save-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "failure_and_recovery",
+      "request": "Draw the safe diagram-save recovery path.",
+      "requiredAnchors": [
+        "ss-preserve",
+        "ss-escalate"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Diagram Save Failed",
+          "Retry Save",
+          "editable canvas",
+          "Storage Support"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ss-preserve",
+          "ss-escalate"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ss-preserve",
+            "description": "Diagram Save Failed preserves the editable canvas and offers Retry Save.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ss-escalate",
+            "description": "After a repeated save failure, the agent routes the case to Storage Support.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    }
+  ]
+}

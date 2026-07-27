@@ -20,6 +20,10 @@ public class DrawioRepairBriefTest {
                     + "<mxCell id='4' value='link' style='endArrow=classic;html=1;' edge='1' parent='1' source='2' target='3'>"
                     + "<mxGeometry relative='1' as='geometry'/></mxCell>";
 
+    private static final String DUPLICATE_ID_FRAGMENTS =
+            "<mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='40' y='40' width='160' height='60' as='geometry'/></mxCell>"
+                    + "<mxCell id='2' value='B' vertex='1' parent='1'><mxGeometry x='400' y='40' width='160' height='60' as='geometry'/></mxCell>";
+
     private static final String OVERLAPPING_FRAGMENTS =
             "<mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='40' y='40' width='160' height='60' as='geometry'/></mxCell>"
                     + "<mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='80' y='60' width='160' height='60' as='geometry'/></mxCell>";
@@ -41,15 +45,15 @@ public class DrawioRepairBriefTest {
     public void blockingIssuesGetNumberedRepairDirectives() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
-        request.setXml(OVERLAPPING_FRAGMENTS);
+        request.setXml(DUPLICATE_ID_FRAGMENTS);
 
         DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
 
         String brief = response.getRepairBrief();
         assertNotNull(brief);
         assertTrue(brief.contains("blocking issue(s) remain"));
-        assertTrue(brief.contains("1. [major]"));
-        assertTrue(brief.contains("move one of cells"));
+        assertTrue(brief.contains("1. [critical]"));
+        assertTrue(brief.contains("assign cell 2 a unique id"));
         assertTrue(brief.contains("modify_diagram"));
         assertTrue(brief.contains("never redraw"));
         assertFalse(brief.contains("create_diagram"));
@@ -69,7 +73,7 @@ public class DrawioRepairBriefTest {
     }
 
     @Test
-    public void patchWithBaseCanvasAnalyzesTheMergedResult() {
+    public void patchWithBaseCanvasKeepsVisualIssuesOutOfDeterministicRepair() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
         request.setMode("patch");
@@ -77,12 +81,15 @@ public class DrawioRepairBriefTest {
                 + "<mxCell id=\"2\" value=\"A\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"40\" y=\"40\" width=\"160\" height=\"60\" as=\"geometry\"/></mxCell>"
                 + "<mxCell id=\"3\" value=\"B\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"400\" y=\"40\" width=\"160\" height=\"60\" as=\"geometry\"/></mxCell>"
                 + "</root></mxGraphModel>");
-        // The patch moves B onto A, so the merged canvas has a blocking overlap.
+        // Visual overlap remains analysis evidence; only structural failures trigger self-repair.
         request.setCells("<mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='60' y='50' width='160' height='60' as='geometry'/></mxCell>");
 
         DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
 
         assertNotNull(response.getRepairBrief());
-        assertTrue(response.getRepairBrief().contains("blocking issue(s) remain"));
+        assertTrue(response.getRepairBrief().startsWith("APPLIED. No blocking issues"));
+        assertNotNull(response.getAnalysis());
+        assertTrue(response.getAnalysis().getIssues().stream()
+                .anyMatch(issue -> "NODE_OVERLAP".equals(issue.getType())));
     }
 }

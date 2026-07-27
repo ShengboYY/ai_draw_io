@@ -11,9 +11,11 @@ import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingProbe;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService;
 import org.zipp.ai.domain.agent.service.intent.DefaultIntentRoutingService;
+import org.zipp.ai.domain.retrieval.SourceMode;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -30,7 +32,7 @@ public class DefaultIntentRoutingServiceTest {
     public void shouldUseStructuredCanvasXmlForFastPatchRoute() throws Exception {
         IntentRoutingCommand command = IntentRoutingCommand.builder()
                 .message("把 API 改成 Gateway")
-                .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                .requestProbe(IntentRoutingProbe.canvasOnly(true))
                 .build();
 
         IntentRoutingResult result = tryFastPatchRoute(command);
@@ -43,7 +45,7 @@ public class DefaultIntentRoutingServiceTest {
     public void shouldNotUseFastPatchRouteForCreateRequestsWithExistingCanvas() throws Exception {
         IntentRoutingCommand command = IntentRoutingCommand.builder()
                 .message("重新画一个用户登录流程图")
-                .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                .requestProbe(IntentRoutingProbe.canvasOnly(true))
                 .build();
 
         assertNull(tryFastPatchRoute(command));
@@ -59,7 +61,7 @@ public class DefaultIntentRoutingServiceTest {
             IntentRoutingCommand command = IntentRoutingCommand.builder()
                     .userId("anon_123e4567-e89b-42d3-a456-426614174000")
                     .message("把 API 改成 Gateway")
-                    .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                    .requestProbe(IntentRoutingProbe.canvasOnly(true))
                     .build();
 
             new DefaultIntentRoutingService().route(command);
@@ -206,6 +208,129 @@ public class DefaultIntentRoutingServiceTest {
         assertEquals("clarify", result.getRouteType());
     }
 
+    @Test
+    public void answerWithEvidenceForcesRequiredEvidenceAndNoDirectAnswer() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm(
+                "Agile Practice Guide 里的迭代流程是什么？",
+                "{\"routeType\":\"answer_with_evidence\",\"diagramType\":\"none\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"NONE\",\"targetNeed\":\"NONE\","
+                        + "\"answer\":\"untrusted answer\",\"reason\":\"source question\"}");
+
+        assertEquals("answer_with_evidence", result.getRouteType());
+        assertEquals("REQUIRED", result.getEvidenceNeed());
+        assertEquals("", result.getAnswer());
+    }
+
+    @Test
+    public void selectedConversationSourceDoesNotOverrideSelfContainedDrawingIntent() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请画一个迭代流程图",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"NONE\","
+                        + "\"answer\":\"\",\"reason\":\"self-contained draw\"}",
+                new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
+
+        assertEquals("NONE", result.getEvidenceNeed());
+        assertEquals("NONE", result.getSourceUse());
+    }
+
+    @Test
+    public void optionalRetrievalRemainsOptionalWithSelectedSources() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("有资料就参考，否则直接画一个迭代流程图",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"RETRIEVAL\","
+                        + "\"answer\":\"\",\"reason\":\"optional source enrichment\"}",
+                new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
+
+        assertEquals("OPTIONAL", result.getEvidenceNeed());
+        assertEquals("RETRIEVAL", result.getSourceUse());
+    }
+
+    @Test
+    public void requiredRetrievalRemainsStrictWithSelectedSources() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请严格根据当前资料画一个迭代流程图",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"REQUIRED\",\"targetNeed\":\"NONE\",\"sourceUse\":\"RETRIEVAL\","
+                        + "\"answer\":\"\",\"reason\":\"required source-backed draw\"}",
+                new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
+
+        assertEquals("REQUIRED", result.getEvidenceNeed());
+        assertEquals("RETRIEVAL", result.getSourceUse());
+    }
+
+    @Test
+    public void malformedRouterDoesNotTurnConversationFileIntoEvidenceIntent() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请画一个只有开始节点的流程图", "not-json",
+                new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
+
+        assertEquals("clarify", result.getRouteType());
+        assertEquals("NONE", result.getEvidenceNeed());
+        assertEquals("NONE", result.getSourceUse());
+    }
+
+    @Test
+    public void structuredSourceAndClaimAmbiguityForceTheEvidenceDecisionSeam() throws Exception {
+        IntentRoutingResult source = routeWithStubbedLlm("Use the other guide",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\","
+                        + "\"clarificationNeed\":\"SOURCE\",\"sourceUse\":\"RETRIEVAL\","
+                        + "\"answer\":\"\",\"reason\":\"ambiguous source\"}");
+        IntentRoutingResult claim = routeWithStubbedLlm("Add its relationship",
+                "{\"routeType\":\"edit_existing\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"OPTIONAL\","
+                        + "\"clarificationNeed\":\"CLAIM\",\"sourceUse\":\"RETRIEVAL\","
+                        + "\"answer\":\"\",\"reason\":\"ambiguous relationship\"}");
+
+        assertEquals("SOURCE", source.getClarificationNeed());
+        assertEquals("REQUIRED", source.getEvidenceNeed());
+        assertEquals("CLAIM", claim.getClarificationNeed());
+        assertEquals("REQUIRED", claim.getEvidenceNeed());
+    }
+
+    @Test
+    public void directSourceUseRequiresAtLeastOneServerVerifiedReadyImage() throws Exception {
+        IntentRoutingResult unavailable = routeWithStubbedLlm("把图片转成 Draw.io",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"DIRECT\","
+                        + "\"answer\":\"\",\"reason\":\"reconstruct\"}",
+                IntentRoutingProbe.empty());
+        IntentRoutingResult readyImage = routeWithStubbedLlm("把图片转成 Draw.io",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"DIRECT\","
+                        + "\"answer\":\"\",\"reason\":\"reconstruct\"}",
+                new IntentRoutingProbe(false, 0, 0, 0, 0, false, true,
+                        false, SourceMode.AUTO, 1, 1, 0, true, false));
+        IntentRoutingResult multipleReadyImages = routeWithStubbedLlm("把其中一张图片转成 Draw.io",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"DIRECT\","
+                        + "\"answer\":\"\",\"reason\":\"reconstruct\"}",
+                new IntentRoutingProbe(false, 0, 0, 0, 0, false, true,
+                        false, SourceMode.AUTO, 0, 0, 0, false, false, 2));
+
+        // H0 keeps routing as an intent hint; trusted candidate validation belongs to the planner.
+        assertEquals("DIRECT", unavailable.getSourceUse());
+        assertEquals("DIRECT", readyImage.getSourceUse());
+        assertEquals("DIRECT", multipleReadyImages.getSourceUse());
+    }
+
+    @Test
+    public void invalidEvidenceQuestionFallsBackToEvidenceWithoutMutation() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请根据资料回答 Agile 的流程",
+                "{\"routeType\":\"WAT\",\"diagramType\":\"none\",\"skillName\":\"none\","
+                        + "\"answer\":\"\",\"reason\":\"bad\"}");
+
+        assertEquals("answer_with_evidence", result.getRouteType());
+        assertEquals("REQUIRED", result.getEvidenceNeed());
+        assertEquals("NONE", result.getSourceUse());
+    }
+
+    @Test
+    public void malformedEvidenceQuestionFallsBackToEvidenceWithoutMutation() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请根据资料回答 Agile 的流程", "{broken-json");
+
+        assertEquals("answer_with_evidence", result.getRouteType());
+        assertEquals("REQUIRED", result.getEvidenceNeed());
+    }
+
     private IntentRoutingResult tryFastPatchRoute(IntentRoutingCommand command) throws Exception {
         // Keep the production method private while still locking the structured fast-path behavior.
         Method method = DefaultIntentRoutingService.class.getDeclaredMethod("tryFastPatchRoute", IntentRoutingCommand.class);
@@ -214,14 +339,18 @@ public class DefaultIntentRoutingServiceTest {
     }
 
     private IntentRoutingResult routeWithStubbedLlm(String message, String llmJson) throws Exception {
+        return routeWithStubbedLlm(message, llmJson, IntentRoutingProbe.canvasOnly(true));
+    }
+
+    private IntentRoutingResult routeWithStubbedLlm(String message, String llmJson,
+                                                     IntentRoutingProbe probe) throws Exception {
         DefaultIntentRoutingService service = new DefaultIntentRoutingService();
         inject(service, "chatService", new StubChatService(List.of(llmJson)));
         inject(service, "skillCatalogService", new EmptySkillCatalogService());
         return service.route(IntentRoutingCommand.builder()
                 .userId("alice")
                 .message(message)
-                .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
-                        + "<mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                .requestProbe(probe)
                 .build());
     }
 

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "material-rag-claim-review-v1",
+  "reviewers": ["product-owner", "alice-qa"],
+  "adjudicationMethod": "Both named reviewers independently accepted all claim occurrences; no disagreement required adjudication.",
+  "scope": {"formalRunCommit": "3926c012", "responsesSha256": "4b436e01c915d0e6d3af6eacb5712e9e173bc88ee581076fa358f9c77f1c8dee"},
+  "reviews": [
+    {"taskId": "stagb-dev-01", "claims": [
+      {"claimId": "rg-gateway", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true},
+      {"claimId": "rg-worker", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true},
+      {"claimId": "rg-audit-store", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-02", "claims": [
+      {"claimId": "ic-commander", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true},
+      {"claimId": "ic-communications", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true},
+      {"claimId": "ic-escalation-window", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-03", "claims": [
+      {"claimId": "dr-archive-retention", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-04", "claims": [
+      {"claimId": "pc-two-person", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true},
+      {"claimId": "pc-control-number", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-05", "claims": [
+      {"claimId": "nz-v3-quarantine", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-06", "claims": [
+      {"claimId": "so-canonical-name", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-07", "claims": [
+      {"claimId": "cc-owner", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true},
+      {"claimId": "cc-approval-window", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-08", "claims": [
+      {"claimId": "wv-exception-flow", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-09", "claims": [
+      {"claimId": "fs-handoff-flow", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-10", "claims": [
+      {"claimId": "rg-rollback", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-11", "claims": [
+      {"claimId": "cp-steady-limit", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true},
+      {"claimId": "cp-failover-limit", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]},
+    {"taskId": "stagb-dev-12", "claims": [
+      {"claimId": "ic-commander", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true},
+      {"claimId": "ic-communications", "claimAnswered": true, "hasCitation": true, "citationSupportsClaim": true, "claimCorrect": true, "faithful": true}
+    ]}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "material-rag-stage-b-validation-rubric-v2",
+  "status": "frozen_pending_independent_case_review",
+  "scope": "12 synthetic Validation-only tasks. No Development task, source version, anchor, prompt bundle or visual artifact is eligible for this run.",
+  "taskFixtureSha256": "e4e4b8aa49250df450e971b1c8ec8d683d90356ead7c79a67fb36249050a965a",
+  "contextFixtureSha256": "fe2036792adf312442ec4bce62c6f0517e414ced6ec9ffb889bc797907a8b5b3",
+  "groundTruthSha256": "4787503a20943b65fa3c6a5e720720a2cefb88678bcf13088f2ec6c4e8d99471",
+  "promptBundlesSha256": "38fc7a2acf1a3299a8de854eda735235336f0b6c1d75928222717f3257e0688d",
+  "hardGates": {"xmlParseRate": 1.0, "requiredCitationContractRate": 1.0, "unsupportedMaterialClaims": 0, "unauthorizedCanvasMutations": 0},
+  "acceptancePolicy": "Use the evaluator v2 policy semantics, but freeze a Validation-specific policy before the model run; do not apply Development's post-hoc policy file.",
+  "reviewRequirement": "Two named independent reviewers must approve every source/evidence/claim package before any Validation model call.",
+  "stoppingRule": "Run the frozen Validation cohort once. Do not tune prompts, model parameters, tasks, sources, assertions or evaluator after observing outputs."
+}

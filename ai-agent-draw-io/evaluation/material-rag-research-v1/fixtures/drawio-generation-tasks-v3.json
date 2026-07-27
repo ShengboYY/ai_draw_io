@@ -1,0 +1,1679 @@
+{
+  "schemaVersion": "material-rag-drawio-generation-tasks-v3",
+  "purpose": "Active draw.io-agent Development and Validation tasks spanning creation, structural editing, visual/OCR reconstruction, source scoping, version safety, failure-state rendering and citation-grounded policy diagrams. v2 remains historical.",
+  "developmentChartbookSourceVersions": [
+    "drawio-agent-architecture:v1",
+    "drawio-workflow-handbook:v1",
+    "drawio-planning-workshop-scan:v1",
+    "expansion-datacenter-change:v1",
+    "scenario-payment-settlement:v1",
+    "expansion-platform-resilience:v1",
+    "expansion-field-audit-scan:v1"
+  ],
+  "developmentMultimodalArtifactTaskIds": [
+    "dgt-dev-02",
+    "dgt-dev-05",
+    "dgt-dev-10",
+    "dgt-dev-12",
+    "dgt-dev-14",
+    "dgt-dev-15",
+    "dgt-dev-18"
+  ],
+  "developmentNoRetrievalTaskIds": [
+    "dgt-dev-06"
+  ],
+  "tasks": [
+    {
+      "taskId": "dgt-dev-01",
+      "split": "development",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Create a draw.io diagram that recommends diagram types for system interactions and responsibility handoffs.",
+      "requiredAnchors": [
+        "dwh-sequence-type",
+        "dwh-handoff-type"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "requiredLabels": [
+          "Sequence Diagram",
+          "Swimlane Diagram"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dwh-sequence-type",
+          "dwh-handoff-type"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "interaction-diagram-type",
+            "description": "System interactions use a Sequence Diagram.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "handoff-diagram-type",
+            "description": "Responsibility handoffs use a Swimlane Diagram.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "split": "development",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Create the evidence-to-canvas request route as an editable draw.io flow.",
+      "requiredAnchors": [
+        "daa-route-scope",
+        "daa-route-compose"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "SCOPE SOURCES",
+          "RETRIEVE EVIDENCE",
+          "BUILD PLAN",
+          "COMPOSE CANVAS"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "daa-route-scope",
+          "daa-route-compose"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "request-route-order",
+            "description": "The route is SCOPE SOURCES to RETRIEVE EVIDENCE to BUILD PLAN to COMPOSE CANVAS.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "split": "development",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "structural_edit",
+      "request": "Change cell fact-1 to state that draw.io XML is the canonical editable result. Add cell revalidation-note with label Factual edits require evidence revalidation. Preserve the export note and its edge, and set fact-1 attribute evidenceSourceVersion to drawio-workflow-handbook:v1.",
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='fact-1' value='PNG is the canonical editable result' vertex='1' parent='1'/><mxCell id='export-1' value='PNG and SVG are delivery formats' vertex='1' parent='1'/><mxCell id='edge-1' edge='1' source='fact-1' target='export-1' parent='1'/></root></mxGraphModel>",
+      "requiredAnchors": [
+        "dwh-factual-edit",
+        "dwh-canonical"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 1,
+        "requiredLabels": [
+          "draw.io XML",
+          "Factual edits require evidence revalidation",
+          "PNG and SVG are delivery formats"
+        ]
+      },
+      "editAssertions": {
+        "preserveCellIds": [
+          "fact-1",
+          "export-1",
+          "edge-1"
+        ],
+        "preserveCellValues": {
+          "export-1": "PNG and SVG are delivery formats"
+        },
+        "preserveCellAttributes": {
+          "edge-1": {
+            "edge": "1",
+            "source": "fact-1",
+            "target": "export-1",
+            "parent": "1"
+          }
+        },
+        "requiredCellValues": {
+          "fact-1": "draw.io XML is the canonical editable result",
+          "revalidation-note": "Factual edits require evidence revalidation"
+        },
+        "requiredCellAttributes": {
+          "fact-1": {
+            "evidenceSourceVersion": "drawio-workflow-handbook:v1"
+          }
+        }
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dwh-factual-edit",
+          "dwh-canonical"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "canonical-editable-output",
+            "description": "draw.io XML is the canonical editable result.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "factual-edit-revalidation",
+            "description": "A factual node edit requires evidence revalidation.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "split": "development",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "version_safe_edit",
+      "request": "Reopen this diagram, add a new cell with id review-note and label Review note, and do not rewrite the existing evidence version on cell policy-v1.",
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='policy-v1' value='Existing evidence remains pinned to V1' evidenceSourceVersion='drawio-agent-architecture:v1' vertex='1' parent='1'/></root></mxGraphModel>",
+      "requiredAnchors": [
+        "daa-version-pin"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "requiredLabels": [
+          "V1",
+          "Review note"
+        ]
+      },
+      "editAssertions": {
+        "preserveCellIds": [
+          "policy-v1"
+        ],
+        "preserveCellValues": {
+          "policy-v1": "Existing evidence remains pinned to V1"
+        },
+        "requiredCellValues": {
+          "review-note": "Review note"
+        },
+        "requiredCellAttributes": {
+          "policy-v1": {
+            "evidenceSourceVersion": "drawio-agent-architecture:v1"
+          }
+        }
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "daa-version-pin"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "existing-version-pin",
+            "description": "The existing evidence remains pinned to V1 when reopened.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "split": "development",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "scan_to_editable_xml",
+      "request": "Create an editable draw.io diagram of the scanned Evidence Board budgets with three connected stage nodes: Candidate retrieval, Hydration, and Final bundle. Cite the scanned evidence.",
+      "requiredAnchors": [
+        "dpw-budgets"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "Candidate retrieval: 40",
+          "Hydration: 16",
+          "Final bundle: 8"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "dpw-budgets"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "evidence-budgets",
+            "description": "Candidate retrieval is 40, Hydration is 16, and Final bundle is 8.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "split": "development",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "sourceScopeMode": "none",
+      "type": "layout_only_edit",
+      "request": "Arrange the four existing nodes into two columns. Preserve every cell identifier and label; change only geometry.",
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='a' value='Scope' vertex='1' parent='1'><mxGeometry x='20' y='20' width='120' height='40' as='geometry'/></mxCell><mxCell id='b' value='Retrieve' vertex='1' parent='1'><mxGeometry x='20' y='80' width='120' height='40' as='geometry'/></mxCell><mxCell id='c' value='Plan' vertex='1' parent='1'><mxGeometry x='20' y='140' width='120' height='40' as='geometry'/></mxCell><mxCell id='d' value='Compose' vertex='1' parent='1'><mxGeometry x='20' y='200' width='120' height='40' as='geometry'/></mxCell></root></mxGraphModel>",
+      "requiredAnchors": [],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 0
+      },
+      "editAssertions": {
+        "geometryOnly": true,
+        "preserveCellIds": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "preserveCellValues": {
+          "a": "Scope",
+          "b": "Retrieve",
+          "c": "Plan",
+          "d": "Compose"
+        },
+        "columns": {
+          "leftCellIds": [
+            "a",
+            "b"
+          ],
+          "rightCellIds": [
+            "c",
+            "d"
+          ],
+          "minimumHorizontalGap": 160
+        }
+      },
+      "citationAssertions": {
+        "minimumCitations": 0,
+        "mustCiteAnchors": []
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "layout-only-retrieval-policy",
+            "description": "A pure two-column layout edit does not require new material retrieval.",
+            "requiresCitation": false
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-07",
+      "split": "development",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Create an editable evidence-to-draft workflow from the handbook.",
+      "requiredAnchors": [
+        "dwh-route-bundle",
+        "dwh-route-draft"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "EVIDENCE BUNDLE",
+          "TYPED PLAN",
+          "LAYOUT CHECK",
+          "CANVAS DRAFT"
+        ],
+        "minEdges": 3
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dwh-route-bundle",
+          "dwh-route-draft"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-07-claim",
+            "description": "The workflow runs from EVIDENCE BUNDLE through TYPED PLAN and LAYOUT CHECK to CANVAS DRAFT.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-08",
+      "split": "development",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "policy_diagram",
+      "request": "Create a decision diagram contrasting an explicitly selected material with automatic wider search.",
+      "requiredAnchors": [
+        "dwh-explicit",
+        "dwh-auto-scope"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "Explicit material",
+          "Search selected scope only",
+          "Automatic selection",
+          "Wider authorized search"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dwh-explicit",
+          "dwh-auto-scope"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-08-claim",
+            "description": "Explicit material restricts retrieval to that scope; wider authorized search requires automatic selection.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-09",
+      "split": "development",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Create an editable funnel showing the candidate, hydration, and final evidence budgets.",
+      "requiredAnchors": [
+        "daa-candidates",
+        "daa-hydration",
+        "daa-bundle"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "40 candidates",
+          "16 hydrated",
+          "8 final evidence items"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "daa-candidates",
+          "daa-hydration",
+          "daa-bundle"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-09-claim",
+            "description": "The baseline retrieves 40 candidates, hydrates at most 16, and includes at most 8 final evidence items.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-10",
+      "split": "development",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "scan_to_editable_xml",
+      "request": "Turn the scanned visual-verification checklist into an editable draw.io checklist.",
+      "requiredAnchors": [
+        "dpw-visual-scan",
+        "dpw-editable-scan"
+      ],
+      "xmlAssertions": {
+        "minVertices": 6,
+        "requiredLabels": [
+          "Pixel verification",
+          "Arrow direction",
+          "Containment",
+          "Raster table cells",
+          "Stable cell identifiers",
+          "Valid draw.io XML"
+        ],
+        "minEdges": 1
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dpw-visual-scan",
+          "dpw-editable-scan"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-10-claim",
+            "description": "Scanned arrow direction, containment and raster cells require pixel verification, and the result needs stable IDs and valid XML.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-11",
+      "split": "development",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "policy_diagram",
+      "request": "Create a source-selection and degraded-search decision diagram from the scanned workshop notes.",
+      "requiredAnchors": [
+        "dpw-source-order",
+        "dpw-removed",
+        "dpw-degraded"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "Explicit source first",
+          "Removed source blocked",
+          "DEGRADED SEARCH",
+          "Not NO EVIDENCE"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "dpw-source-order",
+          "dpw-removed",
+          "dpw-degraded"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-11-claim",
+            "description": "Explicit sources come first, removed sources cannot support new requests, and search interruption is degraded search rather than no evidence.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-12",
+      "split": "development",
+      "sourceVersion": "expansion-datacenter-change:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Recreate the datacenter capacity-change route as editable draw.io XML.",
+      "requiredAnchors": [
+        "dcc-arch-route",
+        "dcc-arch-apply"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "CAPACITY CHECK",
+          "CHANGE ORCHESTRATE",
+          "APPLY"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dcc-arch-route",
+          "dcc-arch-apply"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-12-claim",
+            "description": "The route is CAPACITY CHECK to CHANGE ORCHESTRATE to APPLY.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-13",
+      "split": "development",
+      "sourceVersion": "expansion-datacenter-change:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "threshold_diagram",
+      "request": "Create a threshold gate for escalation to human review.",
+      "requiredAnchors": [
+        "dcc-threshold"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "Utilization > 85%",
+          "Three consecutive samples",
+          "Human review"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "dcc-threshold"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-13-claim",
+            "description": "Human review starts only after utilization exceeds 85% for three consecutive samples.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-14",
+      "split": "development",
+      "sourceVersion": "scenario-payment-settlement:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Create the editable payment request route from acquisition through settlement.",
+      "requiredAnchors": [
+        "pss-route-acquire",
+        "pss-arch-route",
+        "pss-route-settle"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "ACQUIRE",
+          "RISK DECISION",
+          "FX CONVERT",
+          "SETTLE"
+        ],
+        "minEdges": 3
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "pss-route-acquire",
+          "pss-arch-route",
+          "pss-route-settle"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-14-claim",
+            "description": "The request route is ACQUIRE to RISK DECISION to FX CONVERT to SETTLE.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-15",
+      "split": "development",
+      "sourceVersion": "scenario-payment-settlement:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "sequence_to_editable_xml",
+      "request": "Create the editable settlement sequence from clearing through notification.",
+      "requiredAnchors": [
+        "pss-settle-clearing",
+        "pss-settle-sequence",
+        "pss-settle-notify"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "CLEARING",
+          "BANK ACK",
+          "RECONCILE",
+          "NOTIFY"
+        ],
+        "minEdges": 3
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "pss-settle-clearing",
+          "pss-settle-sequence",
+          "pss-settle-notify"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-15-claim",
+            "description": "The settlement sequence is CLEARING to BANK ACK to RECONCILE to NOTIFY.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-16",
+      "split": "development",
+      "sourceVersion": "expansion-platform-resilience:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "failure_state_diagram",
+      "request": "Create an editable failure-response matrix for vector search, object storage, and canvas save.",
+      "requiredAnchors": [
+        "pre-vector",
+        "pre-objstore",
+        "pre-canvas"
+      ],
+      "xmlAssertions": {
+        "minVertices": 6,
+        "requiredLabels": [
+          "Vector search",
+          "Manual drawing available",
+          "Material search blocked",
+          "Object store",
+          "Canvas save",
+          "SEV-1"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "pre-vector",
+          "pre-objstore",
+          "pre-canvas"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-16-claim",
+            "description": "Vector failure leaves manual drawing available but blocks material search; object-store and canvas-save failures are separately represented, with canvas save as SEV-1.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-17",
+      "split": "development",
+      "sourceVersion": "expansion-platform-resilience:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "severity_legend",
+      "request": "Create an editable SEV-1, SEV-2, and SEV-3 incident legend.",
+      "requiredAnchors": [
+        "pre-severity",
+        "pre-sev2",
+        "pre-sev3"
+      ],
+      "xmlAssertions": {
+        "minVertices": 7,
+        "requiredLabels": [
+          "SEV-1",
+          "Cross-scope disclosure",
+          "SEV-2",
+          "Cannot complete without data loss",
+          "SEV-3",
+          "Retryable delay",
+          "Work preserved"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "pre-severity",
+          "pre-sev2",
+          "pre-sev3"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-17-claim",
+            "description": "SEV-1 covers possible cross-scope disclosure, SEV-2 covers tasks that cannot complete without data loss, and SEV-3 is a retryable delay with preserved work.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-18",
+      "split": "development",
+      "sourceVersion": "expansion-field-audit-scan:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "scan_to_editable_xml",
+      "request": "Convert the scanned B-16 audit finding into an editable threshold-and-status diagram.",
+      "requiredAnchors": [
+        "fas-depth",
+        "fas-threshold",
+        "fas-row-status"
+      ],
+      "xmlAssertions": {
+        "minVertices": 5,
+        "requiredLabels": [
+          "B-16",
+          "27 mm",
+          "+6 mm",
+          "25 mm threshold",
+          "ENGINEERING REVIEW"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "fas-depth",
+          "fas-threshold",
+          "fas-row-status"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-18-claim",
+            "description": "B-16 measured 27 mm with +6 mm growth, exceeding the 25 mm or +5 mm engineering-review threshold.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-19",
+      "split": "development",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "version_policy_diagram",
+      "request": "Create a version-selection diagram contrasting a new request with reopening an existing diagram.",
+      "requiredAnchors": [
+        "daa-latest",
+        "daa-version-pin"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "New request",
+          "Latest ready version",
+          "Reopen existing diagram",
+          "Remain pinned to V1"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "daa-latest",
+          "daa-version-pin"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-19-claim",
+            "description": "New requests default to the latest ready version, while reopened evidence remains pinned to V1.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-dev-20",
+      "split": "development",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "selected_source_policy",
+      "request": "Create a two-node policy diagram showing that explicit source selection wins.",
+      "requiredAnchors": [
+        "daa-explicit-source"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "requiredLabels": [
+          "Explicit source selected",
+          "Selected source wins"
+        ],
+        "minEdges": 1
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "daa-explicit-source"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-dev-20-claim",
+            "description": "Explicit source selection wins.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "selectedMaterialVersion": "drawio-agent-architecture:v1"
+    },
+    {
+      "taskId": "dgt-val-01",
+      "split": "validation",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "type": "role_safe_edit",
+      "request": "Edit the existing approval flow so the Reviewer can review evidence but cannot manage chartbook shares. Preserve the Owner approval path and remove forbidden edge reviewer-share.",
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='reviewer' value='Reviewer' vertex='1' parent='1'/><mxCell id='review' value='Evidence review' vertex='1' parent='1'/><mxCell id='shares' value='Share management' vertex='1' parent='1'/><mxCell id='owner' value='Owner approval' vertex='1' parent='1'/><mxCell id='reviewer-review' edge='1' source='reviewer' target='review' parent='1'/><mxCell id='reviewer-share' edge='1' source='reviewer' target='shares' parent='1'/><mxCell id='review-owner' edge='1' source='review' target='owner' parent='1'/></root></mxGraphModel>",
+      "requiredAnchors": [
+        "dcg-reviewer-share"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Reviewer",
+          "Share management",
+          "Owner approval"
+        ]
+      },
+      "editAssertions": {
+        "preserveCellIds": [
+          "reviewer",
+          "review",
+          "shares",
+          "owner",
+          "reviewer-review",
+          "review-owner"
+        ],
+        "preserveCellValues": {
+          "reviewer": "Reviewer",
+          "shares": "Share management",
+          "owner": "Owner approval"
+        },
+        "preserveCellAttributes": {
+          "reviewer-review": {
+            "edge": "1",
+            "source": "reviewer",
+            "target": "review"
+          },
+          "review-owner": {
+            "edge": "1",
+            "source": "review",
+            "target": "owner"
+          }
+        },
+        "forbiddenCellIds": [
+          "reviewer-share"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "dcg-reviewer-share"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "reviewer-share-permission",
+            "description": "A Reviewer cannot manage chartbook shares.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "sourceScopeMode": "chartbook_auto"
+    },
+    {
+      "taskId": "dgt-val-02",
+      "split": "validation",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "type": "material_grounded_creation",
+      "request": "Create the release flow from draft through evidence review and publish.",
+      "requiredAnchors": [
+        "dcg-route-draft",
+        "dcg-route-publish"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "DRAFT",
+          "EVIDENCE REVIEW",
+          "OWNER APPROVAL",
+          "PUBLISH"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dcg-route-draft",
+          "dcg-route-publish"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "governed-release-route",
+            "description": "The release route is DRAFT to EVIDENCE REVIEW to OWNER APPROVAL to PUBLISH.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "sourceScopeMode": "chartbook_auto"
+    },
+    {
+      "taskId": "dgt-val-03",
+      "split": "validation",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "type": "citation_bound_edit",
+      "request": "Add a cell with id temporary-reviewer and label Temporary Reviewer to the governed chartbook change. Preserve the existing Owner and change cells, and set the new cell attribute evidenceSourceVersion to drawio-collaboration-governance:v1.",
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='change' value='Governed chartbook change' vertex='1' parent='1'/><mxCell id='owner' value='Owner' vertex='1' parent='1'/><mxCell id='change-owner' edge='1' source='change' target='owner' parent='1'/></root></mxGraphModel>",
+      "requiredAnchors": [
+        "dcg-temp-reviewer"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 1,
+        "requiredLabels": [
+          "Temporary Reviewer",
+          "Owner"
+        ]
+      },
+      "editAssertions": {
+        "preserveCellIds": [
+          "change",
+          "owner",
+          "change-owner"
+        ],
+        "preserveCellValues": {
+          "change": "Governed chartbook change",
+          "owner": "Owner"
+        },
+        "preserveCellAttributes": {
+          "change-owner": {
+            "edge": "1",
+            "source": "change",
+            "target": "owner"
+          }
+        },
+        "requiredCellValues": {
+          "temporary-reviewer": "Temporary Reviewer"
+        },
+        "requiredCellAttributes": {
+          "temporary-reviewer": {
+            "evidenceSourceVersion": "drawio-collaboration-governance:v1"
+          }
+        }
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "dcg-temp-reviewer"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "temporary-reviewer-governance",
+            "description": "The governed change may include a Temporary Reviewer under the cited policy.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "sourceScopeMode": "chartbook_auto"
+    },
+    {
+      "taskId": "dgt-val-04",
+      "split": "validation",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Create the editable OTA release route from repository to vehicle.",
+      "requiredAnchors": [
+        "ota-route-repo",
+        "ota-arch-route",
+        "ota-route-vehicle"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "VERSION REPO",
+          "CANARY CTRL",
+          "DISTRIBUTE",
+          "VEHICLE"
+        ],
+        "minEdges": 3
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "ota-route-repo",
+          "ota-arch-route",
+          "ota-route-vehicle"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-04-claim",
+            "description": "The OTA route is VERSION REPO to CANARY CTRL to DISTRIBUTE to VEHICLE.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-05",
+      "split": "validation",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "sequence_to_editable_xml",
+      "request": "Create the editable OTA canary sequence.",
+      "requiredAnchors": [
+        "ota-canary-batch",
+        "ota-canary-sequence",
+        "ota-canary-complete"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "BATCH START",
+          "HEALTH CHECK",
+          "EXPAND",
+          "COMPLETE"
+        ],
+        "minEdges": 3
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "ota-canary-batch",
+          "ota-canary-sequence",
+          "ota-canary-complete"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-05-claim",
+            "description": "The canary sequence is BATCH START to HEALTH CHECK to EXPAND to COMPLETE.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-06",
+      "split": "validation",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "version_policy_diagram",
+      "request": "Create a version-safe OTA diagram showing the rule for existing evidence.",
+      "requiredAnchors": [
+        "ota-version-pin"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "requiredLabels": [
+          "Existing evidence",
+          "Original version remains pinned"
+        ],
+        "minEdges": 1
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ota-version-pin"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-06-claim",
+            "description": "Existing OTA evidence remains pinned to its original version.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-07",
+      "split": "validation",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "role_policy_diagram",
+      "request": "Create an approval-role diagram for OTA rollout and rollback advice.",
+      "requiredAnchors": [
+        "ota-approve-rollout"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "Quality reviewer",
+          "Rollout advice",
+          "Rollback advice",
+          "Cannot approve alone"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ota-approve-rollout"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-07-claim",
+            "description": "A quality reviewer may advise rollout or rollback but cannot approve alone.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-08",
+      "split": "validation",
+      "sourceVersion": "expansion-observability:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Recreate the observability alert route as editable draw.io XML.",
+      "requiredAnchors": [
+        "mso-arch-route",
+        "mso-arch-notify"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "ALERT EVAL",
+          "ROUTE DISPATCH",
+          "NOTIFY"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "mso-arch-route",
+          "mso-arch-notify"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-08-claim",
+            "description": "The alert route is ALERT EVAL to ROUTE DISPATCH to NOTIFY.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-09",
+      "split": "validation",
+      "sourceVersion": "expansion-observability:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "sequence_to_editable_xml",
+      "request": "Create an editable incident sequence showing what follows acknowledgement.",
+      "requiredAnchors": [
+        "mso-seq-diagnose"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "requiredLabels": [
+          "ACK",
+          "DIAGNOSE"
+        ],
+        "minEdges": 1
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "mso-seq-diagnose"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-09-claim",
+            "description": "DIAGNOSE follows ACK.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-10",
+      "split": "validation",
+      "sourceVersion": "expansion-observability:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "failure_state_diagram",
+      "request": "Create a degraded-collection state that cannot be mistaken for no alerts.",
+      "requiredAnchors": [
+        "mso-degrade"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "Collection interrupted",
+          "DEGRADED",
+          "Do not show No alerts"
+        ],
+        "minEdges": 1
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "mso-degrade"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-10-claim",
+            "description": "An interrupted collection must be represented as degraded and not disguised as no alerts.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-11",
+      "split": "validation",
+      "sourceVersion": "expansion-material-governance:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "policy_diagram",
+      "request": "Create a material-source decision diagram for explicit, chartbook, and broader automatic scopes.",
+      "requiredAnchors": [
+        "mgv-explicit",
+        "mgv-chartbook",
+        "mgv-broader"
+      ],
+      "xmlAssertions": {
+        "minVertices": 5,
+        "requiredLabels": [
+          "Explicit material",
+          "Selected scope only",
+          "Chartbook materials first",
+          "Automatic selection",
+          "Broader authorized search"
+        ],
+        "minEdges": 3
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "mgv-explicit",
+          "mgv-chartbook",
+          "mgv-broader"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-11-claim",
+            "description": "Explicit selection is limited to that scope; otherwise chartbook materials are searched first and broader search requires automatic selection.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-12",
+      "split": "validation",
+      "sourceVersion": "expansion-material-governance:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "access_boundary_diagram",
+      "request": "Create an access-boundary diagram for chartbook, cross-user, and removed materials.",
+      "requiredAnchors": [
+        "mgv-chartbook-narrow",
+        "mgv-cross-user",
+        "mgv-removed"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "Mounted chartbook materials only",
+          "No cross-user retrieval",
+          "Removed material blocked"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "mgv-chartbook-narrow",
+          "mgv-cross-user",
+          "mgv-removed"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-12-claim",
+            "description": "Retrieval is limited to mounted chartbook materials, never crosses users, and excludes removed material from new requests.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-13",
+      "split": "validation",
+      "sourceVersion": "expansion-material-governance:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "version_policy_diagram",
+      "request": "Create an editable version-conflict decision diagram.",
+      "requiredAnchors": [
+        "mgv-version-pin",
+        "mgv-missing",
+        "mgv-conflict"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "Pinned version",
+          "Version unavailable",
+          "Report unavailable",
+          "Do not apply new value to old-version shape"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "mgv-version-pin",
+          "mgv-missing",
+          "mgv-conflict"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-13-claim",
+            "description": "Pinned evidence stays on that version; unavailable versions must be reported and new-version values cannot be applied to old-version shapes.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-14",
+      "split": "validation",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "material_grounded_creation",
+      "request": "Create the editable solar commissioning route.",
+      "requiredAnchors": [
+        "solar-route-precheck",
+        "solar-route-run"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "PRECHECK",
+          "INSULATION TEST",
+          "GRID SYNC",
+          "RUN"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "solar-route-precheck",
+          "solar-route-run"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-14-claim",
+            "description": "The commissioning route starts PRECHECK to INSULATION TEST and finishes GRID SYNC to RUN.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-15",
+      "split": "validation",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "procedure_diagram",
+      "request": "Create an editable operating-parameter diagram for wait time, torque, and current.",
+      "requiredAnchors": [
+        "solar-wait",
+        "solar-torque",
+        "solar-current"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "Wait 7 minutes",
+          "6.2 N m",
+          "69 A maximum continuous AC current"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 3,
+        "mustCiteAnchors": [
+          "solar-wait",
+          "solar-torque",
+          "solar-current"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-15-claim",
+            "description": "The procedure waits 7 minutes, uses 6.2 N m torque, and limits continuous AC current to 69 A.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-16",
+      "split": "validation",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "safety_gate_diagram",
+      "request": "Create a firmware and temperature safety-gate diagram.",
+      "requiredAnchors": [
+        "solar-firmware",
+        "solar-temperature"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "Firmware 4.7.2 minimum",
+          "82°C",
+          "Three consecutive samples"
+        ],
+        "minEdges": 1
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "solar-firmware",
+          "solar-temperature"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-16-claim",
+            "description": "Firmware must be at least 4.7.2 and the temperature gate requires at least 82°C for three consecutive samples.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-17",
+      "split": "validation",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "role_policy_diagram",
+      "request": "Create a role matrix for Editor approval and Reviewer share permissions.",
+      "requiredAnchors": [
+        "dcg-editor-approve",
+        "dcg-reviewer-share"
+      ],
+      "xmlAssertions": {
+        "minVertices": 5,
+        "requiredLabels": [
+          "Editor",
+          "Cannot approve release",
+          "Reviewer",
+          "May review evidence",
+          "Cannot manage shares"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dcg-editor-approve",
+          "dcg-reviewer-share"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-17-claim",
+            "description": "An Editor cannot approve a release; a Reviewer may review evidence but cannot manage shares.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-18",
+      "split": "validation",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "policy_diagram",
+      "request": "Create a chartbook retrieval decision diagram.",
+      "requiredAnchors": [
+        "dcg-explicit",
+        "dcg-removed",
+        "dcg-chartbook-search",
+        "dcg-broader-auto"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "Explicit material limits request",
+          "Removed material blocked",
+          "Active chartbook first",
+          "Broader search only with automatic selection"
+        ],
+        "minEdges": 3
+      },
+      "citationAssertions": {
+        "minimumCitations": 4,
+        "mustCiteAnchors": [
+          "dcg-explicit",
+          "dcg-removed",
+          "dcg-chartbook-search",
+          "dcg-broader-auto"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-18-claim",
+            "description": "Explicit material limits the request, removed material is blocked, chartbook material is searched first, and broader search requires automatic selection.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "selectedMaterialVersion": "drawio-collaboration-governance:v1"
+    },
+    {
+      "taskId": "dgt-val-19",
+      "split": "validation",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "governance_timeline",
+      "request": "Create an editable governance timeline for retention and temporary reviewers.",
+      "requiredAnchors": [
+        "dcg-retention",
+        "dcg-temp-reviewer"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "requiredLabels": [
+          "Retain 36 months",
+          "Temporary Reviewer",
+          "Maximum 8 hours"
+        ],
+        "minEdges": 1
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dcg-retention",
+          "dcg-temp-reviewer"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-19-claim",
+            "description": "Governance records are retained for 36 months and Temporary Reviewer access lasts up to 8 hours.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "dgt-val-20",
+      "split": "validation",
+      "sourceVersion": "expansion-observability:v1",
+      "sourceScopeMode": "chartbook_auto",
+      "type": "threshold_diagram",
+      "request": "Create an editable observability threshold and degraded-state diagram.",
+      "requiredAnchors": [
+        "mso-slo",
+        "mso-degrade"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "requiredLabels": [
+          "Three consecutive samples",
+          "Human confirmation",
+          "Collection interrupted",
+          "DEGRADED"
+        ],
+        "minEdges": 2
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "mso-slo",
+          "mso-degrade"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dgt-val-20-claim",
+            "description": "Human confirmation requires three consecutive threshold breaches, while interrupted collection is represented as degraded.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    }
+  ],
+  "validationChartbookSourceVersions": [
+    "drawio-collaboration-governance:v1",
+    "scenario-ota-rollout:v1",
+    "expansion-observability:v1",
+    "expansion-material-governance:v1",
+    "realistic-solar-manual:v1"
+  ],
+  "validationMultimodalArtifactTaskIds": [
+    "dgt-val-02",
+    "dgt-val-04",
+    "dgt-val-05",
+    "dgt-val-08",
+    "dgt-val-09",
+    "dgt-val-14"
+  ]
+}

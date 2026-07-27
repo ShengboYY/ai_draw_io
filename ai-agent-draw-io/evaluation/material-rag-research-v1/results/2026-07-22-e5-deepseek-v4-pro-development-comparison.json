@@ -1,0 +1,462 @@
+{
+  "schemaVersion": "material-rag-dense-paired-comparison-v1",
+  "status": "comparable",
+  "scope": "answerable-dense-eligible-text-table-and-multi-evidence",
+  "caseCount": 155,
+  "controls": {
+    "gitCommit": "55d1d756",
+    "corpusLockSha256": "bb98c24cd56834dcbdc69a201c4657ab400ef61e15b8a0475876f7b688b1b8ef",
+    "split": "development",
+    "embeddingModel": "multilingual-e5-large",
+    "tokenizerFingerprint": "intfloat/multilingual-e5-large:tokenizer-json-sha256=62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626",
+    "candidateLimit": 40,
+    "canonicalMode": "e1-v5",
+    "chunkMode": "flat-leaf-v1",
+    "retrievalMode": "dense-v1",
+    "queryMode": "original-v1",
+    "queryRewriteFingerprint": "evidence-focused-v1:han-aware-direct-source-evidence-prefix",
+    "postprocessMode": "ranked-raw-v1",
+    "dedupFingerprint": "evidence-dedup-v1:text-sha-or-evidence-jaccard-0.8:citable-first",
+    "retrievalPoolLimit": 80,
+    "rerankerFingerprint": "llm-listwise-rerank-v3:top40:short-candidate-ids:thinking-disabled:json-ranked-ids:temperature0",
+    "rerankerModel": "deepseek-v4-pro",
+    "rerankerEndpointFingerprint": "45cf67066d4f1cabb601c45bf99ddbd513037f5c4e608d3ac3689937804db451",
+    "rerankerCandidateLimit": 40,
+    "caseProfile": "core-v1",
+    "sourceDiversityFingerprint": "source-diversity-v1:evidence-dedup-v1:top10-max4-per-source:rank-fill",
+    "sourceDiversityHeadLimit": 10,
+    "sourceDiversityPerSourceHeadCap": 4,
+    "lexicalRankerFingerprint": "projection-tfidf-exact-v1:word-min2:cjk-bigram:exact2:rrf-k60-lex1.2-dense1.0",
+    "fusionFingerprint": "weighted-rrf-v1:k60:lexical1.2:dense1.0",
+    "corpusLockSnapshot": "evaluation/material-rag-research-v1/results/2026-07-22-e5-run-corpus-lock.json"
+  },
+  "experimentVariable": {
+    "field": "rerankerMode",
+    "baseline": "none-v1",
+    "candidate": "llm-listwise-v1"
+  },
+  "modes": {
+    "canonical": {
+      "e0": "e1-v5",
+      "e1": "e1-v5"
+    },
+    "retrieval": {
+      "e0": "dense-v1",
+      "e1": "dense-v1"
+    },
+    "query": {
+      "e0": "original-v1",
+      "e1": "original-v1"
+    },
+    "postprocess": {
+      "e0": "ranked-raw-v1",
+      "e1": "ranked-raw-v1"
+    },
+    "reranker": {
+      "e0": "none-v1",
+      "e1": "llm-listwise-v1"
+    }
+  },
+  "chunkCounts": {
+    "e0": 533,
+    "e1": 533
+  },
+  "mapping": {
+    "e0Count": 149,
+    "e0Rate": 0.9612903225806452,
+    "e0Ci95": [
+      0.9181284248322602,
+      0.9821403152164162
+    ],
+    "e1Count": 149,
+    "e1Rate": 0.9612903225806452,
+    "e1Ci95": [
+      0.9181284248322602,
+      0.9821403152164162
+    ],
+    "delta": 0.0
+  },
+  "conditionalOnMapping": {
+    "e0CaseCount": 149,
+    "e1CaseCount": 149,
+    "metrics": {
+      "recallAt1": {
+        "e0": 0.6174496644295302,
+        "e0Ci95": [
+          0.537391214711723,
+          0.691604244177872
+        ],
+        "e1": 0.6241610738255033,
+        "e1Ci95": [
+          0.5441920114302481,
+          0.6978889022530381
+        ]
+      },
+      "recallAt5": {
+        "e0": 0.912751677852349,
+        "e0Ci95": [
+          0.856452134172779,
+          0.9483033356392266
+        ],
+        "e1": 0.912751677852349,
+        "e1Ci95": [
+          0.856452134172779,
+          0.9483033356392266
+        ]
+      },
+      "recallAt10": {
+        "e0": 0.9328859060402684,
+        "e0Ci95": [
+          0.8808721748001737,
+          0.9631396593929052
+        ],
+        "e1": 0.9328859060402684,
+        "e1Ci95": [
+          0.8808721748001737,
+          0.9631396593929052
+        ]
+      },
+      "recallAt40": {
+        "e0": 1.0,
+        "e0Ci95": [
+          0.9748663821299904,
+          0.9999999999999999
+        ],
+        "e1": 1.0,
+        "e1Ci95": [
+          0.9748663821299904,
+          0.9999999999999999
+        ]
+      },
+      "mrrAt10": {
+        "e0": 0.7448732289336316,
+        "e0Ci95": [
+          0.6884782811334824,
+          0.800503355704698
+        ],
+        "e1": 0.7499067859806116,
+        "e1Ci95": [
+          0.6933072334079046,
+          0.8033743475018643
+        ]
+      }
+    }
+  },
+  "aggregates": {
+    "recallAt1": {
+      "e0": 0.5935483870967742,
+      "e0Ci95": [
+        0.5148691530258751,
+        0.6677028292217584
+      ],
+      "e1": 0.6,
+      "e1Ci95": [
+        0.5213577966586797,
+        0.673805356778446
+      ],
+      "delta": 0.0064516129032258064,
+      "deltaCi95": [
+        0.0,
+        0.01935483870967742
+      ]
+    },
+    "recallAt5": {
+      "e0": 0.8774193548387097,
+      "e0Ci95": [
+        0.8164801826833787,
+        0.9201033319019019
+      ],
+      "e1": 0.8774193548387097,
+      "e1Ci95": [
+        0.8164801826833787,
+        0.9201033319019019
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "recallAt10": {
+      "e0": 0.896774193548387,
+      "e0Ci95": [
+        0.8388999755296505,
+        0.9354570526241062
+      ],
+      "e1": 0.896774193548387,
+      "e1Ci95": [
+        0.8388999755296505,
+        0.9354570526241062
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "recallAt40": {
+      "e0": 0.9612903225806452,
+      "e0Ci95": [
+        0.9181284248322602,
+        0.9821403152164162
+      ],
+      "e1": 0.9612903225806452,
+      "e1Ci95": [
+        0.9181284248322602,
+        0.9821403152164162
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "mrrAt10": {
+      "e0": 0.7160394265232976,
+      "e0Ci95": [
+        0.657383064516129,
+        0.7734950716845878
+      ],
+      "e1": 0.7208781362007168,
+      "e1Ci95": [
+        0.6623293010752688,
+        0.7783163082437276
+      ],
+      "delta": 0.004838709677419355,
+      "deltaCi95": [
+        0.0,
+        0.014516129032258065
+      ]
+    }
+  },
+  "slices": [
+    {
+      "label": "category:multi_evidence",
+      "count": 20,
+      "e0RecallAt10": 0.85,
+      "e0Ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "e1RecallAt10": 0.85,
+      "e1Ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "category:table",
+      "count": 25,
+      "e0RecallAt10": 0.96,
+      "e0Ci95": [
+        0.8045593626380625,
+        0.9929037664980127
+      ],
+      "e1RecallAt10": 0.96,
+      "e1Ci95": [
+        0.8045593626380625,
+        0.9929037664980127
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "category:text",
+      "count": 110,
+      "e0RecallAt10": 0.8909090909090909,
+      "e0Ci95": [
+        0.8189511686524213,
+        0.9364853910235593
+      ],
+      "e1RecallAt10": 0.8909090909090909,
+      "e1Ci95": [
+        0.8189511686524213,
+        0.9364853910235593
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:crossLanguage",
+      "count": 39,
+      "e0RecallAt10": 0.8974358974358975,
+      "e0Ci95": [
+        0.7642114553714348,
+        0.9593866865533163
+      ],
+      "e1RecallAt10": 0.8974358974358975,
+      "e1Ci95": [
+        0.7642114553714348,
+        0.9593866865533163
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:en",
+      "count": 47,
+      "e0RecallAt10": 0.8936170212765957,
+      "e0Ci95": [
+        0.7740573065626163,
+        0.9536952178189183
+      ],
+      "e1RecallAt10": 0.8936170212765957,
+      "e1Ci95": [
+        0.7740573065626163,
+        0.9536952178189183
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:zh",
+      "count": 69,
+      "e0RecallAt10": 0.8985507246376812,
+      "e0Ci95": [
+        0.8050811424505202,
+        0.9499833618915401
+      ],
+      "e1RecallAt10": 0.8985507246376812,
+      "e1Ci95": [
+        0.8050811424505202,
+        0.9499833618915401
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:crossLanguage",
+      "count": 25,
+      "e0RecallAt10": 0.92,
+      "e0Ci95": [
+        0.7503389104960468,
+        0.9777795987151524
+      ],
+      "e1RecallAt10": 0.92,
+      "e1Ci95": [
+        0.7503389104960468,
+        0.9777795987151524
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:exactLookup",
+      "count": 35,
+      "e0RecallAt10": 0.9142857142857143,
+      "e0Ci95": [
+        0.7762072603410349,
+        0.9704176317330301
+      ],
+      "e1RecallAt10": 0.9142857142857143,
+      "e1Ci95": [
+        0.7762072603410349,
+        0.9704176317330301
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:failure",
+      "count": 29,
+      "e0RecallAt10": 1.0,
+      "e0Ci95": [
+        0.8830302015002593,
+        1.0
+      ],
+      "e1RecallAt10": 1.0,
+      "e1Ci95": [
+        0.8830302015002593,
+        1.0
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:multiEvidence",
+      "count": 20,
+      "e0RecallAt10": 0.85,
+      "e0Ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "e1RecallAt10": 0.85,
+      "e1Ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:retrievalDecision",
+      "count": 28,
+      "e0RecallAt10": 0.7857142857142857,
+      "e0Ci95": [
+        0.6046141434627812,
+        0.8978753966710211
+      ],
+      "e1RecallAt10": 0.7857142857142857,
+      "e1Ci95": [
+        0.6046141434627812,
+        0.8978753966710211
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:versionAndAuthorization",
+      "count": 18,
+      "e0RecallAt10": 0.8888888888888888,
+      "e0Ci95": [
+        0.672002348698212,
+        0.9689804773543876
+      ],
+      "e1RecallAt10": 0.8888888888888888,
+      "e1Ci95": [
+        0.672002348698212,
+        0.9689804773543876
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

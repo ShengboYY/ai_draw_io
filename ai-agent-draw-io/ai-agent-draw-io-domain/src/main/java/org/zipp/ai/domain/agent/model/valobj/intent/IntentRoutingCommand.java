@@ -12,9 +12,8 @@ public class IntentRoutingCommand {
 
     private String message;
 
-    private String canvasXml;
-
-    private String canvasSummary;
+    /** Trusted counts and enums only; raw canvas/document content is not part of the router contract. */
+    private IntentRoutingProbe requestProbe;
 
     private CustomApiConfigManager.CustomApiConfig customApiConfig;
 

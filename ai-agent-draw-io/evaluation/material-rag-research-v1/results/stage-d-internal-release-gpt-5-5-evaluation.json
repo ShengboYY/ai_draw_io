@@ -1,0 +1,172 @@
+{
+  "schemaVersion": "material-rag-drawio-generation-evaluation-v2",
+  "split": "holdout",
+  "taskCount": 20,
+  "taskFixtureSha256": "ef88b9b961b51632c3ab1d7385431a9b21f15191f1de434b0a1441810c6dfcd7",
+  "results": [
+    {
+      "taskId": "stgd-int-01",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stgd-int-02",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stgd-int-03",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-04",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-05",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-06",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-07",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-08",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-09",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": false,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stgd-int-10",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-11",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": false,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stgd-int-12",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stgd-int-13",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stgd-int-14",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-15",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-16",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-17",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-18",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-19",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stgd-int-20",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    }
+  ],
+  "xmlParseRate": 1.0,
+  "requiredCitationContractRate": 1.0,
+  "completionRate": 0.7,
+  "claimMetricsStatus": "not_evaluated"
+}

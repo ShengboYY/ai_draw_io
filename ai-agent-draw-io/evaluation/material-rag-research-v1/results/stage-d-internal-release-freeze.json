@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "material-rag-stage-d-internal-release-freeze-v1",
+  "status": "frozen_authorized_for_one_model_run",
+  "qualification": "internal_release_style_not_independent_final_holdout",
+  "reason": "The user explicitly chose a locally authored cohort instead of an externally kept final holdout. It is unseen by the generation model, but it is not independent of development and cannot support an independent-final claim.",
+  "taskCount": 20,
+  "taskFamilies": {
+    "material_grounded_creation": 5,
+    "structural_edit": 3,
+    "layout_only_edit": 3,
+    "visual_or_ocr_to_editable_xml": 2,
+    "version_and_authorization_safe_edit": 3,
+    "failure_and_recovery": 4
+  },
+  "isolation": {
+    "sourceVersionOverlapWithStageADevelopment": 0,
+    "sourceVersionOverlapWithStageBValidation": 0,
+    "modelGenerationCallsBeforeFreeze": 0,
+    "realUserData": false
+  },
+  "artifacts": {
+    "tasks": {"path": "fixtures/generated/stage-d-internal-release/tasks.json", "sha256": "ef88b9b961b51632c3ab1d7385431a9b21f15191f1de434b0a1441810c6dfcd7"},
+    "contexts": {"path": "fixtures/generated/stage-d-internal-release/contexts.json", "sha256": "9154e49e029b0ffcaced1909d2a0ba0576813ce1891cdcb958478ea1e499f8e0"},
+    "groundTruth": {"path": "fixtures/generated/stage-d-internal-release/ground-truth.json", "sha256": "5b56b0227b04d8c9a8b8ca9f42eb8e8bc25868f4f78d81d82dda7da872009aa8"},
+    "promptBundles": {"path": "fixtures/generated/stage-d-internal-release/prompt-bundles.json", "sha256": "2ca455dda4d52b263e5826d5247b86b92f46989de5b55e6e53817f2dfd3d87cf"},
+    "rubric": {"path": "fixtures/generated/stage-d-internal-release/rubric-v1.json", "sha256": "217d00c2bb0eed3079731a890bdff73575982d9c6a9a9617c5639571188de100"},
+    "acceptancePolicy": {"path": "fixtures/generated/stage-d-internal-release/acceptance-policy-v2.json", "sha256": "9fddc092d08106a0c82f0bd78dbe0b0590c890591533bc6365e32bd1330d6bea"},
+    "runManifestTemplate": {"path": "fixtures/generated/stage-d-internal-release/run-manifest-template.json", "sha256": "dc4e5b41c82c792dbd737a667eebaed32c036fdaad8b24ee7cce5d47914555c8"},
+    "telemetryImage": {"path": "fixtures/generated/stage-d-internal-release/images/telemetry-calibration-source.png", "sha256": "ee2dff294c595ae28813662a8a451f7d1f9575d144d6f3e9b7ee8b090dc8fb3b"},
+    "siteSafetyImage": {"path": "fixtures/generated/stage-d-internal-release/images/site-safety-source.png", "sha256": "0678815ce17689e0a8e86f57610759bfd657f72e2709a4dd640cd61babeba4c0"}
+  },
+  "preflight": {
+    "inputAudit": "passed",
+    "promptBundleValidation": "20/20 passed",
+    "analysisUnitTests": "28/28 passed",
+    "stoppingRule": "The user authorized one model run. Do not tune prompts, task data, evidence, model parameters, evaluator or acceptance policy after observing output."
+  }
+}

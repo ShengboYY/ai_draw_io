@@ -1,0 +1,2777 @@
+{
+  "schemaVersion": "material-rag-e4-chartbook-suite-v1",
+  "chartbooks": [
+    {
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "split": "development",
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ]
+    },
+    {
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "split": "validation",
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-001",
+      "familyId": "dev-source-selection-route",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Draw the source-selection decision route: show when an explicit material wins and when broader authorized search may begin.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-explicit-source",
+        "dwh-auto-scope"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-explicit-source",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dwh-auto-scope",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "explicit selection wins; 才进入更广的授权资料搜索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-002",
+      "familyId": "dev-source-selection-route",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "请画资料选择决策图：标明显式资料何时优先，以及何时才可进入更广的授权资料搜索。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-explicit-source",
+        "dwh-auto-scope"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-explicit-source",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dwh-auto-scope",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "explicit selection wins; 才进入更广的授权资料搜索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-003",
+      "familyId": "dev-context-budget-funnel",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Create a funnel diagram for candidate retrieval, hydration and final evidence, and cross-check the retrieval budget against the change guide.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-candidates",
+        "daa-hydration",
+        "daa-bundle",
+        "dcc-budget-cross"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-candidates",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "daa-hydration",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "daa-bundle",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-budget-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "retrieves 40 evidence candidates; At most 16 authorized candidates are hydrated; final evidence bundle contains at most 8 items; 基线检索 40 个证据候选",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-004",
+      "familyId": "dev-context-budget-funnel",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "生成候选检索、资料水合到最终证据包的漏斗图，并用变更指南交叉核对检索预算。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-candidates",
+        "daa-hydration",
+        "daa-bundle",
+        "dcc-budget-cross"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-candidates",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "daa-hydration",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "daa-bundle",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-budget-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "retrieves 40 evidence candidates; At most 16 authorized candidates are hydrated; final evidence bundle contains at most 8 items; 基线检索 40 个证据候选",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-005",
+      "familyId": "dev-layout-no-retrieval",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Build a policy comparison diagram showing how all mounted guides treat a layout-only edit with respect to retrieval.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-workflow-handbook:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "dwh-layout-only",
+        "dcc-layout-retrieve",
+        "pre-layout"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dwh-layout-only",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-layout-retrieve",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-layout",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "纯布局操作; 属于纯图形操作,不需要重新检索; 属于纯图形操作,不需要重新检索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-006",
+      "familyId": "dev-layout-no-retrieval",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "画一张策略对照图，说明各挂载指南如何判断纯布局编辑是否需要重新检索。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-workflow-handbook:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "dwh-layout-only",
+        "dcc-layout-retrieve",
+        "pre-layout"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dwh-layout-only",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-layout-retrieve",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-layout",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "纯布局操作; 属于纯图形操作,不需要重新检索; 属于纯图形操作,不需要重新检索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-007",
+      "familyId": "dev-explicit-source-boundary",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Draw the common explicit-source boundary stated by the architecture, change and resilience documents.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-explicit-source",
+        "dcc-explicit-source",
+        "pre-explicit"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-explicit-source",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-explicit-source",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-explicit",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "explicit selection wins; 只能在该范围内检索; 只能在该范围内检索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-008",
+      "familyId": "dev-explicit-source-boundary",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "根据架构、变更和韧性资料，绘制三者一致的显式资料范围边界。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-explicit-source",
+        "dcc-explicit-source",
+        "pre-explicit"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-explicit-source",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-explicit-source",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-explicit",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "explicit selection wins; 只能在该范围内检索; 只能在该范围内检索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-009",
+      "familyId": "dev-vector-outage-behavior",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Create a degraded-state diagram separating manual drawing availability from blocked material search during a vector outage.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-degraded",
+        "pre-vector"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-degraded",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-vector",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "ordinary text; manual drawing remains available but material search is blocked",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-010",
+      "familyId": "dev-vector-outage-behavior",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "绘制向量服务故障时的降级状态图，区分仍可用的手工制图与被阻止的资料检索。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-degraded",
+        "pre-vector"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-degraded",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-vector",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "ordinary text; manual drawing remains available but material search is blocked",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-011",
+      "familyId": "dev-scoped-recovery-probe",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Draw the recovery probe sequence and show why an unfiltered successful query cannot restore chartbook retrieval.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "pre-probe-order",
+        "pre-degraded-retrieval",
+        "daa-chartbook-first"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "pre-probe-order",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-degraded-retrieval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "daa-chartbook-first",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "先验证租户与图册过滤; 一次不带过滤的成功查询不是有效恢复探测; the current chartbook is searched before broader",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-012",
+      "familyId": "dev-scoped-recovery-probe",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "画出恢复探测顺序，并说明为何一次不带范围过滤的成功查询不能恢复图册检索。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "pre-probe-order",
+        "pre-degraded-retrieval",
+        "daa-chartbook-first"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "pre-probe-order",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-degraded-retrieval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "daa-chartbook-first",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "先验证租户与图册过滤; 一次不带过滤的成功查询不是有效恢复探测; the current chartbook is searched before broader",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-013",
+      "familyId": "dev-clarification-before-search",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Create a decision node for ambiguous references using both the resilience and change-control rules.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "pre-clarify",
+        "dcc-clarify"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "pre-clarify",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-clarify",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "先请求澄清; 先请求澄清",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-014",
+      "familyId": "dev-clarification-before-search",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "结合韧性与变更控制规则，为指代不明的请求绘制澄清决策节点。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "pre-clarify",
+        "dcc-clarify"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "pre-clarify",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-clarify",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "先请求澄清; 先请求澄清",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-015",
+      "familyId": "dev-version-pin-consensus",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Draw a reopen flow showing how existing cited shapes stay pinned according to both mounted policies.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-version-pin",
+        "pre-version-pin"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-version-pin",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-version-pin",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "remains pinned to V1; 仍固定引用原版本",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-016",
+      "familyId": "dev-version-pin-consensus",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "绘制已有引用图形重新打开时的版本流程，体现两份挂载策略对固定版本的一致要求。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-version-pin",
+        "pre-version-pin"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-version-pin",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-version-pin",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "remains pinned to V1; 仍固定引用原版本",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-017",
+      "familyId": "dev-chartbook-first-order",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Create a source-order diagram that reconciles the architecture blueprint with the resilience policy.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-chartbook-first",
+        "pre-source-order"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-chartbook-first",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-source-order",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "the current chartbook is searched before broader; 先搜索当前图册允许共享的资料",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-018",
+      "familyId": "dev-chartbook-first-order",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "绘制资料检索顺序图，对齐架构蓝图与韧性策略中的当前图册优先规则。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-chartbook-first",
+        "pre-source-order"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-chartbook-first",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-source-order",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "the current chartbook is searched before broader; 先搜索当前图册允许共享的资料",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-019",
+      "familyId": "dev-recall-budget-meaning",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Draw an annotated retrieval-budget node using the architecture definition and the change guide's numeric budget.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-recall-budget",
+        "dcc-budget-cross"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-recall-budget",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-budget-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "Candidate count is a recall budget; 基线检索 40 个证据候选",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-020",
+      "familyId": "dev-recall-budget-meaning",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "结合架构定义与变更指南中的数值，绘制带注释的检索预算节点。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-recall-budget",
+        "dcc-budget-cross"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-recall-budget",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-budget-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "Candidate count is a recall budget; 基线检索 40 个证据候选",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-021",
+      "familyId": "dev-approval-timeline",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Create a four-document approval timeline for the mounted architecture, workflow, change and resilience materials.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-approval",
+        "dwh-approval",
+        "dcc-approve-cross",
+        "pre-cn-approve-cross"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-approval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dwh-approval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-approve-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-cn-approve-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "November 2026; 2026 年 12 月 6 日; 2026 年 11 月 28 日; 2026 年 12 月 4 日",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-022",
+      "familyId": "dev-approval-timeline",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "为挂载的架构、工作流、变更和韧性四份资料绘制批准时间线。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-approval",
+        "dwh-approval",
+        "dcc-approve-cross",
+        "pre-cn-approve-cross"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-approval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dwh-approval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-approve-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-cn-approve-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "November 2026; 2026 年 12 月 6 日; 2026 年 11 月 28 日; 2026 年 12 月 4 日",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-023",
+      "familyId": "dev-degraded-claim-boundary",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Draw the claim boundary for degraded retrieval: what remains available and what must never be presented as a successful evidence search?",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-degraded",
+        "pre-degraded-retrieval",
+        "dcc-degrade"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-degraded",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-degraded-retrieval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-degrade",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "ordinary text; 一次不带过滤的成功查询不是有效恢复探测; 不得把降级状态伪装成检索成功",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-024",
+      "familyId": "dev-degraded-claim-boundary",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "绘制降级检索的结论边界：哪些能力仍可用，哪些状态不得伪装成成功的证据检索？",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-degraded",
+        "pre-degraded-retrieval",
+        "dcc-degrade"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-degraded",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-degraded-retrieval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-degrade",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "ordinary text; 一次不带过滤的成功查询不是有效恢复探测; 不得把降级状态伪装成检索成功",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-025",
+      "familyId": "dev-scope-change-metadata",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "development",
+      "query": "Create a source-scope transition diagram and label the metadata required when search expands beyond the current chartbook.",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-fallback-label",
+        "dcc-metadata",
+        "pre-source-order"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-fallback-label",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-metadata",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-source-order",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "must label the fallback source; 范围变化写入回答元数据; 先搜索当前图册允许共享的资料",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-dev-026",
+      "familyId": "dev-scope-change-metadata",
+      "chartbookId": "e4-drawio-build-and-recovery-dev",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "development",
+      "query": "绘制资料范围变化图，并标出搜索超出当前图册时必须记录的回答元数据。",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-workflow-handbook:v1",
+        "expansion-platform-resilience:v1",
+        "expansion-datacenter-change:v1"
+      ],
+      "unmountedSourceVersions": [
+        "scenario-payment-settlement:v1",
+        "realistic-harbor-report:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "expansion-datacenter-change:v1",
+        "expansion-platform-resilience:v1"
+      ],
+      "goldAnchorIds": [
+        "daa-fallback-label",
+        "dcc-metadata",
+        "pre-source-order"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "daa-fallback-label",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "dcc-metadata",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "pre-source-order",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "must label the fallback source; 范围变化写入回答元数据; 先搜索当前图册允许共享的资料",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-001",
+      "familyId": "val-chartbook-mounted-boundary",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Draw the mounted-material boundary for an active shared chartbook using both governance documents.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-chartbook-search",
+        "mgv-chartbook-narrow"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-chartbook-search",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-chartbook-narrow",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "search begins with material attached to the active chartbook; 只能使用该图册挂载的资料",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-002",
+      "familyId": "val-chartbook-mounted-boundary",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "依据两份治理资料，绘制共享图册中已挂载资料的检索边界。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-chartbook-search",
+        "mgv-chartbook-narrow"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-chartbook-search",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-chartbook-narrow",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "search begins with material attached to the active chartbook; 只能使用该图册挂载的资料",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-003",
+      "familyId": "val-unmounted-removal",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Create a before-and-after diagram for material removal and its effect on new retrieval.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-removed",
+        "mgv-removed"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-removed",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-removed",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "blocks new retrieval; new retrieval cannot use that material",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-004",
+      "familyId": "val-unmounted-removal",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "绘制资料移除前后对新检索范围影响的对照图。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-removed",
+        "mgv-removed"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-removed",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-removed",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "blocks new retrieval; new retrieval cannot use that material",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-005",
+      "familyId": "val-explicit-source-scope",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Draw how explicit source selection constrains retrieval according to both mounted governance standards.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-explicit",
+        "mgv-explicit"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-explicit",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-explicit",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "limits the request; 只能在该范围内检索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-006",
+      "familyId": "val-explicit-source-scope",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "根据两份挂载治理标准，绘制显式资料选择如何约束检索范围。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-explicit",
+        "mgv-explicit"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-explicit",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-explicit",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "limits the request; 只能在该范围内检索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-007",
+      "familyId": "val-broader-auto-search",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Create the automatic-selection branch that governs when broader material may be considered.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-broader-auto",
+        "mgv-broader"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-broader-auto",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-broader",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "considered only when automatic selection is enabled; considered only when automatic selection is enabled",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-008",
+      "familyId": "val-broader-auto-search",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "绘制自动选择分支，说明何时才可考虑更广范围的资料。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-broader-auto",
+        "mgv-broader"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-broader-auto",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-broader",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "considered only when automatic selection is enabled; considered only when automatic selection is enabled",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-009",
+      "familyId": "val-rejected-draft-rules",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Draw a rejection history comparing the obsolete draft rules in collaboration and material governance.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-version-reject",
+        "mgv-draft"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-version-reject",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-draft",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "that value was rejected; 评审认为风险过高并删除该规则",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-010",
+      "familyId": "val-rejected-draft-rules",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "绘制废弃规则对照图，比较协作治理与资料治理中被否决的草案要求。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-version-reject",
+        "mgv-draft"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-version-reject",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-draft",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "that value was rejected; 评审认为风险过高并删除该规则",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-011",
+      "familyId": "val-degraded-not-no-answer",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Create a degraded-state diagram showing why an unavailable index or interrupted collection is not a no-answer result.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "expansion-material-governance:v1",
+        "expansion-observability:v1"
+      ],
+      "goldAnchorIds": [
+        "mgv-zero",
+        "mso-degrade"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "mgv-zero",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mso-degrade",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "an unavailable index produces a degraded state, not a no-answer; 不得把采集中断伪装成「无告警」",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-012",
+      "familyId": "val-degraded-not-no-answer",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "绘制降级状态图，说明索引不可用或采集中断为何不能当作无答案。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "expansion-material-governance:v1",
+        "expansion-observability:v1"
+      ],
+      "goldAnchorIds": [
+        "mgv-zero",
+        "mso-degrade"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "mgv-zero",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mso-degrade",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "an unavailable index produces a degraded state, not a no-answer; 不得把采集中断伪装成「无告警」",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-013",
+      "familyId": "val-role-and-user-boundary",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Draw a permission boundary combining the reviewer's share limitation with the cross-user retrieval prohibition.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-reviewer-share",
+        "mgv-cross-user"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-reviewer-share",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-cross-user",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "Reviewer may approve evidence changes but cannot manage shares; 任何请求都不能检索到其他用户上传的资料",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-014",
+      "familyId": "val-role-and-user-boundary",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "结合复核者的共享权限限制与跨用户检索禁令，绘制权限边界图。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-reviewer-share",
+        "mgv-cross-user"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-reviewer-share",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mgv-cross-user",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "Reviewer may approve evidence changes but cannot manage shares; 任何请求都不能检索到其他用户上传的资料",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-015",
+      "familyId": "val-approval-timeline",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Create an approval timeline comparing the collaboration standard and observability playbook.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-observability:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-approval",
+        "mso-cn-approve-cross"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-approval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mso-cn-approve-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "approved on 18 December 2026; 2026 年 11 月 22 日",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-016",
+      "familyId": "val-approval-timeline",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "绘制协作标准与可观测性手册的批准时间对照线。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-observability:v1"
+      ],
+      "goldAnchorIds": [
+        "dcg-approval",
+        "mso-cn-approve-cross"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "dcg-approval",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mso-cn-approve-cross",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "approved on 18 December 2026; 2026 年 11 月 22 日",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-017",
+      "familyId": "val-layout-no-retrieval",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Draw the shared decision for whether a layout-only edit needs retrieval in the mounted operational guides.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "expansion-material-governance:v1",
+        "expansion-observability:v1"
+      ],
+      "goldAnchorIds": [
+        "mgv-layout",
+        "mso-layout-retrieve"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "mgv-layout",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mso-layout-retrieve",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "纯布局操作不需要检索; 属于纯图形操作,不需要重新检索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-018",
+      "familyId": "val-layout-no-retrieval",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "绘制挂载运维指南对纯布局编辑是否需要检索的共同决策。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "expansion-material-governance:v1",
+        "expansion-observability:v1"
+      ],
+      "goldAnchorIds": [
+        "mgv-layout",
+        "mso-layout-retrieve"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "mgv-layout",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mso-layout-retrieve",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "纯布局操作不需要检索; 属于纯图形操作,不需要重新检索",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-019",
+      "familyId": "val-version-pin-consensus",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "en",
+      "queryLanguage": "en",
+      "split": "validation",
+      "query": "Create a version-pinning diagram for reopened shapes using both material-governance and observability rules.",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "expansion-material-governance:v1",
+        "expansion-observability:v1"
+      ],
+      "goldAnchorIds": [
+        "mgv-version-pin",
+        "mso-version-pin"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "mgv-version-pin",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mso-version-pin",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "仍固定引用该版本; 仍固定引用原版本",
+      "abstentionCondition": null,
+      "answerable": true
+    },
+    {
+      "schemaVersion": "material-rag-chartbook-case-v1",
+      "caseId": "e4cb-val-020",
+      "familyId": "val-version-pin-consensus",
+      "chartbookId": "e4-drawio-governance-and-operations-val",
+      "category": "multi_evidence",
+      "primaryCategory": "multiEvidence",
+      "language": "zh",
+      "queryLanguage": "zh",
+      "split": "validation",
+      "query": "结合资料治理与可观测性规则，为重新打开的图形绘制版本固定流程。",
+      "allowedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "mountedSourceVersions": [
+        "drawio-collaboration-governance:v1",
+        "expansion-material-governance:v1",
+        "expansion-observability:v1",
+        "scenario-ota-rollout:v1"
+      ],
+      "unmountedSourceVersions": [
+        "realistic-solar-manual:v1",
+        "realistic-forest-study:v1"
+      ],
+      "goldSourceVersions": [
+        "expansion-material-governance:v1",
+        "expansion-observability:v1"
+      ],
+      "goldAnchorIds": [
+        "mgv-version-pin",
+        "mso-version-pin"
+      ],
+      "requiredEvidenceGroups": [
+        {
+          "groupId": "chartbook_answer",
+          "operator": "ALL_PARTS",
+          "evidence": [
+            {
+              "anchorId": "mgv-version-pin",
+              "grade": 2,
+              "minimumGrade": 2
+            },
+            {
+              "anchorId": "mso-version-pin",
+              "grade": 2,
+              "minimumGrade": 2
+            }
+          ]
+        }
+      ],
+      "expectedAnswer": "仍固定引用该版本; 仍固定引用原版本",
+      "abstentionCondition": null,
+      "answerable": true
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# Multimodal material foundation through WP3B.
+# Order is dependency-aware; do not sort these entries alphabetically.
+2026-07-19-create-anonymous-workspace-credential.sql
+2026-07-19-create-material-rag-foundation.sql
+2026-07-20-create-secure-upload-intake.sql
+2026-07-21-create-materialization-promotion.sql
+2026-07-22-create-document-processing-artifacts.sql

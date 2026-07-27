@@ -870,6 +870,7 @@ DELETE FROM diagram;
   "MYSQL_PASSWORD": "replace-with-real-value",
   "LLM_API_KEY": "replace-with-real-value",
   "MODEL_CREDENTIAL_ENCRYPTION_KEY": "base64:replace-with-real-value",
+  "ANONYMOUS_WORKSPACE_PEPPER": "replace-with-another-stable-random-secret",
   "BAIDU_SEARCH_API_KEY": "",
   "SKILL_ADMIN_TOKEN": ""
 }
@@ -880,6 +881,9 @@ DELETE FROM diagram;
 - 它用于加密用户模型凭据。
 - 不能每次部署都变。
 - 丢失或更换后，数据库中已经加密的数据可能无法解密。
+
+`ANONYMOUS_WORKSPACE_PEPPER` 也必须是独立、稳定的 32 字节以上随机 secret；更换后，
+尚未认领的匿名工作区凭证会失效。它不能与模型凭据加密密钥复用。
 
 ### Step 5. 创建 ECS cluster
 

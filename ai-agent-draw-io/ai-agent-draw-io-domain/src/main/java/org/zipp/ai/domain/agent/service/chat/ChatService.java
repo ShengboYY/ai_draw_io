@@ -68,6 +68,22 @@ public class ChatService implements IChatService {
         return agentList;
     }
 
+    @Override
+    public boolean isAgentToolFree(String agentId) {
+        Map<String, AiAgentConfigTableVO> tables = aiAgentAutoConfigProperties.getTables();
+        if (agentId == null || tables == null) return false;
+        return tables.values().stream()
+                .filter(table -> table.getAgent() != null && agentId.equals(table.getAgent().getAgentId()))
+                .map(AiAgentConfigTableVO::getModule)
+                .filter(java.util.Objects::nonNull)
+                .map(AiAgentConfigTableVO.Module::getAgents)
+                .filter(java.util.Objects::nonNull)
+                .filter(agents -> !agents.isEmpty())
+                // An explicit empty allowlist physically removes all configured MCP/skill tools.
+                .anyMatch(agents -> agents.stream().allMatch(agent ->
+                        agent.getAllowedTools() != null && agent.getAllowedTools().isEmpty()));
+    }
+
     private boolean isInternalAgent(AiAgentConfigTableVO.Agent agent) {
         String agentDesc = agent.getAgentDesc();
         return null != agentDesc && agentDesc.startsWith("[internal]");
@@ -257,11 +273,18 @@ public class ChatService implements IChatService {
         String appName = aiAgentRegisterVO.getAppName();
         InMemoryRunner runner = aiAgentRegisterVO.getRunner();
 
-        Flowable<Event> events = runner.runAsync(chatCommandEntity.getUserId(), chatCommandEntity.getSessionId(), content)
+        // V2 turn ports reach the runtime through this overload, so the ambient run context is the
+        // only correlation the telemetry plugin can get. Without the invocation token every LLM
+        // span and debug payload of a V2 turn is dropped as unattributable.
+        AgentUsageTelemetryContext.InvocationState invocationState = AgentUsageTelemetryContext
+                .newInvocationState(AgentUsageTelemetryContext.current().orElse(null));
+        Flowable<Event> events = runner.runAsync(chatCommandEntity.getUserId(), chatCommandEntity.getSessionId(),
+                        content, RunConfig.builder().build(), invocationState.stateDelta())
                 .doOnNext(event -> persistDraftDiagramState(runner, appName, chatCommandEntity.getUserId(), chatCommandEntity.getSessionId(), event));
 
         List<String> outputs = new ArrayList<>();
-        events.blockingForEach(event -> collectEventOutput(outputs, event));
+        events.doFinally(invocationState::close)
+                .blockingForEach(event -> collectEventOutput(outputs, event));
 
         return outputs;
     }

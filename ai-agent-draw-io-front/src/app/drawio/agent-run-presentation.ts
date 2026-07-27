@@ -1,7 +1,8 @@
 export type AgentRunEventStatus = 'running' | 'done' | 'warning' | 'error';
 export type AgentRunEventTone = 'analysis' | 'drawing' | 'tool' | 'validation' | 'review';
 export type AgentRunScope = 'full' | 'local' | 'append' | 'layout' | 'review';
-export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'clarify' | 'review_only';
+export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'answer_with_evidence' | 'clarify' | 'review_only';
+export type UserExecutionStage = 'analysis' | 'preparation' | 'generation' | 'verification';
 export type VisualReviewDecision = 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
 export type VisualReviewStage = 'CURRENT_CANVAS' | 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
 
@@ -84,6 +85,7 @@ const routeLabels: Record<AgentRouteType, string> = {
   edit_existing: 'Edit diagram',
   optimize_layout: 'Layout repair',
   answer_only: 'Answer',
+  answer_with_evidence: 'Evidence answer',
   clarify: 'Clarify request',
   review_only: 'Diagram review',
 };
@@ -93,6 +95,7 @@ const routeLabelsChinese: Record<AgentRouteType, string> = {
   edit_existing: '修改图表',
   optimize_layout: '布局修复',
   answer_only: '回答问题',
+  answer_with_evidence: '资料回答',
   clarify: '澄清需求',
   review_only: '审阅图表',
 };
@@ -120,6 +123,10 @@ const routePhaseLabels: Record<AgentRouteType, Partial<Record<string, string>>> 
     analyzing: 'Understand question',
     thinking: 'Prepare answer',
   },
+  answer_with_evidence: {
+    analyzing: 'Understand evidence question',
+    retrieval: 'Retrieve authorized evidence',
+  },
   clarify: {
     analyzing: 'Identify missing details',
     thinking: 'Prepare question',
@@ -136,6 +143,7 @@ const fallbackPhaseLabels: Record<string, string> = {
   reviewing: 'Review quality',
   revising: 'Plan revision',
   thinking: 'Thinking',
+  retrieval: 'Retrieve evidence',
 };
 
 const routePhaseLabelsChinese: Record<AgentRouteType, Partial<Record<string, string>>> = {
@@ -143,6 +151,7 @@ const routePhaseLabelsChinese: Record<AgentRouteType, Partial<Record<string, str
   edit_existing: { analyzing: '理解修改要求', drawing: '修改画布', reviewing: '结构校验', revising: '修正修改' },
   optimize_layout: { analyzing: '检查布局', drawing: '优化布局', reviewing: '结构校验', revising: '修复剩余问题' },
   answer_only: { analyzing: '理解问题', thinking: '组织回答' },
+  answer_with_evidence: { analyzing: '理解资料问题', retrieval: '检索授权资料' },
   clarify: { analyzing: '确认缺失信息', thinking: '组织澄清问题' },
   review_only: { analyzing: '检查图表', reviewing: '整理审阅结果' },
 };
@@ -153,6 +162,7 @@ const fallbackPhaseLabelsChinese: Record<string, string> = {
   reviewing: '检查质量',
   revising: '修正图表',
   thinking: '处理请求',
+  retrieval: '检索资料',
 };
 
 const diagramTypeLabelsChinese: Record<string, string> = {
@@ -180,6 +190,61 @@ export const thinkingPhaseLabel = (routeType: string | undefined, phase: string,
       || fallbackPhaseLabels.thinking
 );
 
+export const projectUserExecutionStep = ({
+  phase,
+  routeType,
+  sourceUse,
+  useChinese = false,
+}: {
+  phase: string;
+  routeType?: string;
+  sourceUse?: string;
+  useChinese?: boolean;
+}): { key: UserExecutionStage; phase: UserExecutionStage; label: string } => {
+  // Many internal phases can revisit the same user-visible activity; keep this projection stable.
+  const stage: UserExecutionStage = phase === 'analyzing'
+    ? 'analysis'
+    : phase === 'retrieval' || phase === 'preparation'
+      ? 'preparation'
+      : ['reviewing', 'visual_review', 'visual_evidence', 'visual_repair', 'revising'].includes(phase)
+        ? 'verification'
+        : 'generation';
+
+  if (stage === 'analysis') {
+    return { key: stage, phase: stage, label: useChinese ? '分析请求' : 'Analyze request' };
+  }
+
+  if (stage === 'preparation') {
+    const label = sourceUse === 'RETRIEVAL'
+      ? (useChinese ? '查找资料' : 'Find relevant sources')
+      : sourceUse === 'DIRECT'
+        ? (useChinese ? '读取附件' : 'Read attachments')
+        : (useChinese ? '准备内容' : 'Prepare inputs');
+    return { key: stage, phase: stage, label };
+  }
+
+  if (stage === 'verification') {
+    return { key: stage, phase: stage, label: useChinese ? '检查结果' : 'Check result' };
+  }
+
+  const route = routeType as AgentRouteType;
+  let label: string;
+  if (phase === 'answer' || route === 'answer_only' || route === 'answer_with_evidence') {
+    label = useChinese ? '组织回答' : 'Prepare answer';
+  } else if (route === 'clarify') {
+    label = useChinese ? '准备澄清问题' : 'Prepare clarification';
+  } else if (route === 'edit_existing') {
+    label = useChinese ? '更新图表' : 'Update diagram';
+  } else if (route === 'optimize_layout') {
+    label = useChinese ? '优化图表' : 'Optimize diagram';
+  } else if (sourceUse === 'DIRECT') {
+    label = useChinese ? '重建图表' : 'Rebuild diagram';
+  } else {
+    label = useChinese ? '生成图表' : 'Generate diagram';
+  }
+  return { key: stage, phase: stage, label };
+};
+
 export const visualReviewStageLabel = (stage: VisualReviewStage | 'REPAIR', useChinese = false) => {
   if (stage === 'VERIFY_ONLY') return useChinese ? '修复后复核' : 'Final verification';
   if (stage === 'POST_REPAIR') return useChinese ? '修复后审阅' : 'Post-repair review';
@@ -191,11 +256,13 @@ export const buildRouteStepDetail = ({
   routeType,
   diagramType,
   skillName,
+  sourceUse,
   useChinese = false,
 }: {
   routeType?: string;
   diagramType?: string;
   skillName?: string;
+  sourceUse?: string;
   useChinese?: boolean;
 }) => {
   const route = routeType as AgentRouteType;
@@ -203,24 +270,36 @@ export const buildRouteStepDetail = ({
   const diagramLabel = useChinese
     ? diagramTypeLabelsChinese[(diagramType || '').toLowerCase()] || '图表'
     : (diagramType && diagramType !== 'none' ? diagramType.replace(/[_-]+/g, ' ') : 'diagram');
+  const sourceDetail = sourceUse === 'DIRECT'
+    ? (useChinese ? '来源方式：按原图还原。' : 'Source route: original image reconstruction.')
+    : sourceUse === 'DIRECT_AND_RETRIEVAL'
+      ? (useChinese ? '来源方式：原图还原并允许资料补充。' : 'Source route: original image with material supplementation.')
+      : sourceUse === 'RETRIEVAL'
+        ? (useChinese ? '来源方式：仅检索授权资料。' : 'Source route: authorized material retrieval only.')
+        : sourceUse === 'NONE'
+          ? (useChinese ? '来源方式：不使用外部来源。' : 'Source route: no external sources.')
+          : '';
+  const withSourceDetail = (detail: string) => sourceDetail
+    ? `${detail}${useChinese ? '' : ' '}${sourceDetail}`
+    : detail;
 
   if (useChinese) {
     if (route === 'create_new') {
-      return `识别为新建${diagramLabel}任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}生成画布。`;
+      return withSourceDetail(`识别为新建${diagramLabel}任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}生成画布。`);
     }
-    if (route === 'edit_existing') return `识别为修改现有${diagramLabel}${usableSkill ? `，将使用 ${usableSkill} 技能并` : '，将'}保留未涉及的画布内容。`;
-    if (route === 'optimize_layout') return `识别为${diagramLabel}布局优化${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只调整排版和连线路径。`;
-    if (route === 'review_only') return `识别为${diagramLabel}审阅任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只检查画布，不直接修改。`;
+    if (route === 'edit_existing') return withSourceDetail(`识别为修改现有${diagramLabel}${usableSkill ? `，将使用 ${usableSkill} 技能并` : '，将'}保留未涉及的画布内容。`);
+    if (route === 'optimize_layout') return withSourceDetail(`识别为${diagramLabel}布局优化${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只调整排版和连线路径。`);
+    if (route === 'review_only') return withSourceDetail(`识别为${diagramLabel}审阅任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只检查画布，不直接修改。`);
     if (route === 'clarify') return '当前信息不足以安全修改画布，将先确认具体需求。';
     return '这是一个无需修改画布的问题，将直接组织回答。';
   }
 
   if (route === 'create_new') {
-    return `Classified as a new ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
+    return withSourceDetail(`Classified as a new ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`);
   }
-  if (route === 'edit_existing') return `Classified as an edit to the existing ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}; unrelated canvas content will be preserved.`;
-  if (route === 'optimize_layout') return `Classified as a ${diagramLabel} layout optimization${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
-  if (route === 'review_only') return `Classified as a review-only pass over the current ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
+  if (route === 'edit_existing') return withSourceDetail(`Classified as an edit to the existing ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}; unrelated canvas content will be preserved.`);
+  if (route === 'optimize_layout') return withSourceDetail(`Classified as a ${diagramLabel} layout optimization${usableSkill ? ` using the ${usableSkill} skill` : ''}.`);
+  if (route === 'review_only') return withSourceDetail(`Classified as a review-only pass over the current ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`);
   if (route === 'clarify') return 'More information is needed before the canvas can be changed safely.';
   return 'No canvas mutation is needed; preparing a direct answer.';
 };

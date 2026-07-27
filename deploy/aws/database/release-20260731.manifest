@@ -1,0 +1,3 @@
+# Memory v1 release after the 20260730 source-aware commit release.
+# Keep the release order explicit; the runner verifies the predecessor first.
+2026-07-31-create-confirmed-memory.sql

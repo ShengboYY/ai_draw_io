@@ -63,6 +63,11 @@
             <groupId>org.zipp.ai</groupId>
             <artifactId>ai-agent-draw-io-types</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

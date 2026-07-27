@@ -110,7 +110,8 @@ public class CanvasVisualReviewGroundingGuard {
     private Set<CanvasField> fieldsFor(CanvasVisualIssueType type) {
         if (type == null) return Set.of();
         return switch (type) {
-            case EDGE_TRACEABILITY -> EnumSet.of(CanvasField.STYLE, CanvasField.WAYPOINTS);
+            case EDGE_TRACEABILITY -> EnumSet.of(
+                    CanvasField.STYLE, CanvasField.WAYPOINTS, CanvasField.SOURCE_TARGET);
             case TEXT_READABILITY -> EnumSet.of(CanvasField.STYLE, CanvasField.GEOMETRY);
             case LAYOUT_HIERARCHY -> EnumSet.of(CanvasField.GEOMETRY, CanvasField.WAYPOINTS);
             case STYLE_COHERENCE -> EnumSet.of(CanvasField.STYLE);

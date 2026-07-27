@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "material-rag-stage-a-independent-review-report-v1",
+  "cohortId": "post-r23-stage-a-development-v1",
+  "cohortSha256": "5096beac1c40ff89873b9a43259856fd7c512467e09813fd5b1665d0ee0fa60d",
+  "reviewer": {"reviewerId": "stage_a_cohort_content_review", "kind": "independent_ai"},
+  "result": "approve",
+  "summary": "All 30 cases are natural Draw.io Agent scenarios with unique expected outcomes under the frozen executable setup contract."
+}

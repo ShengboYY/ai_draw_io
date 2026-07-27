@@ -1,0 +1,1278 @@
+{
+  "schemaVersion": "material-rag-drawio-paired-hydration-v1",
+  "split": "development",
+  "selector": "source-aware-top8-v1",
+  "candidatePoolSize": 40,
+  "limit": 8,
+  "taskCount": 6,
+  "retrievalRequiredTaskCount": 5,
+  "changedTaskCount": 3,
+  "changedTaskRate": 0.6,
+  "minimumChangeRate": 0.2,
+  "effectiveExperiment": true,
+  "hydrationCandidates": {
+    "gitCommit": "1cc020059e42a3e3b703759d75d355c988975ac0",
+    "corpusLockSha256": "8730be373c79ddf9f42c7d840e226183d53c38e60554bf2d75dd44e058526a92",
+    "runId": "drawiohydrationpdfresearch_91562f6b57d941b3b60e4651ebafe38a",
+    "path": "evaluation/material-rag-research-v1/results/2026-07-23-e6b-task-hydration-candidates-r4.json",
+    "sha256": "b01b7c4db3fc7fe44ea78a05f2be5d6e6ce42f8bc042ee19d37741eae67ad392"
+  },
+  "contexts": [
+    {
+      "taskId": "dgt-dev-01",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Required fields and unsupported shortcuts\n\n[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Shape contract Each grounded shape stores a stable shape identifier, source version, page or visual region and evidence grade. A group node can summarize several facts, but its citation list must still cover every material-backed claim. Editable output The canonical output is draw.io XML with stable cell identifiers. PNG and SVG exports are delivery formats. Re-importing a screenshot does not restore evidence bindings or semantic group structure. Review rule A reviewer may accept layout changes without changing evidence. A factual label change requires renewed evidence validation. Removing a cited shape may remove its citation, but citations used by remaining shapes must stay resolvable. Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values.",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c; 1. \u9700\u6c42\u4e0e\u8d44\u6599\u8303\u56f4; 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212; 3. \u89c4\u5212\u5230\u753b\u5e03; 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa; 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9] [\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DWH-2026-12 | \u4ece\u8d44\u6599\u68c0\u7d22\u5230\u53ef\u7f16\u8f91\u753b\u5e03\n\n[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u9002\u7528\u8303\u56f4 \u672c\u624b\u518c\u7528\u4e8e\u89c4\u8303 Agent \u6839\u636e PDF\u3001\u56fe\u7247\u548c\u5df2\u6709\u8d44\u6599\u751f\u6210 draw.io \u56fe\u7684\u5de5\u4f5c\u6d41\u3002\u6b63\u5f0f\u7f16\u53f7\u4e3a DWH-2026-12\uff1b \u57f9\u8bad\u6837\u4f8b DWH-2026-21 \u4e0d\u5c5e\u4e8e\u672c\u7248\u672c\u3002\u5de5\u4f5c\u6d41\u8986\u76d6\u9700\u6c42\u6f84\u6e05\u3001\u8d44\u6599\u8303\u56f4\u3001\u8bc1\u636e\u9009\u62e9\u3001\u56fe\u5f62\u89c4\u5212\u3001\u753b\u5e03\u751f\u6210 \u548c\u5f15\u7528\u590d\u6838\u3002 \u57fa\u672c\u539f\u5219 \u5148\u786e\u5b9a\u7528\u6237\u8981\u8868\u8fbe\u7684\u5173\u7cfb\uff0c\u518d\u9009\u62e9\u56fe\u578b\u3002\u7cfb\u7edf\u4e0d\u80fd\u56e0\u4e3a\u8d44\u6599\u4e2d\u51fa\u73b0\u8bb8\u591a\u540d\u8bcd\u5c31\u9ed8\u8ba4\u751f\u6210\u67b6\u6784\u56fe\uff0c\u4e5f\u4e0d\u80fd\u628a\u4e00 \u6bb5\u987a\u5e8f\u6587\u5b57\u76f4\u63a5\u89e3\u91ca\u6210\u5e76\u884c\u6d41\u7a0b\u3002\u6bcf\u4e2a\u5173\u952e\u8282\u70b9\u5e94\u80fd\u8ffd\u6eaf\u5230\u8d44\u6599\u8bc1\u636e\u6216\u660e\u786e\u6807\u6ce8\u4e3a\u7528\u6237\u63d0\u4f9b\u3002 \u62d2\u7b54\u8fb9\u754c \u624b\u518c\u6ca1\u6709\u8bb0\u5f55\u7528\u6237\u5bc6\u7801\u3001\u4ed8\u8d39\u8d26\u53f7\u3001\u79c1\u4eba\u7535\u8bdd\u53f7\u7801\u3001\u751f\u4ea7\u79df\u6237\u7f16\u53f7\u6216\u5185\u90e8\u8bbf\u95ee\u4ee4\u724c\u3002\u76f8\u5173\u95ee\u9898\u5fc5\u987b\u62d2\u7b54\uff0c\u4e0d \u80fd\u4ece\u622a\u56fe\u3001\u6587\u4ef6\u540d\u6216\u5e38\u8bc6\u4e2d\u731c\u6d4b\u3002",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+          "rank": 2
+        },
+        {
+          "anchorId": "dwh-canonical",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u4e2d\u6587\u957f\u6bb5\u843d\u4e0e\u5bf9\u8c61\u8fb9\u754c\n\n[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u7f16\u8f91 \u7528\u6237\u53ef\u4ee5\u79fb\u52a8\u3001\u5206\u7ec4\u6216\u91cd\u65b0\u7740\u8272\u8282\u70b9\u800c\u4e0d\u6539\u53d8\u4e8b\u5b9e\u3002\u82e5\u4fee\u6539\u8282\u70b9\u540d\u79f0\u3001\u6570\u503c\u3001\u7bad\u5934\u65b9\u5411\u6216\u8d23\u4efb\u89d2\u8272\uff0c\u7cfb\u7edf\u5fc5 \u987b\u91cd\u65b0\u68c0\u67e5\u8bc1\u636e\u3002\u4ec5\u6539\u53d8\u5b57\u4f53\u5927\u5c0f\u4e0d\u9700\u8981\u91cd\u65b0\u68c0\u7d22\u3002 \u5f15\u7528 \u5f15\u7528\u9762\u677f\u6309\u5f62\u72b6\u663e\u793a\u8d44\u6599\u540d\u79f0\u3001\u7248\u672c\u3001\u9875\u7801\u548c\u8bc1\u636e\u533a\u57df\u3002\u8de8\u9875\u6bd4\u8f83\u5fc5\u987b\u4fdd\u7559\u4e24\u4e2a\u6765\u6e90\u4f4d\u7f6e\u3002\u6458\u8981\u8282\u70b9\u53ef\u4ee5\u5408 \u5e76\u5c55\u793a\uff0c\u4f46\u4e0d\u80fd\u628a\u591a\u4e2a\u8bc1\u636e\u538b\u7f29\u6210\u4e00\u4e2a\u4e0d\u53ef\u8ffd\u6eaf\u7684\u9875\u7801\u3002 \u5bfc\u51fa draw.io XML \u662f\u53ef\u7ee7\u7eed\u7f16\u8f91\u7684\u6b63\u5f0f\u7ed3\u679c\uff1bSVG \u9002\u5408\u7f51\u9875\uff0cPNG \u9002\u5408\u9884\u89c8\uff0cPDF \u9002\u5408\u5ba1\u9605\u3002\u5bfc\u51fa\u683c\u5f0f\u4e0d\u4f1a\u6539 \u53d8\u8d44\u6599\u6743\u9650\uff0c\u4e5f\u4e0d\u80fd\u628a\u5df2\u5931\u6548\u5f15\u7528\u91cd\u65b0\u53d8\u6210\u6709\u6548\u5f15\u7528\u3002 \u56de\u9000 \u753b\u5e03\u751f\u6210\u5931\u8d25\u65f6\u4fdd\u7559\u5df2\u9a8c\u8bc1\u7684 typed plan\uff0c\u5e76\u663e\u793a\u53ef\u91cd\u8bd5\u72b6\u6001\u3002\u7cfb\u7edf\u4e0d\u80fd\u7528\u65e0\u5f15\u7528\u7684\u65e7\u622a\u56fe\u5047\u88c5\u751f\u6210\u6210\u529f\u3002",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+          "rank": 3
+        },
+        {
+          "anchorId": "dwh-factual-edit",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u4e2d\u6587\u957f\u6bb5\u843d\u4e0e\u5bf9\u8c61\u8fb9\u754c\n\n[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u7f16\u8f91 \u7528\u6237\u53ef\u4ee5\u79fb\u52a8\u3001\u5206\u7ec4\u6216\u91cd\u65b0\u7740\u8272\u8282\u70b9\u800c\u4e0d\u6539\u53d8\u4e8b\u5b9e\u3002\u82e5\u4fee\u6539\u8282\u70b9\u540d\u79f0\u3001\u6570\u503c\u3001\u7bad\u5934\u65b9\u5411\u6216\u8d23\u4efb\u89d2\u8272\uff0c\u7cfb\u7edf\u5fc5 \u987b\u91cd\u65b0\u68c0\u67e5\u8bc1\u636e\u3002\u4ec5\u6539\u53d8\u5b57\u4f53\u5927\u5c0f\u4e0d\u9700\u8981\u91cd\u65b0\u68c0\u7d22\u3002 \u5f15\u7528 \u5f15\u7528\u9762\u677f\u6309\u5f62\u72b6\u663e\u793a\u8d44\u6599\u540d\u79f0\u3001\u7248\u672c\u3001\u9875\u7801\u548c\u8bc1\u636e\u533a\u57df\u3002\u8de8\u9875\u6bd4\u8f83\u5fc5\u987b\u4fdd\u7559\u4e24\u4e2a\u6765\u6e90\u4f4d\u7f6e\u3002\u6458\u8981\u8282\u70b9\u53ef\u4ee5\u5408 \u5e76\u5c55\u793a\uff0c\u4f46\u4e0d\u80fd\u628a\u591a\u4e2a\u8bc1\u636e\u538b\u7f29\u6210\u4e00\u4e2a\u4e0d\u53ef\u8ffd\u6eaf\u7684\u9875\u7801\u3002 \u5bfc\u51fa draw.io XML \u662f\u53ef\u7ee7\u7eed\u7f16\u8f91\u7684\u6b63\u5f0f\u7ed3\u679c\uff1bSVG \u9002\u5408\u7f51\u9875\uff0cPNG \u9002\u5408\u9884\u89c8\uff0cPDF \u9002\u5408\u5ba1\u9605\u3002\u5bfc\u51fa\u683c\u5f0f\u4e0d\u4f1a\u6539 \u53d8\u8d44\u6599\u6743\u9650\uff0c\u4e5f\u4e0d\u80fd\u628a\u5df2\u5931\u6548\u5f15\u7528\u91cd\u65b0\u53d8\u6210\u6709\u6548\u5f15\u7528\u3002 \u56de\u9000 \u753b\u5e03\u751f\u6210\u5931\u8d25\u65f6\u4fdd\u7559\u5df2\u9a8c\u8bc1\u7684 typed plan\uff0c\u5e76\u663e\u793a\u53ef\u91cd\u8bd5\u72b6\u6001\u3002\u7cfb\u7edf\u4e0d\u80fd\u7528\u65e0\u5f15\u7528\u7684\u65e7\u622a\u56fe\u5047\u88c5\u751f\u6210\u6210\u529f\u3002",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_612a05305e157feea8c74405f7b8e348b90f9481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 4,
+          "text": "[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only \u6d41\u7a0b\u5173\u7cfb\n\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u56fe\u793a\u8bf4\u660e",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] This blueprint defines how the draw.io agent turns\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] reference that can resolve to source version, page\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9] [\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 4. CANVAS REVIEW",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-01",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 6,
+          "text": "[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Required fields and unsupported shortcuts\n\n[\u7ae0\u8282] 5. Evidence-to-shape contract\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Shape contract Each grounded shape stores a stable shape identifier, source version, page or visual region and evidence grade. A group node can summarize several facts, but its citation list must still cover every material-backed claim. Editable output The canonical output is draw.io XML with stable cell identifiers. PNG and SVG exports are delivery formats. Re-importing a screenshot does not restore evidence bindings or semantic group structure. Review rule A reviewer may accept layout changes without changing evidence. A factual label change requires renewed evidence validation. Removing a cited shape may remove its citation, but citations used by remaining shapes must stay resolvable. Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values.",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c; 1. \u9700\u6c42\u4e0e\u8d44\u6599\u8303\u56f4; 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212; 3. \u89c4\u5212\u5230\u753b\u5e03; 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa; 5. \u5ba1\u6279\u4e0e\u7248\u672c\u8bf4\u660e\n[\u5185\u5bb9] [\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DWH-2026-12 | \u4ece\u8d44\u6599\u68c0\u7d22\u5230\u53ef\u7f16\u8f91\u753b\u5e03\n\n[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u9002\u7528\u8303\u56f4 \u672c\u624b\u518c\u7528\u4e8e\u89c4\u8303 Agent \u6839\u636e PDF\u3001\u56fe\u7247\u548c\u5df2\u6709\u8d44\u6599\u751f\u6210 draw.io \u56fe\u7684\u5de5\u4f5c\u6d41\u3002\u6b63\u5f0f\u7f16\u53f7\u4e3a DWH-2026-12\uff1b \u57f9\u8bad\u6837\u4f8b DWH-2026-21 \u4e0d\u5c5e\u4e8e\u672c\u7248\u672c\u3002\u5de5\u4f5c\u6d41\u8986\u76d6\u9700\u6c42\u6f84\u6e05\u3001\u8d44\u6599\u8303\u56f4\u3001\u8bc1\u636e\u9009\u62e9\u3001\u56fe\u5f62\u89c4\u5212\u3001\u753b\u5e03\u751f\u6210 \u548c\u5f15\u7528\u590d\u6838\u3002 \u57fa\u672c\u539f\u5219 \u5148\u786e\u5b9a\u7528\u6237\u8981\u8868\u8fbe\u7684\u5173\u7cfb\uff0c\u518d\u9009\u62e9\u56fe\u578b\u3002\u7cfb\u7edf\u4e0d\u80fd\u56e0\u4e3a\u8d44\u6599\u4e2d\u51fa\u73b0\u8bb8\u591a\u540d\u8bcd\u5c31\u9ed8\u8ba4\u751f\u6210\u67b6\u6784\u56fe\uff0c\u4e5f\u4e0d\u80fd\u628a\u4e00 \u6bb5\u987a\u5e8f\u6587\u5b57\u76f4\u63a5\u89e3\u91ca\u6210\u5e76\u884c\u6d41\u7a0b\u3002\u6bcf\u4e2a\u5173\u952e\u8282\u70b9\u5e94\u80fd\u8ffd\u6eaf\u5230\u8d44\u6599\u8bc1\u636e\u6216\u660e\u786e\u6807\u6ce8\u4e3a\u7528\u6237\u63d0\u4f9b\u3002 \u62d2\u7b54\u8fb9\u754c \u624b\u518c\u6ca1\u6709\u8bb0\u5f55\u7528\u6237\u5bc6\u7801\u3001\u4ed8\u8d39\u8d26\u53f7\u3001\u79c1\u4eba\u7535\u8bdd\u53f7\u7801\u3001\u751f\u4ea7\u79df\u6237\u7f16\u53f7\u6216\u5185\u90e8\u8bbf\u95ee\u4ee4\u724c\u3002\u76f8\u5173\u95ee\u9898\u5fc5\u987b\u62d2\u7b54\uff0c\u4e0d \u80fd\u4ece\u622a\u56fe\u3001\u6587\u4ef6\u540d\u6216\u5e38\u8bc6\u4e2d\u731c\u6d4b\u3002",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 5,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 4. CANVAS REVIEW",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+          "imageSha256": "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a",
+          "chunkId": "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+          "rank": 8
+        },
+        {
+          "anchorId": "dwh-canonical",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u4e2d\u6587\u957f\u6bb5\u843d\u4e0e\u5bf9\u8c61\u8fb9\u754c\n\n[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u7f16\u8f91 \u7528\u6237\u53ef\u4ee5\u79fb\u52a8\u3001\u5206\u7ec4\u6216\u91cd\u65b0\u7740\u8272\u8282\u70b9\u800c\u4e0d\u6539\u53d8\u4e8b\u5b9e\u3002\u82e5\u4fee\u6539\u8282\u70b9\u540d\u79f0\u3001\u6570\u503c\u3001\u7bad\u5934\u65b9\u5411\u6216\u8d23\u4efb\u89d2\u8272\uff0c\u7cfb\u7edf\u5fc5 \u987b\u91cd\u65b0\u68c0\u67e5\u8bc1\u636e\u3002\u4ec5\u6539\u53d8\u5b57\u4f53\u5927\u5c0f\u4e0d\u9700\u8981\u91cd\u65b0\u68c0\u7d22\u3002 \u5f15\u7528 \u5f15\u7528\u9762\u677f\u6309\u5f62\u72b6\u663e\u793a\u8d44\u6599\u540d\u79f0\u3001\u7248\u672c\u3001\u9875\u7801\u548c\u8bc1\u636e\u533a\u57df\u3002\u8de8\u9875\u6bd4\u8f83\u5fc5\u987b\u4fdd\u7559\u4e24\u4e2a\u6765\u6e90\u4f4d\u7f6e\u3002\u6458\u8981\u8282\u70b9\u53ef\u4ee5\u5408 \u5e76\u5c55\u793a\uff0c\u4f46\u4e0d\u80fd\u628a\u591a\u4e2a\u8bc1\u636e\u538b\u7f29\u6210\u4e00\u4e2a\u4e0d\u53ef\u8ffd\u6eaf\u7684\u9875\u7801\u3002 \u5bfc\u51fa draw.io XML \u662f\u53ef\u7ee7\u7eed\u7f16\u8f91\u7684\u6b63\u5f0f\u7ed3\u679c\uff1bSVG \u9002\u5408\u7f51\u9875\uff0cPNG \u9002\u5408\u9884\u89c8\uff0cPDF \u9002\u5408\u5ba1\u9605\u3002\u5bfc\u51fa\u683c\u5f0f\u4e0d\u4f1a\u6539 \u53d8\u8d44\u6599\u6743\u9650\uff0c\u4e5f\u4e0d\u80fd\u628a\u5df2\u5931\u6548\u5f15\u7528\u91cd\u65b0\u53d8\u6210\u6709\u6548\u5f15\u7528\u3002 \u56de\u9000 \u753b\u5e03\u751f\u6210\u5931\u8d25\u65f6\u4fdd\u7559\u5df2\u9a8c\u8bc1\u7684 typed plan\uff0c\u5e76\u663e\u793a\u53ef\u91cd\u8bd5\u72b6\u6001\u3002\u7cfb\u7edf\u4e0d\u80fd\u7528\u65e0\u5f15\u7528\u7684\u65e7\u622a\u56fe\u5047\u88c5\u751f\u6210\u6210\u529f\u3002",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+          "rank": 3
+        },
+        {
+          "anchorId": "dwh-factual-edit",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u4e2d\u6587\u957f\u6bb5\u843d\u4e0e\u5bf9\u8c61\u8fb9\u754c\n\n[\u7ae0\u8282] 4. \u7f16\u8f91\u3001\u5f15\u7528\u4e0e\u5bfc\u51fa\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u7f16\u8f91 \u7528\u6237\u53ef\u4ee5\u79fb\u52a8\u3001\u5206\u7ec4\u6216\u91cd\u65b0\u7740\u8272\u8282\u70b9\u800c\u4e0d\u6539\u53d8\u4e8b\u5b9e\u3002\u82e5\u4fee\u6539\u8282\u70b9\u540d\u79f0\u3001\u6570\u503c\u3001\u7bad\u5934\u65b9\u5411\u6216\u8d23\u4efb\u89d2\u8272\uff0c\u7cfb\u7edf\u5fc5 \u987b\u91cd\u65b0\u68c0\u67e5\u8bc1\u636e\u3002\u4ec5\u6539\u53d8\u5b57\u4f53\u5927\u5c0f\u4e0d\u9700\u8981\u91cd\u65b0\u68c0\u7d22\u3002 \u5f15\u7528 \u5f15\u7528\u9762\u677f\u6309\u5f62\u72b6\u663e\u793a\u8d44\u6599\u540d\u79f0\u3001\u7248\u672c\u3001\u9875\u7801\u548c\u8bc1\u636e\u533a\u57df\u3002\u8de8\u9875\u6bd4\u8f83\u5fc5\u987b\u4fdd\u7559\u4e24\u4e2a\u6765\u6e90\u4f4d\u7f6e\u3002\u6458\u8981\u8282\u70b9\u53ef\u4ee5\u5408 \u5e76\u5c55\u793a\uff0c\u4f46\u4e0d\u80fd\u628a\u591a\u4e2a\u8bc1\u636e\u538b\u7f29\u6210\u4e00\u4e2a\u4e0d\u53ef\u8ffd\u6eaf\u7684\u9875\u7801\u3002 \u5bfc\u51fa draw.io XML \u662f\u53ef\u7ee7\u7eed\u7f16\u8f91\u7684\u6b63\u5f0f\u7ed3\u679c\uff1bSVG \u9002\u5408\u7f51\u9875\uff0cPNG \u9002\u5408\u9884\u89c8\uff0cPDF \u9002\u5408\u5ba1\u9605\u3002\u5bfc\u51fa\u683c\u5f0f\u4e0d\u4f1a\u6539 \u53d8\u8d44\u6599\u6743\u9650\uff0c\u4e5f\u4e0d\u80fd\u628a\u5df2\u5931\u6548\u5f15\u7528\u91cd\u65b0\u53d8\u6210\u6709\u6548\u5f15\u7528\u3002 \u56de\u9000 \u753b\u5e03\u751f\u6210\u5931\u8d25\u65f6\u4fdd\u7559\u5df2\u9a8c\u8bc1\u7684 typed plan\uff0c\u5e76\u663e\u793a\u53ef\u91cd\u8bd5\u72b6\u6001\u3002\u7cfb\u7edf\u4e0d\u80fd\u7528\u65e0\u5f15\u7528\u7684\u65e7\u622a\u56fe\u5047\u88c5\u751f\u6210\u6210\u529f\u3002",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_612a05305e157feea8c74405f7b8e348b90f9481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 4,
+          "text": "[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only \u6d41\u7a0b\u5173\u7cfb\n\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u56fe\u793a\u8bf4\u660e",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] This blueprint defines how the draw.io agent turns\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] reference that can resolve to source version, page\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9] [\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "rank": 7
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "dwh-id",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DWH-2026-12 | \u4ece\u8d44\u6599\u68c0\u7d22\u5230\u53ef\u7f16\u8f91\u753b\u5e03\n\n[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u9002\u7528\u8303\u56f4 \u672c\u624b\u518c\u7528\u4e8e\u89c4\u8303 Agent \u6839\u636e PDF\u3001\u56fe\u7247\u548c\u5df2\u6709\u8d44\u6599\u751f\u6210 draw.io \u56fe\u7684\u5de5\u4f5c\u6d41\u3002\u6b63\u5f0f\u7f16\u53f7\u4e3a DWH-2026-12\uff1b \u57f9\u8bad\u6837\u4f8b DWH-2026-21 \u4e0d\u5c5e\u4e8e\u672c\u7248\u672c\u3002\u5de5\u4f5c\u6d41\u8986\u76d6\u9700\u6c42\u6f84\u6e05\u3001\u8d44\u6599\u8303\u56f4\u3001\u8bc1\u636e\u9009\u62e9\u3001\u56fe\u5f62\u89c4\u5212\u3001\u753b\u5e03\u751f\u6210 \u548c\u5f15\u7528\u590d\u6838\u3002 \u57fa\u672c\u539f\u5219 \u5148\u786e\u5b9a\u7528\u6237\u8981\u8868\u8fbe\u7684\u5173\u7cfb\uff0c\u518d\u9009\u62e9\u56fe\u578b\u3002\u7cfb\u7edf\u4e0d\u80fd\u56e0\u4e3a\u8d44\u6599\u4e2d\u51fa\u73b0\u8bb8\u591a\u540d\u8bcd\u5c31\u9ed8\u8ba4\u751f\u6210\u67b6\u6784\u56fe\uff0c\u4e5f\u4e0d\u80fd\u628a\u4e00 \u6bb5\u987a\u5e8f\u6587\u5b57\u76f4\u63a5\u89e3\u91ca\u6210\u5e76\u884c\u6d41\u7a0b\u3002\u6bcf\u4e2a\u5173\u952e\u8282\u70b9\u5e94\u80fd\u8ffd\u6eaf\u5230\u8d44\u6599\u8bc1\u636e\u6216\u660e\u786e\u6807\u6ce8\u4e3a\u7528\u6237\u63d0\u4f9b\u3002 \u62d2\u7b54\u8fb9\u754c \u624b\u518c\u6ca1\u6709\u8bb0\u5f55\u7528\u6237\u5bc6\u7801\u3001\u4ed8\u8d39\u8d26\u53f7\u3001\u79c1\u4eba\u7535\u8bdd\u53f7\u7801\u3001\u751f\u4ea7\u79df\u6237\u7f16\u53f7\u6216\u5185\u90e8\u8bbf\u95ee\u4ee4\u724c\u3002\u76f8\u5173\u95ee\u9898\u5fc5\u987b\u62d2\u7b54\uff0c\u4e0d \u80fd\u4ece\u622a\u56fe\u3001\u6587\u4ef6\u540d\u6216\u5e38\u8bc6\u4e2d\u731c\u6d4b\u3002",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] sec_239a801ecaa47a1e42e87d17\n[\u5185\u5bb9] [\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 1. REQUEST TRIAGE\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 2. SOURCE ORDER\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "chunkId": "rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO AGENT REQUEST ROUTE\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] authorizfa ranked validated\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] SCOPE SOURCES ETRIEVE EVIDENCI BUILD PLAN COMPOSE CANVAS",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9] [\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Purpose\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Design invariant Every material-backed shape keeps an evidence\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] This blueprint defines how the draw.io agent turns\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] reference that can resolve to source version, page\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] generation; exporting an image does not replace\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] architecture identifier is DAA-2026-17.\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] the canonical draw.io XML. Authorization and",
+          "chunkId": "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9] [\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 4,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 3. EVIDENCE BOARD",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-4.jpg",
+          "imageSha256": "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a",
+          "chunkId": "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "dwh-id",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DWH-2026-12 | \u4ece\u8d44\u6599\u68c0\u7d22\u5230\u53ef\u7f16\u8f91\u753b\u5e03\n\n[\u7ae0\u8282] Draw.io Agent \u5236\u56fe\u5de5\u4f5c\u6d41\u624b\u518c\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u9002\u7528\u8303\u56f4 \u672c\u624b\u518c\u7528\u4e8e\u89c4\u8303 Agent \u6839\u636e PDF\u3001\u56fe\u7247\u548c\u5df2\u6709\u8d44\u6599\u751f\u6210 draw.io \u56fe\u7684\u5de5\u4f5c\u6d41\u3002\u6b63\u5f0f\u7f16\u53f7\u4e3a DWH-2026-12\uff1b \u57f9\u8bad\u6837\u4f8b DWH-2026-21 \u4e0d\u5c5e\u4e8e\u672c\u7248\u672c\u3002\u5de5\u4f5c\u6d41\u8986\u76d6\u9700\u6c42\u6f84\u6e05\u3001\u8d44\u6599\u8303\u56f4\u3001\u8bc1\u636e\u9009\u62e9\u3001\u56fe\u5f62\u89c4\u5212\u3001\u753b\u5e03\u751f\u6210 \u548c\u5f15\u7528\u590d\u6838\u3002 \u57fa\u672c\u539f\u5219 \u5148\u786e\u5b9a\u7528\u6237\u8981\u8868\u8fbe\u7684\u5173\u7cfb\uff0c\u518d\u9009\u62e9\u56fe\u578b\u3002\u7cfb\u7edf\u4e0d\u80fd\u56e0\u4e3a\u8d44\u6599\u4e2d\u51fa\u73b0\u8bb8\u591a\u540d\u8bcd\u5c31\u9ed8\u8ba4\u751f\u6210\u67b6\u6784\u56fe\uff0c\u4e5f\u4e0d\u80fd\u628a\u4e00 \u6bb5\u987a\u5e8f\u6587\u5b57\u76f4\u63a5\u89e3\u91ca\u6210\u5e76\u884c\u6d41\u7a0b\u3002\u6bcf\u4e2a\u5173\u952e\u8282\u70b9\u5e94\u80fd\u8ffd\u6eaf\u5230\u8d44\u6599\u8bc1\u636e\u6216\u660e\u786e\u6807\u6ce8\u4e3a\u7528\u6237\u63d0\u4f9b\u3002 \u62d2\u7b54\u8fb9\u754c \u624b\u518c\u6ca1\u6709\u8bb0\u5f55\u7528\u6237\u5bc6\u7801\u3001\u4ed8\u8d39\u8d26\u53f7\u3001\u79c1\u4eba\u7535\u8bdd\u53f7\u7801\u3001\u751f\u4ea7\u79df\u6237\u7f16\u53f7\u6216\u5185\u90e8\u8bbf\u95ee\u4ee4\u724c\u3002\u76f8\u5173\u95ee\u9898\u5fc5\u987b\u62d2\u7b54\uff0c\u4e0d \u80fd\u4ece\u622a\u56fe\u3001\u6587\u4ef6\u540d\u6216\u5e38\u8bc6\u4e2d\u731c\u6d4b\u3002",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] sec_239a801ecaa47a1e42e87d17\n[\u5185\u5bb9] [\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 1. REQUEST TRIAGE\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 2. SOURCE ORDER\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "chunkId": "rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO AGENT REQUEST ROUTE\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] authorizfa ranked validated\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] SCOPE SOURCES ETRIEVE EVIDENCI BUILD PLAN COMPOSE CANVAS",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9] [\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Purpose\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Design invariant Every material-backed shape keeps an evidence\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] This blueprint defines how the draw.io agent turns\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] reference that can resolve to source version, page\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] generation; exporting an image does not replace\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] architecture identifier is DAA-2026-17.\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] the canonical draw.io XML. Authorization and",
+          "chunkId": "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9] [\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 4,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 3. EVIDENCE BOARD",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-4.jpg",
+          "imageSha256": "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a",
+          "chunkId": "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Document\n[\u5185\u5bb9] [\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 1. REQUEST TRIAGE\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 2. SOURCE ORDER\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "chunkId": "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only architecture relationship\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Figure scope The route between planning and citation is encoded only in Figure 2. Surrounding prose does not repeat the node sequence. Visual cases must inspect the diagram and preserve arrow direction. Failure boundary If citation binding fails, the request remains a draft and the user sees an evidence warning. The system must not silently publish a canvas with missing source references.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9] [\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only \u6d41\u7a0b\u5173\u7cfb\n\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u56fe\u793a\u8bf4\u660e\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] caption_context\n[\u6b63\u6587] \u56fe 3 \u53ea\u5728\u50cf\u7d20\u4e2d\u7ed9\u51fa\u4ece\u8bc1\u636e\u5305\u5230\u753b\u5e03\u8349\u7a3f\u7684\u8282\u70b9\u987a\u5e8f\u3002\u6b63\u6587\u6545\u610f\u4e0d\u590d\u8ff0\u76f8\u90bb\u5173\u7cfb\uff0c\u7528\u4e8e\u68c0\u67e5\u89c6\u89c9\u7406\u89e3\u662f\u5426\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u771f\u6b63\u53c2\u4e0e\u3002 \u6821\u9a8c\u89c4\u5219 \u8ba1\u5212\u5fc5\u987b\u5148\u901a\u8fc7\u8303\u56f4\u3001\u7248\u672c\u548c\u8bc1\u636e\u5b8c\u6574\u6027\u68c0\u67e5\uff0c\u624d\u80fd\u4ea4\u7ed9\u753b\u5e03\u751f\u6210\u5668\u3002\u5e03\u5c40\u68c0\u67e5\u901a\u8fc7\u4e0d\u4ee3\u8868\u4e8b\u5b9e\u68c0\u67e5\u901a\u8fc7\u3002",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 4,
+          "text": "[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only \u6d41\u7a0b\u5173\u7cfb\n\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u56fe\u793a\u8bf4\u660e",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Citation Binder\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] source links\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] shape refs\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Reading note",
+          "chunkId": "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+          "rank": 5
+        },
+        {
+          "anchorId": "daa-id",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Purpose\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Design invariant Every material-backed shape keeps an evidence",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_612a05305e157feea8c74405f7b8e348b90f9481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_b132b2cb3b43369e48319f497c75ac6c0d930073",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Approval\n\n[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] V2 exists.\n\n[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Blueprint version 1.0 was approved on 28\n\n[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Pinecone unavailable",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Document\n[\u5185\u5bb9] [\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 1. REQUEST TRIAGE\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 2. SOURCE ORDER\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "chunkId": "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only architecture relationship\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Figure scope The route between planning and citation is encoded only in Figure 2. Surrounding prose does not repeat the node sequence. Visual cases must inspect the diagram and preserve arrow direction. Failure boundary If citation binding fails, the request remains a draft and the user sees an evidence warning. The system must not silently publish a canvas with missing source references.",
+          "imagePath": "fixtures/generated/images/drawio-agent-request-route.png",
+          "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9] [\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only \u6d41\u7a0b\u5173\u7cfb\n\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u56fe\u793a\u8bf4\u660e\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] caption_context\n[\u6b63\u6587] \u56fe 3 \u53ea\u5728\u50cf\u7d20\u4e2d\u7ed9\u51fa\u4ece\u8bc1\u636e\u5305\u5230\u753b\u5e03\u8349\u7a3f\u7684\u8282\u70b9\u987a\u5e8f\u3002\u6b63\u6587\u6545\u610f\u4e0d\u590d\u8ff0\u76f8\u90bb\u5173\u7cfb\uff0c\u7528\u4e8e\u68c0\u67e5\u89c6\u89c9\u7406\u89e3\u662f\u5426\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u771f\u6b63\u53c2\u4e0e\u3002 \u6821\u9a8c\u89c4\u5219 \u8ba1\u5212\u5fc5\u987b\u5148\u901a\u8fc7\u8303\u56f4\u3001\u7248\u672c\u548c\u8bc1\u636e\u5b8c\u6574\u6027\u68c0\u67e5\uff0c\u624d\u80fd\u4ea4\u7ed9\u753b\u5e03\u751f\u6210\u5668\u3002\u5e03\u5c40\u68c0\u67e5\u901a\u8fc7\u4e0d\u4ee3\u8868\u4e8b\u5b9e\u68c0\u67e5\u901a\u8fc7\u3002",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 4,
+          "text": "[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only \u6d41\u7a0b\u5173\u7cfb\n\n[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u56fe\u793a\u8bf4\u660e",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Citation Binder\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] source links\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] shape refs\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Reading note",
+          "chunkId": "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+          "rank": 5
+        },
+        {
+          "anchorId": "daa-id",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Purpose\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Design invariant Every material-backed shape keeps an evidence",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_612a05305e157feea8c74405f7b8e348b90f9481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_b132b2cb3b43369e48319f497c75ac6c0d930073",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 5,
+          "text": "[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Approval\n\n[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] V2 exists.\n\n[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Blueprint version 1.0 was approved on 28\n\n[\u7ae0\u8282] 4. Version and degraded behavior\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Pinecone unavailable",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Output\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Owner\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] allowed sources Platform ranked evidence Retrieval typed plan\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Agent",
+          "chunkId": "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+          "rank": 1
+        },
+        {
+          "anchorId": "dpw-degraded",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 3,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+          "imageSha256": "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff",
+          "chunkId": "rc_21d08c089f12113d111492915856d76297d89b20",
+          "rank": 2
+        },
+        {
+          "anchorId": "dpw-removed",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 3,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+          "imageSha256": "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff",
+          "chunkId": "rc_21d08c089f12113d111492915856d76297d89b20",
+          "rank": 2
+        },
+        {
+          "anchorId": "dpw-source-order",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 3,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+          "imageSha256": "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff",
+          "chunkId": "rc_21d08c089f12113d111492915856d76297d89b20",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+          "rank": 3
+        },
+        {
+          "anchorId": "dpw-clarify",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 2,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+          "imageSha256": "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d",
+          "chunkId": "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+          "rank": 4
+        },
+        {
+          "anchorId": "dpw-layout",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 2,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+          "imageSha256": "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d",
+          "chunkId": "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+          "rank": 4
+        },
+        {
+          "anchorId": "dpw-new-fact",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 2,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+          "imageSha256": "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d",
+          "chunkId": "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 3,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 2. SOURCE ORDER",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+          "imageSha256": "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff",
+          "chunkId": "rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9] [\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_e3ad69d8a126be143435cb8863be412bb7abb61a",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9] [\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only architecture relationship\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Figure scope The route between planning and citation is encoded only in Figure 2. Surrounding prose does not repeat the node sequence. Visual cases must inspect the diagram and preserve arrow direction. Failure boundary If citation binding fails, the request remains a draft and the user sees an evidence warning. The system must not silently publish a canvas with missing source references.\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] caption_context\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO AGENT REQUEST ROUTE\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] authorizfa ranked validated\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] SCOPE SOURCES ETRIEVE EVIDENCI BUILD PLAN COMPOSE CANVAS\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "chunkId": "rc_e3ad69d8a126be143435cb8863be412bb7abb61a",
+          "rank": 7
+        },
+        {
+          "anchorId": "daa-canvas-owner",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] editable canvas Diagram citation panel\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Trust\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer is owned by the Diagram team. Citation Binder can reject an unresolved reference but cannot change the selected source version.",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Output\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Owner\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] allowed sources Platform ranked evidence Retrieval typed plan\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Agent",
+          "chunkId": "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+          "rank": 1
+        },
+        {
+          "anchorId": "dpw-degraded",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 3,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+          "imageSha256": "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff",
+          "chunkId": "rc_21d08c089f12113d111492915856d76297d89b20",
+          "rank": 2
+        },
+        {
+          "anchorId": "dpw-removed",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 3,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+          "imageSha256": "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff",
+          "chunkId": "rc_21d08c089f12113d111492915856d76297d89b20",
+          "rank": 2
+        },
+        {
+          "anchorId": "dpw-source-order",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 3,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+          "imageSha256": "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff",
+          "chunkId": "rc_21d08c089f12113d111492915856d76297d89b20",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 3,
+          "text": "[\u7ae0\u8282] 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u590d\u6838\u89d2\u8272\n\n[\u7ae0\u8282] 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u601d\u7ef4\u5bfc\u56fe\n\n[\u7ae0\u8282] 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u6d41\u7a0b\u8d1f\u8d23\u4eba\n\n[\u7ae0\u8282] 2. \u56fe\u578b\u9009\u62e9\u4e0e\u89c4\u5212\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] \u7ec4\u7ec7\u7ed3\u6784\u56fe",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d",
+          "rank": 11
+        },
+        {
+          "anchorId": "retrieved:rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+          "rank": 3
+        },
+        {
+          "anchorId": "dpw-clarify",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 2,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+          "imageSha256": "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d",
+          "chunkId": "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+          "rank": 4
+        },
+        {
+          "anchorId": "dpw-layout",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 2,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+          "imageSha256": "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d",
+          "chunkId": "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+          "rank": 4
+        },
+        {
+          "anchorId": "dpw-new-fact",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 2,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+          "imageSha256": "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d",
+          "chunkId": "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 3,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 2. SOURCE ORDER",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+          "imageSha256": "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff",
+          "chunkId": "rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+          "rank": 5
+        },
+        {
+          "anchorId": "retrieved:rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9] [\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_e3ad69d8a126be143435cb8863be412bb7abb61a",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9] [\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Raster-only architecture relationship\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Figure scope The route between planning and citation is encoded only in Figure 2. Surrounding prose does not repeat the node sequence. Visual cases must inspect the diagram and preserve arrow direction. Failure boundary If citation binding fails, the request remains a draft and the user sees an evidence warning. The system must not silently publish a canvas with missing source references.\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] caption_context\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO AGENT REQUEST ROUTE\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] authorizfa ranked validated\n\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] SCOPE SOURCES ETRIEVE EVIDENCI BUILD PLAN COMPOSE CANVAS\n[\u7ae0\u8282] 2. Request-to-canvas route\n[\u5185\u5bb9\u7c7b\u578b] visual_description\n[\u6b63\u6587] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+          "chunkId": "rc_e3ad69d8a126be143435cb8863be412bb7abb61a",
+          "rank": 7
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] the prompt.\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] assembly and citation display rather than general chat behavior.\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Out of scope",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Document\n[\u5185\u5bb9] [\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 1. REQUEST TRIAGE\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 2. SOURCE ORDER\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "chunkId": "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_bad0269dddc69a10061329a97477228133611a6b",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 4,
+          "text": "[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] caption_context\n[\u6b63\u6587] \u56fe 3 \u53ea\u5728\u50cf\u7d20\u4e2d\u7ed9\u51fa\u4ece\u8bc1\u636e\u5305\u5230\u753b\u5e03\u8349\u7a3f\u7684\u8282\u70b9\u987a\u5e8f\u3002\u6b63\u6587\u6545\u610f\u4e0d\u590d\u8ff0\u76f8\u90bb\u5173\u7cfb\uff0c\u7528\u4e8e\u68c0\u67e5\u89c6\u89c9\u7406\u89e3\u662f\u5426",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 4,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 3. EVIDENCE BOARD",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-4.jpg",
+          "imageSha256": "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a",
+          "chunkId": "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+          "rank": 5
+        },
+        {
+          "anchorId": "daa-id",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Purpose\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Design invariant Every material-backed shape keeps an evidence",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9] [\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "retrieved:rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+          "rank": 1
+        },
+        {
+          "anchorId": "retrieved:rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 0,
+          "text": "[\u6587\u6863\u7ed3\u6784] Document\n[\u5185\u5bb9] [\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 1. REQUEST TRIAGE\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] scan of retrieval-decision notes\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.\n[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 2. SOURCE ORDER\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] explicit source and chartbook scope\n\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+          "chunkId": "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+          "rank": 3
+        },
+        {
+          "anchorId": "retrieved:rc_bad0269dddc69a10061329a97477228133611a6b",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "page": 4,
+          "text": "[\u7ae0\u8282] 3. \u89c4\u5212\u5230\u753b\u5e03\n[\u5185\u5bb9\u7c7b\u578b] caption_context\n[\u6b63\u6587] \u56fe 3 \u53ea\u5728\u50cf\u7d20\u4e2d\u7ed9\u51fa\u4ece\u8bc1\u636e\u5305\u5230\u753b\u5e03\u8349\u7a3f\u7684\u8282\u70b9\u987a\u5e8f\u3002\u6b63\u6587\u6545\u610f\u4e0d\u590d\u8ff0\u76f8\u90bb\u5173\u7cfb\uff0c\u7528\u4e8e\u68c0\u67e5\u89c6\u89c9\u7406\u89e3\u662f\u5426",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b",
+          "rank": 4
+        },
+        {
+          "anchorId": "retrieved:rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] the prompt.\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] assembly and citation display rather than general chat behavior.\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Out of scope",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+          "rank": 2
+        },
+        {
+          "anchorId": "retrieved:rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+          "sourceVersion": "drawio-planning-workshop-scan:v1",
+          "page": 4,
+          "text": "[\u5185\u5bb9\u7c7b\u578b] list_group\n[\u6b63\u6587] 3. EVIDENCE BOARD",
+          "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-4.jpg",
+          "imageSha256": "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a",
+          "chunkId": "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+          "rank": 5
+        },
+        {
+          "anchorId": "daa-id",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 1,
+          "text": "[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] DAA-2026-17 | evidence-grounded diagram generation\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Purpose\n\n[\u7ae0\u8282] Draw.io Agent Architecture Blueprint\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Design invariant Every material-backed shape keeps an evidence",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+          "rank": 6
+        },
+        {
+          "anchorId": "retrieved:rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 0,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9] [\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Component\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Responsibility\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Input\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Material Gateway scope + version\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] user request\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Evidence Index search\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] query\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Plan Builder\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] diagram intent\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] evidence\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Canvas Composer draw.io XML\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] typed plan",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+          "rank": 7
+        },
+        {
+          "anchorId": "retrieved:rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "page": 2,
+          "text": "[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Native table for service-to-responsibility mapping\n\n[\u7ae0\u8282] 1. Component ownership\n[\u5185\u5bb9\u7c7b\u578b] content\n[\u6b63\u6587] Ownership rule Ownership follows the component that makes the decision, not the component that transports the result. The Retrieval Orchestrator selects candidates; the Canvas Composer turns an approved plan into draw.io XML.",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+          "rank": 8
+        }
+      ]
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "arm": "control",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": []
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "arm": "candidate",
+      "allowedSourceVersions": [
+        "drawio-agent-architecture:v1",
+        "drawio-planning-workshop-scan:v1",
+        "drawio-workflow-handbook:v1"
+      ],
+      "evidence": []
+    }
+  ],
+  "taskSummaries": [
+    {
+      "taskId": "dgt-dev-01",
+      "changed": true,
+      "rawCandidateChunkIds": [
+        "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+        "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_1f22bb5106b2df45d635fe73f202ad957766bc92",
+        "rc_b0dd3078cf670ab0336d31698d48d14dc1c2c993",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7",
+        "rc_cbb27d63475913895c3738f3d487931e3d7e281d",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_6c0308d6009c734b0a27a390c42e944d3244954d",
+        "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc",
+        "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d",
+        "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c",
+        "rc_654b4967c2b7253dccf97458167d2857ab8d3af6",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_970d1dd8cf1e3b3a7178d4427216a6140882ef51",
+        "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+        "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+        "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc",
+        "rc_c59278abb1960e1eda66a48d5db90db22739d41c",
+        "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e",
+        "rc_6f523a3c1d794467034275584bcf1ff39fb46768",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_b132b2cb3b43369e48319f497c75ac6c0d930073",
+        "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+        "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97",
+        "rc_bad0269dddc69a10061329a97477228133611a6b",
+        "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+        "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+        "rc_264997c737389717f36839a56f76c0a04577b7ad"
+      ],
+      "rawCandidateChunkIdsSha256": "15cfcee81b172c9df4043e0072a26c7ff0fcf6eaa59297d096d79c976b57b114",
+      "controlChunkIds": [
+        "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+        "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87"
+      ],
+      "candidateChunkIds": [
+        "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+        "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "changed": false,
+      "rawCandidateChunkIds": [
+        "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+        "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+        "rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+        "rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+        "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+        "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_970d1dd8cf1e3b3a7178d4427216a6140882ef51",
+        "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+        "rc_1f22bb5106b2df45d635fe73f202ad957766bc92",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c",
+        "rc_284263877c03a087ffe32748fedb65cb341a3c75",
+        "rc_817029167a08cb77c74a713a9c6b7a0daa92800a",
+        "rc_b0dd3078cf670ab0336d31698d48d14dc1c2c993",
+        "rc_6c0308d6009c734b0a27a390c42e944d3244954d",
+        "rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+        "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d",
+        "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+        "rc_3cb83e7893b5251abfb4bb7a6efe24ccad318095",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+        "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97",
+        "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+        "rc_654b4967c2b7253dccf97458167d2857ab8d3af6",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_264997c737389717f36839a56f76c0a04577b7ad",
+        "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc",
+        "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+        "rc_6f523a3c1d794467034275584bcf1ff39fb46768",
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_6eaa1a5170eb0e9aae945f8c82b5c72e320fd012",
+        "rc_cbb27d63475913895c3738f3d487931e3d7e281d",
+        "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+      ],
+      "rawCandidateChunkIdsSha256": "6b818f927acc4f9e96be3d4f8d198a2c13dc0b72f98aeafd183d662f99986366",
+      "controlChunkIds": [
+        "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+        "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+        "rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+        "rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+        "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+        "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217"
+      ],
+      "candidateChunkIds": [
+        "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+        "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+        "rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+        "rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+        "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+        "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "changed": false,
+      "rawCandidateChunkIds": [
+        "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+        "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940",
+        "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+        "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+        "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_b132b2cb3b43369e48319f497c75ac6c0d930073",
+        "rc_6f523a3c1d794467034275584bcf1ff39fb46768",
+        "rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+        "rc_3cb83e7893b5251abfb4bb7a6efe24ccad318095",
+        "rc_817029167a08cb77c74a713a9c6b7a0daa92800a",
+        "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7",
+        "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d",
+        "rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+        "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+        "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97",
+        "rc_e3ad69d8a126be143435cb8863be412bb7abb61a",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_36639f3dab267f910437c5b77d13414de7a53e46",
+        "rc_6c0308d6009c734b0a27a390c42e944d3244954d",
+        "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e",
+        "rc_284263877c03a087ffe32748fedb65cb341a3c75",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_b0dd3078cf670ab0336d31698d48d14dc1c2c993",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d",
+        "rc_6eaa1a5170eb0e9aae945f8c82b5c72e320fd012",
+        "rc_8530ce0e2edbe172034c5386c24c0d58ef2501d5",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_87ecfaf95e44d6c22726ba57a6b519f35d05d973",
+        "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d",
+        "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9"
+      ],
+      "rawCandidateChunkIdsSha256": "3eec347be97fd5689d6d7643ab9e9549096f97da96c26817116b863431164853",
+      "controlChunkIds": [
+        "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+        "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940",
+        "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+        "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+        "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+      ],
+      "candidateChunkIds": [
+        "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+        "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940",
+        "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+        "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+        "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "changed": true,
+      "rawCandidateChunkIds": [
+        "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+        "rc_21d08c089f12113d111492915856d76297d89b20",
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_e3ad69d8a126be143435cb8863be412bb7abb61a",
+        "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc",
+        "rc_6929301716535bc76e76f8999e7263a5780ea8ac",
+        "rc_cbb27d63475913895c3738f3d487931e3d7e281d",
+        "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d",
+        "rc_36639f3dab267f910437c5b77d13414de7a53e46",
+        "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e",
+        "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+        "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d",
+        "rc_b0dd3078cf670ab0336d31698d48d14dc1c2c993",
+        "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a",
+        "rc_6f523a3c1d794467034275584bcf1ff39fb46768",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+        "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c",
+        "rc_fac3ad398c49449c9bf9ac6d2d4d9c0cbde834b5",
+        "rc_6c0308d6009c734b0a27a390c42e944d3244954d",
+        "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97",
+        "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0",
+        "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+        "rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "rc_284263877c03a087ffe32748fedb65cb341a3c75",
+        "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc",
+        "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+        "rc_3cb83e7893b5251abfb4bb7a6efe24ccad318095",
+        "rc_c59278abb1960e1eda66a48d5db90db22739d41c",
+        "rc_264997c737389717f36839a56f76c0a04577b7ad",
+        "rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87"
+      ],
+      "rawCandidateChunkIdsSha256": "767f51f7a45758a80350478050f7f7897925f42dd96a85b6aa19761c5de75483",
+      "controlChunkIds": [
+        "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+        "rc_21d08c089f12113d111492915856d76297d89b20",
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_e3ad69d8a126be143435cb8863be412bb7abb61a",
+        "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+      ],
+      "candidateChunkIds": [
+        "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+        "rc_21d08c089f12113d111492915856d76297d89b20",
+        "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d",
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_e3ad69d8a126be143435cb8863be412bb7abb61a"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "changed": true,
+      "rawCandidateChunkIds": [
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+        "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+        "rc_bad0269dddc69a10061329a97477228133611a6b",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592",
+        "rc_6f523a3c1d794467034275584bcf1ff39fb46768",
+        "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "rc_3cb83e7893b5251abfb4bb7a6efe24ccad318095",
+        "rc_1f22bb5106b2df45d635fe73f202ad957766bc92",
+        "rc_612a05305e157feea8c74405f7b8e348b90f9481",
+        "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97",
+        "rc_b132b2cb3b43369e48319f497c75ac6c0d930073",
+        "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "rc_b0dd3078cf670ab0336d31698d48d14dc1c2c993",
+        "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc",
+        "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48",
+        "rc_03bdee065e0125032bd159599d2f50e1afb7dc13",
+        "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2",
+        "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba",
+        "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+        "rc_284263877c03a087ffe32748fedb65cb341a3c75",
+        "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d",
+        "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7",
+        "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "rc_970d1dd8cf1e3b3a7178d4427216a6140882ef51",
+        "rc_cbb27d63475913895c3738f3d487931e3d7e281d",
+        "rc_c951a2f032717678d0090f68fb807f8c6181caa8",
+        "rc_654b4967c2b7253dccf97458167d2857ab8d3af6",
+        "rc_e3ad69d8a126be143435cb8863be412bb7abb61a",
+        "rc_264997c737389717f36839a56f76c0a04577b7ad",
+        "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9",
+        "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab",
+        "rc_6c0308d6009c734b0a27a390c42e944d3244954d",
+        "rc_c59278abb1960e1eda66a48d5db90db22739d41c",
+        "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d",
+        "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+        "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+      ],
+      "rawCandidateChunkIdsSha256": "1e1e6312fcbe6b97085bea256b55a4d0bc4896099c60bb812cf45df96c3cc5a4",
+      "controlChunkIds": [
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+        "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+        "rc_bad0269dddc69a10061329a97477228133611a6b",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+      ],
+      "candidateChunkIds": [
+        "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2",
+        "rc_015d6522f09ca196a6967763bafdb76cad1a3ff3",
+        "rc_bad0269dddc69a10061329a97477228133611a6b",
+        "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474",
+        "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7",
+        "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1",
+        "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+      ]
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "changed": false,
+      "rawCandidateChunkIds": [],
+      "rawCandidateChunkIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "controlChunkIds": [],
+      "candidateChunkIds": []
+    }
+  ],
+  "groundTruth": {
+    "path": "/Users/shengboyuan/Documents/AI_Agent/ai_draw_io/ai-agent-draw-io/evaluation/material-rag-research-v1/fixtures/generated/ground-truth.json",
+    "sha256": "4da9fdb3767d03ab8a027f2009cd5d27b612f377bd6ef8461e97611608000791"
+  },
+  "taskFixture": {
+    "path": "evaluation/material-rag-research-v1/fixtures/drawio-generation-tasks-v2.json",
+    "sha256": "e69f654383f9fd85376a8b79df81a0c3417ad9f805def7ac38e244c579e2981a"
+  },
+  "corpusLock": {
+    "path": "/Users/shengboyuan/Documents/AI_Agent/ai_draw_io/ai-agent-draw-io/evaluation/material-rag-research-v1/fixtures/generated/corpus-lock.json",
+    "sha256": "8730be373c79ddf9f42c7d840e226183d53c38e60554bf2d75dd44e058526a92"
+  },
+  "exporterScriptSha256": "392989b2fe7abe968500c7b22e309616c953544065d9fcca8c5e417dcf225a6c"
+}

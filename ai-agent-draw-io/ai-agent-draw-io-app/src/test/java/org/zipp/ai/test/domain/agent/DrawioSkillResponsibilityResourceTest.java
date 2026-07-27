@@ -218,6 +218,9 @@ public class DrawioSkillResponsibilityResourceTest {
         assertTrue(skill.contains("nearest input/action"));
         assertTrue(skill.contains("Do not centralize unrelated failures"));
         assertTrue(skill.contains("duplicate a small correction step"));
+        assertTrue(skill.contains("Never run several long retry edges through one narrow exception column"));
+        assertTrue(skill.contains("parallel lanes at least 24 px apart"));
+        assertTrue(skill.contains("must not overlap"));
     }
 
     private void assertSkillContains(String skillName, String... tokens) throws Exception {

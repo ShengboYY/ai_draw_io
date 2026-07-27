@@ -1,0 +1,1708 @@
+{
+  "schemaVersion": "material-rag-guard-contract-run-v1",
+  "executionLevel": "fixture-contract",
+  "status": "passed",
+  "limitations": [
+    "This run validates fixture decisions, grounding links and suite minimums.",
+    "Online retrieval, authorization services, degraded dependencies and answer generation must be exercised by their later pipeline stages."
+  ],
+  "suites": {
+    "authorization": {
+      "split": "guard_authorization",
+      "target": 60,
+      "caseCount": 60,
+      "passedCases": 60,
+      "failedCases": 0,
+      "minimumMet": true,
+      "status": "passed"
+    },
+    "versioning": {
+      "split": "guard_versioning",
+      "target": 40,
+      "caseCount": 40,
+      "passedCases": 40,
+      "failedCases": 0,
+      "minimumMet": true,
+      "status": "passed"
+    },
+    "abstention": {
+      "split": "guard_abstention",
+      "target": 40,
+      "caseCount": 40,
+      "passedCases": 40,
+      "failedCases": 0,
+      "minimumMet": true,
+      "status": "passed"
+    },
+    "visualAndOcr": {
+      "split": "guard_visual_ocr",
+      "target": 60,
+      "caseCount": 60,
+      "passedCases": 60,
+      "failedCases": 0,
+      "minimumMet": true,
+      "status": "passed"
+    },
+    "failureAndRecovery": {
+      "split": "guard_failure",
+      "target": 20,
+      "caseCount": 20,
+      "passedCases": 20,
+      "failedCases": 0,
+      "minimumMet": true,
+      "status": "passed"
+    },
+    "chartbookNarrowing": {
+      "split": "guard_chartbook_scope",
+      "target": null,
+      "caseCount": 12,
+      "passedCases": 12,
+      "failedCases": 0,
+      "minimumMet": true,
+      "status": "passed"
+    },
+    "regression": {
+      "split": "guard_regression",
+      "target": null,
+      "caseCount": 40,
+      "passedCases": 40,
+      "failedCases": 0,
+      "minimumMet": true,
+      "status": "passed"
+    }
+  },
+  "caseResults": [
+    {
+      "suite": "authorization",
+      "caseId": "controlled-296",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-297",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-298",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-299",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-300",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-301",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-302",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-327",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-328",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-333",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-334",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-335",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-336",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-337",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-338",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-339",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-340",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-341",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-342",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-343",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-344",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-345",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-346",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-373",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-374",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-375",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-376",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-377",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-378",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-379",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-380",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-381",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-382",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-383",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-384",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-404",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-405",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-406",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-407",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-408",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-409",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-410",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-411",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-412",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-413",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-414",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-415",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-416",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-417",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-425",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-426",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-427",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-428",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-429",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-430",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-654",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-663",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-665",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-712",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "authorization",
+      "caseId": "controlled-713",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-283",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-284",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-285",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-286",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-287",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-288",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-289",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-290",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-291",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-292",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-293",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-294",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-295",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-321",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-322",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-323",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-324",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-325",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-326",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-359",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-360",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-361",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-362",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-363",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-364",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-365",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-366",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-385",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-386",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-387",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-388",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-389",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-390",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-418",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-419",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-662",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-714",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-715",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-716",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "versioning",
+      "caseId": "controlled-717",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-331",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-332",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-646",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-647",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-648",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-649",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-650",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-651",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-652",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-653",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-656",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-657",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-658",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-659",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-660",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-661",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-666",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-667",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-668",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-669",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-670",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-671",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-672",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-673",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-674",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-675",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-676",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-677",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-678",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-679",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-680",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-681",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-682",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-683",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-684",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-685",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-686",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-687",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-688",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "abstention",
+      "caseId": "controlled-689",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-055",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-056",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-057",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-058",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-059",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-060",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-061",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-062",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-063",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-064",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-065",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-066",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-097",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-098",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-099",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-100",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-101",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-102",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-103",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-104",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-105",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-106",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-107",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-108",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-109",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-110",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-111",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-112",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-310",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-311",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-312",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-313",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-314",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-315",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-316",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-317",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-318",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-319",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-320",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-391",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-392",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-393",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-394",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-395",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-396",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-397",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-398",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-399",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-400",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-401",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-402",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-403",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-421",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-422",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-423",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-424",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-623",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-718",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-719",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "visualAndOcr",
+      "caseId": "controlled-720",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-303",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-304",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-305",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-306",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-307",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-308",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-309",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-329",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-330",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-367",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-368",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-369",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-370",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-371",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-372",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-420",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-655",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-664",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-721",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "failureAndRecovery",
+      "caseId": "controlled-722",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-347",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-348",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-349",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-350",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-351",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-352",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-353",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-354",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-355",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-356",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-357",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "chartbookNarrowing",
+      "caseId": "controlled-358",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-001",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-002",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-003",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-004",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-005",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-006",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-007",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-008",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-009",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-010",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-011",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-012",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-013",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-014",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-015",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-016",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-017",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-018",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-019",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-020",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-021",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-022",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-023",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-024",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-025",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-026",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-027",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-028",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-029",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-030",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-031",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-032",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-033",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-034",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-035",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-036",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-613",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-614",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-615",
+      "status": "passed",
+      "errors": []
+    },
+    {
+      "suite": "regression",
+      "caseId": "controlled-616",
+      "status": "passed",
+      "errors": []
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 -- ============================================================================
--- Admin-gated debug trace controls and retained metadata.
+-- Debug trace controls, captures, and retained metadata.
 --
--- Debug trace content may contain prompts, responses, or canvas fragments. It is
--- disabled by default because captures only happen when an enabled control exists.
+-- Debug trace content may contain prompts, responses, or canvas fragments. Application
+-- capture is enabled by default and can be disabled with ZIPP_TELEMETRY_DEBUG_PAYLOAD_CAPTURE_ENABLED.
 -- Cleanup nulls content after retention expiry while keeping metadata for audits.
 -- ============================================================================
 
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS agent_debug_trace_control (
 
 CREATE TABLE IF NOT EXISTS agent_debug_trace_capture (
     id                 VARCHAR(64) NOT NULL COMMENT '主键; adt_<uuid>',
-    control_id         VARCHAR(64) NOT NULL COMMENT '触发捕获的控制 ID',
+    control_id         VARCHAR(64) NOT NULL COMMENT '触发捕获的控制 ID;默认全量采集使用 dtc_default_all',
     user_id            VARCHAR(64) NOT NULL COMMENT '请求 owner/user;账号删除时会匿名化',
     run_id             VARCHAR(64) NOT NULL COMMENT 'agent_run.id',
     span_id            VARCHAR(64) NULL COMMENT '关联 LLM/tool/run span;旧 run 级 capture 为空',

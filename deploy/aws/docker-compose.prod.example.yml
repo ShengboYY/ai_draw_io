@@ -69,6 +69,7 @@ services:
       MYSQL_USER: root
       MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-local-only}
       MODEL_CREDENTIAL_ENCRYPTION_KEY: ${MODEL_CREDENTIAL_ENCRYPTION_KEY:-base64:MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=}
+      ANONYMOUS_WORKSPACE_PEPPER: ${ANONYMOUS_WORKSPACE_PEPPER:-replace-with-32-byte-production-secret}
       LOG_PATH: /tmp/ai-drawio-logs
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/ai_draw_io?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&sslMode=DISABLED&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root

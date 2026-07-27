@@ -44,7 +44,10 @@ public class SecurityConfig {
                                 new AntPathRequestMatcher("/api/v1/auth/resend-verification", "POST"),
                                 new AntPathRequestMatcher("/api/v1/auth/password-reset/request", "POST"),
                                 new AntPathRequestMatcher("/api/v1/auth/password-reset/confirm", "POST"),
-                                new AntPathRequestMatcher("/api/v1/auth/login", "POST")))
+                                new AntPathRequestMatcher("/api/v1/auth/login", "POST"),
+                                // This endpoint only creates a new isolated capability; it cannot
+                                // mutate or read an existing workspace without the valid cookie.
+                                new AntPathRequestMatcher("/api/v1/anonymous-workspaces", "POST")))
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .sessionManagement(session -> session
@@ -76,7 +79,7 @@ public class SecurityConfig {
                 "X-Requested-With",
                 // The streaming client uses this ID to correlate browser requests with trace runs.
                 "X-Request-Id",
-                "X-Workspace-Id",
+                "Idempotency-Key",
                 "X-XSRF-TOKEN"));
         cfg.setExposedHeaders(List.of("X-CSRF-TOKEN"));
         cfg.setAllowCredentials(true);

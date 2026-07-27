@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IUploadSessionMapper">
+    <resultMap id="uploadSessionMap" type="org.zipp.ai.infrastructure.dao.material.po.UploadSessionPO">
+        <id property="id" column="id"/>
+        <result property="ownerType" column="owner_type"/>
+        <result property="ownerKey" column="owner_key"/>
+        <result property="idempotencyKey" column="idempotency_key"/>
+        <result property="displayName" column="display_name"/>
+        <result property="targetScopeType" column="target_scope_type"/>
+        <result property="targetScopeKey" column="target_scope_key"/>
+        <result property="targetRetentionClass" column="target_retention_class"/>
+        <result property="newVersionOfMaterialId" column="new_version_of_material_id"/>
+        <result property="expectedSize" column="expected_size"/>
+        <result property="expectedSha256" column="expected_sha256"/>
+        <result property="declaredMime" column="declared_mime"/>
+        <result property="quarantineBucket" column="quarantine_bucket"/>
+        <result property="quarantineKey" column="quarantine_key"/>
+        <result property="quarantineObjectVersionId" column="quarantine_object_version_id"/>
+        <result property="s3Etag" column="s3_etag"/>
+        <result property="s3ChecksumSha256" column="s3_checksum_sha256"/>
+        <result property="policyExpiresAt" column="policy_expires_at"/>
+        <result property="state" column="state"/>
+        <result property="materialId" column="material_id"/>
+        <result property="versionId" column="version_id"/>
+        <result property="contentBlobId" column="content_blob_id"/>
+        <result property="processingRevisionId" column="processing_revision_id"/>
+        <result property="materialLifecycleGeneration" column="material_lifecycle_generation"/>
+        <result property="generation" column="generation"/>
+        <result property="errorCode" column="error_code"/>
+        <result property="actualSize" column="actual_size"/>
+        <result property="actualSha256" column="actual_sha256"/>
+        <result property="detectedMime" column="detected_mime"/>
+        <result property="pageCount" column="page_count"/>
+        <result property="pixelCount" column="pixel_count"/>
+        <result property="securityStatus" column="security_status"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="selectByOwnerAndIdempotencyKey" resultMap="uploadSessionMap">
+        SELECT * FROM material_upload_session
+        WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey} AND idempotency_key = #{idempotencyKey}
+    </select>
+
+    <select id="selectByIdForOwner" resultMap="uploadSessionMap">
+        SELECT * FROM material_upload_session
+        WHERE id = #{id} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+    </select>
+
+    <select id="selectById" resultMap="uploadSessionMap">
+        SELECT * FROM material_upload_session WHERE id = #{id}
+    </select>
+
+    <insert id="insert">
+        INSERT IGNORE INTO material_upload_session (
+            id, owner_type, owner_key, idempotency_key, display_name, target_scope_type, target_scope_key,
+            target_retention_class, new_version_of_material_id, expected_size, expected_sha256, declared_mime,
+            quarantine_bucket, quarantine_key, policy_expires_at, state, generation
+        ) VALUES (
+            #{id}, #{ownerType}, #{ownerKey}, #{idempotencyKey}, #{displayName}, #{targetScopeType},
+            #{targetScopeKey}, #{targetRetentionClass}, #{newVersionOfMaterialId}, #{expectedSize},
+            #{expectedSha256}, #{declaredMime}, #{quarantineBucket}, #{quarantineKey}, #{policyExpiresAt},
+            #{state}, #{generation}
+        )
+    </insert>
+
+    <update id="pinObject">
+        UPDATE material_upload_session
+        SET quarantine_object_version_id = #{session.quarantineObjectVersionId},
+            s3_etag = #{session.s3Etag}, s3_checksum_sha256 = #{session.s3ChecksumSha256},
+            state = #{session.state}, generation = #{session.generation}, completed_at = UTC_TIMESTAMP(3)
+        WHERE id = #{session.id} AND state = 'CREATED' AND generation = #{expectedGeneration}
+    </update>
+
+    <update id="expire">
+        UPDATE material_upload_session
+        SET state = 'EXPIRED', generation = generation + 1
+        WHERE id = #{id} AND state = 'CREATED' AND generation = #{expectedGeneration}
+    </update>
+
+    <select id="sumAccountOriginalBytes" resultType="long">
+        SELECT
+          (SELECT COALESCE(SUM(byte_size), 0) FROM material_content_blob
+           WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey} AND status &lt;&gt; 'DELETED')
+          +
+          (SELECT COALESCE(SUM(expected_size), 0) FROM material_upload_session
+           WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey}
+             AND content_blob_id IS NULL
+             AND (state IN ('OBJECT_VERSION_PINNED', 'PROCESSING')
+               OR (state = 'CREATED' AND policy_expires_at &gt; UTC_TIMESTAMP(3))))
+    </select>
+
+    <select id="countActiveFiles" resultType="int">
+        SELECT
+          (SELECT COUNT(*) FROM material
+           WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey} AND lifecycle_state = 'ACTIVE')
+          +
+          (SELECT COUNT(*) FROM material_upload_session
+           WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey}
+             AND content_blob_id IS NULL
+             AND (state IN ('OBJECT_VERSION_PINNED', 'PROCESSING')
+               OR (state = 'CREATED' AND policy_expires_at &gt; UTC_TIMESTAMP(3))))
+    </select>
+
+    <select id="countProcessing" resultType="int">
+        SELECT COUNT(*) FROM material_upload_session
+        WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND state IN ('OBJECT_VERSION_PINNED', 'PROCESSING')
+    </select>
+
+    <insert id="ensureRateBucket">
+        INSERT IGNORE INTO material_upload_rate_bucket
+            (subject_type, subject_key, hour_bucket, upload_count, expires_at)
+        VALUES (#{subjectType}, #{subjectKey}, #{hourBucket}, 0, #{expiresAt})
+    </insert>
+
+    <select id="selectRateBucketForUpdate" resultType="int">
+        SELECT upload_count FROM material_upload_rate_bucket
+        WHERE subject_type = #{subjectType} AND subject_key = #{subjectKey} AND hour_bucket = #{hourBucket}
+        FOR UPDATE
+    </select>
+
+    <update id="incrementRateBucket">
+        UPDATE material_upload_rate_bucket SET upload_count = upload_count + 1
+        WHERE subject_type = #{subjectType} AND subject_key = #{subjectKey} AND hour_bucket = #{hourBucket}
+    </update>
+
+    <select id="rateBucketCount" resultType="int">
+        SELECT COALESCE(MAX(upload_count), 0) FROM material_upload_rate_bucket
+        WHERE subject_type = #{subjectType} AND subject_key = #{subjectKey} AND hour_bucket = #{hourBucket}
+    </select>
+
+    <select id="countOwnedDiagram" resultType="int">
+        SELECT COUNT(*) FROM diagram WHERE id = #{diagramId} AND user_id = #{ownerKey} AND deleted = 0
+    </select>
+
+    <select id="countOwnedChartbook" resultType="int">
+        SELECT COUNT(*) FROM chartbook WHERE id = #{chartbookId} AND owner_key = #{ownerKey} AND status &lt;&gt; 'DELETED'
+    </select>
+
+    <select id="countOwnedConversation" resultType="int">
+        SELECT COUNT(*) FROM (
+            SELECT c.conversation_id FROM conversation_source_context c
+            JOIN diagram d ON d.id = c.diagram_id AND d.user_id = c.owner_key AND d.deleted = 0
+            WHERE c.conversation_id = #{conversationId} AND c.owner_key = #{ownerKey}
+            UNION ALL
+            SELECT m.session_id FROM diagram_conversation_message m
+            JOIN diagram d ON d.id = m.diagram_id AND d.user_id = m.user_id AND d.deleted = 0
+            WHERE m.session_id = #{conversationId} AND m.user_id = #{ownerKey}
+            LIMIT 1
+        ) owned_conversation
+    </select>
+
+    <insert id="bindConversation">
+        INSERT IGNORE INTO conversation_source_context
+            (conversation_id, diagram_id, owner_key, source_mode, auto_library)
+        VALUES (#{conversationId}, #{diagramId}, #{ownerKey}, 'AUTO', 1)
+    </insert>
+
+    <select id="countOwnedMaterial" resultType="int">
+        SELECT COUNT(*) FROM material
+        WHERE id = #{materialId} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND lifecycle_state = 'ACTIVE'
+    </select>
+
+    <update id="beginProcessing">
+        UPDATE material_upload_session
+        SET state = 'PROCESSING', generation = generation + 1
+        WHERE id = #{id} AND state = 'OBJECT_VERSION_PINNED' AND generation = #{expectedGeneration}
+          AND EXISTS (SELECT 1 FROM material_processing_job j WHERE j.id = #{jobId} AND j.status = 'RUNNING'
+              AND j.lease_owner = #{workerId} AND j.fence_token = #{fenceToken}
+              AND j.lease_until &gt; UTC_TIMESTAMP(3))
+    </update>
+
+    <update id="reject">
+        UPDATE material_upload_session
+        SET state = 'REJECTED', error_code = #{errorCode}, generation = generation + 1
+        WHERE id = #{id} AND state = 'PROCESSING' AND generation = #{expectedGeneration}
+          AND EXISTS (SELECT 1 FROM material_processing_job j WHERE j.id = #{jobId} AND j.status = 'RUNNING'
+              AND j.lease_owner = #{workerId} AND j.fence_token = #{fenceToken}
+              AND j.lease_until &gt; UTC_TIMESTAMP(3))
+    </update>
+
+    <update id="commitSecurityValidation">
+        UPDATE material_upload_session
+        SET actual_size = #{actualSize}, actual_sha256 = #{actualSha256}, detected_mime = #{detectedMime},
+            page_count = #{pageCount}, pixel_count = #{pixelCount}, security_status = 'VALIDATED',
+            security_validated_at = UTC_TIMESTAMP(3), generation = generation + 1
+        WHERE id = #{id} AND state = 'PROCESSING' AND generation = #{expectedGeneration}
+          AND EXISTS (SELECT 1 FROM material_processing_job j WHERE j.id = #{jobId} AND j.status = 'RUNNING'
+              AND j.lease_owner = #{workerId} AND j.fence_token = #{fenceToken}
+              AND j.lease_until &gt; UTC_TIMESTAMP(3))
+    </update>
+</mapper>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.grounding.ICitationQueryMapper">
+    <select id="selectCellCitations" resultType="org.zipp.ai.infrastructure.dao.grounding.CellCitationRowPO">
+        SELECT COALESCE(citation.id, CONCAT('provenance:', provenance.canvas_version, ':', provenance.cell_id)) AS citation_id,
+               provenance.cell_id, provenance.provenance_ref, citation.claim_key AS statement_key,
+               provenance.support_type, citation.state AS citation_state,
+               CASE WHEN material.id IS NOT NULL THEN evidence.citation_key
+                    ELSE CONCAT('unavailable:', tombstone.id) END AS citation_key,
+               CASE WHEN material.id IS NOT NULL THEN material.id END AS material_id,
+               CASE WHEN material.id IS NOT NULL THEN material.display_name END AS display_name,
+               CASE WHEN material.id IS NOT NULL THEN version.id END AS version_id,
+               CASE WHEN material.id IS NOT NULL THEN version.version_no END AS version_no,
+               CASE WHEN material.id IS NOT NULL THEN page.page_no END AS page_number,
+               CASE WHEN material.id IS NOT NULL THEN unit.modality END AS modality,
+               CASE WHEN material.id IS NOT NULL THEN material.lifecycle_state
+                    WHEN tombstone.id IS NOT NULL THEN 'SOURCE_UNAVAILABLE' END AS source_state,
+               CASE WHEN material.id IS NOT NULL THEN evidence.revision_id END AS processing_revision_id,
+               CASE WHEN material.id IS NOT NULL THEN region.bbox_json END AS bbox_json,
+               CASE WHEN material.id IS NOT NULL
+                    THEN COALESCE(evidence.source_origin, unit.source_channel) END AS origin,
+               CASE WHEN material.id IS NOT NULL AND unit.display_text_object_key IS NOT NULL THEN TRUE ELSE FALSE END AS excerpt_available,
+               CASE WHEN material.id IS NOT NULL AND (unit.visual_object_key IS NOT NULL OR page.page_image_key IS NOT NULL)
+                    THEN TRUE ELSE FALSE END AS preview_available,
+               CASE WHEN material.id IS NULL THEN tombstone.deleted_at END AS deleted_at
+               ,CASE WHEN material.id IS NOT NULL THEN unit.display_text_object_key END AS display_text_object_key
+               ,CASE WHEN material.id IS NOT NULL THEN unit.display_text_object_version_id END AS display_text_object_version_id
+        FROM diagram_cell_provenance provenance
+        JOIN diagram ON diagram.id = provenance.diagram_id
+                    AND diagram.user_id = #{ownerKey} AND diagram.deleted = 0
+        LEFT JOIN source_citation anchor ON anchor.id = provenance.current_citation_id
+        LEFT JOIN source_citation citation ON citation.diagram_id = anchor.diagram_id
+             AND citation.cell_id = anchor.cell_id AND citation.canvas_version = anchor.canvas_version
+             AND citation.owner_key = #{ownerKey}
+        LEFT JOIN citation_evidence evidence ON evidence.citation_id = citation.id
+        LEFT JOIN evidence_unit unit ON unit.id = evidence.evidence_id
+        LEFT JOIN material_version version ON version.id = evidence.version_id
+        LEFT JOIN material ON material.id = version.material_id AND material.owner_key = #{ownerKey}
+        LEFT JOIN material_page page ON page.id = unit.page_id AND page.revision_id = evidence.revision_id
+        LEFT JOIN evidence_region region ON region.evidence_id = unit.id AND region.ordinal = 0
+        LEFT JOIN citation_source_tombstone tombstone ON tombstone.citation_id = citation.id
+        WHERE provenance.diagram_id = #{diagramId} AND provenance.cell_id = #{cellId}
+          AND (#{provenanceRef} IS NULL OR provenance.provenance_ref = #{provenanceRef})
+          AND provenance.canvas_version = COALESCE(#{canvasVersion},
+              (SELECT state.version FROM diagram_canvas_state state
+               WHERE state.diagram_id = #{diagramId} AND state.user_id = #{ownerKey}))
+        ORDER BY citation.created_at, citation_key
+    </select>
+
+    <select id="selectAnswerCitations" resultType="org.zipp.ai.infrastructure.dao.grounding.AnswerCitationRowPO">
+        SELECT citation.id AS citation_id, citation.message_id, citation.claim_key, citation.support_type,
+               evidence.citation_key, material.display_name AS source_label, page.page_no AS page_number,
+               unit.modality, evidence.source_origin
+        FROM source_citation citation
+        JOIN diagram ON diagram.id = citation.diagram_id
+             AND diagram.user_id = #{ownerKey} AND diagram.deleted = 0
+        LEFT JOIN citation_evidence evidence ON evidence.citation_id = citation.id
+        LEFT JOIN evidence_unit unit ON unit.id = evidence.evidence_id
+             AND unit.version_id = evidence.version_id AND unit.revision_id = evidence.revision_id
+        LEFT JOIN material_version version ON version.id = evidence.version_id
+        LEFT JOIN material ON material.id = version.material_id AND material.owner_key = #{ownerKey}
+        LEFT JOIN material_page page ON page.id = unit.page_id AND page.revision_id = evidence.revision_id
+        WHERE citation.owner_key = #{ownerKey} AND citation.diagram_id = #{diagramId}
+          AND citation.target_type = 'ANSWER_CLAIM' AND citation.message_id IN
+          <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">
+              #{messageId}
+          </foreach>
+        ORDER BY citation.created_at, citation.id, evidence.citation_key
+    </select>
+</mapper>

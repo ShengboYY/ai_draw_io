@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "material-rag-drawio-generation-acceptance-policy-v2",
+  "status": "frozen_pre_run_internal_validation",
+  "sourceRun": {
+    "taskFixtureSha256": "802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee"
+  },
+  "rules": {
+    "visibleLocations": ["vertex", "edge"],
+    "normalization": ["strip_html", "collapse_whitespace", "casefold"],
+    "boundary": "Task cardinalities were written to accept normal Draw.io fact placement before any model output. No post-output synonym, cardinality, source, task or policy change is permitted. geometryOnly tasks retain their content, structure and style protections."
+  },
+  "taskOverrides": {}
+}

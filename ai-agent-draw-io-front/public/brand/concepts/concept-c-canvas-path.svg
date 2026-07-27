@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">FreeDraw concept C — Canvas Path</title>
+  <!-- An open canvas contains a rising freehand path that resolves into a spark. -->
+  <rect x="8" y="8" width="496" height="496" rx="132" fill="#34333D"/>
+  <g fill="none" stroke="#FAFAF8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M330 130H184C151 130 124 157 124 190V328C124 361 151 388 184 388H322C355 388 382 361 382 328V250" stroke-width="30"/>
+    <path d="M171 325C199 274 222 302 247 253C271 207 305 227 337 181" stroke-width="34"/>
+    <path d="M380 120V168M356 144H404" stroke-width="16"/>
+  </g>
+  <circle cx="171" cy="325" r="20" fill="#FAFAF8"/>
+</svg>

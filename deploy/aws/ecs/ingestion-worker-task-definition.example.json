@@ -1,0 +1,72 @@
+{
+  "family": "ai-draw-io-ingestion-worker",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "2048",
+  "memory": "4096",
+  "executionRoleArn": "arn:aws:iam::123456789012:role/ai-draw-io-ecs-execution",
+  "taskRoleArn": "arn:aws:iam::123456789012:role/ai-draw-io-ingestion-worker",
+  "volumes": [{"name": "worker-tmp"}],
+  "containerDefinitions": [
+    {
+      "name": "worker",
+      "image": "123456789012.dkr.ecr.ap-southeast-2.amazonaws.com/ai-draw-io-ingestion-worker:RELEASE_SHA",
+      "essential": true,
+      "readonlyRootFilesystem": true,
+      "mountPoints": [
+        {"sourceVolume": "worker-tmp", "containerPath": "/tmp", "readOnly": false}
+      ],
+      "environment": [
+        {"name": "AWS_REGION", "value": "ap-southeast-2"},
+        {"name": "MATERIALS_BUCKET", "value": "replace-with-private-materials-bucket"},
+        {"name": "MATERIAL_MATERIALIZATION_ENABLED", "value": "true"},
+        {"name": "MATERIAL_DOCUMENT_PROCESSING_ENABLED", "value": "false"},
+        {"name": "CLAMAV_HOST", "value": "127.0.0.1"},
+        {"name": "CLAMAV_PORT", "value": "3310"}
+      ],
+      "secrets": [
+        {"name": "DB_URL", "valueFrom": "arn:aws:ssm:ap-southeast-2:123456789012:parameter/ai-draw-io/prod/db-url"},
+        {"name": "DB_USERNAME", "valueFrom": "arn:aws:ssm:ap-southeast-2:123456789012:parameter/ai-draw-io/prod/db-username"},
+        {"name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-draw-io/prod/db-password"}
+      ],
+      "dependsOn": [{"containerName": "clamav", "condition": "HEALTHY"}],
+      "linuxParameters": {"initProcessEnabled": true},
+      "healthCheck": {
+        "command": ["CMD-SHELL", "kill -0 1 || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/ai-draw-io-ingestion-worker",
+          "awslogs-region": "ap-southeast-2",
+          "awslogs-stream-prefix": "worker"
+        }
+      }
+    },
+    {
+      "name": "clamav",
+      "image": "123456789012.dkr.ecr.ap-southeast-2.amazonaws.com/ai-draw-io-clamav:RELEASE_SHA",
+      "essential": true,
+      "readonlyRootFilesystem": false,
+      "healthCheck": {
+        "command": ["CMD-SHELL", "clamdscan --ping 1 || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 10,
+        "startPeriod": 120
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/ai-draw-io-ingestion-worker",
+          "awslogs-region": "ap-southeast-2",
+          "awslogs-stream-prefix": "clamav"
+        }
+      }
+    }
+  ]
+}

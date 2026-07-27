@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IMaterialLifecycleMapper">
+    <resultMap id="materialLifecycleMap" type="org.zipp.ai.infrastructure.dao.material.po.MaterialPO">
+        <id property="id" column="id"/>
+        <result property="ownerType" column="owner_type"/>
+        <result property="ownerKey" column="owner_key"/>
+        <result property="kind" column="kind"/>
+        <result property="displayName" column="display_name"/>
+        <result property="retentionClass" column="retention_class"/>
+        <result property="originConversationId" column="origin_conversation_id"/>
+        <result property="lifecycleState" column="lifecycle_state"/>
+        <result property="lifecycleGeneration" column="lifecycle_generation"/>
+        <result property="latestVersionId" column="latest_version_id"/>
+        <result property="lastMeaningfulActivityAt" column="last_meaningful_activity_at"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="trashExpiresAt" column="trash_expires_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+    </resultMap>
+
+    <select id="selectOwnedLifecycle" resultMap="materialLifecycleMap">
+        SELECT * FROM material
+        WHERE id = #{materialId} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND lifecycle_state IN ('ACTIVE', 'TRASHED')
+    </select>
+
+    <select id="lockOwnedLifecycle" resultMap="materialLifecycleMap">
+        SELECT * FROM material
+        WHERE id = #{materialId} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND lifecycle_state IN ('ACTIVE', 'TRASHED')
+        FOR UPDATE
+    </select>
+
+    <select id="selectLifecycleScopes"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialScopeLinkPO">
+        SELECT id, material_id AS materialId, scope_type AS scopeType,
+               scope_key AS scopeKey, created_by AS createdBy
+        FROM material_scope_link WHERE material_id = #{materialId}
+        ORDER BY created_at, id
+    </select>
+
+    <select id="selectLifecycleRequest" resultMap="materialLifecycleMap">
+        SELECT material_id AS id, owner_key, retention_class, lifecycle_state,
+               lifecycle_generation, expires_at, trash_expires_at
+        FROM material_lifecycle_request
+        WHERE owner_key = #{ownerKey} AND material_id = #{materialId}
+          AND action = #{action} AND request_fingerprint = #{requestFingerprint}
+    </select>
+
+    <select id="selectLifecycleRequestForUpdate" resultMap="materialLifecycleMap">
+        SELECT material_id AS id, owner_key, retention_class, lifecycle_state,
+               lifecycle_generation, expires_at, trash_expires_at
+        FROM material_lifecycle_request
+        WHERE owner_key = #{ownerKey} AND material_id = #{materialId}
+          AND action = #{action} AND request_fingerprint = #{requestFingerprint}
+        FOR UPDATE
+    </select>
+
+    <insert id="insertLifecycleScope">
+        INSERT IGNORE INTO material_scope_link
+            (id, material_id, scope_type, scope_key, created_by)
+        SELECT #{linkId}, id, #{scopeType}, #{scopeKey}, #{ownerKey}
+        FROM material
+        WHERE id = #{materialId} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND lifecycle_state = 'ACTIVE'
+    </insert>
+
+    <update id="updateLifecycle">
+        UPDATE material
+        SET retention_class = #{material.retentionClass},
+            lifecycle_state = #{material.lifecycleState},
+            lifecycle_generation = #{material.lifecycleGeneration},
+            last_meaningful_activity_at = #{material.lastMeaningfulActivityAt},
+            expires_at = #{material.expiresAt}, trash_expires_at = #{material.trashExpiresAt},
+            deleted_at = #{material.deletedAt}
+        WHERE id = #{material.id} AND owner_type = #{material.ownerType}
+          AND owner_key = #{material.ownerKey} AND lifecycle_generation = #{expectedGeneration}
+    </update>
+
+    <select id="countPendingVectorCleanup" resultType="int">
+        SELECT COUNT(*)
+        FROM retrieval_chunk_vector_projection projection
+        JOIN retrieval_chunk chunk ON chunk.id = projection.retrieval_chunk_id
+        JOIN material_version version ON version.id = chunk.version_id
+        WHERE version.material_id = #{materialId}
+          AND projection.provider_deleted_at IS NOT NULL
+          AND projection.provider_delete_completed_at IS NULL
+    </select>
+
+    <update id="cancelQueuedMaterialJobs">
+        UPDATE material_processing_job job
+        LEFT JOIN material_processing_revision revision ON revision.id = job.revision_id
+        LEFT JOIN material_version version_by_revision ON version_by_revision.id = revision.version_id
+        LEFT JOIN material_upload_session upload ON upload.id = job.upload_session_id
+        SET job.status = 'CANCELLED', job.last_error_code = 'MATERIAL_LIFECYCLE_CLOSED'
+        WHERE job.status IN ('QUEUED', 'RETRY')
+          AND (version_by_revision.material_id = #{materialId} OR upload.material_id = #{materialId})
+    </update>
+
+    <insert id="insertDeletionTask">
+        INSERT INTO deletion_task
+            (id, material_id, version_id, lifecycle_generation, stage, status,
+             attempt, not_before, fence_token)
+        VALUES (#{taskId}, #{materialId}, NULL, #{lifecycleGeneration},
+                'WAIT_LEASES', 'QUEUED', 0, #{notBefore}, 0)
+    </insert>
+
+    <insert id="insertLifecycleRequest">
+        INSERT INTO material_lifecycle_request
+            (owner_key, material_id, action, request_fingerprint, retention_class,
+             lifecycle_state, lifecycle_generation, expires_at, trash_expires_at)
+        VALUES (#{ownerKey}, #{material.id}, #{action}, #{requestFingerprint},
+                #{material.retentionClass}, #{material.lifecycleState},
+                #{material.lifecycleGeneration}, #{material.expiresAt}, #{material.trashExpiresAt})
+    </insert>
+
+    <select id="countOwnedLifecycleDiagram" resultType="int">
+        SELECT COUNT(*) FROM diagram
+        WHERE id = #{diagramId} AND user_id = #{ownerKey} AND deleted = 0
+    </select>
+
+    <select id="countOwnedLifecycleChartbook" resultType="int">
+        SELECT COUNT(*) FROM chartbook
+        WHERE id = #{chartbookId} AND owner_key = #{ownerKey} AND status = 'ACTIVE'
+    </select>
+
+    <select id="countOriginConversation" resultType="int">
+        SELECT COUNT(*) FROM (
+            SELECT conversation_id FROM conversation_source_context
+            WHERE conversation_id = #{conversationId} AND owner_key = #{ownerKey}
+            UNION
+            SELECT session_id FROM diagram_conversation_message
+            WHERE session_id = #{conversationId} AND user_id = #{ownerKey}
+        ) owned_conversation
+    </select>
+
+    <select id="countOriginConversationByKeys" resultType="int">
+        SELECT COUNT(*) FROM (
+            SELECT conversation_id FROM conversation_source_context
+            WHERE conversation_id IN
+              <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">#{conversationId}</foreach>
+              AND owner_key = #{ownerKey}
+            UNION
+            SELECT conversation_id FROM diagram_conversation_message
+            WHERE conversation_id IN
+              <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">#{conversationId}</foreach>
+              AND user_id = #{ownerKey}
+            UNION
+            SELECT session_id FROM diagram_conversation_message
+            WHERE session_id IN
+              <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">#{conversationId}</foreach>
+              AND user_id = #{ownerKey}
+            UNION
+            SELECT a.conversation_id FROM conversation_legacy_alias a
+            WHERE a.owner_key = #{ownerKey}
+              AND a.legacy_session_id IN
+              <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">#{conversationId}</foreach>
+        ) owned_conversation
+    </select>
+
+    <select id="selectDeletionImpact"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialDeletionImpactPO">
+        SELECT m.id AS materialId, m.lifecycle_generation AS lifecycleGeneration
+        FROM material m
+        WHERE m.id = #{materialId} AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state IN ('ACTIVE', 'TRASHED')
+    </select>
+
+    <select id="selectDeletionImpactVersionIds" resultType="string">
+        SELECT id FROM material_version WHERE material_id = #{materialId} ORDER BY id
+    </select>
+
+    <select id="selectDeletionImpactPinnedSourceIds" resultType="string">
+        SELECT CONCAT(pin.version_id, ':', pin.processing_revision_id)
+        FROM diagram_source_pin pin WHERE pin.material_id = #{materialId}
+        UNION
+        SELECT CONCAT(ce.version_id, ':', ce.revision_id) FROM citation_evidence ce
+        JOIN material_version v ON v.id = ce.version_id WHERE v.material_id = #{materialId}
+        ORDER BY 1
+    </select>
+
+    <select id="selectDeletionImpactDiagramIds" resultType="string">
+        SELECT scope_key FROM material_scope_link
+        WHERE material_id = #{materialId} AND scope_type = 'DIAGRAM'
+        UNION
+        SELECT diagram_id FROM diagram_source_pin WHERE material_id = #{materialId}
+        ORDER BY 1
+    </select>
+
+    <select id="selectDeletionImpactChartbookIds" resultType="string">
+        SELECT scope_key FROM material_scope_link
+        WHERE material_id = #{materialId} AND scope_type = 'CHARTBOOK'
+        ORDER BY scope_key
+    </select>
+
+    <select id="selectDeletionImpactCitationIds" resultType="string">
+        SELECT DISTINCT ce.citation_id FROM citation_evidence ce
+        JOIN material_version v ON v.id = ce.version_id
+        WHERE v.material_id = #{materialId} ORDER BY ce.citation_id
+    </select>
+
+    <select id="selectExpiredTemporary" resultMap="materialLifecycleMap">
+        SELECT * FROM material
+        WHERE retention_class = 'TEMPORARY' AND lifecycle_state = 'ACTIVE'
+          AND expires_at &lt;= #{now}
+        ORDER BY expires_at, id LIMIT #{limit}
+    </select>
+
+    <select id="selectExpiredTrash" resultMap="materialLifecycleMap">
+        SELECT * FROM material
+        WHERE lifecycle_state = 'TRASHED' AND trash_expires_at &lt;= #{now}
+        ORDER BY trash_expires_at, id LIMIT #{limit}
+    </select>
+
+    <select id="selectOwnerDeletionCandidates" resultMap="materialLifecycleMap">
+        SELECT * FROM material
+        WHERE owner_type = 'USER' AND owner_key = #{ownerKey}
+          AND lifecycle_state IN ('ACTIVE', 'TRASHED')
+        ORDER BY id LIMIT #{limit}
+    </select>
+</mapper>

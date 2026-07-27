@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "material-rag-drawio-generation-evidence-v1",
+  "purpose": "Frozen Development-only E7 evidence contexts. Visual and OCR artifacts are attached separately by the multimodal runner.",
+  "contexts": [
+    {
+      "taskId": "dgt-dev-01",
+      "arm": "fixed",
+      "evidence": [
+        {"anchorId": "dwh-sequence-type", "sourceVersion": "drawio-workflow-handbook:v1", "page": 3, "text": "描述系统交互时首选时序图。"},
+        {"anchorId": "dwh-handoff-type", "sourceVersion": "drawio-workflow-handbook:v1", "page": 3, "text": "责任交接则首选泳道图。"}
+      ]
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "arm": "fixed",
+      "evidence": [
+        {"anchorId": "daa-route-scope", "sourceVersion": "drawio-agent-architecture:v1", "page": 3, "text": "Inspect the attached request-route visual and preserve arrow direction.", "imagePath": "fixtures/generated/images/drawio-agent-request-route.png", "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"},
+        {"anchorId": "daa-route-compose", "sourceVersion": "drawio-agent-architecture:v1", "page": 3, "text": "Inspect the attached request-route visual and preserve arrow direction.", "imagePath": "fixtures/generated/images/drawio-agent-request-route.png", "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"}
+      ]
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "arm": "fixed",
+      "evidence": [
+        {"anchorId": "dwh-factual-edit", "sourceVersion": "drawio-workflow-handbook:v1", "page": 5, "text": "若修改节点名称、数值、箭头方向或责任角色，系统必须重新检查证据。"},
+        {"anchorId": "dwh-canonical", "sourceVersion": "drawio-workflow-handbook:v1", "page": 5, "text": "draw.io XML 是可继续编辑的正式结果；PNG 和 SVG 只是交付格式。"}
+      ]
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "arm": "fixed",
+      "evidence": [
+        {"anchorId": "daa-version-pin", "sourceVersion": "drawio-agent-architecture:v1", "page": 5, "text": "A shape that already cites material version V1 remains pinned to V1 when reopened; V2 does not rewrite the existing citation."}
+      ]
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "arm": "fixed",
+      "evidence": [
+        {"anchorId": "dpw-budgets", "sourceVersion": "drawio-planning-workshop-scan:v1", "page": 4, "text": "Inspect the attached scanned workshop page for the three written evidence budgets.", "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-4.jpg", "imageSha256": "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a"}
+      ]
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "arm": "fixed",
+      "evidence": []
+    }
+  ]
+}

@@ -31,7 +31,8 @@ public class CanvasVisualReviewGroundingGuardTest {
 
         assertFalse(grounding.hasConflict());
         assertEquals(Set.of("edge-1"), grounding.authorization().allowedCellIds());
-        assertEquals(Set.of(CanvasField.STYLE, CanvasField.WAYPOINTS), grounding.authorization().allowedFields());
+        assertEquals(Set.of(CanvasField.STYLE, CanvasField.WAYPOINTS, CanvasField.SOURCE_TARGET),
+                grounding.authorization().allowedFields());
         assertEquals(1, grounding.returnedTargetCount());
         assertEquals(1, grounding.validTargetCount());
         assertEquals(0, grounding.invalidTargetCount());

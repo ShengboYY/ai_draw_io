@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "rag-dataset-plan-v1",
+  "datasetVersion": "rag-beta-v1",
+  "minimumCaseCount": 165,
+  "minimumLockedCaseCount": 50,
+  "categories": {
+    "DIGITAL_PDF": 30,
+    "SCANNED_PDF_OCR": 15,
+    "EXACT_TERM_ID_NUMBER_VERSION": 15,
+    "TABLE_ROW_COLUMN_VALUE": 15,
+    "VISUAL_DIAGRAM_ARROW": 20,
+    "DRAWIO_CREATION": 20,
+    "TARGET_QUESTION": 15,
+    "COMPARISON_MULTI_FACET_HOP": 10,
+    "STRICT_VERSION_SCOPE": 10,
+    "NO_ANSWER_INSUFFICIENT": 15
+  },
+  "languages": ["zh", "en"],
+  "caseSchema": "rag-eval-case-v1"
+}
