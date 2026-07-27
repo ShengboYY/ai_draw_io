@@ -286,7 +286,8 @@ public class ChatCanvasVisualReviewerTest {
     public void productionReviewerConfigurationHasNoTools() throws Exception {
         String yaml = new String(getClass().getResourceAsStream("/agent/agent-draw-io.yml").readAllBytes(), StandardCharsets.UTF_8);
         int start = yaml.indexOf("drawIoVisualReviewAgent:");
-        int end = yaml.indexOf("drawIoEvalDraftAgent:", start);
+        // Stop at the next peer so the separate repair agent's tool is not attributed to the reviewer.
+        int end = yaml.indexOf("drawIoVisualRepairAgent:", start);
         String table = yaml.substring(start, end);
 
         assertTrue(table.contains("${ZIPP_VISUAL_REVIEW_AGENT_ID:300018}"));

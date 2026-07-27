@@ -110,7 +110,12 @@ class MySqlSourceAwareTurnCommitSchemaTest {
                                         diagramId,
                                         0,
                                         "",
-                                        "<mxGraphModel/>",
+                                        // The success fixture must satisfy the non-empty canvas invariant.
+                                        "<mxGraphModel><root><mxCell id=\"0\"/>"
+                                                + "<mxCell id=\"1\" parent=\"0\"/>"
+                                                + "<mxCell id=\"node-1\" value=\"Step\" "
+                                                + "vertex=\"1\" parent=\"1\"/>"
+                                                + "</root></mxGraphModel>",
                                         "direct schema smoke complete",
                                         "m5-payload",
                                         new DirectVisualProvenance(
