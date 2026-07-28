@@ -12,13 +12,11 @@ import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.agent.CreateDraftRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentToolPort;
 import org.zipp.ai.application.turn.agent.DiagramDraftStore;
-import org.zipp.ai.application.turn.agent.DiagramDraftVisualReview;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
 import org.zipp.ai.application.turn.agent.DraftCellMutation;
 import org.zipp.ai.application.turn.agent.DraftInspectionScope;
 import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
-import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
@@ -49,7 +47,7 @@ class DefaultDiagramAgentToolAdapterTest {
     }
 
     @Test
-    void springWiresTheProductionVisualReviewPortIntoTheToolAdapter() {
+    void springKeepsTheVisualReviewerSeparateFromTheDraftToolAdapter() {
         new ApplicationContextRunner()
                 .withBean(DiagramDraftStore.class, InMemoryDiagramDraftStore::new)
                 .withBean(ICanvasVisualReviewer.class, () -> command ->
@@ -117,38 +115,6 @@ class DefaultDiagramAgentToolAdapterTest {
 
         assertThat(changed.success()).isFalse();
         assertThat(changed.outcomeCode()).isEqualTo("LAYOUT_SEMANTIC_CHANGE");
-    }
-
-    @Test
-    void bindsVisualReviewToTheExactDraftDigest() {
-        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
-        DefaultDiagramAgentToolAdapter tools = new DefaultDiagramAgentToolAdapter(
-                store,
-                (plan, draft) -> new DiagramDraftVisualReview(
-                        draft.digest(),
-                        "APPROVE",
-                        true,
-                        "Readable",
-                        List.of(),
-                        "",
-                        "test-reviewer"));
-        FencedAttempt attempt = attempt();
-        PlainDrawPlan plan = new PlainDrawPlan(PlainDrawAction.CREATE, "draw a flow");
-        var created = tools.execute(attempt, plan, new CreateDraftRequest(graph(
-                "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
-                        + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
-                        + "as=\"geometry\"/></mxCell>")));
-
-        var reviewed = tools.execute(attempt, plan, new ReviewDraftRequest(
-                created.draft().ref(), created.draft().digest()));
-        var stale = tools.execute(attempt, plan, new ReviewDraftRequest(
-                created.draft().ref(), "sha256:" + "0".repeat(64)));
-
-        assertThat(reviewed.success()).isTrue();
-        assertThat(reviewed.outcomeCode()).isEqualTo("APPROVE");
-        assertThat(reviewed.visualReview().reviewedDigest())
-                .isEqualTo(created.draft().digest());
-        assertThat(stale.outcomeCode()).isEqualTo("DRAFT_DIGEST_MISMATCH");
     }
 
     @Test

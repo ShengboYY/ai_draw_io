@@ -341,6 +341,14 @@ class TurnApplicationCompositionConfigTest {
                             + "<mxCell id=\"node-a\" value=\"A\" vertex=\"1\" parent=\"1\"/>"
                             + "</root></mxGraphModel>",
                     Instant.now()));
+            progress.publish(new TurnEvent(
+                    "plain_agent_visual_review_started",
+                    "1\tPOST_MUTATION_REVIEW\tvisual_review_agent\tSTARTED\t0\t0",
+                    Instant.now()));
+            progress.publish(new TurnEvent(
+                    "plain_agent_visual_review_completed",
+                    "1\tPOST_MUTATION_REVIEW\tvisual_review_agent\tAPPROVE\t25\t0",
+                    Instant.now()));
             return new TurnHttpDeliveryResult(
                     new TurnSubmission.TerminalReplay(
                             key,
@@ -380,6 +388,10 @@ class TurnApplicationCompositionConfigTest {
                 any(org.springframework.http.MediaType.class));
         verify(emitter, atLeastOnce()).send(
                 argThat(value -> value.toString().contains("\"type\":\"drawio_node\"")),
+                any(org.springframework.http.MediaType.class));
+        verify(emitter, atLeastOnce()).send(
+                argThat(value -> value.toString()
+                        .contains("\"stage\":\"visual_review_completed\"")),
                 any(org.springframework.http.MediaType.class));
 
         assertThat(telemetryStore.runs).singleElement().satisfies(run -> {

@@ -16,7 +16,6 @@ import org.zipp.ai.application.turn.agent.CallDiagramTool;
 import org.zipp.ai.application.turn.agent.CreateDraftRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentObservation;
 import org.zipp.ai.application.turn.agent.DiagramAgentState;
-import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
 import org.zipp.ai.application.turn.agent.SubmitDiagramCandidate;
 import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.AvailableContext;
@@ -39,6 +38,7 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import java.time.Instant;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,6 +61,8 @@ class ChatDiagramAgentDecisionAdapterTest {
         assertTrue(chat.lastText.contains("PLAIN_XML_AGENT_DECISION_V1"));
         assertTrue(chat.lastText.contains("ACTION_PROTOCOL"));
         assertTrue(chat.lastText.contains("SUBMIT_CANDIDATE"));
+        assertTrue(chat.lastText.contains("Runtime delegates"));
+        assertFalse(chat.lastText.contains("CALL review_draft"));
     }
 
     @Test
@@ -79,16 +81,14 @@ class ChatDiagramAgentDecisionAdapterTest {
     }
 
     @Test
-    void parsesReviewDraftWithTheExactDigest() {
+    void rejectsReviewDraftBecauseReviewIsRuntimeDelegated() {
         ChatDiagramAgentDecisionAdapter adapter = new ChatDiagramAgentDecisionAdapter(
                 new ToolFreeChatModelInvoker(new RecordingChat("unused"), "300025", "test"));
 
-        CallDiagramTool action = assertInstanceOf(CallDiagramTool.class, adapter.parse(
+        assertThrows(IllegalArgumentException.class, () -> adapter.parse(
                 "{\"action\":\"CALL_TOOL\",\"toolName\":\"review_draft\",\"arguments\":{"
                         + "\"draftRef\":\"draft-1\",\"expectedDigest\":\"sha256:"
                         + "a".repeat(64) + "\"}}"));
-
-        assertInstanceOf(ReviewDraftRequest.class, action.request());
     }
 
     private DiagramAgentObservation observation() {
@@ -109,7 +109,7 @@ class ChatDiagramAgentDecisionAdapterTest {
                 0);
         return new DiagramAgentObservation(
                 state,
-                List.of("create_draft", "inspect_draft", "patch_draft", "review_draft"),
+                List.of("create_draft", "inspect_draft", "patch_draft"),
                 8,
                 3,
                 1,

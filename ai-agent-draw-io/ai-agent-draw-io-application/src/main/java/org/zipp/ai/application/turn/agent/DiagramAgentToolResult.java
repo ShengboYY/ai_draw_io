@@ -12,8 +12,7 @@ public record DiagramAgentToolResult(
         List<String> changedCellIds,
         List<InspectedDiagramCell> cells,
         String canvasXml,
-        boolean truncated,
-        DiagramDraftVisualReview visualReview
+        boolean truncated
 ) {
 
     public DiagramAgentToolResult {
@@ -41,26 +40,12 @@ public record DiagramAgentToolResult(
     ) {
         return new DiagramAgentToolResult(
                 toolName, true, "SUCCESS", draft, structure,
-                changedCellIds, cells, canvasXml, truncated, null);
-    }
-
-    public static DiagramAgentToolResult visualReview(
-            String toolName,
-            DiagramDraftView draft,
-            DiagramDraftStructure structure,
-            DiagramDraftVisualReview visualReview
-    ) {
-        if (visualReview == null) {
-            throw new IllegalArgumentException("visual review is required");
-        }
-        return new DiagramAgentToolResult(
-                toolName, true, visualReview.decision(), draft, structure,
-                List.of(), List.of(), "", false, visualReview);
+                changedCellIds, cells, canvasXml, truncated);
     }
 
     public static DiagramAgentToolResult rejected(String toolName, String code) {
         return new DiagramAgentToolResult(
                 toolName, false, code, null, null,
-                List.of(), List.of(), "", false, null);
+                List.of(), List.of(), "", false);
     }
 }

@@ -182,7 +182,8 @@ export interface StatusChunk {
 export interface AgentProgressChunk {
     type: 'agent_progress';
     stage: 'agent_started' | 'skills_loaded' | 'decision_started' | 'decision_completed'
-        | 'tool_started' | 'tool_completed' | 'candidate_submitted';
+        | 'tool_started' | 'tool_completed' | 'visual_review_started'
+        | 'visual_review_completed' | 'candidate_submitted';
     step?: number;
     action?: string;
     tool?: string;

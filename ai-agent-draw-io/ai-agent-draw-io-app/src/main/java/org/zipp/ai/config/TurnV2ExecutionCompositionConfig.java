@@ -57,6 +57,7 @@ import org.zipp.ai.application.turn.agent.DiagramAgentBudget;
 import org.zipp.ai.application.turn.agent.DiagramAgentDecisionPort;
 import org.zipp.ai.application.turn.agent.DiagramAgentToolPort;
 import org.zipp.ai.application.turn.agent.DiagramDraftStore;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
 import org.zipp.ai.application.turn.agent.PlainAgentTracePort;
 import org.zipp.ai.application.turn.planning.DirectCompositePlanner;
 import org.zipp.ai.application.turn.planning.OptionalEnrichmentPlanner;
@@ -112,6 +113,7 @@ public class TurnV2ExecutionCompositionConfig {
             DiagramAgentDecisionPort decisions,
             DiagramAgentToolPort tools,
             DiagramDraftStore drafts,
+            ObjectProvider<DiagramDraftVisualReviewPort> visualReviews,
             TurnAttemptExecutionStatePort executionState,
             PlainAgentTracePort trace
     ) {
@@ -119,6 +121,7 @@ public class TurnV2ExecutionCompositionConfig {
                 decisions,
                 tools,
                 drafts,
+                visualReviews.getIfAvailable(() -> DiagramDraftVisualReviewPort.UNAVAILABLE),
                 executionState,
                 DiagramAgentBudget.defaults(),
                 trace);

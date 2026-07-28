@@ -1,6 +1,6 @@
 package org.zipp.ai.application.turn.agent;
 
-/** Read-only structural facts; visual quality is evaluated exclusively by review_draft. */
+/** Read-only structural facts; visual quality is evaluated by the delegated reviewer agent. */
 public record DiagramDraftStructure(
         int nodeCount,
         int edgeCount,

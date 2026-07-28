@@ -22,7 +22,7 @@ import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import java.util.Base64;
 import java.util.List;
 
-/** Adapts the existing VLM reviewer to an attempt-scoped draft tool result. */
+/** Adapts the existing VLM reviewer as the delegated agent in the Plain review loop. */
 @Component
 @Slf4j
 public final class DefaultDiagramDraftVisualReviewAdapter
