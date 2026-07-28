@@ -12,6 +12,8 @@ import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.ConversationReferenceResolver;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
+import org.zipp.ai.application.turn.TurnEvent;
+import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnFailureCode;
 import org.zipp.ai.application.turn.TurnStatus;
@@ -28,6 +30,7 @@ import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.api.dto.ChatResponseDTO;
+import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -57,6 +60,7 @@ public final class TurnV2ProductIngressAdapter {
     private final ObjectProvider<TurnAttemptExecutionRunner> runner;
     private final AgentUsageTelemetryService telemetry;
     private final ObjectProvider<AgentDebugTraceService> debugTraces;
+    private final DrawioToolCallRenderer previewRenderer = new DrawioToolCallRenderer();
     private final long timeoutMillis;
 
     public TurnV2ProductIngressAdapter(
@@ -356,7 +360,10 @@ public final class TurnV2ProductIngressAdapter {
     ) {
         AuthenticatedActor actor = new AuthenticatedActor(ownerKey, ownerKey);
         TurnHttpRequest canonical = canonicalRequest(request, requestId, runId);
-        TurnHttpDeliveryResult deliveryResult = delivery.executeProductSync(actor, request);
+        TurnHttpDeliveryResult deliveryResult = progressEmitter == null
+                ? delivery.executeProductSync(actor, request)
+                : delivery.executeProductTracked(
+                        actor, request, productProgressSink(progressEmitter));
         TurnSubmission submission = deliveryResult.submission();
         if (submission instanceof TurnSubmission.LegacyAssignmentPinned) {
             // The same request id may still be pinned to a pre-cutover assignment. Preserve its
@@ -393,6 +400,105 @@ public final class TurnV2ProductIngressAdapter {
             send(emitter, "analyzing", chunk);
         } catch (IOException failure) {
             throw new IllegalStateException("TURN_V2_STREAM_SEND_FAILED", failure);
+        }
+    }
+
+    private TurnEventSink productProgressSink(ResponseBodyEmitter emitter) {
+        return new TurnEventSink() {
+            private boolean detached;
+
+            @Override
+            public synchronized void publish(TurnEvent event) {
+                if (detached || event == null) {
+                    return;
+                }
+                try {
+                    projectProgressEvent(emitter, event);
+                } catch (Exception deliveryFailure) {
+                    // Browser disconnects detach only this subscriber; the fenced attempt keeps
+                    // running and remains queryable through its durable terminal status.
+                    detached = true;
+                }
+            }
+        };
+    }
+
+    private void projectProgressEvent(ResponseBodyEmitter emitter, TurnEvent event)
+            throws IOException {
+        if ("plain_agent_draft_preview".equals(event.type())) {
+            for (JSONObject chunk : previewRenderer.renderDraftPreview(event.payload())) {
+                send(emitter, "drawing", chunk);
+            }
+            return;
+        }
+
+        JSONObject progress = agentProgressChunk(event);
+        if (progress != null) {
+            send(emitter, progressPhase(event.type(), progress.getString("tool")), progress);
+        }
+    }
+
+    private JSONObject agentProgressChunk(TurnEvent event) {
+        String stage = switch (event.type()) {
+            case "plain_agent_started" -> "agent_started";
+            case "plain_agent_skills_loaded" -> "skills_loaded";
+            case "plain_agent_decision_started" -> "decision_started";
+            case "plain_agent_decision_completed" -> "decision_completed";
+            case "plain_agent_tool_started" -> "tool_started";
+            case "plain_agent_tool_completed" -> "tool_completed";
+            case "plain_agent_candidate_submitted" -> "candidate_submitted";
+            default -> null;
+        };
+        if (stage == null) {
+            return null;
+        }
+
+        JSONObject chunk = new JSONObject();
+        chunk.put("type", "agent_progress");
+        chunk.put("stage", stage);
+        if ("skills_loaded".equals(stage)) {
+            chunk.put("skillCount", parseInt(event.payload()));
+            return chunk;
+        }
+        if ("candidate_submitted".equals(stage)) {
+            return chunk;
+        }
+
+        String[] fields = event.payload().split("\\t", -1);
+        if (fields.length == 6) {
+            chunk.put("step", parseInt(fields[0]));
+            chunk.put("action", fields[1]);
+            chunk.put("tool", fields[2]);
+            chunk.put("outcome", fields[3]);
+            chunk.put("latencyMs", parseLong(fields[4]));
+            chunk.put("issueCount", parseInt(fields[5]));
+        }
+        return chunk;
+    }
+
+    private String progressPhase(String eventType, String tool) {
+        if (eventType.contains("tool")) {
+            return "inspect_draft".equals(tool) ? "reviewing" : "drawing";
+        }
+        if ("plain_agent_candidate_submitted".equals(eventType)) {
+            return "reviewing";
+        }
+        return "thinking";
+    }
+
+    private int parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (RuntimeException ignored) {
+            return 0;
+        }
+    }
+
+    private long parseLong(String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (RuntimeException ignored) {
+            return 0L;
         }
     }
 
@@ -536,7 +642,11 @@ public final class TurnV2ProductIngressAdapter {
         JSONObject event = new JSONObject();
         event.put("phase", phase);
         event.put("chunk", chunk);
-        emitter.send(JSON.toJSONString(event) + "\n", NDJSON);
+        // Progress originates on the attempt worker while terminal delivery uses this request
+        // thread; serialize sends so two NDJSON lines can never interleave.
+        synchronized (emitter) {
+            emitter.send(JSON.toJSONString(event) + "\n", NDJSON);
+        }
     }
 
     private boolean hasCanvas(String xml) {

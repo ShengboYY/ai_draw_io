@@ -154,6 +154,8 @@ export interface DrawioEdgeChunk {
 export interface DrawioPreviewChunk {
     type: 'drawio_preview';
     content: string;
+    // Agent working-copy previews replace the previous draft before replaying its cells.
+    reset?: boolean;
 }
 
 export interface DrawioDoneChunk {
@@ -175,6 +177,19 @@ export interface DrawioLegacyChunk {
 export interface StatusChunk {
     type: 'status';
     content: string;
+}
+
+export interface AgentProgressChunk {
+    type: 'agent_progress';
+    stage: 'agent_started' | 'skills_loaded' | 'decision_started' | 'decision_completed'
+        | 'tool_started' | 'tool_completed' | 'candidate_submitted';
+    step?: number;
+    action?: string;
+    tool?: string;
+    outcome?: string;
+    latencyMs?: number;
+    issueCount?: number;
+    skillCount?: number;
 }
 
 export interface ErrorChunk {
@@ -372,7 +387,7 @@ export interface MutationRejectedChunk {
     changedCellIds?: string[];
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | DirectConfirmationChunk | TargetClarificationChunk | EvidenceAnswerChunk | GroundingRejectedChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | AgentProgressChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | DirectConfirmationChunk | TargetClarificationChunk | EvidenceAnswerChunk | GroundingRejectedChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
 
 export interface StreamEvent {
     phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'retrieval' | 'answer' | 'error' | 'done' | 'generating';

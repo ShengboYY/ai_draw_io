@@ -8,6 +8,7 @@ import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.UserTurnCommand;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -50,6 +51,22 @@ public final class TurnHttpDeliveryAdapter {
         TurnDeliveryExecution execution = executor.executeTracked(actor, command, sink);
         return new TurnHttpDeliveryResult(
                 execution.submission(), sink.events(), sink.isDetached(), execution.handle());
+    }
+
+    /**
+     * Keeps product streaming attached to the server-owned attempt while preserving the same
+     * translator and execution boundary used by synchronous product delivery.
+     */
+    public TurnHttpDeliveryResult executeProductTracked(
+            AuthenticatedActor actor,
+            ChatRequestDTO request,
+            TurnEventSink sink
+    ) {
+        Objects.requireNonNull(sink, "sink");
+        UserTurnCommand command = translator.translateProductChat(request);
+        TurnDeliveryExecution execution = executor.executeTracked(actor, command, sink);
+        return new TurnHttpDeliveryResult(
+                execution.submission(), List.of(), false, execution.handle());
     }
 
     public TurnSubmission executeNdjson(

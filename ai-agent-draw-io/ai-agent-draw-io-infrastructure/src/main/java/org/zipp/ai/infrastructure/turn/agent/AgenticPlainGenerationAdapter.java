@@ -58,7 +58,7 @@ public final class AgenticPlainGenerationAdapter implements PlainGenerationPort 
                     failure.getClass().getSimpleName());
             throw failure;
         }
-        var candidate = runtime.run(request, bundle, cancellation);
+        var candidate = runtime.run(request, bundle, cancellation, events);
         events.publish(new TurnEvent(
                 "plain_agent_candidate_submitted",
                 candidate.draftDigest(),

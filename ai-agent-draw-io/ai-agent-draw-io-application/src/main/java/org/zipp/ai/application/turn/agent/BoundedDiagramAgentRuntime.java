@@ -5,6 +5,8 @@ import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.application.turn.PlainDrawAction;
 import org.zipp.ai.application.turn.PlainGenerationRequest;
 import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
+import org.zipp.ai.application.turn.TurnEvent;
+import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.context.AvailableContext;
 import org.zipp.ai.application.turn.context.ContextRead;
 import org.zipp.ai.application.turn.context.TruncatedContext;
@@ -66,14 +68,28 @@ public final class BoundedDiagramAgentRuntime {
             DiagramSkillBundle skills,
             CancellationSignal cancellation
     ) {
+        return run(request, skills, cancellation, ignored -> { });
+    }
+
+    public DiagramAgentRunResult run(
+            PlainGenerationRequest request,
+            DiagramSkillBundle skills,
+            CancellationSignal cancellation,
+            TurnEventSink events
+    ) {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(skills, "skills");
+        Objects.requireNonNull(events, "events");
         cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         requireSkillBinding(request, skills);
         trace(request.attempt(), 0, PlainAgentTraceType.AGENT_STARTED,
                 "", "", "", "", "", "STARTED", 0, 0);
         trace(request.attempt(), 0, PlainAgentTraceType.SKILLS_LOADED,
                 "", "", skills.selectionBindingDigest(), "", "", "SUCCESS", 0, 0);
+        publish(events, "plain_agent_started",
+                progressPayload(0, "START", "", "STARTED", 0, 0));
+        publish(events, "plain_agent_skills_loaded",
+                Integer.toString(skills.orderedSkills().size()));
 
         try {
             DiagramAgentState state = initialState(request, skills);
@@ -82,25 +98,37 @@ public final class BoundedDiagramAgentRuntime {
             while (true) {
                 requireActive(request.attempt(), cancellation);
                 if (state.stepCount() >= budget.maxSteps()) {
-                    return submitBudgetFallback(state, cancellation);
+                    return submitBudgetFallback(state, cancellation, events);
                 }
                 requireProgress(state);
                 DiagramAgentObservation observation = observation(state);
+                int stepNumber = state.stepCount() + 1;
+                publish(events, "plain_agent_decision_started",
+                        progressPayload(stepNumber, "DECIDE", "", "STARTED", 0,
+                                issueCount(state.latestAnalysis())));
 
                 long decisionStarted = System.nanoTime();
                 DiagramAgentAction action = Objects.requireNonNull(
                         decisions.decide(observation, cancellation),
                         "diagram agent action");
                 long decisionLatency = elapsedMillis(decisionStarted);
-                int stepNumber = state.stepCount() + 1;
+                String actionType = action instanceof CallDiagramTool
+                        ? "CALL_TOOL"
+                        : "SUBMIT_CANDIDATE";
+                String selectedTool = action instanceof CallDiagramTool call
+                        ? call.request().toolName()
+                        : "";
                 trace(request.attempt(), stepNumber, PlainAgentTraceType.DECISION_SELECTED,
-                        action instanceof CallDiagramTool ? "CALL_TOOL" : "SUBMIT_CANDIDATE",
-                        action instanceof CallDiagramTool call ? call.request().toolName() : "",
+                        actionType,
+                        selectedTool,
                         "", digest(state.activeDraft()), digest(state.activeDraft()),
                         "SELECTED", issueCount(state.latestAnalysis()), decisionLatency);
+                publish(events, "plain_agent_decision_completed",
+                        progressPayload(stepNumber, actionType, selectedTool, "SELECTED",
+                                decisionLatency, issueCount(state.latestAnalysis())));
 
                 if (action instanceof SubmitDiagramCandidate submit) {
-                    return submit(state, submit, cancellation, stepNumber);
+                    return submit(state, submit, cancellation, stepNumber, events);
                 }
 
                 DiagramAgentToolRequest toolRequest = ((CallDiagramTool) action).request();
@@ -118,6 +146,9 @@ public final class BoundedDiagramAgentRuntime {
                         "CALL_TOOL", toolRequest.toolName(), argumentsDigest,
                         beforeDigest, beforeDigest, "REQUESTED",
                         issueCount(state.latestAnalysis()), 0);
+                publish(events, "plain_agent_tool_started",
+                        progressPayload(stepNumber, "CALL_TOOL", toolRequest.toolName(),
+                                "REQUESTED", 0, issueCount(state.latestAnalysis())));
 
                 long toolStarted = System.nanoTime();
                 DiagramAgentToolResult result = tools.execute(
@@ -129,8 +160,20 @@ public final class BoundedDiagramAgentRuntime {
                         "CALL_TOOL", toolRequest.toolName(), argumentsDigest,
                         beforeDigest, afterDigest, result.outcomeCode(),
                         issueCount(result.analysis()), toolLatency);
+                publish(events, "plain_agent_tool_completed",
+                        progressPayload(stepNumber, "CALL_TOOL", toolRequest.toolName(),
+                                result.outcomeCode(), toolLatency,
+                                issueCount(result.analysis())));
 
                 state = reduce(state, toolRequest, result, stepNumber);
+                if (result.success() && (toolRequest instanceof CreateDraftRequest
+                        || toolRequest instanceof PatchDraftRequest)) {
+                    // Stream only an attempt-scoped preview. The outer write gate remains the
+                    // sole path that can persist the final canvas.
+                    DiagramDraftSnapshot preview = drafts.read(
+                            request.attempt(), result.draft().ref());
+                    publish(events, "plain_agent_draft_preview", preview.canvasXml());
+                }
             }
         } catch (RuntimeException failure) {
             trace(request.attempt(), 0, PlainAgentTraceType.AGENT_STOPPED,
@@ -176,7 +219,8 @@ public final class BoundedDiagramAgentRuntime {
             DiagramAgentState state,
             SubmitDiagramCandidate submit,
             CancellationSignal cancellation,
-            int stepNumber
+            int stepNumber,
+            TurnEventSink events
     ) {
         if (state.activeDraft() == null
                 || !state.activeDraft().ref().equals(submit.draftRef())
@@ -195,6 +239,9 @@ public final class BoundedDiagramAgentRuntime {
                 "FINAL_VALIDATION", validationRequest.toolName(), validationArgumentsDigest,
                 draftDigest, draftDigest, "REQUESTED",
                 issueCount(state.latestAnalysis()), 0);
+        publish(events, "plain_agent_tool_started",
+                progressPayload(stepNumber, "FINAL_VALIDATION", validationRequest.toolName(),
+                        "REQUESTED", 0, issueCount(state.latestAnalysis())));
         long validationStarted = System.nanoTime();
         DiagramAgentToolResult validation = tools.execute(
                 state.request().attempt(),
@@ -205,6 +252,10 @@ public final class BoundedDiagramAgentRuntime {
                 "FINAL_VALIDATION", validationRequest.toolName(), validationArgumentsDigest,
                 draftDigest, validation.success() ? validation.draft().digest() : draftDigest,
                 validation.outcomeCode(), issueCount(validation.analysis()), validationLatency);
+        publish(events, "plain_agent_tool_completed",
+                progressPayload(stepNumber, "FINAL_VALIDATION", validationRequest.toolName(),
+                        validation.outcomeCode(), validationLatency,
+                        issueCount(validation.analysis())));
         if (!validation.success() || validation.analysis() == null
                 || !validation.analysis().readyForSubmission()) {
             throw stop("PLAIN_AGENT_FINAL_VALIDATION_FAILED");
@@ -232,7 +283,8 @@ public final class BoundedDiagramAgentRuntime {
 
     private DiagramAgentRunResult submitBudgetFallback(
             DiagramAgentState state,
-            CancellationSignal cancellation
+            CancellationSignal cancellation,
+            TurnEventSink events
     ) {
         if (state.activeDraft() == null) {
             throw stop("PLAIN_AGENT_STEP_BUDGET_EXHAUSTED");
@@ -250,6 +302,10 @@ public final class BoundedDiagramAgentRuntime {
                 "BUDGET_FALLBACK_VALIDATION", validationRequest.toolName(),
                 validationArgumentsDigest, draftDigest, draftDigest, "REQUESTED",
                 issueCount(state.latestAnalysis()), 0);
+        publish(events, "plain_agent_tool_started",
+                progressPayload(stepNumber, "BUDGET_FALLBACK_VALIDATION",
+                        validationRequest.toolName(), "REQUESTED", 0,
+                        issueCount(state.latestAnalysis())));
         long validationStarted = System.nanoTime();
         DiagramAgentToolResult validation = tools.execute(
                 state.request().attempt(),
@@ -261,6 +317,10 @@ public final class BoundedDiagramAgentRuntime {
                 validationArgumentsDigest, draftDigest,
                 validation.success() ? validation.draft().digest() : draftDigest,
                 validation.outcomeCode(), issueCount(validation.analysis()), validationLatency);
+        publish(events, "plain_agent_tool_completed",
+                progressPayload(stepNumber, "BUDGET_FALLBACK_VALIDATION",
+                        validationRequest.toolName(), validation.outcomeCode(),
+                        validationLatency, issueCount(validation.analysis())));
         if (!validation.success() || validation.analysis() == null
                 || !validation.analysis().structurallyValid()) {
             throw stop("PLAIN_AGENT_BUDGET_FALLBACK_INVALID");
@@ -456,6 +516,28 @@ public final class BoundedDiagramAgentRuntime {
 
     private long elapsedMillis(long startedNanos) {
         return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
+    }
+
+    private String progressPayload(
+            int step,
+            String action,
+            String tool,
+            String outcome,
+            long latencyMillis,
+            int issues
+    ) {
+        // Fields are code-owned enums/numbers, so a tab-delimited payload stays dependency-free
+        // in the application module and can be safely projected by transport adapters.
+        return step + "\t" + action + "\t" + tool + "\t" + outcome
+                + "\t" + latencyMillis + "\t" + issues;
+    }
+
+    private void publish(TurnEventSink events, String type, String payload) {
+        try {
+            events.publish(new TurnEvent(type, payload, Instant.now()));
+        } catch (RuntimeException ignored) {
+            // A detached browser must never change the attempt outcome.
+        }
     }
 
     private IllegalStateException stop(String code) {
