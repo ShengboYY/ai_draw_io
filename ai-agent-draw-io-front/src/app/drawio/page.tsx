@@ -106,6 +106,7 @@ import {
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
+  projectAgentLoopExecutionStep,
   projectUserExecutionStep,
   shouldShowAgentTyping,
   thinkingRouteLabel,
@@ -2315,7 +2316,10 @@ function DrawioPageContent() {
       let receivedDrawioDone = false;
       let receivedVersionConflict = false;
       let receivedStreamError = false;
+      let agentLoopProgressObserved = false;
       let agentLoopVisualReviewObserved = false;
+      let agentLoopVisualReviewRound = 0;
+      let agentLoopRepairRound = 0;
       let completionMessageAdded = false;
       let emptyResponseMessageAdded = false;
       let previewSkeletonXml = '';
@@ -2334,14 +2338,13 @@ function DrawioPageContent() {
       const eventIndexByKey: Record<string, number> = {};
       let eventSequence = 0;
 
-      // Helper to update steps
-      const updateStep = (phaseStr: string, contentToAdd: string, isDone: boolean = false, replaceContent: boolean = false) => {
-          const projected = projectUserExecutionStep({
-            phase: phaseStr,
-            routeType: activeRouteType,
-            sourceUse: activeSourceUse,
-            useChinese,
-          });
+      // Agent-loop events use their own stable keys so repeated draw/review rounds remain visible.
+      const updateExecutionStep = (
+        projected: { key: string; phase: string; label: string },
+        contentToAdd: string,
+        isDone: boolean = false,
+        replaceContent: boolean = false,
+      ) => {
           const projectedKey = projected.key;
           const stepIndex = accumulatedSteps.findIndex(s => (s.id || s.phase) === projectedKey);
           if (stepIndex >= 0) {
@@ -2374,6 +2377,16 @@ function DrawioPageContent() {
                   status: isDone ? 'done' : 'running'
               });
           }
+      };
+
+      // Non-agentic routes retain the compact analysis/generation/verification projection.
+      const updateStep = (phaseStr: string, contentToAdd: string, isDone: boolean = false, replaceContent: boolean = false) => {
+          updateExecutionStep(projectUserExecutionStep({
+            phase: phaseStr,
+            routeType: activeRouteType,
+            sourceUse: activeSourceUse,
+            useChinese,
+          }), contentToAdd, isDone, replaceContent);
       };
 
       const getVisibleStepDetail = (phaseStr: string, state?: 'loaded' | 'passed' | 'needs_attention') => {
@@ -3089,6 +3102,7 @@ function DrawioPageContent() {
           // is complete; that terminal copy must not relabel the generation step as an answer task.
           const shouldTrackPhase = phase !== 'done'
             && phase !== 'error'
+            && chunk.type !== 'agent_progress'
             && !(phase === 'answer' && receivedDrawioDone);
           if (shouldTrackPhase) {
             const previousPhase = activeStreamPhase;
@@ -3139,7 +3153,9 @@ function DrawioPageContent() {
               previewSkeletonXml = chunk.content;
               nodeCount = previewCounts.nodes;
               edgeCount = previewCounts.edges;
-              updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
+              if (!agentLoopProgressObserved) {
+                updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
+              }
               upsertRunEvent('drawio:stream', {
                 phase: 'drawing',
                 title: 'Update canvas preview',
@@ -3178,7 +3194,9 @@ function DrawioPageContent() {
                   accumulatedNodes.push(chunk.xml);
                   hasIncrementalContent = true;
                   nodeCount = countDrawableCells(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml)).nodes;
-                  updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
+                  if (!agentLoopProgressObserved) {
+                    updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
+                  }
                   upsertRunEvent('drawio:stream', {
                     phase: 'drawing',
                     title: 'Update canvas preview',
@@ -3216,7 +3234,9 @@ function DrawioPageContent() {
                   accumulatedEdges.push(chunk.xml);
                   hasIncrementalContent = true;
                   edgeCount = countDrawableCells(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml)).edges;
-                  updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
+                  if (!agentLoopProgressObserved) {
+                    updateStep('drawing', getVisibleStepDetail('drawing'), false, true);
+                  }
                   upsertRunEvent('drawio:stream', {
                     phase: 'drawing',
                     title: 'Update canvas preview',
@@ -3259,7 +3279,19 @@ function DrawioPageContent() {
                 edges: edgeCount,
               });
               finishCanvasLoadEvents();
-              updateStep(phase, getVisibleStepDetail(phase, 'loaded'), true, true);
+              if (agentLoopProgressObserved) {
+                updateExecutionStep(
+                  projectAgentLoopExecutionStep({
+                    stage: 'candidate_submitted',
+                    useChinese,
+                  }),
+                  getVisibleStepDetail(phase, 'loaded'),
+                  true,
+                  true,
+                );
+              } else {
+                updateStep(phase, getVisibleStepDetail(phase, 'loaded'), true, true);
+              }
               publishSteps();
 
               // Reviewer may send the polished final diagram after the drawing stage.
@@ -3417,6 +3449,7 @@ function DrawioPageContent() {
             }
 
             case 'agent_progress': {
+              agentLoopProgressObserved = true;
               const elapsed = typeof chunk.latencyMs === 'number' && chunk.latencyMs > 0
                 ? (chunk.latencyMs >= 1000
                   ? `${(chunk.latencyMs / 1000).toFixed(1)} s`
@@ -3424,6 +3457,12 @@ function DrawioPageContent() {
                 : '';
               const step = chunk.step || 0;
               const tool = chunk.tool || chunk.action || '';
+              if (chunk.stage === 'visual_review_started') {
+                agentLoopVisualReviewRound += 1;
+              }
+              if (chunk.stage === 'tool_started' && tool === 'patch_draft') {
+                agentLoopRepairRound += 1;
+              }
               if (chunk.stage === 'visual_review_completed') {
                 agentLoopVisualReviewObserved = true;
               }
@@ -3476,8 +3515,17 @@ function DrawioPageContent() {
               const isDone = chunk.stage === 'decision_completed'
                 || chunk.stage === 'tool_completed'
                 || chunk.stage === 'visual_review_completed'
-                || chunk.stage === 'candidate_submitted';
-              updateStep(phase, detail, isDone, true);
+                || chunk.stage === 'agent_started'
+                || chunk.stage === 'skills_loaded';
+              const loopStep = projectAgentLoopExecutionStep({
+                stage: chunk.stage,
+                step,
+                tool,
+                reviewRound: agentLoopVisualReviewRound,
+                repairRound: agentLoopRepairRound,
+                useChinese,
+              });
+              updateExecutionStep(loopStep, detail, isDone, true);
               upsertRunEvent(`agent:${chunk.stage}:${step}:${tool}`, {
                 phase,
                 title: chunk.stage,
