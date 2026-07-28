@@ -6,19 +6,22 @@ public record DiagramAgentBudget(
         int maxMutations,
         int maxCreateCalls,
         int maxFullXmlInspections,
+        int maxVisualReviews,
         int maxRepeatedActions,
         int maxNoProgressSteps
 ) {
 
     public DiagramAgentBudget {
         if (maxSteps <= 0 || maxMutations <= 0 || maxCreateCalls <= 0
-                || maxFullXmlInspections < 0 || maxRepeatedActions <= 0
+                || maxFullXmlInspections < 0 || maxVisualReviews <= 0
+                || maxRepeatedActions <= 0
                 || maxNoProgressSteps <= 0) {
             throw new IllegalArgumentException("diagram agent budget is invalid");
         }
     }
 
     public static DiagramAgentBudget defaults() {
-        return new DiagramAgentBudget(6, 3, 1, 1, 1, 2);
+        // One review plus one optional patch/re-review pair fits without crowding out submission.
+        return new DiagramAgentBudget(8, 3, 1, 1, 2, 1, 2);
     }
 }

@@ -17,6 +17,7 @@ import org.zipp.ai.application.turn.agent.DraftMutationType;
 import org.zipp.ai.application.turn.agent.DraftRef;
 import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
+import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
 import org.zipp.ai.application.turn.agent.SubmitDiagramCandidate;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.retrieval.CancellationSignal;
@@ -101,6 +102,7 @@ public final class ChatDiagramAgentDecisionAdapter implements DiagramAgentDecisi
             case "create_draft" -> parseCreate(arguments);
             case "patch_draft" -> parsePatch(arguments);
             case "inspect_draft" -> parseInspect(arguments);
+            case "review_draft" -> parseReview(arguments);
             default -> throw new IllegalArgumentException("tool name is unsupported");
         });
     }
@@ -151,6 +153,13 @@ public final class ChatDiagramAgentDecisionAdapter implements DiagramAgentDecisi
                 DraftInspectionScope.valueOf(bounded(arguments, "scope", 32)),
                 cellIds,
                 optionalBounded(arguments, "query", 1_000));
+    }
+
+    private ReviewDraftRequest parseReview(JSONObject arguments) {
+        requireFields(arguments, Set.of("draftRef", "expectedDigest"));
+        return new ReviewDraftRequest(
+                new DraftRef(bounded(arguments, "draftRef", 128)),
+                bounded(arguments, "expectedDigest", 80));
     }
 
     private void requireFields(JSONObject value, Set<String> expected) {

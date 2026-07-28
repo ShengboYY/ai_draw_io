@@ -1,6 +1,7 @@
 package org.zipp.ai.infrastructure.turn.agent;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.PlainDrawAction;
@@ -13,11 +14,13 @@ import org.zipp.ai.application.turn.agent.DiagramDraftAnalysis;
 import org.zipp.ai.application.turn.agent.DiagramDraftIssue;
 import org.zipp.ai.application.turn.agent.DiagramDraftSnapshot;
 import org.zipp.ai.application.turn.agent.DiagramDraftStore;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
 import org.zipp.ai.application.turn.agent.DiagramDraftView;
 import org.zipp.ai.application.turn.agent.DraftInspectionScope;
 import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.InspectedDiagramCell;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
+import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
@@ -48,16 +51,32 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
 
     private final DiagramDraftStore drafts;
     private final ICanvasAnalyzer analyzer;
+    private final DiagramDraftVisualReviewPort visualReviews;
 
-    // Select the production dependency path explicitly; the secondary constructor supports focused analyzer tests.
+    // ObjectProvider keeps focused Spring slices valid when the optional VLM adapter is absent.
     @Autowired
-    public DefaultDiagramAgentToolAdapter(DiagramDraftStore drafts) {
-        this(drafts, new DefaultCanvasAnalyzer());
+    public DefaultDiagramAgentToolAdapter(
+            DiagramDraftStore drafts,
+            ObjectProvider<DiagramDraftVisualReviewPort> visualReviews
+    ) {
+        this(
+                drafts,
+                new DefaultCanvasAnalyzer(),
+                visualReviews.getIfAvailable(() -> DiagramDraftVisualReviewPort.UNAVAILABLE));
     }
 
-    DefaultDiagramAgentToolAdapter(DiagramDraftStore drafts, ICanvasAnalyzer analyzer) {
+    public DefaultDiagramAgentToolAdapter(DiagramDraftStore drafts) {
+        this(drafts, new DefaultCanvasAnalyzer(), DiagramDraftVisualReviewPort.UNAVAILABLE);
+    }
+
+    public DefaultDiagramAgentToolAdapter(
+            DiagramDraftStore drafts,
+            ICanvasAnalyzer analyzer,
+            DiagramDraftVisualReviewPort visualReviews
+    ) {
         this.drafts = drafts;
         this.analyzer = analyzer;
+        this.visualReviews = visualReviews;
     }
 
     @Override
@@ -75,6 +94,9 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
             }
             if (request instanceof PatchDraftRequest patch) {
                 return patch(attempt, plan, patch);
+            }
+            if (request instanceof ReviewDraftRequest review) {
+                return review(attempt, plan, review);
             }
             return inspect(attempt, plan, (InspectDraftRequest) request);
         } catch (IllegalArgumentException | IllegalStateException exception) {
@@ -151,6 +173,24 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
                 cells,
                 canvasXml,
                 truncated);
+    }
+
+    private DiagramAgentToolResult review(
+            FencedAttempt attempt,
+            PlainDrawPlan plan,
+            ReviewDraftRequest request
+    ) {
+        DiagramDraftSnapshot draft = drafts.read(attempt, request.draftRef());
+        if (!draft.digest().equals(request.expectedDigest())) {
+            return DiagramAgentToolResult.rejected(
+                    request.toolName(), "DRAFT_DIGEST_MISMATCH");
+        }
+        DiagramDraftAnalysis analysis = analyze(draft, plan);
+        return DiagramAgentToolResult.visualReview(
+                request.toolName(),
+                DiagramDraftView.from(draft),
+                analysis,
+                visualReviews.review(plan, draft));
     }
 
     private List<CanvasCellData> selectCells(

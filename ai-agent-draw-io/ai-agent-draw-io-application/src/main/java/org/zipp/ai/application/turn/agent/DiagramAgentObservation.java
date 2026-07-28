@@ -10,12 +10,14 @@ public record DiagramAgentObservation(
         List<String> allowedTools,
         int remainingSteps,
         int remainingMutations,
-        int remainingFullXmlInspections
+        int remainingFullXmlInspections,
+        int remainingVisualReviews
 ) {
 
     public DiagramAgentObservation {
         if (state == null || remainingSteps < 0
-                || remainingMutations < 0 || remainingFullXmlInspections < 0) {
+                || remainingMutations < 0 || remainingFullXmlInspections < 0
+                || remainingVisualReviews < 0) {
             throw new IllegalArgumentException("diagram agent observation is invalid");
         }
         allowedTools = List.copyOf(allowedTools == null ? List.of() : allowedTools);
