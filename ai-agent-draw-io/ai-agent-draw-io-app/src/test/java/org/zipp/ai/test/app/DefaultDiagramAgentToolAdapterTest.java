@@ -19,6 +19,10 @@ import org.zipp.ai.application.turn.agent.DraftInspectionScope;
 import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
 import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualRepairScope;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
@@ -177,6 +181,61 @@ class DefaultDiagramAgentToolAdapterTest {
                 .startsWith("plain-agent-draft-png-");
         assertThat(captured.get().getAnalyzerEvidence()).isEmpty();
         assertThat(captured.get().getCanvasSummary()).isEqualTo("nodes=1, edges=0");
+    }
+
+    @Test
+    void keepsMixedButIndividuallyGroundedLocalIssuesRepairable() {
+        DefaultDiagramDraftVisualReviewAdapter reviews =
+                new DefaultDiagramDraftVisualReviewAdapter(command ->
+                        CanvasVisualReviewResult.builder()
+                                .available(true)
+                                .summary("Repair the containers and connector.")
+                                .issues(List.of(
+                                        visualIssue(
+                                                CanvasVisualIssueType.LAYOUT_HIERARCHY,
+                                                List.of("runtime", "engine")),
+                                        visualIssue(
+                                                CanvasVisualIssueType.EDGE_TRACEABILITY,
+                                                List.of("edge-1"))))
+                                .reviewerVersion("test-reviewer")
+                                .build());
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        var draft = store.create(attempt(), graph(
+                "<mxCell id=\"runtime\" value=\"Runtime\" vertex=\"1\" parent=\"1\">"
+                        + "<mxGeometry x=\"10\" y=\"10\" width=\"180\" height=\"100\" "
+                        + "as=\"geometry\"/></mxCell>"
+                        + "<mxCell id=\"engine\" value=\"Engine\" vertex=\"1\" parent=\"1\">"
+                        + "<mxGeometry x=\"10\" y=\"160\" width=\"180\" height=\"100\" "
+                        + "as=\"geometry\"/></mxCell>"
+                        + "<mxCell id=\"edge-1\" edge=\"1\" parent=\"1\" "
+                        + "source=\"runtime\" target=\"engine\">"
+                        + "<mxGeometry relative=\"1\" as=\"geometry\"/></mxCell>"));
+
+        var result = reviews.review(
+                new PlainDrawPlan(PlainDrawAction.CREATE, "draw a JVM architecture"),
+                draft);
+
+        assertThat(result.decision()).isEqualTo("REPAIR");
+        assertThat(result.groundingConflict()).isEmpty();
+        assertThat(result.issues())
+                .flatExtracting(issue -> issue.targetCellIds())
+                .containsExactlyInAnyOrder("runtime", "engine", "edge-1");
+    }
+
+    private CanvasVisualIssue visualIssue(
+            CanvasVisualIssueType type,
+            List<String> targetCellIds
+    ) {
+        return CanvasVisualIssue.builder()
+                .type(type)
+                .severity(CanvasVisualIssueSeverity.MAJOR)
+                .targetCellIds(targetCellIds)
+                .anchorLabels(List.of("visible"))
+                .region("center")
+                .evidence("Visible local issue")
+                .repairInstruction("Apply one bounded local repair.")
+                .repairScope(CanvasVisualRepairScope.LOCAL)
+                .build();
     }
 
     private String graph(String cells) {
