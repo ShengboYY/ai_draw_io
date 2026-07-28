@@ -12,15 +12,24 @@ import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.agent.CreateDraftRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentToolPort;
 import org.zipp.ai.application.turn.agent.DiagramDraftStore;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualReview;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
 import org.zipp.ai.application.turn.agent.DraftCellMutation;
 import org.zipp.ai.application.turn.agent.DraftInspectionScope;
 import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
+import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
+import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
+import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
+import org.zipp.ai.infrastructure.turn.agent.DefaultDiagramDraftVisualReviewAdapter;
 import org.zipp.ai.infrastructure.turn.agent.DefaultDiagramAgentToolAdapter;
 import org.zipp.ai.infrastructure.turn.agent.InMemoryDiagramDraftStore;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,6 +42,24 @@ class DefaultDiagramAgentToolAdapterTest {
                 .withUserConfiguration(DefaultDiagramAgentToolAdapter.class)
                 .run(context -> assertThat(context)
                         .hasSingleBean(DefaultDiagramAgentToolAdapter.class)
+                        .hasSingleBean(DiagramAgentToolPort.class));
+    }
+
+    @Test
+    void springWiresTheProductionVisualReviewPortIntoTheToolAdapter() {
+        new ApplicationContextRunner()
+                .withBean(DiagramDraftStore.class, InMemoryDiagramDraftStore::new)
+                .withBean(ICanvasVisualReviewer.class, () -> command ->
+                        CanvasVisualReviewResult.builder()
+                                .available(true)
+                                .summary("Readable")
+                                .issues(List.of())
+                                .build())
+                .withUserConfiguration(
+                        DefaultDiagramDraftVisualReviewAdapter.class,
+                        DefaultDiagramAgentToolAdapter.class)
+                .run(context -> assertThat(context)
+                        .hasSingleBean(DiagramDraftVisualReviewPort.class)
                         .hasSingleBean(DiagramAgentToolPort.class));
     }
 
@@ -86,6 +113,69 @@ class DefaultDiagramAgentToolAdapterTest {
 
         assertThat(changed.success()).isFalse();
         assertThat(changed.outcomeCode()).isEqualTo("LAYOUT_SEMANTIC_CHANGE");
+    }
+
+    @Test
+    void bindsVisualReviewToTheExactDraftDigest() {
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        DefaultDiagramAgentToolAdapter tools = new DefaultDiagramAgentToolAdapter(
+                store,
+                new DefaultCanvasAnalyzer(),
+                (plan, draft) -> new DiagramDraftVisualReview(
+                        draft.digest(),
+                        "APPROVE",
+                        true,
+                        "Readable",
+                        List.of(),
+                        "",
+                        "test-reviewer"));
+        FencedAttempt attempt = attempt();
+        PlainDrawPlan plan = new PlainDrawPlan(PlainDrawAction.CREATE, "draw a flow");
+        var created = tools.execute(attempt, plan, new CreateDraftRequest(graph(
+                "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
+                        + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
+                        + "as=\"geometry\"/></mxCell>")));
+
+        var reviewed = tools.execute(attempt, plan, new ReviewDraftRequest(
+                created.draft().ref(), created.draft().digest()));
+        var stale = tools.execute(attempt, plan, new ReviewDraftRequest(
+                created.draft().ref(), "sha256:" + "0".repeat(64)));
+
+        assertThat(reviewed.success()).isTrue();
+        assertThat(reviewed.outcomeCode()).isEqualTo("APPROVE");
+        assertThat(reviewed.visualReview().reviewedDigest())
+                .isEqualTo(created.draft().digest());
+        assertThat(stale.outcomeCode()).isEqualTo("DRAFT_DIGEST_MISMATCH");
+    }
+
+    @Test
+    void rendersDraftPngBeforeCallingTheExistingVisualReviewer() {
+        AtomicReference<CanvasVisualReviewCommand> captured = new AtomicReference<>();
+        DefaultDiagramDraftVisualReviewAdapter reviews =
+                new DefaultDiagramDraftVisualReviewAdapter(command -> {
+                    captured.set(command);
+                    return CanvasVisualReviewResult.builder()
+                            .available(true)
+                            .summary("Readable")
+                            .issues(List.of())
+                            .reviewerVersion("test-reviewer")
+                            .build();
+                });
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        var draft = store.create(attempt(), graph(
+                "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
+                        + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
+                        + "as=\"geometry\"/></mxCell>"));
+
+        var result = reviews.review(
+                new PlainDrawPlan(PlainDrawAction.CREATE, "draw a flow"),
+                draft);
+
+        assertThat(result.decision()).isEqualTo("APPROVE");
+        assertThat(captured.get().getAfterImageDataUrl())
+                .startsWith("data:image/png;base64,");
+        assertThat(captured.get().getRendererVersion())
+                .startsWith("plain-agent-draft-png-");
     }
 
     private String graph(String cells) {

@@ -8,6 +8,8 @@ import org.zipp.ai.application.turn.agent.DiagramAgentStepRecord;
 import org.zipp.ai.application.turn.agent.DiagramAgentToolResult;
 import org.zipp.ai.application.turn.agent.DiagramDraftAnalysis;
 import org.zipp.ai.application.turn.agent.DiagramDraftIssue;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualIssue;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualReview;
 import org.zipp.ai.application.turn.agent.InspectedDiagramCell;
 import org.zipp.ai.application.turn.context.AvailableContext;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
@@ -51,7 +53,9 @@ final class PlainGenerationPromptRenderer {
                 .append("REMAINING_STEPS: ").append(observation.remainingSteps()).append('\n')
                 .append("REMAINING_MUTATIONS: ").append(observation.remainingMutations()).append('\n')
                 .append("REMAINING_FULL_XML_INSPECTIONS: ")
-                .append(observation.remainingFullXmlInspections()).append("\n\n");
+                .append(observation.remainingFullXmlInspections()).append('\n')
+                .append("REMAINING_VISUAL_REVIEWS: ")
+                .append(observation.remainingVisualReviews()).append("\n\n");
 
         appendSkills(prompt, state.skills().orderedSkills());
         appendConversation(prompt, context);
@@ -124,6 +128,8 @@ final class PlainGenerationPromptRenderer {
         }
         prompt.append("LATEST_ANALYSIS_DATA:\n")
                 .append(JSON.toJSONString(analysisMap(state.latestAnalysis()))).append('\n')
+                .append("LATEST_VISUAL_REVIEW_DATA:\n")
+                .append(JSON.toJSONString(visualReviewMap(state.latestVisualReview()))).append('\n')
                 .append("LATEST_TOOL_RESULT_DATA:\n")
                 .append(JSON.toJSONString(toolResultMap(state.latestToolResult()))).append('\n')
                 .append("STEP_HISTORY_DATA:\n")
@@ -173,6 +179,32 @@ final class PlainGenerationPromptRenderer {
         value.put("cells", result.cells().stream().map(this::cellMap).toList());
         value.put("canvasXml", result.canvasXml());
         value.put("truncated", result.truncated());
+        value.put("visualReview", visualReviewMap(result.visualReview()));
+        return value;
+    }
+
+    private Map<String, Object> visualReviewMap(DiagramDraftVisualReview review) {
+        if (review == null) {
+            return Map.of();
+        }
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("reviewedDigest", review.reviewedDigest());
+        value.put("decision", review.decision());
+        value.put("available", review.available());
+        value.put("summary", review.summary());
+        value.put("issues", review.issues().stream().map(this::visualIssueMap).toList());
+        value.put("groundingConflict", review.groundingConflict());
+        value.put("reviewerVersion", review.reviewerVersion());
+        return value;
+    }
+
+    private Map<String, Object> visualIssueMap(DiagramDraftVisualIssue issue) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("type", issue.type());
+        value.put("severity", issue.severity());
+        value.put("targetCellIds", issue.targetCellIds());
+        value.put("evidence", issue.evidence());
+        value.put("repairInstruction", issue.repairInstruction());
         return value;
     }
 
@@ -217,11 +249,18 @@ final class PlainGenerationPromptRenderer {
                 .append("{\"action\":\"CALL_TOOL\",\"toolName\":\"inspect_draft\",\"arguments\":")
                 .append("{\"draftRef\":\"...\",\"scope\":\"SUMMARY|ISSUES_ONLY|FIND_CELLS|")
                 .append("TARGET_CELLS|LAYOUT_GRAPH|FULL_XML\",\"cellIds\":[],\"query\":\"\"}}\n")
+                .append("CALL review_draft: ")
+                .append("{\"action\":\"CALL_TOOL\",\"toolName\":\"review_draft\",\"arguments\":")
+                .append("{\"draftRef\":\"...\",\"expectedDigest\":\"sha256:...\"}}\n")
                 .append("SUBMIT: {\"action\":\"SUBMIT_CANDIDATE\",\"draftRef\":\"...\",")
                 .append("\"expectedDigest\":\"sha256:...\",\"assistantMessage\":\"...\"}\n")
                 .append("Use exact fields only. After CREATE, use cell-scoped patches instead of ")
                 .append("creating the whole diagram again. inspect_draft is optional and only for ")
-                .append("missing information. For LAYOUT, preserve labels, cell sets, topology and ")
+                .append("missing information. Before SUBMIT, review the latest draft digest. If ")
+                .append("review_draft returns REPAIR, use only its grounded targetCellIds and ")
+                .append("repairInstruction in a cell-scoped patch, then review the new digest. ")
+                .append("Never call create_draft again to repair a reviewed draft. For LAYOUT, ")
+                .append("preserve labels, cell sets, topology and ")
                 .append("non-layout styles.\n");
     }
 

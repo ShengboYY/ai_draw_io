@@ -2315,6 +2315,7 @@ function DrawioPageContent() {
       let receivedDrawioDone = false;
       let receivedVersionConflict = false;
       let receivedStreamError = false;
+      let agentLoopVisualReviewObserved = false;
       let completionMessageAdded = false;
       let emptyResponseMessageAdded = false;
       let previewSkeletonXml = '';
@@ -3266,7 +3267,10 @@ function DrawioPageContent() {
               
               if (isFinalStage) {
                 const shouldReviewFinalCanvas = Boolean(chunk.diagramId || diagramId)
-                  && !postDrawReviewPromise && canStartPostMutationReview({
+                  && !postDrawReviewPromise
+                  // Agentic Plain already reviewed the same attempt-scoped draft before commit.
+                  && !agentLoopVisualReviewObserved
+                  && canStartPostMutationReview({
                     version: chunk.version,
                     contentHash: chunk.contentHash,
                   });
@@ -3420,6 +3424,9 @@ function DrawioPageContent() {
                 : '';
               const step = chunk.step || 0;
               const tool = chunk.tool || chunk.action || '';
+              if (tool === 'review_draft' && chunk.stage === 'tool_completed') {
+                agentLoopVisualReviewObserved = true;
+              }
               let detail = '';
               if (chunk.stage === 'agent_started') {
                 detail = useChinese ? 'Agent Loop 已启动。' : 'Agent loop started.';
@@ -3442,9 +3449,15 @@ function DrawioPageContent() {
                   : `Running ${tool}.`;
               } else if (chunk.stage === 'tool_completed') {
                 const issues = chunk.issueCount || 0;
-                detail = useChinese
-                  ? `${tool} 已完成${elapsed ? `（${elapsed}）` : ''}，检测到 ${issues} 个问题。`
-                  : `${tool} completed${elapsed ? ` (${elapsed})` : ''}; ${issues} issue${issues === 1 ? '' : 's'} detected.`;
+                if (tool === 'review_draft') {
+                  detail = useChinese
+                    ? `视觉审查已完成${elapsed ? `（${elapsed}）` : ''}，结论为 ${chunk.outcome || 'UNAVAILABLE'}，发现 ${issues} 个问题。`
+                    : `Visual review completed${elapsed ? ` (${elapsed})` : ''}; decision ${chunk.outcome || 'UNAVAILABLE'}, ${issues} issue${issues === 1 ? '' : 's'}.`;
+                } else {
+                  detail = useChinese
+                    ? `${tool} 已完成${elapsed ? `（${elapsed}）` : ''}，检测到 ${issues} 个问题。`
+                    : `${tool} completed${elapsed ? ` (${elapsed})` : ''}; ${issues} issue${issues === 1 ? '' : 's'} detected.`;
+                }
               } else if (chunk.stage === 'candidate_submitted') {
                 detail = useChinese
                   ? '候选草稿已完成，正在提交正式画布。'

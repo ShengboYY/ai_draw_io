@@ -11,6 +11,7 @@ public record DiagramAgentState(
         DiagramSkillBundle skills,
         DiagramDraftView activeDraft,
         DiagramDraftAnalysis latestAnalysis,
+        DiagramDraftVisualReview latestVisualReview,
         DiagramAgentToolResult latestToolResult,
         List<DiagramAgentStepRecord> steps,
         List<String> recentDraftDigests,
@@ -18,13 +19,15 @@ public record DiagramAgentState(
         int mutationCount,
         int createCallCount,
         int fullXmlInspectionCount,
+        int visualReviewCount,
         int noProgressCount
 ) {
 
     public DiagramAgentState {
         if (request == null || skills == null
                 || stepCount < 0 || mutationCount < 0 || createCallCount < 0
-                || fullXmlInspectionCount < 0 || noProgressCount < 0) {
+                || fullXmlInspectionCount < 0 || visualReviewCount < 0
+                || noProgressCount < 0) {
             throw new IllegalArgumentException("diagram agent state is invalid");
         }
         steps = List.copyOf(steps == null ? List.of() : steps);
