@@ -9,6 +9,7 @@ import org.zipp.ai.application.turn.ClarificationReplyDeclaration;
 import org.zipp.ai.application.turn.NoClarificationReply;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.ReplyToClarification;
+import org.zipp.ai.application.turn.RequestedDiagramSkill;
 import org.zipp.ai.application.turn.TurnDeclarations;
 import org.zipp.ai.application.turn.UntrustedLegacyVersionDeclaration;
 
@@ -43,6 +44,8 @@ final class TurnInputBindingJsonCodec {
 
         ArrayNode legacy = root.putArray("legacySelectedSources");
         declarations.legacySelectedSources().forEach(source -> legacy.add(source.value()));
+        ArrayNode skills = root.putArray("requestedDiagramSkills");
+        declarations.requestedDiagramSkills().forEach(skill -> skills.add(skill.value()));
         try {
             root.set("memoryWrite", mapper.readTree(memoryCodec.encode(declarations.memoryWrite())));
             String json = root.toString();
@@ -84,6 +87,17 @@ final class TurnInputBindingJsonCodec {
             for (JsonNode source : requiredArray(root, "legacySelectedSources")) {
                 legacy.add(new UntrustedLegacyVersionDeclaration(requiredText(source, "legacy source")));
             }
+            List<RequestedDiagramSkill> skills = new ArrayList<>();
+            JsonNode requestedSkills = root.path("requestedDiagramSkills");
+            // Schema-v1 rows written before V2 skill support decode as an empty declaration.
+            if (!requestedSkills.isMissingNode()) {
+                if (!requestedSkills.isArray()) {
+                    throw new IllegalStateException("requestedDiagramSkills must be an array");
+                }
+                for (JsonNode skill : requestedSkills) {
+                    skills.add(new RequestedDiagramSkill(requiredText(skill, "requested skill")));
+                }
+            }
             JsonNode memory = root.path("memoryWrite");
             if (memory.isMissingNode() || memory.isNull()) {
                 throw new IllegalStateException("memory declaration is unavailable");
@@ -92,7 +106,8 @@ final class TurnInputBindingJsonCodec {
                     attachments,
                     reply,
                     legacy,
-                    memoryCodec.decode(memory.toString()));
+                    memoryCodec.decode(memory.toString()),
+                    skills);
         } catch (IllegalStateException exception) {
             throw exception;
         } catch (Exception exception) {

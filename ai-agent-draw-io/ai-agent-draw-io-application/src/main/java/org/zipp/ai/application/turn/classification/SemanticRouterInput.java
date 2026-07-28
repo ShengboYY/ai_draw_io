@@ -2,10 +2,12 @@ package org.zipp.ai.application.turn.classification;
 
 import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
+import org.zipp.ai.application.turn.RequestedDiagramSkill;
 import org.zipp.ai.application.turn.demand.AttachmentCandidateOrigin;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.demand.RestrictedSourceDemandInput;
 import org.zipp.ai.application.turn.demand.SourceAttachmentCandidate;
+import org.zipp.ai.application.turn.skill.DiagramSkillCatalogSnapshot;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,12 +20,14 @@ public record SemanticRouterInput(
         List<SourceAttachmentCandidate> attachmentCandidates,
         Optional<String> chartbookMembership,
         String attachmentBindingDigest,
-        ModelInputBinding modelInputBinding
+        ModelInputBinding modelInputBinding,
+        DiagramSkillCatalogSnapshot skillCatalog,
+        List<RequestedDiagramSkill> requestedDiagramSkills
 ) {
 
     public SemanticRouterInput(CurrentInstruction instruction, RouterContextView context) {
         this(instruction, context, List.of(), List.of(), Optional.empty(), "none",
-                ModelInputBinding.unbound());
+                ModelInputBinding.unbound(), DiagramSkillCatalogSnapshot.empty(), List.of());
     }
 
     public SemanticRouterInput(
@@ -32,7 +36,22 @@ public record SemanticRouterInput(
             ModelInputBinding modelInputBinding
     ) {
         this(instruction, context, List.of(), List.of(), Optional.empty(), "none",
-                modelInputBinding);
+                modelInputBinding, DiagramSkillCatalogSnapshot.empty(), List.of());
+    }
+
+    /** Compatibility constructor for callers that predate the V2 skill projection. */
+    public SemanticRouterInput(
+            CurrentInstruction instruction,
+            RouterContextView context,
+            List<OpaqueConversationFileRef> eligibleAttachmentRefs,
+            List<SourceAttachmentCandidate> attachmentCandidates,
+            Optional<String> chartbookMembership,
+            String attachmentBindingDigest,
+            ModelInputBinding modelInputBinding
+    ) {
+        this(instruction, context, eligibleAttachmentRefs, attachmentCandidates,
+                chartbookMembership, attachmentBindingDigest, modelInputBinding,
+                DiagramSkillCatalogSnapshot.empty(), List.of());
     }
 
     /** Compatibility constructor for projection tests that predate candidate metadata. */
@@ -46,13 +65,14 @@ public record SemanticRouterInput(
     ) {
         this(instruction, context, currentMessageAttachments,
                 legacyCandidates(currentMessageAttachments), chartbookMembership,
-                attachmentBindingDigest, modelInputBinding);
+                attachmentBindingDigest, modelInputBinding,
+                DiagramSkillCatalogSnapshot.empty(), List.of());
     }
 
     public SemanticRouterInput {
         if (instruction == null || context == null || chartbookMembership == null
                 || attachmentBindingDigest == null || attachmentBindingDigest.isBlank()
-                || modelInputBinding == null) {
+                || modelInputBinding == null || skillCatalog == null) {
             throw new IllegalArgumentException("semantic router input values must not be null");
         }
         eligibleAttachmentRefs = List.copyOf(
@@ -65,6 +85,8 @@ public record SemanticRouterInput(
         }
         chartbookMembership = chartbookMembership.map(String::trim)
                 .filter(value -> !value.isBlank());
+        requestedDiagramSkills = List.copyOf(
+                requestedDiagramSkills == null ? List.of() : requestedDiagramSkills);
     }
 
     /** Adds only opaque source metadata; source bodies and availability remain outside the router. */
@@ -79,7 +101,26 @@ public record SemanticRouterInput(
                 source.attachmentCandidates(),
                 source.chartbookMembership(),
                 source.attachmentBindingDigest(),
-                modelInputBinding);
+                modelInputBinding,
+                skillCatalog,
+                requestedDiagramSkills);
+    }
+
+    /** Adds one owner-scoped snapshot and caller declarations before model-input binding. */
+    public SemanticRouterInput withSkillContext(
+            DiagramSkillCatalogSnapshot catalog,
+            List<RequestedDiagramSkill> requestedSkills
+    ) {
+        return new SemanticRouterInput(
+                instruction,
+                context,
+                eligibleAttachmentRefs,
+                attachmentCandidates,
+                chartbookMembership,
+                attachmentBindingDigest,
+                modelInputBinding,
+                catalog,
+                requestedSkills);
     }
 
     public SemanticRouterInput withModelInputBinding(ModelInputBinding binding) {
@@ -90,7 +131,9 @@ public record SemanticRouterInput(
                 attachmentCandidates,
                 chartbookMembership,
                 attachmentBindingDigest,
-                binding);
+                binding,
+                skillCatalog,
+                requestedDiagramSkills);
     }
 
     /** Digest of the complete router projection, independent of any runtime ADK session. */
@@ -102,7 +145,9 @@ public record SemanticRouterInput(
                         .map(OpaqueConversationFileRef::value).toList().toString(),
                 attachmentCandidates.toString(),
                 chartbookMembership.orElse(""),
-                attachmentBindingDigest);
+                attachmentBindingDigest,
+                skillCatalog.digest(),
+                requestedDiagramSkills.stream().map(RequestedDiagramSkill::value).toList().toString());
     }
 
     /** Compatibility alias for callers that still use the old current-message-only terminology. */

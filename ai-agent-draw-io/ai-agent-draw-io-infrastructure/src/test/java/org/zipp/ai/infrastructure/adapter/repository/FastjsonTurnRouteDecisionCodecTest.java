@@ -20,6 +20,9 @@ import org.zipp.ai.application.turn.demand.SourceDemandKind;
 import org.zipp.ai.application.turn.planning.PlanningLineageFingerprint;
 import org.zipp.ai.application.turn.planning.PrePlanOutcome;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
+import org.zipp.ai.application.turn.skill.DiagramSkillBinding;
+import org.zipp.ai.application.turn.skill.DiagramSkillSelectionSource;
+import org.zipp.ai.application.turn.skill.ResolvedDiagramSkillSelection;
 
 import java.util.List;
 
@@ -35,9 +38,21 @@ class FastjsonTurnRouteDecisionCodecTest {
 
     @Test
     void roundTripsPlainRouteWithoutAddingSourceFacts() {
+        DiagramSkillBinding selected = new DiagramSkillBinding(
+                "custom-flow", "flowchart", "d".repeat(64));
+        DiagramSkillBinding shared = new DiagramSkillBinding(
+                "drawio-xml-guide", "shared", "e".repeat(64));
         TurnRouteDecision original = new TurnRouteDecision.Plain(
                 new PrePlanOutcome.SourceFreeReady(
-                        new PlainDrawPlan(PlainDrawAction.CREATE, "draw a flow"),
+                        new PlainDrawPlan(
+                                PlainDrawAction.CREATE,
+                                "draw a flow",
+                                "flowchart",
+                                new ResolvedDiagramSkillSelection(
+                                        List.of(selected),
+                                        List.of(shared, selected),
+                                        DiagramSkillSelectionSource.USER,
+                                        "f".repeat(64))),
                         new PlanningLineageFingerprint("c".repeat(64)),
                         CONTEXT_DIGEST,
                         INPUT_DIGEST));

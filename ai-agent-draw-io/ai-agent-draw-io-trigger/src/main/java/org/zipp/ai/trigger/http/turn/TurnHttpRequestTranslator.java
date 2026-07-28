@@ -7,6 +7,7 @@ import org.zipp.ai.application.turn.ExplicitMemoryDecision;
 import org.zipp.ai.application.turn.NoClarificationReply;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.ReplyToClarification;
+import org.zipp.ai.application.turn.RequestedDiagramSkill;
 import org.zipp.ai.application.turn.TurnDeclarations;
 import org.zipp.ai.application.turn.UntrustedLegacyVersionDeclaration;
 import org.zipp.ai.application.turn.UserTurnCommand;
@@ -28,7 +29,7 @@ public final class TurnHttpRequestTranslator {
                 request.runtimeSessionId(),
                 declarations(request.currentTurnAttachmentRefs(), request.clarificationId(),
                         request.legacySelectedSourceIds(), request.content(),
-                        request.memoryChartbookId()));
+                        request.memoryChartbookId(), request.requestedSkillNames()));
     }
 
     /**
@@ -53,7 +54,8 @@ public final class TurnHttpRequestTranslator {
                 required(request.getMessage(), "content"),
                 sessionId,
                 declarations(request.getCurrentTurnAttachmentRefs(), null,
-                        request.getSelectedLibraryVersionIds(), request.getMessage(), request.getMemoryChartbookId()));
+                        request.getSelectedLibraryVersionIds(), request.getMessage(),
+                        request.getMemoryChartbookId(), request.getSkills()));
     }
 
     private TurnDeclarations declarations(
@@ -61,7 +63,8 @@ public final class TurnHttpRequestTranslator {
             String clarificationId,
             List<String> legacySources,
             String requestContent,
-            String memoryChartbookId
+            String memoryChartbookId,
+            List<String> requestedSkills
     ) {
         List<OpaqueConversationFileRef> attachments = attachmentRefs == null
                 ? List.of()
@@ -73,6 +76,11 @@ public final class TurnHttpRequestTranslator {
                 : legacySources.stream()
                 .map(value -> new UntrustedLegacyVersionDeclaration(required(value, "legacySource")))
                 .toList();
+        List<RequestedDiagramSkill> skills = requestedSkills == null
+                ? List.of()
+                : requestedSkills.stream()
+                .map(value -> new RequestedDiagramSkill(required(value, "requestedSkill")))
+                .toList();
         return new TurnDeclarations(
                 attachments,
                 blank(clarificationId)
@@ -82,7 +90,8 @@ public final class TurnHttpRequestTranslator {
                 ExplicitMemoryDecision.fromUserContent(requestContent, memoryChartbookId)
                         .<org.zipp.ai.application.turn.MemoryWriteDeclaration>map(
                                 ExplicitMemoryDecision::declaration)
-                        .orElseGet(org.zipp.ai.application.turn.NoMemoryWrite::new));
+                        .orElseGet(org.zipp.ai.application.turn.NoMemoryWrite::new),
+                skills);
     }
 
     private String canonicalizeLegacyReference(String sessionId) {

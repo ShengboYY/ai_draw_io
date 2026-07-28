@@ -8,6 +8,7 @@ import org.zipp.ai.application.turn.MemoryWriteSemanticDigest;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.RememberDecisionDeclaration;
 import org.zipp.ai.application.turn.ReplyToClarification;
+import org.zipp.ai.application.turn.RequestedDiagramSkill;
 import org.zipp.ai.application.turn.TurnDeclarations;
 import org.zipp.ai.application.turn.UntrustedLegacyVersionDeclaration;
 
@@ -32,7 +33,10 @@ class TurnInputBindingJsonCodecTest {
                         "remembered-decision",
                         "all",
                         "use event naming",
-                        "en"));
+                        "en"),
+                List.of(
+                        new RequestedDiagramSkill("custom-flow"),
+                        new RequestedDiagramSkill("custom-style")));
 
         TurnInputBindingJsonCodec codec = new TurnInputBindingJsonCodec();
 

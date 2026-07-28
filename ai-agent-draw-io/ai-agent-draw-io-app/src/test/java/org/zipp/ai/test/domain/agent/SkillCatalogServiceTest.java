@@ -175,6 +175,35 @@ public class SkillCatalogServiceTest {
     }
 
     @Test
+    public void shouldBuildOneRuntimeCatalogWithSelectableAndRequiredSharedSkills() throws Exception {
+        File skillsRoot = temporaryFolder.newFolder("skills");
+        writeSkill(skillsRoot, "custom-runtime-flow", """
+                ---
+                name: custom-runtime-flow
+                description: Runtime flow skill.
+                schemaVersion: 1
+                category: drawio-design
+                diagramType: flowchart
+                selectable: true
+                ---
+
+                # Runtime Flow
+
+                ## Rules [P0]
+                Use the runtime flow rules.
+                """);
+
+        SkillCatalogService.RuntimeCatalog runtime =
+                serviceWithExternalDir(skillsRoot).runtimeCatalog("owner-1");
+
+        assertTrue(runtime.selectableSkills().stream()
+                .anyMatch(skill -> "custom-runtime-flow".equals(skill.name())));
+        assertEquals(
+                List.of("drawio-xml-guide", "drawio-visual-design"),
+                runtime.sharedSkills().stream().map(SkillCatalogService.SkillInfo::name).toList());
+    }
+
+    @Test
     public void shouldKeepInvalidExternalDrawioSkillOutOfRouterCatalog() throws Exception {
         File skillsRoot = temporaryFolder.newFolder("skills");
         writeSkill(skillsRoot, "broken-flowchart", """
