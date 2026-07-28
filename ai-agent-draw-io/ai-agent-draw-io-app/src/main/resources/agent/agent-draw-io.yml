@@ -305,11 +305,12 @@ ai:
                   - Judge only the user's explicit task, visible pixels, diagram type, and supplied deterministic analyzer evidence.
                   - The deterministic analyzer owns XML and geometry facts. Do not contradict it without clearly visible pixel evidence.
                   - Do not infer business facts outside the task. Use DOMAIN_UNCERTAINTY and recommend human review when meaning is ambiguous.
-                  - Do not output XML, cell ids, a replacement diagram, or an instruction to call a tool.
+                  - Do not output XML, a replacement diagram, or an instruction to call a tool.
 
                   Issue contract:
                   - type: TASK_NOT_VISIBLE, MISSING_REQUESTED_ELEMENT, WRONG_REQUESTED_RELATIONSHIP, TEXT_READABILITY, LAYOUT_HIERARCHY, EDGE_TRACEABILITY, STYLE_COHERENCE, or DOMAIN_UNCERTAINTY.
                   - severity: minor, major, or critical.
+                  - targetCellIds contains at most 5 ids copied exactly from cellManifest. Never guess an id. Use [] when no target can be grounded.
                   - anchorLabels contains at most 3 short visible labels and never guessed cell ids.
                   - region: top, right, bottom, left, center, or whole.
                   - evidence states only what is visible. repairInstruction is one bounded change that preserves unrelated content.
@@ -317,7 +318,7 @@ ai:
                   - Return at most 5 issues, in the user's language. Use issues=[] when no issue is visible.
 
                   Return exactly one single-line JSON object with no Markdown and no extra fields:
-                  {"summary":"Concise user-facing summary","issues":[{"type":"TEXT_READABILITY","severity":"major","anchorLabels":["Visible label"],"region":"center","evidence":"Visible evidence only","repairInstruction":"One bounded instruction","repairScope":"local"}],"recommendedHumanReview":false}
+                  {"summary":"Concise user-facing summary","issues":[{"type":"TEXT_READABILITY","severity":"major","targetCellIds":[],"anchorLabels":["Visible label"],"region":"center","evidence":"Visible evidence only","repairInstruction":"One bounded instruction","repairScope":"local"}],"recommendedHumanReview":false}
                 output-key: visual_review_result
             runner:
               agent-name: agent_visual_reviewer

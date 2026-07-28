@@ -15,6 +15,7 @@ import {
   thinkingPhaseLabel,
   thinkingRouteLabel,
   usesChinesePresentation,
+  visualReviewUnavailableReason,
   visualReviewStageLabel,
   visualReviewStaleMessage,
 } from '../src/app/drawio/agent-run-presentation.ts';
@@ -186,6 +187,22 @@ test('visual review warnings explain unavailable, human-review, and stale outcom
     buildVisualReviewStepDetail({ stage: 'VERIFY_ONLY', useChinese: true }),
     /通过/,
   );
+  const invalidResultReason = visualReviewUnavailableReason(
+    false,
+    'output_schema_error',
+    'NEEDS_HUMAN_REVIEW',
+  );
+  assert.equal(invalidResultReason, 'REVIEW_RESULT_INVALID');
+  const invalidResultMessage = buildVisualReviewStepDetail({
+    stage: 'POST_MUTATION',
+    decision: 'NEEDS_HUMAN_REVIEW',
+    issues: [],
+    unavailableReason: invalidResultReason,
+    useChinese: true,
+  });
+  assert.match(invalidResultMessage, /结果无法解析/);
+  assert.match(invalidResultMessage, /未执行自动修复/);
+  assert.doesNotMatch(invalidResultMessage, /发现 0 个问题/);
 });
 
 test('render export failure is distinct from VLM provider unavailability', () => {
