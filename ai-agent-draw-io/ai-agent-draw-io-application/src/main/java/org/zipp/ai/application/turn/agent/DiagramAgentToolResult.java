@@ -8,7 +8,7 @@ public record DiagramAgentToolResult(
         boolean success,
         String outcomeCode,
         DiagramDraftView draft,
-        DiagramDraftAnalysis analysis,
+        DiagramDraftStructure structure,
         List<String> changedCellIds,
         List<InspectedDiagramCell> cells,
         String canvasXml,
@@ -25,36 +25,36 @@ public record DiagramAgentToolResult(
         if (toolName.isBlank() || outcomeCode.isBlank()) {
             throw new IllegalArgumentException("tool result identity is required");
         }
-        if (success && (draft == null || analysis == null)) {
-            throw new IllegalArgumentException("successful tool result requires draft and analysis");
+        if (success && (draft == null || structure == null)) {
+            throw new IllegalArgumentException("successful tool result requires draft and structure");
         }
     }
 
     public static DiagramAgentToolResult success(
             String toolName,
             DiagramDraftView draft,
-            DiagramDraftAnalysis analysis,
+            DiagramDraftStructure structure,
             List<String> changedCellIds,
             List<InspectedDiagramCell> cells,
             String canvasXml,
             boolean truncated
     ) {
         return new DiagramAgentToolResult(
-                toolName, true, "SUCCESS", draft, analysis,
+                toolName, true, "SUCCESS", draft, structure,
                 changedCellIds, cells, canvasXml, truncated, null);
     }
 
     public static DiagramAgentToolResult visualReview(
             String toolName,
             DiagramDraftView draft,
-            DiagramDraftAnalysis analysis,
+            DiagramDraftStructure structure,
             DiagramDraftVisualReview visualReview
     ) {
         if (visualReview == null) {
             throw new IllegalArgumentException("visual review is required");
         }
         return new DiagramAgentToolResult(
-                toolName, true, visualReview.decision(), draft, analysis,
+                toolName, true, visualReview.decision(), draft, structure,
                 List.of(), List.of(), "", false, visualReview);
     }
 

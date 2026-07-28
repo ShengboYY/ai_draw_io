@@ -7,16 +7,14 @@ import org.zipp.ai.application.turn.agent.DiagramDraftSnapshot;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualIssue;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReview;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
-import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
-import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewGrounding;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
-import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
-import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.analysis.DrawioCellDocumentReader;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewGroundingGuard;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
@@ -32,7 +30,7 @@ public final class DefaultDiagramDraftVisualReviewAdapter
 
     private static final String PNG_DATA_URL = "data:image/png;base64,";
     private final ICanvasVisualReviewer reviewer;
-    private final ICanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+    private final DrawioCellDocumentReader cellReader = new DrawioCellDocumentReader();
     private final DrawioDraftPngRenderer renderer = new DrawioDraftPngRenderer();
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
     private final CanvasVisualReviewGroundingGuard groundingGuard =
@@ -49,8 +47,8 @@ public final class DefaultDiagramDraftVisualReviewAdapter
     ) {
         long started = System.nanoTime();
         try {
-            CanvasAnalysis analysis = analyzer.analyze(draft.canvasXml(), plan.diagramType());
-            DrawioDraftPngRenderer.RenderedDraft image = renderer.render(analysis);
+            List<CanvasCellData> cells = cellReader.read(draft.canvasXml());
+            DrawioDraftPngRenderer.RenderedDraft image = renderer.render(cells);
             CanvasVisualReviewResult result = reviewer.review(
                     CanvasVisualReviewCommand.builder()
                             .stage(CanvasVisualReviewStage.POST_MUTATION)
@@ -61,16 +59,16 @@ public final class DefaultDiagramDraftVisualReviewAdapter
                             .totalPageCount(1)
                             .truncatedPageCount(0)
                             .additionalAfterImages(List.of())
-                            .analyzerEvidence(analyzerEvidence(analysis))
-                            .canvasSummary(canvasSummary(analysis))
-                            .canvasCells(analysis.getCells())
+                            .analyzerEvidence(List.of())
+                            .canvasSummary(canvasSummary(cells))
+                            .canvasCells(cells)
                             .languageHint(languageHint(plan.instruction()))
                             .rendererVersion(image.rendererVersion())
                             .expectedContentHash(draft.digest())
                             .build());
             CanvasVisualReviewDecision decision =
                     policy.decide(result, CanvasVisualReviewStage.POST_MUTATION, 0);
-            CanvasVisualReviewGrounding grounding = groundingGuard.ground(analysis, result);
+            CanvasVisualReviewGrounding grounding = groundingGuard.ground(cells, result);
             if (decision == CanvasVisualReviewDecision.REPAIR && grounding.hasConflict()) {
                 // Ungrounded model findings remain visible evidence but cannot request an automatic patch.
                 decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
@@ -100,29 +98,20 @@ public final class DefaultDiagramDraftVisualReviewAdapter
                     draft.digest(),
                     failure.getClass().getSimpleName(),
                     elapsedMillis(started));
-            // Visual review is advisory; deterministic validation still decides canvas safety.
+            // The draft store already enforces XML safety and reference integrity.
             return DiagramDraftVisualReview.unavailable(
                     draft.digest(), "review_execution_failed");
         }
     }
 
-    private List<String> analyzerEvidence(CanvasAnalysis analysis) {
-        return (analysis == null || analysis.getIssues() == null
-                ? List.<CanvasAnalysisIssue>of()
-                : analysis.getIssues()).stream()
-                .limit(20)
-                .map(issue -> issue.getType() + ":"
-                        + String.join(",", issue.getTargetCellIds() == null
-                        ? List.of()
-                        : issue.getTargetCellIds()))
-                .toList();
-    }
-
-    private String canvasSummary(CanvasAnalysis analysis) {
-        if (analysis == null || analysis.getSummary() == null) {
-            return "";
-        }
-        return bounded(analysis.getSummary().getSummary(), 500);
+    private String canvasSummary(List<CanvasCellData> cells) {
+        long nodeCount = cells.stream()
+                .filter(cell -> "node".equalsIgnoreCase(cell.getKind()))
+                .count();
+        long edgeCount = cells.stream()
+                .filter(cell -> "edge".equalsIgnoreCase(cell.getKind()))
+                .count();
+        return "nodes=" + nodeCount + ", edges=" + edgeCount;
     }
 
     private List<DiagramDraftVisualIssue> issues(CanvasVisualReviewResult result) {

@@ -10,10 +10,9 @@ import org.zipp.ai.application.turn.agent.CreateDraftRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentToolPort;
 import org.zipp.ai.application.turn.agent.DiagramAgentToolRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentToolResult;
-import org.zipp.ai.application.turn.agent.DiagramDraftAnalysis;
-import org.zipp.ai.application.turn.agent.DiagramDraftIssue;
 import org.zipp.ai.application.turn.agent.DiagramDraftSnapshot;
 import org.zipp.ai.application.turn.agent.DiagramDraftStore;
+import org.zipp.ai.application.turn.agent.DiagramDraftStructure;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
 import org.zipp.ai.application.turn.agent.DiagramDraftView;
 import org.zipp.ai.application.turn.agent.DraftInspectionScope;
@@ -21,12 +20,8 @@ import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.InspectedDiagramCell;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
 import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
-import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
-import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
-import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
-import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
-import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.analysis.DrawioCellDocumentReader;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -50,7 +45,7 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
             "entryX", "entryY", "entryDx", "entryDy", "entryPerimeter");
 
     private final DiagramDraftStore drafts;
-    private final ICanvasAnalyzer analyzer;
+    private final DrawioCellDocumentReader cellReader;
     private final DiagramDraftVisualReviewPort visualReviews;
 
     // ObjectProvider keeps focused Spring slices valid when the optional VLM adapter is absent.
@@ -59,23 +54,20 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
             DiagramDraftStore drafts,
             ObjectProvider<DiagramDraftVisualReviewPort> visualReviews
     ) {
-        this(
-                drafts,
-                new DefaultCanvasAnalyzer(),
-                visualReviews.getIfAvailable(() -> DiagramDraftVisualReviewPort.UNAVAILABLE));
+        this(drafts, visualReviews.getIfAvailable(
+                () -> DiagramDraftVisualReviewPort.UNAVAILABLE));
     }
 
     public DefaultDiagramAgentToolAdapter(DiagramDraftStore drafts) {
-        this(drafts, new DefaultCanvasAnalyzer(), DiagramDraftVisualReviewPort.UNAVAILABLE);
+        this(drafts, DiagramDraftVisualReviewPort.UNAVAILABLE);
     }
 
     public DefaultDiagramAgentToolAdapter(
             DiagramDraftStore drafts,
-            ICanvasAnalyzer analyzer,
             DiagramDraftVisualReviewPort visualReviews
     ) {
         this.drafts = drafts;
-        this.analyzer = analyzer;
+        this.cellReader = new DrawioCellDocumentReader();
         this.visualReviews = visualReviews;
     }
 
@@ -113,11 +105,10 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
             return DiagramAgentToolResult.rejected(request.toolName(), "TOOL_NOT_ALLOWED");
         }
         DiagramDraftSnapshot draft = drafts.create(attempt, request.canvasXml());
-        DiagramDraftAnalysis analysis = analyze(draft, plan);
         return DiagramAgentToolResult.success(
                 request.toolName(),
                 DiagramDraftView.from(draft),
-                analysis,
+                structure(draft),
                 List.of(),
                 List.of(),
                 "",
@@ -134,13 +125,13 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
                 attempt, request.draftRef(), request.expectedDigest(), request.mutations());
         DiagramDraftSnapshot after = patched.draft();
         if (plan.action() == PlainDrawAction.LAYOUT
-                && !sameDiagramSemantics(before.canvasXml(), after.canvasXml(), plan.diagramType())) {
+                && !sameDiagramSemantics(before.canvasXml(), after.canvasXml())) {
             return DiagramAgentToolResult.rejected(request.toolName(), "LAYOUT_SEMANTIC_CHANGE");
         }
         return DiagramAgentToolResult.success(
                 request.toolName(),
                 DiagramDraftView.from(after),
-                analyze(after, plan),
+                structure(after),
                 patched.changedCellIds(),
                 List.of(),
                 "",
@@ -153,8 +144,8 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
             InspectDraftRequest request
     ) {
         DiagramDraftSnapshot draft = drafts.read(attempt, request.draftRef());
-        CanvasAnalysis raw = analyzer.analyze(draft.canvasXml(), plan.diagramType());
-        List<CanvasCellData> selected = selectCells(raw.getCells(), request);
+        List<CanvasCellData> allCells = cellReader.read(draft.canvasXml());
+        List<CanvasCellData> selected = selectCells(allCells, request);
         boolean includeRawXml = includesRawXml(request.scope());
         int cellLimit = includeRawXml ? 32 : MAX_INSPECTED_CELLS;
         boolean truncated = selected.size() > cellLimit;
@@ -168,7 +159,7 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
         return DiagramAgentToolResult.success(
                 request.toolName(),
                 DiagramDraftView.from(draft),
-                project(raw),
+                structure(allCells),
                 List.of(),
                 cells,
                 canvasXml,
@@ -185,11 +176,10 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
             return DiagramAgentToolResult.rejected(
                     request.toolName(), "DRAFT_DIGEST_MISMATCH");
         }
-        DiagramDraftAnalysis analysis = analyze(draft, plan);
         return DiagramAgentToolResult.visualReview(
                 request.toolName(),
                 DiagramDraftView.from(draft),
-                analysis,
+                structure(draft),
                 visualReviews.review(plan, draft));
     }
 
@@ -199,7 +189,7 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
     ) {
         List<CanvasCellData> safeCells = cells == null ? List.of() : cells;
         return switch (request.scope()) {
-            case SUMMARY, ISSUES_ONLY, FULL_XML -> List.of();
+            case SUMMARY, FULL_XML -> List.of();
             case TARGET_CELLS -> {
                 Set<String> ids = new LinkedHashSet<>(request.cellIds());
                 yield safeCells.stream().filter(cell -> ids.contains(cell.getId())).toList();
@@ -233,40 +223,24 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
                 rawXml);
     }
 
-    private DiagramDraftAnalysis analyze(DiagramDraftSnapshot draft, PlainDrawPlan plan) {
-        return project(analyzer.analyze(draft.canvasXml(), plan.diagramType()));
+    private DiagramDraftStructure structure(DiagramDraftSnapshot draft) {
+        return structure(cellReader.read(draft.canvasXml()));
     }
 
-    private DiagramDraftAnalysis project(CanvasAnalysis analysis) {
-        List<CanvasAnalysisIssue> rawIssues =
-                analysis.getIssues() == null ? List.of() : analysis.getIssues();
-        boolean structurallyValid = rawIssues.stream()
-                .noneMatch(issue -> issue.getType() == CanvasIssueType.INVALID_XML);
-        List<DiagramDraftIssue> issues = rawIssues.stream()
-                .limit(64)
-                .map(issue -> new DiagramDraftIssue(
-                        issue.getType() == null ? "UNKNOWN" : issue.getType().name(),
-                        issue.getSeverity(),
-                        issue.getTargetCellIds() == null
-                                ? List.of()
-                                : issue.getTargetCellIds().stream().limit(16).toList(),
-                        bounded(issue.getMessage(), 500)))
-                .toList();
-        int nodeCount = analysis.getSummary() == null ? 0 : analysis.getSummary().getNodeCount();
-        int edgeCount = analysis.getSummary() == null ? 0 : analysis.getSummary().getEdgeCount();
-        return new DiagramDraftAnalysis(
-                structurallyValid,
-                analysis.isValid(),
-                nodeCount,
-                edgeCount,
-                analysis.getSeverity(),
-                issues);
+    private DiagramDraftStructure structure(List<CanvasCellData> cells) {
+        List<CanvasCellData> safeCells = cells == null ? List.of() : cells;
+        int nodeCount = (int) safeCells.stream()
+                .filter(cell -> "node".equalsIgnoreCase(cell.getKind()))
+                .count();
+        int edgeCount = (int) safeCells.stream()
+                .filter(cell -> "edge".equalsIgnoreCase(cell.getKind()))
+                .count();
+        return new DiagramDraftStructure(nodeCount, edgeCount, safeCells.size());
     }
 
-    private boolean sameDiagramSemantics(String beforeXml, String afterXml, String diagramType) {
-        CanvasAnalysis before = analyzer.analyze(beforeXml, diagramType);
-        CanvasAnalysis after = analyzer.analyze(afterXml, diagramType);
-        return semanticCells(before.getCells()).equals(semanticCells(after.getCells()));
+    private boolean sameDiagramSemantics(String beforeXml, String afterXml) {
+        return semanticCells(cellReader.read(beforeXml))
+                .equals(semanticCells(cellReader.read(afterXml)));
     }
 
     private Map<String, SemanticCell> semanticCells(List<CanvasCellData> cells) {

@@ -478,7 +478,7 @@ public final class TurnV2ProductIngressAdapter {
 
     private String progressPhase(String eventType, String tool) {
         if (eventType.contains("tool")) {
-            return "inspect_draft".equals(tool) || "review_draft".equals(tool)
+            return "review_draft".equals(tool)
                     ? "reviewing"
                     : "drawing";
         }

@@ -27,13 +27,24 @@ public class CanvasVisualReviewGroundingGuard {
             new CanvasVisualReviewManifestProjector();
 
     public CanvasVisualReviewGrounding ground(CanvasAnalysis analysis, CanvasVisualReviewResult result) {
-        List<CanvasCellData> cells = analysis == null || analysis.getCells() == null
-                ? List.of() : analysis.getCells();
-        Map<String, CanvasCellData> allCellsById = cells.stream()
+        return ground(
+                analysis == null || analysis.getCells() == null
+                        ? List.of()
+                        : analysis.getCells(),
+                result);
+    }
+
+    public CanvasVisualReviewGrounding ground(
+            List<CanvasCellData> cells,
+            CanvasVisualReviewResult result
+    ) {
+        List<CanvasCellData> safeCells = List.copyOf(cells == null ? List.of() : cells);
+        Map<String, CanvasCellData> allCellsById = safeCells.stream()
                 .filter(cell -> cell != null && StringUtils.isNotBlank(cell.getId()))
                 .collect(Collectors.toMap(CanvasCellData::getId, Function.identity(),
                         (first, ignored) -> first, LinkedHashMap::new));
-        CanvasVisualReviewManifestProjector.Projection projection = manifestProjector.project(cells);
+        CanvasVisualReviewManifestProjector.Projection projection =
+                manifestProjector.project(safeCells);
         Map<String, CanvasCellData> manifestCellsById = java.util.stream.Stream
                 .concat(projection.nodes().stream(), projection.edges().stream())
                 .collect(Collectors.toMap(CanvasCellData::getId, Function.identity(),
