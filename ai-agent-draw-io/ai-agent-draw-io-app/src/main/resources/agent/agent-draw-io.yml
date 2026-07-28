@@ -164,7 +164,7 @@ ai:
               completions-path: ${LLM_COMPLETIONS_PATH:v1/chat/completions}
               embeddings-path: ${LLM_EMBEDDINGS_PATH:v1/embeddings}
             chat-model:
-              model: ${LLM_MODEL:gpt-5.5}
+              model: ${TURN_V2_PLAIN_MODEL:${LLM_MODEL:gpt-5.5}}
             agents:
               - name: agent_plain_generation_v2
                 description: Produces an exact source-free V2 drawing or text response payload.
