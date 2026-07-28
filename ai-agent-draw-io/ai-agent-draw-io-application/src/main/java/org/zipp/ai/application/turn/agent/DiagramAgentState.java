@@ -10,7 +10,7 @@ public record DiagramAgentState(
         PlainGenerationRequest request,
         DiagramSkillBundle skills,
         DiagramDraftView activeDraft,
-        DiagramDraftAnalysis latestAnalysis,
+        DiagramDraftStructure latestStructure,
         DiagramDraftVisualReview latestVisualReview,
         DiagramAgentToolResult latestToolResult,
         List<DiagramAgentStepRecord> steps,

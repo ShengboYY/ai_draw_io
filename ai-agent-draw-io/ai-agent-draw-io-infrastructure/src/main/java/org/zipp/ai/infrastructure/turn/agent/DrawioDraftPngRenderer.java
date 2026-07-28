@@ -1,7 +1,6 @@
 package org.zipp.ai.infrastructure.turn.agent;
 
 import org.apache.commons.lang3.StringUtils;
-import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasPointData;
 
@@ -35,10 +34,8 @@ final class DrawioDraftPngRenderer {
     private static final int MAX_DIMENSION = 4_096;
     private static final int MAX_CELLS = 2_000;
 
-    RenderedDraft render(CanvasAnalysis analysis) {
-        List<CanvasCellData> cells = analysis == null || analysis.getCells() == null
-                ? List.of()
-                : analysis.getCells();
+    RenderedDraft render(List<CanvasCellData> cells) {
+        cells = List.copyOf(cells == null ? List.of() : cells);
         if (cells.isEmpty() || cells.size() > MAX_CELLS) {
             throw new IllegalArgumentException("draft render cell count is invalid");
         }

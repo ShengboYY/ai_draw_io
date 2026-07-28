@@ -105,7 +105,7 @@ public final class BoundedDiagramAgentRuntime {
                 int stepNumber = state.stepCount() + 1;
                 publish(events, "plain_agent_decision_started",
                         progressPayload(stepNumber, "DECIDE", "", "STARTED", 0,
-                                issueCount(state.latestAnalysis())));
+                                visualIssueCount(state)));
 
                 long decisionStarted = System.nanoTime();
                 DiagramAgentAction action = Objects.requireNonNull(
@@ -122,10 +122,10 @@ public final class BoundedDiagramAgentRuntime {
                         actionType,
                         selectedTool,
                         "", digest(state.activeDraft()), digest(state.activeDraft()),
-                        "SELECTED", issueCount(state.latestAnalysis()), decisionLatency);
+                        "SELECTED", visualIssueCount(state), decisionLatency);
                 publish(events, "plain_agent_decision_completed",
                         progressPayload(stepNumber, actionType, selectedTool, "SELECTED",
-                                decisionLatency, issueCount(state.latestAnalysis())));
+                                decisionLatency, visualIssueCount(state)));
 
                 if (action instanceof SubmitDiagramCandidate submit) {
                     if (!hasCurrentVisualReview(state)
@@ -235,22 +235,7 @@ public final class BoundedDiagramAgentRuntime {
             throw stop("PLAIN_AGENT_SUBMISSION_STALE");
         }
         requireActive(state.request().attempt(), cancellation);
-        InspectDraftRequest validationRequest = new InspectDraftRequest(
-                submit.draftRef(),
-                DraftInspectionScope.SUMMARY,
-                List.of(),
-                "");
-        DiagramAgentToolResult validation = invokeTool(
-                state,
-                validationRequest,
-                stepNumber,
-                "FINAL_VALIDATION",
-                cancellation,
-                events);
-        if (!validation.success() || validation.analysis() == null
-                || !validation.analysis().readyForSubmission()) {
-            throw stop("PLAIN_AGENT_FINAL_VALIDATION_FAILED");
-        }
+        // create/patch already passed the draft store's XML and reference-integrity checks.
         DiagramDraftSnapshot snapshot = drafts.read(
                 state.request().attempt(), submit.draftRef());
         if (!snapshot.digest().equals(submit.expectedDigest())) {
@@ -259,10 +244,10 @@ public final class BoundedDiagramAgentRuntime {
         trace(state.request().attempt(), stepNumber, PlainAgentTraceType.CANDIDATE_SUBMITTED,
                 "SUBMIT_CANDIDATE", "", "",
                 snapshot.digest(), snapshot.digest(), "CANDIDATE_SUBMITTED",
-                validation.analysis().issues().size(), 0);
+                visualIssueCount(state), 0);
         trace(state.request().attempt(), stepNumber, PlainAgentTraceType.AGENT_STOPPED,
                 "", "", "", snapshot.digest(), snapshot.digest(),
-                "CANDIDATE_SUBMITTED", validation.analysis().issues().size(), 0);
+                "CANDIDATE_SUBMITTED", visualIssueCount(state), 0);
         publish(events, "plain_agent_candidate_submitted", "");
         return new DiagramAgentRunResult(
                 snapshot.ref(),
@@ -299,44 +284,26 @@ public final class BoundedDiagramAgentRuntime {
                 state = reduce(state, reviewRequest, review, stepNumber);
             }
         }
-        InspectDraftRequest validationRequest = new InspectDraftRequest(
-                state.activeDraft().ref(),
-                DraftInspectionScope.SUMMARY,
-                List.of(),
-                "");
-        DiagramAgentToolResult validation = invokeTool(
-                state,
-                validationRequest,
-                stepNumber,
-                "BUDGET_FALLBACK_VALIDATION",
-                cancellation,
-                events);
-        if (!validation.success() || validation.analysis() == null
-                || !validation.analysis().structurallyValid()) {
-            throw stop("PLAIN_AGENT_BUDGET_FALLBACK_INVALID");
-        }
-
         DiagramDraftSnapshot snapshot = drafts.read(
                 state.request().attempt(), state.activeDraft().ref());
         if (!snapshot.digest().equals(state.activeDraft().digest())) {
             throw stop("PLAIN_AGENT_SUBMISSION_STALE");
         }
-        int remainingIssues = validation.analysis().issues().size();
         // Budget exhaustion is a degraded success: the outer write gate still owns the real commit.
         trace(state.request().attempt(), stepNumber, PlainAgentTraceType.CANDIDATE_SUBMITTED,
                 "BUDGET_FALLBACK", "", "",
                 snapshot.digest(), snapshot.digest(), "CANDIDATE_SUBMITTED",
-                remainingIssues, 0);
+                visualIssueCount(state), 0);
         trace(state.request().attempt(), stepNumber, PlainAgentTraceType.AGENT_STOPPED,
                 "BUDGET_FALLBACK", "", "",
                 snapshot.digest(), snapshot.digest(), "CANDIDATE_SUBMITTED",
-                remainingIssues, 0);
+                visualIssueCount(state), 0);
         publish(events, "plain_agent_candidate_submitted", "");
         return new DiagramAgentRunResult(
                 snapshot.ref(),
                 snapshot.digest(),
                 snapshot.canvasXml(),
-                budgetFallbackMessage(remainingIssues),
+                budgetFallbackMessage(),
                 stepNumber,
                 state.mutationCount());
     }
@@ -381,7 +348,7 @@ public final class BoundedDiagramAgentRuntime {
                 state.request(),
                 state.skills(),
                 result.success() ? result.draft() : state.activeDraft(),
-                result.success() ? result.analysis() : state.latestAnalysis(),
+                result.success() ? result.structure() : state.latestStructure(),
                 latestVisualReview(state, request, result),
                 result,
                 steps,
@@ -399,7 +366,7 @@ public final class BoundedDiagramAgentRuntime {
             trace(state.request().attempt(), stepNumber, PlainAgentTraceType.DRAFT_UPDATED,
                     "CALL_TOOL", request.toolName(), "",
                     beforeDigest, afterDigest, "UPDATED",
-                    issueCount(result.analysis()), 0);
+                    0, 0);
         }
         if (result.success() && request instanceof ReviewDraftRequest) {
             trace(state.request().attempt(), stepNumber,
@@ -408,12 +375,6 @@ public final class BoundedDiagramAgentRuntime {
                     beforeDigest, afterDigest,
                     result.visualReview().decision(),
                     result.visualReview().issues().size(), 0);
-        } else if (result.success()) {
-            trace(state.request().attempt(), stepNumber, PlainAgentTraceType.ANALYSIS_COMPLETED,
-                    "CALL_TOOL", request.toolName(), "",
-                    beforeDigest, afterDigest,
-                    result.analysis().readyForSubmission() ? "READY" : "ISSUES_FOUND",
-                    result.analysis().issues().size(), 0);
         }
         return updated;
     }
@@ -452,7 +413,7 @@ public final class BoundedDiagramAgentRuntime {
                 state.request(),
                 state.skills(),
                 state.activeDraft(),
-                state.latestAnalysis(),
+                state.latestStructure(),
                 state.latestVisualReview(),
                 state.latestToolResult(),
                 steps,
@@ -478,10 +439,10 @@ public final class BoundedDiagramAgentRuntime {
         trace(state.request().attempt(), stepNumber, PlainAgentTraceType.TOOL_REQUESTED,
                 actionType, request.toolName(), argumentsDigest,
                 beforeDigest, beforeDigest, "REQUESTED",
-                issueCount(state.latestAnalysis()), 0);
+                visualIssueCount(state), 0);
         publish(events, "plain_agent_tool_started",
                 progressPayload(stepNumber, actionType, request.toolName(),
-                        "REQUESTED", 0, issueCount(state.latestAnalysis())));
+                        "REQUESTED", 0, visualIssueCount(state)));
 
         long started = System.nanoTime();
         DiagramAgentToolResult result = tools.execute(
@@ -523,7 +484,7 @@ public final class BoundedDiagramAgentRuntime {
                 review.groundingConflict(),
                 review.reviewerVersion());
         return DiagramAgentToolResult.visualReview(
-                request.toolName(), result.draft(), result.analysis(), bounded);
+                request.toolName(), result.draft(), result.structure(), bounded);
     }
 
     private boolean hasCurrentVisualReview(DiagramAgentState state) {
@@ -619,12 +580,9 @@ public final class BoundedDiagramAgentRuntime {
         }
     }
 
-    private String budgetFallbackMessage(int issueCount) {
-        String message = "The diagram was generated from the latest structurally valid draft "
+    private String budgetFallbackMessage() {
+        return "The diagram was generated from the latest validated draft "
                 + "after the agent step budget was exhausted.";
-        return issueCount == 0
-                ? message
-                : message + " " + issueCount + " automated check(s) remain for review.";
     }
 
     private void requireActive(FencedAttempt attempt, CancellationSignal cancellation) {
@@ -656,17 +614,16 @@ public final class BoundedDiagramAgentRuntime {
                 && inspect.scope() == DraftInspectionScope.FULL_XML;
     }
 
-    private int issueCount(DiagramDraftAnalysis analysis) {
-        return analysis == null ? 0 : analysis.issues().size();
+    private int issueCount(DiagramAgentToolResult result) {
+        return result == null || result.visualReview() == null
+                ? 0
+                : result.visualReview().issues().size();
     }
 
-    private int issueCount(DiagramAgentToolResult result) {
-        if (result == null) {
-            return 0;
-        }
-        return result.visualReview() == null
-                ? issueCount(result.analysis())
-                : result.visualReview().issues().size();
+    private int visualIssueCount(DiagramAgentState state) {
+        return state.latestVisualReview() == null
+                ? 0
+                : state.latestVisualReview().issues().size();
     }
 
     private String digest(DiagramDraftView draft) {

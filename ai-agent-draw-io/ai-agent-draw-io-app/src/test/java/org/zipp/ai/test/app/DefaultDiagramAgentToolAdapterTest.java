@@ -19,7 +19,6 @@ import org.zipp.ai.application.turn.agent.DraftInspectionScope;
 import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
 import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
-import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
@@ -64,7 +63,7 @@ class DefaultDiagramAgentToolAdapterTest {
     }
 
     @Test
-    void createsAnalyzesAndInspectsTargetCellsWithoutReturningTheWholeXml() {
+    void createsAndInspectsTargetCellsWithoutRunningQualityAnalysis() {
         InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
         DefaultDiagramAgentToolAdapter tools = new DefaultDiagramAgentToolAdapter(store);
         FencedAttempt attempt = attempt();
@@ -81,7 +80,8 @@ class DefaultDiagramAgentToolAdapterTest {
                 ""));
 
         assertThat(created.success()).isTrue();
-        assertThat(created.analysis().nodeCount()).isEqualTo(1);
+        assertThat(created.structure().nodeCount()).isEqualTo(1);
+        assertThat(created.structure().edgeCount()).isZero();
         assertThat(inspected.cells()).hasSize(1);
         assertThat(inspected.cells().get(0).rawXml()).contains("id=\"node-a\"");
         assertThat(inspected.canvasXml()).isEmpty();
@@ -120,7 +120,6 @@ class DefaultDiagramAgentToolAdapterTest {
         InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
         DefaultDiagramAgentToolAdapter tools = new DefaultDiagramAgentToolAdapter(
                 store,
-                new DefaultCanvasAnalyzer(),
                 (plan, draft) -> new DiagramDraftVisualReview(
                         draft.digest(),
                         "APPROVE",
@@ -176,6 +175,8 @@ class DefaultDiagramAgentToolAdapterTest {
                 .startsWith("data:image/png;base64,");
         assertThat(captured.get().getRendererVersion())
                 .startsWith("plain-agent-draft-png-");
+        assertThat(captured.get().getAnalyzerEvidence()).isEmpty();
+        assertThat(captured.get().getCanvasSummary()).isEqualTo("nodes=1, edges=0");
     }
 
     private String graph(String cells) {

@@ -3453,10 +3453,14 @@ function DrawioPageContent() {
                   detail = useChinese
                     ? `视觉审查已完成${elapsed ? `（${elapsed}）` : ''}，结论为 ${chunk.outcome || 'UNAVAILABLE'}，发现 ${issues} 个问题。`
                     : `Visual review completed${elapsed ? ` (${elapsed})` : ''}; decision ${chunk.outcome || 'UNAVAILABLE'}, ${issues} issue${issues === 1 ? '' : 's'}.`;
+                } else if (tool === 'inspect_draft') {
+                  detail = useChinese
+                    ? `草稿读取完成${elapsed ? `（${elapsed}）` : ''}。`
+                    : `Draft read completed${elapsed ? ` (${elapsed})` : ''}.`;
                 } else {
                   detail = useChinese
-                    ? `${tool} 已完成${elapsed ? `（${elapsed}）` : ''}，检测到 ${issues} 个问题。`
-                    : `${tool} completed${elapsed ? ` (${elapsed})` : ''}; ${issues} issue${issues === 1 ? '' : 's'} detected.`;
+                    ? `${tool} 已完成${elapsed ? `（${elapsed}）` : ''}。`
+                    : `${tool} completed${elapsed ? ` (${elapsed})` : ''}.`;
                 }
               } else if (chunk.stage === 'candidate_submitted') {
                 detail = useChinese

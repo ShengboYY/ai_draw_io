@@ -42,7 +42,6 @@ import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.skill.DiagramSkillBundle;
 import org.zipp.ai.infrastructure.turn.agent.DefaultDiagramAgentToolAdapter;
 import org.zipp.ai.infrastructure.turn.agent.InMemoryDiagramDraftStore;
-import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -94,7 +93,7 @@ class BoundedDiagramAgentRuntimeTest {
         assertThat(trace)
                 .filteredOn(event -> event.type() == PlainAgentTraceType.TOOL_COMPLETED)
                 .extracting(PlainAgentTraceEvent::toolName)
-                .containsExactly("create_draft", "review_draft", "inspect_draft");
+                .containsExactly("create_draft", "review_draft");
         assertThat(progress)
                 .extracting(TurnEvent::type)
                 .containsSubsequence(
@@ -171,7 +170,7 @@ class BoundedDiagramAgentRuntimeTest {
         BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
                 decision,
                 new DefaultDiagramAgentToolAdapter(
-                        store, new DefaultCanvasAnalyzer(), visualReviews),
+                        store, visualReviews),
                 store);
 
         var result = runtime.run(

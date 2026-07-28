@@ -1,7 +1,7 @@
 package org.zipp.ai.infrastructure.turn.agent;
 
 import org.junit.jupiter.api.Test;
-import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.analysis.DrawioCellDocumentReader;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,10 +22,10 @@ class DrawioDraftPngRendererTest {
                 + "<mxCell id=\"e\" value=\"next\" edge=\"1\" source=\"a\" target=\"b\" "
                 + "parent=\"1\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell>"
                 + "</root></mxGraphModel>";
-        var analysis = new DefaultCanvasAnalyzer().analyze(xml, "flowchart");
+        var cells = new DrawioCellDocumentReader().read(xml);
 
         DrawioDraftPngRenderer.RenderedDraft rendered =
-                new DrawioDraftPngRenderer().render(analysis);
+                new DrawioDraftPngRenderer().render(cells);
 
         assertArrayEquals(
                 new byte[]{(byte) 0x89, (byte) 0x50, (byte) 0x4E, (byte) 0x47},
