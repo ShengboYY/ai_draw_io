@@ -143,6 +143,10 @@ public final class BoundedDiagramAgentRuntime {
                         state = reduce(state, reviewRequest, review, stepNumber);
                         previousToolRequest = reviewRequest;
                         repeatedActionCount = 0;
+                        if (hasTerminalVisualReview(state)) {
+                            // The model already supplied the user-facing completion message.
+                            return submit(state, submit, cancellation, stepNumber, events);
+                        }
                         continue;
                     }
                     if (hasCurrentVisualReview(state)
@@ -171,6 +175,17 @@ public final class BoundedDiagramAgentRuntime {
                 DiagramAgentToolResult result = invokeTool(
                         state, toolRequest, stepNumber, "CALL_TOOL", cancellation, events);
                 state = reduce(state, toolRequest, result, stepNumber);
+                if (toolRequest instanceof ReviewDraftRequest
+                        && hasTerminalVisualReview(state)) {
+                    // A non-repair review is a code-owned stop condition. Do not give the
+                    // model another chance to call a tool that the terminal review disabled.
+                    return submit(
+                            state,
+                            terminalReviewSubmission(state),
+                            cancellation,
+                            stepNumber,
+                            events);
+                }
                 if (result.success() && (toolRequest instanceof CreateDraftRequest
                         || toolRequest instanceof PatchDraftRequest)) {
                     // Stream only an attempt-scoped preview. The outer write gate remains the
@@ -490,6 +505,43 @@ public final class BoundedDiagramAgentRuntime {
     private boolean hasCurrentVisualReview(DiagramAgentState state) {
         return state.latestVisualReview() != null
                 && state.latestVisualReview().reviews(state.activeDraft());
+    }
+
+    private boolean hasTerminalVisualReview(DiagramAgentState state) {
+        return hasCurrentVisualReview(state)
+                && !state.latestVisualReview().requestsRepair();
+    }
+
+    private SubmitDiagramCandidate terminalReviewSubmission(DiagramAgentState state) {
+        return new SubmitDiagramCandidate(
+                state.activeDraft().ref(),
+                state.activeDraft().digest(),
+                terminalReviewMessage(state));
+    }
+
+    private String terminalReviewMessage(DiagramAgentState state) {
+        String decision = state.latestVisualReview().decision();
+        boolean chinese = state.request().context().request().instruction().value()
+                .codePoints()
+                .anyMatch(codePoint -> codePoint >= 0x3400 && codePoint <= 0x9FFF);
+        if (chinese) {
+            return switch (decision) {
+                case "APPROVE" -> "图表已生成并通过视觉审阅。";
+                case "APPROVE_WITH_NOTES" -> "图表已生成并通过视觉审阅，仍保留少量备注。";
+                case "NEEDS_HUMAN_REVIEW" ->
+                        "图表已生成并完成视觉审阅；仍有需要人工确认的问题，我已保留当前版本。";
+                default -> "图表已生成；视觉审阅暂时不可用，我已保留当前版本。";
+            };
+        }
+        return switch (decision) {
+            case "APPROVE" -> "The diagram was generated and passed visual review.";
+            case "APPROVE_WITH_NOTES" ->
+                    "The diagram was generated and passed visual review with notes.";
+            case "NEEDS_HUMAN_REVIEW" ->
+                    "The diagram was generated and preserved for human review.";
+            default ->
+                    "The diagram was generated and preserved because visual review was unavailable.";
+        };
     }
 
     private void authorize(DiagramAgentState state, DiagramAgentToolRequest request) {

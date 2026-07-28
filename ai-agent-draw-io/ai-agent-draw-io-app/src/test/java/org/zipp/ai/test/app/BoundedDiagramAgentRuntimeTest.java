@@ -86,8 +86,8 @@ class BoundedDiagramAgentRuntimeTest {
                 () -> false,
                 progress::add);
 
-        assertThat(decisions.get()).isEqualTo(3);
-        assertThat(result.stepCount()).isEqualTo(3);
+        assertThat(decisions.get()).isEqualTo(2);
+        assertThat(result.stepCount()).isEqualTo(2);
         assertThat(result.mutationCount()).isEqualTo(1);
         assertThat(result.canvasXml()).contains("node-a");
         assertThat(trace)
@@ -179,9 +179,53 @@ class BoundedDiagramAgentRuntimeTest {
                 () -> false);
 
         assertThat(reviews.get()).isEqualTo(2);
-        assertThat(result.stepCount()).isEqualTo(5);
+        assertThat(result.stepCount()).isEqualTo(4);
         assertThat(result.mutationCount()).isEqualTo(2);
         assertThat(result.canvasXml()).contains("x=\"20\"");
+    }
+
+    @Test
+    void submitsTheCurrentDraftWhenVisualReviewNeedsHumanInsteadOfContinuingTheLoop() {
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        AtomicInteger decisions = new AtomicInteger();
+        DiagramDraftVisualReviewPort visualReviews = (plan, draft) ->
+                new DiagramDraftVisualReview(
+                        draft.digest(),
+                        "NEEDS_HUMAN_REVIEW",
+                        true,
+                        "Some issues require human confirmation.",
+                        List.of(),
+                        "mixed_target_capabilities",
+                        "test-reviewer");
+        DiagramAgentDecisionPort decision = (observation, cancellation) -> {
+            decisions.incrementAndGet();
+            var state = observation.state();
+            if (state.activeDraft() == null) {
+                return new CallDiagramTool(new CreateDraftRequest(graph(
+                        "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
+                                + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
+                                + "as=\"geometry\"/></mxCell>")));
+            }
+            if (state.latestVisualReview() == null) {
+                return new CallDiagramTool(new ReviewDraftRequest(
+                        state.activeDraft().ref(), state.activeDraft().digest()));
+            }
+            throw new IllegalStateException("DECISION_SHOULD_NOT_CONTINUE");
+        };
+        BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
+                decision,
+                new DefaultDiagramAgentToolAdapter(store, visualReviews),
+                store);
+
+        var result = runtime.run(
+                request(PlainDrawAction.CREATE, ""),
+                DiagramSkillBundle.empty(),
+                () -> false);
+
+        assertThat(decisions.get()).isEqualTo(2);
+        assertThat(result.stepCount()).isEqualTo(2);
+        assertThat(result.canvasXml()).contains("node-a");
+        assertThat(result.assistantMessage()).contains("human review");
     }
 
     @Test
