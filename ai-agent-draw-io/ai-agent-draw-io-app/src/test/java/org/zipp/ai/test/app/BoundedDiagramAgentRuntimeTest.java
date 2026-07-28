@@ -22,10 +22,11 @@ import org.zipp.ai.application.turn.agent.DiagramDraftVisualIssue;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReview;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
 import org.zipp.ai.application.turn.agent.DraftCellMutation;
+import org.zipp.ai.application.turn.agent.DraftInspectionScope;
+import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
 import org.zipp.ai.application.turn.agent.PlainAgentTraceEvent;
 import org.zipp.ai.application.turn.agent.PlainAgentTraceType;
-import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
 import org.zipp.ai.application.turn.agent.SubmitDiagramCandidate;
 import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.AvailableContext;
@@ -55,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class BoundedDiagramAgentRuntimeTest {
 
     @Test
-    void letsTheModelChooseCreateThenSubmitInsideOneBoundedRun() {
+    void delegatesTheCreatedDraftToVisualReviewAndSubmitsWithoutAnotherDrawDecision() {
         InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
         AtomicInteger decisions = new AtomicInteger();
         DiagramAgentDecisionPort decision = (observation, cancellation) -> {
@@ -77,6 +78,7 @@ class BoundedDiagramAgentRuntimeTest {
                 decision,
                 new DefaultDiagramAgentToolAdapter(store),
                 store,
+                approvingReview(),
                 ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
                 DiagramAgentBudget.defaults(),
                 trace::add);
@@ -87,14 +89,22 @@ class BoundedDiagramAgentRuntimeTest {
                 () -> false,
                 progress::add);
 
-        assertThat(decisions.get()).isEqualTo(2);
-        assertThat(result.stepCount()).isEqualTo(2);
+        assertThat(decisions.get()).isEqualTo(1);
+        assertThat(result.stepCount()).isEqualTo(1);
         assertThat(result.mutationCount()).isEqualTo(1);
         assertThat(result.canvasXml()).contains("node-a");
         assertThat(trace)
                 .filteredOn(event -> event.type() == PlainAgentTraceType.TOOL_COMPLETED)
                 .extracting(PlainAgentTraceEvent::toolName)
-                .containsExactly("create_draft", "review_draft");
+                .containsExactly("create_draft");
+        assertThat(trace)
+                .filteredOn(event ->
+                        event.type() == PlainAgentTraceType.VISUAL_REVIEW_COMPLETED)
+                .singleElement()
+                .satisfies(event -> {
+                    assertThat(event.toolName()).isEqualTo("visual_review_agent");
+                    assertThat(event.outcomeCode()).isEqualTo("APPROVE");
+                });
         assertThat(progress)
                 .extracting(TurnEvent::type)
                 .containsSubsequence(
@@ -103,7 +113,10 @@ class BoundedDiagramAgentRuntimeTest {
                         "plain_agent_decision_completed",
                         "plain_agent_tool_started",
                         "plain_agent_tool_completed",
-                        "plain_agent_draft_preview");
+                        "plain_agent_draft_preview",
+                        "plain_agent_visual_review_started",
+                        "plain_agent_visual_review_completed",
+                        "plain_agent_candidate_submitted");
         assertThat(progress)
                 .filteredOn(event -> event.type().equals("plain_agent_draft_preview"))
                 .singleElement()
@@ -124,7 +137,8 @@ class BoundedDiagramAgentRuntimeTest {
         BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
                 (observation, cancellation) -> repeated,
                 new DefaultDiagramAgentToolAdapter(store),
-                store);
+                store,
+                repairingReview("node-a"));
 
         assertThatThrownBy(() -> runtime.run(
                 request(PlainDrawAction.CREATE, ""),
@@ -135,7 +149,7 @@ class BoundedDiagramAgentRuntimeTest {
     }
 
     @Test
-    void loopsFromDrawToReviewToPatchToReviewBeforeSubmitting() {
+    void injectsRepairReviewIntoTheNextDrawDecisionThenReviewsThePatch() {
         InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
         AtomicInteger reviews = new AtomicInteger();
         DiagramDraftVisualReviewPort visualReviews = (plan, draft) -> {
@@ -164,10 +178,6 @@ class BoundedDiagramAgentRuntimeTest {
                                 + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
                                 + "as=\"geometry\"/></mxCell>")));
             }
-            if (state.latestVisualReview() == null) {
-                return new CallDiagramTool(new ReviewDraftRequest(
-                        state.activeDraft().ref(), state.activeDraft().digest()));
-            }
             if (state.latestVisualReview().requestsRepair()) {
                 return new CallDiagramTool(new PatchDraftRequest(
                         state.activeDraft().ref(),
@@ -183,9 +193,9 @@ class BoundedDiagramAgentRuntimeTest {
         };
         BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
                 decision,
-                new DefaultDiagramAgentToolAdapter(
-                        store, visualReviews),
-                store);
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                visualReviews);
 
         var result = runtime.run(
                 request(PlainDrawAction.CREATE, ""),
@@ -193,7 +203,7 @@ class BoundedDiagramAgentRuntimeTest {
                 () -> false);
 
         assertThat(reviews.get()).isEqualTo(2);
-        assertThat(result.stepCount()).isEqualTo(4);
+        assertThat(result.stepCount()).isEqualTo(2);
         assertThat(result.mutationCount()).isEqualTo(2);
         assertThat(result.canvasXml()).contains("x=\"20\"");
     }
@@ -226,10 +236,6 @@ class BoundedDiagramAgentRuntimeTest {
                                 + "<mxGeometry x=\"120\" y=\"10\" width=\"80\" height=\"40\" "
                                 + "as=\"geometry\"/></mxCell>")));
             }
-            if (state.latestVisualReview() == null) {
-                return new CallDiagramTool(new ReviewDraftRequest(
-                        state.activeDraft().ref(), state.activeDraft().digest()));
-            }
             return new CallDiagramTool(new PatchDraftRequest(
                     state.activeDraft().ref(),
                     state.activeDraft().digest(),
@@ -241,8 +247,9 @@ class BoundedDiagramAgentRuntimeTest {
         };
         BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
                 decision,
-                new DefaultDiagramAgentToolAdapter(store, visualReviews),
-                store);
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                visualReviews);
 
         assertThatThrownBy(() -> runtime.run(
                 request(PlainDrawAction.CREATE, ""),
@@ -274,24 +281,21 @@ class BoundedDiagramAgentRuntimeTest {
                                 + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
                                 + "as=\"geometry\"/></mxCell>")));
             }
-            if (state.latestVisualReview() == null) {
-                return new CallDiagramTool(new ReviewDraftRequest(
-                        state.activeDraft().ref(), state.activeDraft().digest()));
-            }
             throw new IllegalStateException("DECISION_SHOULD_NOT_CONTINUE");
         };
         BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
                 decision,
-                new DefaultDiagramAgentToolAdapter(store, visualReviews),
-                store);
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                visualReviews);
 
         var result = runtime.run(
                 request(PlainDrawAction.CREATE, ""),
                 DiagramSkillBundle.empty(),
                 () -> false);
 
-        assertThat(decisions.get()).isEqualTo(2);
-        assertThat(result.stepCount()).isEqualTo(2);
+        assertThat(decisions.get()).isEqualTo(1);
+        assertThat(result.stepCount()).isEqualTo(1);
         assertThat(result.canvasXml()).contains("node-a");
         assertThat(result.assistantMessage()).contains("human review");
     }
@@ -300,21 +304,26 @@ class BoundedDiagramAgentRuntimeTest {
     void returnsTheLatestStructurallyValidDraftWhenStepBudgetIsExhausted() {
         InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
         List<PlainAgentTraceEvent> trace = new ArrayList<>();
+        String currentCanvas = graph(
+                "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
+                        + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
+                        + "as=\"geometry\"/></mxCell>");
         BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
                 (observation, cancellation) -> new CallDiagramTool(
-                        new CreateDraftRequest(graph(
-                                "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
-                                        + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
-                                        + "as=\"geometry\"/>"
-                                        + "</mxCell>"))),
+                        new InspectDraftRequest(
+                                observation.state().activeDraft().ref(),
+                                DraftInspectionScope.SUMMARY,
+                                List.of(),
+                                "")),
                 new DefaultDiagramAgentToolAdapter(store),
                 store,
+                DiagramDraftVisualReviewPort.UNAVAILABLE,
                 ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
                 new DiagramAgentBudget(1, 3, 1, 1, 2, 1, 2),
                 trace::add);
 
         var result = runtime.run(
-                request(PlainDrawAction.CREATE, ""),
+                request(PlainDrawAction.EDIT, currentCanvas),
                 DiagramSkillBundle.empty(),
                 () -> false);
 
@@ -346,6 +355,7 @@ class BoundedDiagramAgentRuntimeTest {
                 },
                 new DefaultDiagramAgentToolAdapter(store),
                 store,
+                DiagramDraftVisualReviewPort.UNAVAILABLE,
                 ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
                 DiagramAgentBudget.defaults(),
                 trace::add);
@@ -362,6 +372,33 @@ class BoundedDiagramAgentRuntimeTest {
                 .singleElement()
                 .extracting(PlainAgentTraceEvent::outcomeCode)
                 .isEqualTo("PLAIN_AGENT_RUNTIME_FAILED");
+    }
+
+    private DiagramDraftVisualReviewPort approvingReview() {
+        return (plan, draft) -> new DiagramDraftVisualReview(
+                draft.digest(),
+                "APPROVE",
+                true,
+                "The draft is readable.",
+                List.of(),
+                "",
+                "test-reviewer");
+    }
+
+    private DiagramDraftVisualReviewPort repairingReview(String targetCellId) {
+        return (plan, draft) -> new DiagramDraftVisualReview(
+                draft.digest(),
+                "REPAIR",
+                true,
+                "The draft needs one local repair.",
+                List.of(new DiagramDraftVisualIssue(
+                        "LAYOUT_HIERARCHY",
+                        "MAJOR",
+                        List.of(targetCellId),
+                        "The target is misplaced.",
+                        "Replace the target with corrected geometry.")),
+                "",
+                "test-reviewer");
     }
 
     private PlainGenerationRequest request(PlainDrawAction action, String canvasXml) {

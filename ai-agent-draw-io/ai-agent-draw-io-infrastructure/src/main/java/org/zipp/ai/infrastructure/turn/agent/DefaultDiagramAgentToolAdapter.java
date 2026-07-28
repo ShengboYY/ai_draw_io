@@ -1,7 +1,5 @@
 package org.zipp.ai.infrastructure.turn.agent;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.PlainDrawAction;
@@ -13,13 +11,11 @@ import org.zipp.ai.application.turn.agent.DiagramAgentToolResult;
 import org.zipp.ai.application.turn.agent.DiagramDraftSnapshot;
 import org.zipp.ai.application.turn.agent.DiagramDraftStore;
 import org.zipp.ai.application.turn.agent.DiagramDraftStructure;
-import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
 import org.zipp.ai.application.turn.agent.DiagramDraftView;
 import org.zipp.ai.application.turn.agent.DraftInspectionScope;
 import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.InspectedDiagramCell;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
-import org.zipp.ai.application.turn.agent.ReviewDraftRequest;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
 import org.zipp.ai.domain.agent.service.analysis.DrawioCellDocumentReader;
 
@@ -46,29 +42,10 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
 
     private final DiagramDraftStore drafts;
     private final DrawioCellDocumentReader cellReader;
-    private final DiagramDraftVisualReviewPort visualReviews;
-
-    // ObjectProvider keeps focused Spring slices valid when the optional VLM adapter is absent.
-    @Autowired
-    public DefaultDiagramAgentToolAdapter(
-            DiagramDraftStore drafts,
-            ObjectProvider<DiagramDraftVisualReviewPort> visualReviews
-    ) {
-        this(drafts, visualReviews.getIfAvailable(
-                () -> DiagramDraftVisualReviewPort.UNAVAILABLE));
-    }
 
     public DefaultDiagramAgentToolAdapter(DiagramDraftStore drafts) {
-        this(drafts, DiagramDraftVisualReviewPort.UNAVAILABLE);
-    }
-
-    public DefaultDiagramAgentToolAdapter(
-            DiagramDraftStore drafts,
-            DiagramDraftVisualReviewPort visualReviews
-    ) {
         this.drafts = drafts;
         this.cellReader = new DrawioCellDocumentReader();
-        this.visualReviews = visualReviews;
     }
 
     @Override
@@ -86,9 +63,6 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
             }
             if (request instanceof PatchDraftRequest patch) {
                 return patch(attempt, plan, patch);
-            }
-            if (request instanceof ReviewDraftRequest review) {
-                return review(attempt, plan, review);
             }
             return inspect(attempt, plan, (InspectDraftRequest) request);
         } catch (IllegalArgumentException | IllegalStateException exception) {
@@ -164,23 +138,6 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
                 cells,
                 canvasXml,
                 truncated);
-    }
-
-    private DiagramAgentToolResult review(
-            FencedAttempt attempt,
-            PlainDrawPlan plan,
-            ReviewDraftRequest request
-    ) {
-        DiagramDraftSnapshot draft = drafts.read(attempt, request.draftRef());
-        if (!draft.digest().equals(request.expectedDigest())) {
-            return DiagramAgentToolResult.rejected(
-                    request.toolName(), "DRAFT_DIGEST_MISMATCH");
-        }
-        return DiagramAgentToolResult.visualReview(
-                request.toolName(),
-                DiagramDraftView.from(draft),
-                structure(draft),
-                visualReviews.review(plan, draft));
     }
 
     private List<CanvasCellData> selectCells(

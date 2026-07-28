@@ -3424,7 +3424,7 @@ function DrawioPageContent() {
                 : '';
               const step = chunk.step || 0;
               const tool = chunk.tool || chunk.action || '';
-              if (tool === 'review_draft' && chunk.stage === 'tool_completed') {
+              if (chunk.stage === 'visual_review_completed') {
                 agentLoopVisualReviewObserved = true;
               }
               let detail = '';
@@ -3447,13 +3447,17 @@ function DrawioPageContent() {
                 detail = useChinese
                   ? `正在执行 ${tool}。`
                   : `Running ${tool}.`;
-              } else if (chunk.stage === 'tool_completed') {
+              } else if (chunk.stage === 'visual_review_started') {
+                detail = useChinese
+                  ? 'Visual Review Agent 正在审查当前草稿。'
+                  : 'Visual Review Agent is reviewing the current draft.';
+              } else if (chunk.stage === 'visual_review_completed') {
                 const issues = chunk.issueCount || 0;
-                if (tool === 'review_draft') {
-                  detail = useChinese
-                    ? `视觉审查已完成${elapsed ? `（${elapsed}）` : ''}，结论为 ${chunk.outcome || 'UNAVAILABLE'}，发现 ${issues} 个问题。`
-                    : `Visual review completed${elapsed ? ` (${elapsed})` : ''}; decision ${chunk.outcome || 'UNAVAILABLE'}, ${issues} issue${issues === 1 ? '' : 's'}.`;
-                } else if (tool === 'inspect_draft') {
+                detail = useChinese
+                  ? `视觉审查已完成${elapsed ? `（${elapsed}）` : ''}，结论为 ${chunk.outcome || 'UNAVAILABLE'}，发现 ${issues} 个问题。`
+                  : `Visual review completed${elapsed ? ` (${elapsed})` : ''}; decision ${chunk.outcome || 'UNAVAILABLE'}, ${issues} issue${issues === 1 ? '' : 's'}.`;
+              } else if (chunk.stage === 'tool_completed') {
+                if (tool === 'inspect_draft') {
                   detail = useChinese
                     ? `草稿读取完成${elapsed ? `（${elapsed}）` : ''}。`
                     : `Draft read completed${elapsed ? ` (${elapsed})` : ''}.`;
@@ -3471,6 +3475,7 @@ function DrawioPageContent() {
 
               const isDone = chunk.stage === 'decision_completed'
                 || chunk.stage === 'tool_completed'
+                || chunk.stage === 'visual_review_completed'
                 || chunk.stage === 'candidate_submitted';
               updateStep(phase, detail, isDone, true);
               upsertRunEvent(`agent:${chunk.stage}:${step}:${tool}`, {
@@ -3478,7 +3483,9 @@ function DrawioPageContent() {
                 title: chunk.stage,
                 detail,
                 status: isDone ? 'done' : 'running',
-                tone: chunk.stage.includes('tool') ? 'tool' : 'analysis',
+                tone: chunk.stage.includes('tool') || chunk.stage.includes('visual_review')
+                  ? 'tool'
+                  : 'analysis',
                 tool: chunk.tool,
               });
               publishSteps();

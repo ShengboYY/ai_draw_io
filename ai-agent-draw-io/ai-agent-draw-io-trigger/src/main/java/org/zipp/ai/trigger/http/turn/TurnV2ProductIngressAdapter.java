@@ -446,6 +446,8 @@ public final class TurnV2ProductIngressAdapter {
             case "plain_agent_decision_completed" -> "decision_completed";
             case "plain_agent_tool_started" -> "tool_started";
             case "plain_agent_tool_completed" -> "tool_completed";
+            case "plain_agent_visual_review_started" -> "visual_review_started";
+            case "plain_agent_visual_review_completed" -> "visual_review_completed";
             case "plain_agent_candidate_submitted" -> "candidate_submitted";
             default -> null;
         };
@@ -477,10 +479,11 @@ public final class TurnV2ProductIngressAdapter {
     }
 
     private String progressPhase(String eventType, String tool) {
+        if (eventType.contains("visual_review")) {
+            return "reviewing";
+        }
         if (eventType.contains("tool")) {
-            return "review_draft".equals(tool)
-                    ? "reviewing"
-                    : "drawing";
+            return "drawing";
         }
         if ("plain_agent_candidate_submitted".equals(eventType)) {
             return "reviewing";

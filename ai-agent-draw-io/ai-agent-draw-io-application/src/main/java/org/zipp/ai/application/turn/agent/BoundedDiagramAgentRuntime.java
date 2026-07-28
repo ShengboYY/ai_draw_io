@@ -31,6 +31,7 @@ public final class BoundedDiagramAgentRuntime {
     private final DiagramAgentDecisionPort decisions;
     private final DiagramAgentToolPort tools;
     private final DiagramDraftStore drafts;
+    private final DiagramDraftVisualReviewPort visualReviews;
     private final TurnAttemptExecutionStatePort executionState;
     private final DiagramAgentBudget budget;
     private final PlainAgentTracePort trace;
@@ -39,6 +40,7 @@ public final class BoundedDiagramAgentRuntime {
             DiagramAgentDecisionPort decisions,
             DiagramAgentToolPort tools,
             DiagramDraftStore drafts,
+            DiagramDraftVisualReviewPort visualReviews,
             TurnAttemptExecutionStatePort executionState,
             DiagramAgentBudget budget,
             PlainAgentTracePort trace
@@ -46,6 +48,7 @@ public final class BoundedDiagramAgentRuntime {
         this.decisions = Objects.requireNonNull(decisions, "decisions");
         this.tools = Objects.requireNonNull(tools, "tools");
         this.drafts = Objects.requireNonNull(drafts, "drafts");
+        this.visualReviews = Objects.requireNonNull(visualReviews, "visualReviews");
         this.executionState = Objects.requireNonNull(executionState, "executionState");
         this.budget = Objects.requireNonNull(budget, "budget");
         this.trace = Objects.requireNonNull(trace, "trace");
@@ -60,6 +63,23 @@ public final class BoundedDiagramAgentRuntime {
                 decisions,
                 tools,
                 drafts,
+                DiagramDraftVisualReviewPort.UNAVAILABLE,
+                ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
+                DiagramAgentBudget.defaults(),
+                PlainAgentTracePort.NOOP);
+    }
+
+    public BoundedDiagramAgentRuntime(
+            DiagramAgentDecisionPort decisions,
+            DiagramAgentToolPort tools,
+            DiagramDraftStore drafts,
+            DiagramDraftVisualReviewPort visualReviews
+    ) {
+        this(
+                decisions,
+                tools,
+                drafts,
+                visualReviews,
                 ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
                 DiagramAgentBudget.defaults(),
                 PlainAgentTracePort.NOOP);
@@ -132,23 +152,20 @@ public final class BoundedDiagramAgentRuntime {
                 if (action instanceof SubmitDiagramCandidate submit) {
                     if (!hasCurrentVisualReview(state)
                             && state.visualReviewCount() < budget.maxVisualReviews()) {
-                        ReviewDraftRequest reviewRequest = new ReviewDraftRequest(
-                                submit.draftRef(), submit.expectedDigest());
-                        authorize(state, reviewRequest);
-                        DiagramAgentToolResult review = invokeTool(
+                        state = reviewCurrentDraft(
                                 state,
-                                reviewRequest,
                                 stepNumber,
                                 "SUBMISSION_REVIEW",
                                 cancellation,
                                 events);
-                        state = reduce(state, reviewRequest, review, stepNumber);
-                        previousToolRequest = reviewRequest;
+                        previousToolRequest = null;
                         repeatedActionCount = 0;
                         if (hasTerminalVisualReview(state)) {
-                            // The model already supplied the user-facing completion message.
                             return submit(state, submit, cancellation, stepNumber, events);
                         }
+                        // The submit decision consumed this Draw Agent step even though review
+                        // delegated the draft back for one bounded repair.
+                        state = deferSubmissionForRepair(state, stepNumber);
                         continue;
                     }
                     if (hasCurrentVisualReview(state)
@@ -177,17 +194,6 @@ public final class BoundedDiagramAgentRuntime {
                 DiagramAgentToolResult result = invokeTool(
                         state, toolRequest, stepNumber, "CALL_TOOL", cancellation, events);
                 state = reduce(state, toolRequest, result, stepNumber);
-                if (toolRequest instanceof ReviewDraftRequest
-                        && hasTerminalVisualReview(state)) {
-                    // A non-repair review is a code-owned stop condition. Do not give the
-                    // model another chance to call a tool that the terminal review disabled.
-                    return submit(
-                            state,
-                            terminalReviewSubmission(state),
-                            cancellation,
-                            stepNumber,
-                            events);
-                }
                 if (result.success() && (toolRequest instanceof CreateDraftRequest
                         || toolRequest instanceof PatchDraftRequest)) {
                     // Stream only an attempt-scoped preview. The outer write gate remains the
@@ -195,6 +201,21 @@ public final class BoundedDiagramAgentRuntime {
                     DiagramDraftSnapshot preview = drafts.read(
                             request.attempt(), result.draft().ref());
                     publish(events, "plain_agent_draft_preview", preview.canvasXml());
+                    state = reviewCurrentDraft(
+                            state,
+                            stepNumber,
+                            "POST_MUTATION_REVIEW",
+                            cancellation,
+                            events);
+                    if (hasTerminalVisualReview(state)) {
+                        // The reviewer is a delegated agent with a code-owned terminal contract.
+                        return submit(
+                                state,
+                                terminalReviewSubmission(state),
+                                cancellation,
+                                stepNumber,
+                                events);
+                    }
                 }
             }
         } catch (RuntimeException failure) {
@@ -288,18 +309,12 @@ public final class BoundedDiagramAgentRuntime {
         if (!hasCurrentVisualReview(state)
                 && state.visualReviewCount() < budget.maxVisualReviews()) {
             // Exhausting model steps does not skip the protocol-owned final visual checkpoint.
-            ReviewDraftRequest reviewRequest = new ReviewDraftRequest(
-                    state.activeDraft().ref(), state.activeDraft().digest());
-            DiagramAgentToolResult review = invokeTool(
+            state = reviewCurrentDraft(
                     state,
-                    reviewRequest,
                     stepNumber,
                     "BUDGET_FALLBACK_REVIEW",
                     cancellation,
                     events);
-            if (review.success()) {
-                state = reduce(state, reviewRequest, review, stepNumber);
-            }
         }
         DiagramDraftSnapshot snapshot = drafts.read(
                 state.request().attempt(), state.activeDraft().ref());
@@ -376,22 +391,13 @@ public final class BoundedDiagramAgentRuntime {
                         + (result.success() && request instanceof CreateDraftRequest ? 1 : 0),
                 state.fullXmlInspectionCount()
                         + (result.success() && fullXmlInspection(request) ? 1 : 0),
-                state.visualReviewCount()
-                        + (result.success() && request instanceof ReviewDraftRequest ? 1 : 0),
+                state.visualReviewCount(),
                 noProgress);
         if (result.success() && mutation) {
             trace(state.request().attempt(), stepNumber, PlainAgentTraceType.DRAFT_UPDATED,
                     "CALL_TOOL", request.toolName(), "",
                     beforeDigest, afterDigest, "UPDATED",
                     0, 0);
-        }
-        if (result.success() && request instanceof ReviewDraftRequest) {
-            trace(state.request().attempt(), stepNumber,
-                    PlainAgentTraceType.VISUAL_REVIEW_COMPLETED,
-                    "CALL_TOOL", request.toolName(), "",
-                    beforeDigest, afterDigest,
-                    result.visualReview().decision(),
-                    result.visualReview().issues().size(), 0);
         }
         return updated;
     }
@@ -408,9 +414,7 @@ public final class BoundedDiagramAgentRuntime {
             // A review is evidence about one immutable digest and is stale after every mutation.
             return null;
         }
-        return result.visualReview() == null
-                ? state.latestVisualReview()
-                : result.visualReview();
+        return state.latestVisualReview();
     }
 
     private DiagramAgentState deferSubmissionForRepair(
@@ -464,35 +468,105 @@ public final class BoundedDiagramAgentRuntime {
         long started = System.nanoTime();
         DiagramAgentToolResult result = tools.execute(
                 state.request().attempt(), state.request().plan(), request);
-        result = enforceReviewBudget(state, request, result);
         long latency = elapsedMillis(started);
         requireActive(state.request().attempt(), cancellation);
         String afterDigest = result.success() ? result.draft().digest() : beforeDigest;
         trace(state.request().attempt(), stepNumber, PlainAgentTraceType.TOOL_COMPLETED,
                 actionType, request.toolName(), argumentsDigest,
                 beforeDigest, afterDigest, result.outcomeCode(),
-                issueCount(result), latency);
+                0, latency);
         publish(events, "plain_agent_tool_completed",
                 progressPayload(stepNumber, actionType, request.toolName(),
-                        result.outcomeCode(), latency, issueCount(result)));
+                        result.outcomeCode(), latency, 0));
         return result;
     }
 
-    private DiagramAgentToolResult enforceReviewBudget(
+    private DiagramAgentState reviewCurrentDraft(
             DiagramAgentState state,
-            DiagramAgentToolRequest request,
-            DiagramAgentToolResult result
+            int stepNumber,
+            String actionType,
+            CancellationSignal cancellation,
+            TurnEventSink events
     ) {
-        if (!(request instanceof ReviewDraftRequest)
-                || !result.success()
-                || result.visualReview() == null
-                || !result.visualReview().requestsRepair()
-                || state.visualReviewCount() + 1 < budget.maxVisualReviews()) {
-            return result;
+        if (state.activeDraft() == null) {
+            throw stop("PLAIN_AGENT_DRAFT_NOT_INITIALIZED");
         }
-        DiagramDraftVisualReview review = result.visualReview();
-        // A blocking issue at the last review checkpoint cannot authorize an unreviewed patch.
-        DiagramDraftVisualReview bounded = new DiagramDraftVisualReview(
+        if (hasCurrentVisualReview(state)) {
+            return state;
+        }
+        if (state.visualReviewCount() >= budget.maxVisualReviews()) {
+            throw stop("PLAIN_AGENT_VISUAL_REVIEW_BUDGET_EXHAUSTED");
+        }
+        requireActive(state.request().attempt(), cancellation);
+        String digest = state.activeDraft().digest();
+        DiagramDraftSnapshot snapshot = drafts.read(
+                state.request().attempt(), state.activeDraft().ref());
+        if (!digest.equals(snapshot.digest())) {
+            throw stop("PLAIN_AGENT_DRAFT_DIGEST_STALE");
+        }
+        trace(state.request().attempt(), stepNumber, PlainAgentTraceType.VISUAL_REVIEW_STARTED,
+                actionType, "visual_review_agent", "",
+                digest, digest, "STARTED", 0, 0);
+        publish(events, "plain_agent_visual_review_started",
+                progressPayload(stepNumber, actionType, "visual_review_agent",
+                        "STARTED", 0, 0));
+
+        long started = System.nanoTime();
+        DiagramDraftVisualReview review = Objects.requireNonNull(
+                visualReviews.review(state.request().plan(), snapshot),
+                "visual review");
+        long latency = elapsedMillis(started);
+        requireActive(state.request().attempt(), cancellation);
+        if (!review.reviews(state.activeDraft())) {
+            throw stop("PLAIN_AGENT_VISUAL_REVIEW_STALE");
+        }
+        review = boundRepairToRemainingBudget(state, review, stepNumber);
+        trace(state.request().attempt(), stepNumber,
+                PlainAgentTraceType.VISUAL_REVIEW_COMPLETED,
+                actionType, "visual_review_agent", "",
+                digest, digest, review.decision(), review.issues().size(), latency);
+        publish(events, "plain_agent_visual_review_completed",
+                progressPayload(stepNumber, actionType, "visual_review_agent",
+                        review.decision(), latency, review.issues().size()));
+
+        ArrayList<DiagramAgentStepRecord> steps = new ArrayList<>(state.steps());
+        steps.add(new DiagramAgentStepRecord(
+                stepNumber,
+                "DELEGATE_AGENT",
+                "visual_review_agent",
+                review.decision(),
+                digest,
+                digest));
+        return new DiagramAgentState(
+                state.request(),
+                state.skills(),
+                state.activeDraft(),
+                state.latestStructure(),
+                review,
+                state.latestToolResult(),
+                steps,
+                state.recentDraftDigests(),
+                state.stepCount(),
+                state.mutationCount(),
+                state.createCallCount(),
+                state.fullXmlInspectionCount(),
+                state.visualReviewCount() + 1,
+                state.noProgressCount());
+    }
+
+    private DiagramDraftVisualReview boundRepairToRemainingBudget(
+            DiagramAgentState state,
+            DiagramDraftVisualReview review,
+            int completedDrawStep
+    ) {
+        boolean canRepair = completedDrawStep < budget.maxSteps()
+                && state.mutationCount() < budget.maxMutations()
+                && state.visualReviewCount() + 1 < budget.maxVisualReviews();
+        if (!review.requestsRepair() || canRepair) {
+            return review;
+        }
+        // A repair that cannot be reviewed again must not authorize an unreviewed mutation.
+        return new DiagramDraftVisualReview(
                 review.reviewedDigest(),
                 "NEEDS_HUMAN_REVIEW",
                 review.available(),
@@ -500,8 +574,6 @@ public final class BoundedDiagramAgentRuntime {
                 review.issues(),
                 review.groundingConflict(),
                 review.reviewerVersion());
-        return DiagramAgentToolResult.visualReview(
-                request.toolName(), result.draft(), result.structure(), bounded);
     }
 
     private boolean hasCurrentVisualReview(DiagramAgentState state) {
@@ -563,9 +635,7 @@ public final class BoundedDiagramAgentRuntime {
         }
         DraftRef target = request instanceof PatchDraftRequest patch
                 ? patch.draftRef()
-                : request instanceof InspectDraftRequest inspect
-                ? inspect.draftRef()
-                : ((ReviewDraftRequest) request).draftRef();
+                : ((InspectDraftRequest) request).draftRef();
         if (!state.activeDraft().ref().equals(target)) {
             throw stop("PLAIN_AGENT_DRAFT_REF_STALE");
         }
@@ -578,17 +648,6 @@ public final class BoundedDiagramAgentRuntime {
         if (fullXmlInspection(request)
                 && state.fullXmlInspectionCount() >= budget.maxFullXmlInspections()) {
             throw stop("PLAIN_AGENT_FULL_XML_BUDGET_EXHAUSTED");
-        }
-        if (request instanceof ReviewDraftRequest review) {
-            if (!state.activeDraft().digest().equals(review.expectedDigest())) {
-                throw stop("PLAIN_AGENT_DRAFT_DIGEST_STALE");
-            }
-            if (state.visualReviewCount() >= budget.maxVisualReviews()) {
-                throw stop("PLAIN_AGENT_VISUAL_REVIEW_BUDGET_EXHAUSTED");
-            }
-            if (hasCurrentVisualReview(state)) {
-                throw stop("PLAIN_AGENT_DRAFT_ALREADY_REVIEWED");
-            }
         }
     }
 
@@ -630,16 +689,9 @@ public final class BoundedDiagramAgentRuntime {
         if (state.activeDraft() != null) {
             tools.remove("create_draft");
         }
-        if (state.visualReviewCount() >= budget.maxVisualReviews()
-                || hasCurrentVisualReview(state)) {
-            tools.remove("review_draft");
-        }
         if (state.mutationCount() >= budget.maxMutations()
                 || (hasCurrentVisualReview(state)
-                && !state.latestVisualReview().requestsRepair())
-                || (hasCurrentVisualReview(state)
-                && state.latestVisualReview().requestsRepair()
-                && state.visualReviewCount() >= budget.maxVisualReviews())) {
+                && !state.latestVisualReview().requestsRepair())) {
             // Do not create a digest that cannot pass through another visual checkpoint.
             tools.remove("patch_draft");
         }
@@ -648,8 +700,8 @@ public final class BoundedDiagramAgentRuntime {
 
     private List<String> allowedTools(PlainDrawAction action) {
         return action == PlainDrawAction.CREATE
-                ? List.of("create_draft", "inspect_draft", "patch_draft", "review_draft")
-                : List.of("inspect_draft", "patch_draft", "review_draft");
+                ? List.of("create_draft", "inspect_draft", "patch_draft")
+                : List.of("inspect_draft", "patch_draft");
     }
 
     private void requireProgress(DiagramAgentState state) {
@@ -690,12 +742,6 @@ public final class BoundedDiagramAgentRuntime {
     private boolean fullXmlInspection(DiagramAgentToolRequest request) {
         return request instanceof InspectDraftRequest inspect
                 && inspect.scope() == DraftInspectionScope.FULL_XML;
-    }
-
-    private int issueCount(DiagramAgentToolResult result) {
-        return result == null || result.visualReview() == null
-                ? 0
-                : result.visualReview().issues().size();
     }
 
     private int visualIssueCount(DiagramAgentState state) {
