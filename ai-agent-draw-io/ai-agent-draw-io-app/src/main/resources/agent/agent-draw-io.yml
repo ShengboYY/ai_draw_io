@@ -176,6 +176,9 @@ ai:
                   For PLAIN_SOURCE_FREE_GENERATION_V1, return exactly canvasXml, assistantMessage,
                   and payloadRef. canvasXml must be one complete safe mxGraphModel document.
                   For PLAIN_SOURCE_FREE_RESPONSE_V1, return exactly assistantMessage and payloadRef.
+                  For PLAIN_XML_AGENT_DECISION_V1, return exactly one CALL_TOOL or SUBMIT_CANDIDATE
+                  action using the ACTION_PROTOCOL fields in the current message. This is still a
+                  tool-free model response; the server owns authorization and tool execution.
                   Return one single-line JSON object with no Markdown, code fences, or extra fields.
                 output-key: plain_generation_v2_result
             runner:
