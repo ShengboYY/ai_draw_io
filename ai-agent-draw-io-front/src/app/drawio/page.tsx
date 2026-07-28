@@ -110,6 +110,7 @@ import {
   shouldShowAgentTyping,
   thinkingRouteLabel,
   usesChinesePresentation,
+  visualReviewUnavailableReason,
   visualReviewStageLabel,
 } from './agent-run-presentation';
 import {
@@ -2753,7 +2754,11 @@ function DrawioPageContent() {
                   decision: chunk.decision,
                   summary: chunk.content,
                   issues: chunk.issues,
-                  unavailableReason: chunk.decision === 'UNAVAILABLE' ? 'VLM_UNAVAILABLE' : undefined,
+                  unavailableReason: visualReviewUnavailableReason(
+                    chunk.available,
+                    chunk.unavailableReason,
+                    chunk.decision,
+                  ),
                 };
                 recordVisualReview(review);
                 if (chunk.decision === 'REPAIR' && !activeAiMutationDiagramId) {

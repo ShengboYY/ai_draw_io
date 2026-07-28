@@ -24,7 +24,7 @@ export type VisualReviewPresentation = {
   issues?: VisualReviewDisplayIssue[];
   stale?: boolean;
   repairCompleted?: boolean;
-  unavailableReason?: 'EXPORT_FAILED' | 'VLM_UNAVAILABLE' | 'REVIEW_REQUEST_FAILED';
+  unavailableReason?: 'EXPORT_FAILED' | 'VLM_UNAVAILABLE' | 'REVIEW_REQUEST_FAILED' | 'REVIEW_RESULT_INVALID';
 };
 
 export type AgentRunEvent = {
@@ -56,6 +56,15 @@ export const usesChinesePresentation = (text?: string) => {
   const latinCount = [...value].filter(char => /[A-Za-z]/.test(char)).length;
   // A quoted Chinese label should not switch an otherwise English response to Chinese.
   return hanCount > 0 && (latinCount === 0 || (hanCount >= 2 && hanCount * 2 >= latinCount));
+};
+
+export const visualReviewUnavailableReason = (
+  available?: boolean,
+  reason?: string,
+  decision?: VisualReviewDecision,
+): VisualReviewPresentation['unavailableReason'] => {
+  if (available !== false && decision !== 'UNAVAILABLE') return undefined;
+  return reason === 'output_schema_error' ? 'REVIEW_RESULT_INVALID' : 'VLM_UNAVAILABLE';
 };
 
 const localizeMetricLabel = (metricLabel: string, useChinese: boolean) => {
@@ -388,7 +397,7 @@ export const buildVisualReviewStepDetail = ({
   const isPostRepair = stage === 'POST_REPAIR' || stage === 'VERIFY_ONLY';
 
   if (stale) return visualReviewStaleMessage(useChinese);
-  if (decision === 'UNAVAILABLE') {
+  if (decision === 'UNAVAILABLE' || unavailableReason) {
     if (unavailableReason === 'EXPORT_FAILED') {
       return useChinese
         ? '无法导出审阅截图；当前画布已保留，尚未调用视觉审阅模型。'
@@ -398,6 +407,11 @@ export const buildVisualReviewStepDetail = ({
       return useChinese
         ? '视觉审阅服务暂时不可用；截图已生成，当前画布已保留。'
         : 'The visual review service is temporarily unavailable. Evidence was rendered and the current canvas was kept.';
+    }
+    if (unavailableReason === 'REVIEW_RESULT_INVALID') {
+      return useChinese
+        ? '视觉审阅返回的结果无法解析；当前画布已保留，未执行自动修复，建议人工确认。'
+        : 'The visual review result could not be parsed. The current canvas was kept without automatic repair; human review is recommended.';
     }
     return useChinese
       ? '视觉审阅暂时不可用；请求未能完成，当前画布已保留。'
