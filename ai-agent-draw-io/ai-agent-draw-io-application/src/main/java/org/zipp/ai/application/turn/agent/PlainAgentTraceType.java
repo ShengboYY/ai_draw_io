@@ -1,0 +1,13 @@
+package org.zipp.ai.application.turn.agent;
+
+public enum PlainAgentTraceType {
+    AGENT_STARTED,
+    SKILLS_LOADED,
+    DECISION_SELECTED,
+    TOOL_REQUESTED,
+    TOOL_COMPLETED,
+    DRAFT_UPDATED,
+    ANALYSIS_COMPLETED,
+    CANDIDATE_SUBMITTED,
+    AGENT_STOPPED
+}
