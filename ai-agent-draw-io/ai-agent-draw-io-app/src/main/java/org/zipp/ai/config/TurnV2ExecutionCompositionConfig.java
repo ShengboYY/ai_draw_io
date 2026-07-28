@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
 import org.zipp.ai.application.turn.OptionalEnrichmentFallbackHandler;
 import org.zipp.ai.application.turn.AttemptWriteGate;
@@ -51,11 +52,20 @@ import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 import org.zipp.ai.application.turn.execution.TurnAttemptRecoveryCoordinator;
 import org.zipp.ai.application.turn.execution.TurnRecoveryTelemetryPort;
 import org.zipp.ai.application.turn.execution.SourceAwareTurnExecution;
+import org.zipp.ai.application.turn.agent.BoundedDiagramAgentRuntime;
+import org.zipp.ai.application.turn.agent.DiagramAgentBudget;
+import org.zipp.ai.application.turn.agent.DiagramAgentDecisionPort;
+import org.zipp.ai.application.turn.agent.DiagramAgentToolPort;
+import org.zipp.ai.application.turn.agent.DiagramDraftStore;
+import org.zipp.ai.application.turn.agent.PlainAgentTracePort;
 import org.zipp.ai.application.turn.planning.DirectCompositePlanner;
 import org.zipp.ai.application.turn.planning.OptionalEnrichmentPlanner;
 import org.zipp.ai.application.turn.planning.SourceProbePort;
+import org.zipp.ai.application.turn.skill.DiagramSkillContentPort;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.infrastructure.turn.agent.AgenticPlainGenerationAdapter;
+import org.zipp.ai.infrastructure.turn.agent.TelemetryPlainAgentTraceAdapter;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -78,6 +88,50 @@ public class TurnV2ExecutionCompositionConfig {
     public TurnAttemptExecutionStatePort turnAttemptExecutionStatePort() {
         // Isolated fixtures without a durable adapter remain active by default.
         return ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(PlainAgentTracePort.class)
+    public PlainAgentTracePort plainAgentTracePort(
+            ObjectProvider<AgentUsageTelemetryService> telemetry
+    ) {
+        AgentUsageTelemetryService service = telemetry.getIfAvailable();
+        return service == null
+                ? PlainAgentTracePort.NOOP
+                : new TelemetryPlainAgentTraceAdapter(service);
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+            name = "zipp.turn.v2.plain-generation-mode",
+            havingValue = "agentic")
+    public BoundedDiagramAgentRuntime boundedDiagramAgentRuntime(
+            DiagramAgentDecisionPort decisions,
+            DiagramAgentToolPort tools,
+            DiagramDraftStore drafts,
+            TurnAttemptExecutionStatePort executionState,
+            PlainAgentTracePort trace
+    ) {
+        return new BoundedDiagramAgentRuntime(
+                decisions,
+                tools,
+                drafts,
+                executionState,
+                DiagramAgentBudget.defaults(),
+                trace);
+    }
+
+    @Bean
+    @Primary
+    @ConditionalOnProperty(
+            name = "zipp.turn.v2.plain-generation-mode",
+            havingValue = "agentic")
+    public PlainGenerationPort agenticPlainGenerationPort(
+            DiagramSkillContentPort skills,
+            BoundedDiagramAgentRuntime runtime
+    ) {
+        // The handler still sees the original PlainGenerationPort and unchanged commit boundary.
+        return new AgenticPlainGenerationAdapter(skills, runtime);
     }
 
     @Bean
