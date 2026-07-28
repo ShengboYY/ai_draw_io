@@ -191,6 +191,8 @@ export interface AgentProgressChunk {
     latencyMs?: number;
     issueCount?: number;
     skillCount?: number;
+    reviewSummary?: string;
+    reviewFeedback?: string[];
 }
 
 export interface ErrorChunk {

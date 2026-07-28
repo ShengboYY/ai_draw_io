@@ -66,10 +66,12 @@ import org.zipp.ai.trigger.http.turn.TurnHttpDeliveryAdapter;
 import org.zipp.ai.trigger.http.turn.TurnHttpDeliveryResult;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -347,7 +349,13 @@ class TurnApplicationCompositionConfigTest {
                     Instant.now()));
             progress.publish(new TurnEvent(
                     "plain_agent_visual_review_completed",
-                    "1\tPOST_MUTATION_REVIEW\tvisual_review_agent\tAPPROVE\t25\t0",
+                    "1\tPOST_MUTATION_REVIEW\tvisual_review_agent\tREPAIR\t25\t1\t"
+                            + Base64.getUrlEncoder().withoutPadding().encodeToString(
+                            "The hierarchy needs adjustment.".getBytes(StandardCharsets.UTF_8))
+                            + "\t"
+                            + Base64.getUrlEncoder().withoutPadding().encodeToString(
+                            "Move the runtime node below the loader."
+                                    .getBytes(StandardCharsets.UTF_8)),
                     Instant.now()));
             return new TurnHttpDeliveryResult(
                     new TurnSubmission.TerminalReplay(
@@ -392,6 +400,12 @@ class TurnApplicationCompositionConfigTest {
         verify(emitter, atLeastOnce()).send(
                 argThat(value -> value.toString()
                         .contains("\"stage\":\"visual_review_completed\"")),
+                any(org.springframework.http.MediaType.class));
+        verify(emitter, atLeastOnce()).send(
+                argThat(value -> value.toString()
+                        .contains("\"reviewSummary\":\"The hierarchy needs adjustment.\"")
+                        && value.toString()
+                        .contains("\"reviewFeedback\":[\"Move the runtime node below the loader.\"]")),
                 any(org.springframework.http.MediaType.class));
 
         assertThat(telemetryStore.runs).singleElement().satisfies(run -> {

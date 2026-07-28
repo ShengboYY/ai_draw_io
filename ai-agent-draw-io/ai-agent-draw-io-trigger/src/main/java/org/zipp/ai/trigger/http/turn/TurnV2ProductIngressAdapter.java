@@ -33,6 +33,9 @@ import org.zipp.ai.api.dto.ChatResponseDTO;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -467,7 +470,7 @@ public final class TurnV2ProductIngressAdapter {
         }
 
         String[] fields = event.payload().split("\\t", -1);
-        if (fields.length == 6) {
+        if (fields.length >= 6) {
             chunk.put("step", parseInt(fields[0]));
             chunk.put("action", fields[1]);
             chunk.put("tool", fields[2]);
@@ -475,7 +478,29 @@ public final class TurnV2ProductIngressAdapter {
             chunk.put("latencyMs", parseLong(fields[4]));
             chunk.put("issueCount", parseInt(fields[5]));
         }
+        if (fields.length >= 8) {
+            chunk.put("reviewSummary", decodeProgressText(fields[6]));
+            List<String> feedback = decodeProgressText(fields[7]).lines()
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .limit(3)
+                    .toList();
+            chunk.put("reviewFeedback", feedback);
+        }
         return chunk;
+    }
+
+    private String decodeProgressText(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(value);
+            return new String(decoded, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ignored) {
+            // A malformed optional display field must not hide the underlying progress event.
+            return "";
+        }
     }
 
     private String progressPhase(String eventType, String tool) {
