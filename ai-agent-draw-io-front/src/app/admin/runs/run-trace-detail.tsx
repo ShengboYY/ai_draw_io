@@ -113,6 +113,7 @@ export function RunTraceDetail({ runId, onClose }: { runId: string; onClose?: ()
 
   useEffect(() => {
     if (!selected?.id
+      || selected.kind === 'EVENT'
       || Object.prototype.hasOwnProperty.call(spanPayloads, selected.id)
       || Boolean(spanPayloadErrors[selected.id])
       || spanPayloadRequests.current.has(selected.id)) {
@@ -388,11 +389,17 @@ export function RunTraceDetail({ runId, onClose }: { runId: string; onClose?: ()
                   </div>
                 )}
 
-                <TracePayloadPanel
-                  payloads={spanPayloads[selected.id]}
-                  loading={!Object.prototype.hasOwnProperty.call(spanPayloads, selected.id) && !spanPayloadErrors[selected.id]}
-                  error={spanPayloadErrors[selected.id]}
-                />
+                <SpanTiming span={selected} />
+
+                {selected.kind === 'EVENT' ? (
+                  <TraceEventMetadata metadataJson={selected.metadataJson} />
+                ) : (
+                  <TracePayloadPanel
+                    payloads={spanPayloads[selected.id]}
+                    loading={!Object.prototype.hasOwnProperty.call(spanPayloads, selected.id) && !spanPayloadErrors[selected.id]}
+                    error={spanPayloadErrors[selected.id]}
+                  />
+                )}
 
                 {selected.diagramEffect?.thumbnailUrl && (
                   <button
@@ -425,6 +432,65 @@ export function RunTraceDetail({ runId, onClose }: { runId: string; onClose?: ()
       )}
     </div>
   );
+}
+
+function SpanTiming({ span }: { span: AdminDiagramTraceSpanDTO }) {
+  if (!span.startedAt && !span.completedAt && span.latencyMs == null) return null;
+  return (
+    <dl className="mt-3 grid grid-cols-1 gap-2 rounded-md bg-stone-50 px-3 py-2.5 text-[11px] sm:grid-cols-3">
+      <TimingValue label="Started" value={formatTime(span.startedAt)} />
+      <TimingValue label="Completed" value={formatTime(span.completedAt)} />
+      <TimingValue label="Duration" value={formatMs(span.latencyMs)} />
+    </dl>
+  );
+}
+
+function TimingValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-zinc-400">{label}</dt>
+      <dd className="mt-0.5 truncate font-mono text-zinc-700" title={value}>{value}</dd>
+    </div>
+  );
+}
+
+function TraceEventMetadata({ metadataJson }: { metadataJson?: string }) {
+  const metadata = parseMetadata(metadataJson);
+  if (!metadata) {
+    return <div className="mt-4 rounded-md bg-stone-50 px-3 py-3 text-xs text-zinc-400">No event metadata recorded.</div>;
+  }
+  return (
+    <details open className="mt-4 rounded-md border border-stone-200 bg-white">
+      <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-zinc-700">
+        Event metadata
+      </summary>
+      <dl className="grid grid-cols-1 gap-x-4 gap-y-2 border-t border-stone-100 p-3 sm:grid-cols-2">
+        {Object.entries(metadata).map(([key, value]) => (
+          <div key={key} className="min-w-0">
+            <dt className="font-mono text-[10px] text-zinc-400">{key}</dt>
+            <dd className="mt-0.5 break-all font-mono text-[11px] text-zinc-700">{formatMetadataValue(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
+}
+
+function parseMetadata(metadataJson?: string): Record<string, unknown> | null {
+  if (!metadataJson) return null;
+  try {
+    const parsed: unknown = JSON.parse(metadataJson);
+    return parsed != null && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatMetadataValue(value: unknown): string {
+  if (value == null) return '—';
+  return typeof value === 'object' ? JSON.stringify(value) : String(value);
 }
 
 function HeaderStat({ label, value, tone }: { label: string; value: string; tone?: 'warn' | 'bad' }) {

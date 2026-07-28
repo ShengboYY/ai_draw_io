@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.turn.agent;
 import org.zipp.ai.application.turn.agent.PlainAgentTraceEvent;
 import org.zipp.ai.application.turn.agent.PlainAgentTracePort;
 import org.zipp.ai.application.turn.agent.PlainAgentTraceType;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 
 import java.util.LinkedHashMap;
@@ -38,6 +39,24 @@ public final class TelemetryPlainAgentTraceAdapter implements PlainAgentTracePor
                 "plain_agent",
                 status(event),
                 metadata);
+        recordToolSpan(event);
+    }
+
+    private void recordToolSpan(PlainAgentTraceEvent event) {
+        if (event.type() != PlainAgentTraceType.TOOL_COMPLETED || event.toolName().isBlank()) {
+            return;
+        }
+        Throwable failure = "SUCCESS".equals(event.outcomeCode())
+                ? null
+                : new IllegalStateException(event.outcomeCode());
+        // The completed event owns the measured latency, so persist one real TOOL span per execution.
+        AgentUsageTelemetryContext.current().ifPresent(context ->
+                telemetry.recordToolCall(
+                        context,
+                        "plain_agent",
+                        event.toolName(),
+                        event.latencyMs(),
+                        failure));
     }
 
     private String status(PlainAgentTraceEvent event) {
