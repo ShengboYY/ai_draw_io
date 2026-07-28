@@ -1,5 +1,6 @@
 package org.zipp.ai.infrastructure.turn.agent;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.PlainDrawAction;
@@ -48,6 +49,8 @@ public final class DefaultDiagramAgentToolAdapter implements DiagramAgentToolPor
     private final DiagramDraftStore drafts;
     private final ICanvasAnalyzer analyzer;
 
+    // Select the production dependency path explicitly; the secondary constructor supports focused analyzer tests.
+    @Autowired
     public DefaultDiagramAgentToolAdapter(DiagramDraftStore drafts) {
         this(drafts, new DefaultCanvasAnalyzer());
     }

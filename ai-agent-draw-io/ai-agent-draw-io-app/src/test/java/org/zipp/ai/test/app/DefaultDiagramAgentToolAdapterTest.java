@@ -1,6 +1,7 @@
 package org.zipp.ai.test.app;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.zipp.ai.application.turn.AttemptLease;
 import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
@@ -9,6 +10,8 @@ import org.zipp.ai.application.turn.PlainDrawPlan;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.agent.CreateDraftRequest;
+import org.zipp.ai.application.turn.agent.DiagramAgentToolPort;
+import org.zipp.ai.application.turn.agent.DiagramDraftStore;
 import org.zipp.ai.application.turn.agent.DraftCellMutation;
 import org.zipp.ai.application.turn.agent.DraftInspectionScope;
 import org.zipp.ai.application.turn.agent.InspectDraftRequest;
@@ -22,6 +25,16 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultDiagramAgentToolAdapterTest {
+
+    @Test
+    void springUsesTheDraftStoreConstructor() {
+        new ApplicationContextRunner()
+                .withBean(DiagramDraftStore.class, InMemoryDiagramDraftStore::new)
+                .withUserConfiguration(DefaultDiagramAgentToolAdapter.class)
+                .run(context -> assertThat(context)
+                        .hasSingleBean(DefaultDiagramAgentToolAdapter.class)
+                        .hasSingleBean(DiagramAgentToolPort.class));
+    }
 
     @Test
     void createsAnalyzesAndInspectsTargetCellsWithoutReturningTheWholeXml() {
