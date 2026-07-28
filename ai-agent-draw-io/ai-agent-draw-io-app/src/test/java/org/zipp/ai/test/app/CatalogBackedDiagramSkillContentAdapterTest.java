@@ -17,14 +17,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CatalogBackedDiagramSkillContentAdapterTest {
 
     @Test
-    void loadsTheExactPinnedBodiesFromOneRuntimeCatalogSnapshot() {
+    void loadsTheExactPinnedBodiesWhenTheSelectedSkillIsAlsoRequired() {
         SkillCatalogService catalog = catalog("## Rules [P0]\nUse stable ids.");
         DiagramSkillCatalogSnapshot snapshot =
                 new CatalogBackedDiagramSkillCatalogAdapter(catalog).snapshot("owner-1");
         DiagramSkillBinding selected = snapshot.selectableSkills().get(0);
         ResolvedDiagramSkillSelection selection = new ResolvedDiagramSkillSelection(
                 List.of(selected),
-                snapshot.sharedSkills(),
+                List.of(
+                        snapshot.sharedSkills().get(0),
+                        snapshot.sharedSkills().get(1),
+                        selected),
                 DiagramSkillSelectionSource.ROUTER,
                 snapshot.digest());
 
@@ -33,7 +36,10 @@ class CatalogBackedDiagramSkillContentAdapterTest {
 
         assertThat(bundle.selectedSkills()).extracting("name").containsExactly("drawio-flowchart");
         assertThat(bundle.requiredSkills()).extracting("name")
-                .containsExactly("drawio-xml-guide", "drawio-visual-design");
+                .containsExactly(
+                        "drawio-xml-guide",
+                        "drawio-visual-design",
+                        "drawio-flowchart");
         assertThat(bundle.orderedSkills()).extracting("name")
                 .containsExactly("drawio-xml-guide", "drawio-visual-design", "drawio-flowchart");
         assertThat(bundle.selectionBindingDigest()).isEqualTo(selection.bindingDigest());
