@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.turn.model;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,7 @@ import org.zipp.ai.application.turn.agent.InspectDraftRequest;
 import org.zipp.ai.application.turn.agent.PatchDraftRequest;
 import org.zipp.ai.application.turn.agent.SubmitDiagramCandidate;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.util.ArrayList;
@@ -35,22 +37,53 @@ public final class ChatDiagramAgentDecisionAdapter implements DiagramAgentDecisi
             Set.of("action", "draftRef", "expectedDigest", "assistantMessage");
     private static final int MAX_XML_LENGTH = 4_000_000;
     private final ToolFreeChatModelInvoker model;
+    private final AgentUsageTelemetryService telemetry;
     private final PlainGenerationPromptRenderer renderer = new PlainGenerationPromptRenderer();
 
     @Autowired
     public ChatDiagramAgentDecisionAdapter(
             IChatService chat,
-            @Value("${zipp.turn.v2.plain-agent-id:300025}") String agentId
+            @Value("${zipp.turn.v2.plain-agent-id:300025}") String agentId,
+            ObjectProvider<AgentUsageTelemetryService> telemetry
     ) {
-        this(new ToolFreeChatModelInvoker(chat, agentId, "v2-plain-agent-decision"));
+        this(
+                new ToolFreeChatModelInvoker(chat, agentId, "v2-plain-agent-decision"),
+                telemetry.getIfAvailable());
     }
 
     ChatDiagramAgentDecisionAdapter(ToolFreeChatModelInvoker model) {
+        this(model, null);
+    }
+
+    ChatDiagramAgentDecisionAdapter(
+            ToolFreeChatModelInvoker model,
+            AgentUsageTelemetryService telemetry
+    ) {
         this.model = model;
+        this.telemetry = telemetry;
     }
 
     @Override
     public DiagramAgentAction decide(
+            DiagramAgentObservation observation,
+            CancellationSignal cancellation
+    ) {
+        if (telemetry == null) {
+            return decideOnce(observation, cancellation);
+        }
+        try {
+            // The step becomes the parent of the model span emitted by the chat runtime.
+            return telemetry.recordStep(
+                    "plain_draw_agent",
+                    () -> decideOnce(observation, cancellation));
+        } catch (RuntimeException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            throw new IllegalStateException("V2_PLAIN_AGENT_DECISION_FAILED", failure);
+        }
+    }
+
+    private DiagramAgentAction decideOnce(
             DiagramAgentObservation observation,
             CancellationSignal cancellation
     ) {

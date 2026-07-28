@@ -104,14 +104,12 @@ public final class BoundedDiagramAgentRuntime {
         Objects.requireNonNull(events, "events");
         cancellation = cancellation == null ? CancellationSignal.NEVER : cancellation;
         requireSkillBinding(request, skills);
+        long runStarted = System.nanoTime();
+        int lastStepNumber = 0;
         trace(request.attempt(), 0, PlainAgentTraceType.AGENT_STARTED,
-                "", "", "", "", "", "STARTED", 0, 0);
-        trace(request.attempt(), 0, PlainAgentTraceType.SKILLS_LOADED,
-                "", "", skills.selectionBindingDigest(), "", "", "SUCCESS", 0, 0);
+                request.plan().action().name(), "", "", "", "", "STARTED", 0, 0);
         publish(events, "plain_agent_started",
-                progressPayload(0, "START", "", "STARTED", 0, 0));
-        publish(events, "plain_agent_skills_loaded",
-                Integer.toString(skills.orderedSkills().size()));
+                progressPayload(0, request.plan().action().name(), "", "STARTED", 0, 0));
 
         try {
             DiagramAgentState state = initialState(request, skills);
@@ -120,11 +118,16 @@ public final class BoundedDiagramAgentRuntime {
             while (true) {
                 requireActive(request.attempt(), cancellation);
                 if (state.stepCount() >= budget.maxSteps()) {
-                    return submitBudgetFallback(state, cancellation, events);
+                    return submitBudgetFallback(state, cancellation, events, runStarted);
                 }
                 requireProgress(state);
                 DiagramAgentObservation observation = observation(state);
                 int stepNumber = state.stepCount() + 1;
+                lastStepNumber = stepNumber;
+                trace(request.attempt(), stepNumber, PlainAgentTraceType.DECISION_STARTED,
+                        "DECIDE", "", "",
+                        digest(state.activeDraft()), digest(state.activeDraft()),
+                        "STARTED", visualIssueCount(state), 0);
                 publish(events, "plain_agent_decision_started",
                         progressPayload(stepNumber, "DECIDE", "", "STARTED", 0,
                                 visualIssueCount(state)));
@@ -161,7 +164,8 @@ public final class BoundedDiagramAgentRuntime {
                         previousToolRequest = null;
                         repeatedActionCount = 0;
                         if (hasTerminalVisualReview(state)) {
-                            return submit(state, submit, cancellation, stepNumber, events);
+                            return submit(
+                                    state, submit, cancellation, stepNumber, events, runStarted);
                         }
                         // The submit decision consumed this Draw Agent step even though review
                         // delegated the draft back for one bounded repair.
@@ -179,7 +183,7 @@ public final class BoundedDiagramAgentRuntime {
                         repeatedActionCount = 0;
                         continue;
                     }
-                    return submit(state, submit, cancellation, stepNumber, events);
+                    return submit(state, submit, cancellation, stepNumber, events, runStarted);
                 }
 
                 DiagramAgentToolRequest toolRequest = ((CallDiagramTool) action).request();
@@ -214,13 +218,15 @@ public final class BoundedDiagramAgentRuntime {
                                 terminalReviewSubmission(state),
                                 cancellation,
                                 stepNumber,
-                                events);
+                                events,
+                                runStarted);
                     }
                 }
             }
         } catch (RuntimeException failure) {
-            trace(request.attempt(), 0, PlainAgentTraceType.AGENT_STOPPED,
-                    "", "", "", "", "", safeCode(failure), 0, 0);
+            trace(request.attempt(), lastStepNumber, PlainAgentTraceType.AGENT_STOPPED,
+                    request.plan().action().name(), "", "", "", "",
+                    safeCode(failure), 0, elapsedMillis(runStarted));
             throw failure;
         } finally {
             drafts.discard(request.attempt());
@@ -265,7 +271,8 @@ public final class BoundedDiagramAgentRuntime {
             SubmitDiagramCandidate submit,
             CancellationSignal cancellation,
             int stepNumber,
-            TurnEventSink events
+            TurnEventSink events,
+            long runStarted
     ) {
         if (state.activeDraft() == null
                 || !state.activeDraft().ref().equals(submit.draftRef())
@@ -285,7 +292,7 @@ public final class BoundedDiagramAgentRuntime {
                 visualIssueCount(state), 0);
         trace(state.request().attempt(), stepNumber, PlainAgentTraceType.AGENT_STOPPED,
                 "", "", "", snapshot.digest(), snapshot.digest(),
-                "CANDIDATE_SUBMITTED", visualIssueCount(state), 0);
+                "CANDIDATE_SUBMITTED", visualIssueCount(state), elapsedMillis(runStarted));
         publish(events, "plain_agent_candidate_submitted", "");
         return new DiagramAgentRunResult(
                 snapshot.ref(),
@@ -299,7 +306,8 @@ public final class BoundedDiagramAgentRuntime {
     private DiagramAgentRunResult submitBudgetFallback(
             DiagramAgentState state,
             CancellationSignal cancellation,
-            TurnEventSink events
+            TurnEventSink events,
+            long runStarted
     ) {
         if (state.activeDraft() == null) {
             throw stop("PLAIN_AGENT_STEP_BUDGET_EXHAUSTED");
@@ -329,7 +337,7 @@ public final class BoundedDiagramAgentRuntime {
         trace(state.request().attempt(), stepNumber, PlainAgentTraceType.AGENT_STOPPED,
                 "BUDGET_FALLBACK", "", "",
                 snapshot.digest(), snapshot.digest(), "CANDIDATE_SUBMITTED",
-                visualIssueCount(state), 0);
+                visualIssueCount(state), elapsedMillis(runStarted));
         publish(events, "plain_agent_candidate_submitted", "");
         return new DiagramAgentRunResult(
                 snapshot.ref(),

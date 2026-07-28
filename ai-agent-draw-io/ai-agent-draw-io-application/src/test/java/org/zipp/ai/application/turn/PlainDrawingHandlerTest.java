@@ -15,6 +15,8 @@ import org.zipp.ai.application.turn.context.CurrentRequestContext;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.context.ValidatedSelectionContext;
 import org.zipp.ai.application.turn.context.ConversationContext;
+import org.zipp.ai.application.turn.agent.PlainAgentTraceEvent;
+import org.zipp.ai.application.turn.agent.PlainAgentTraceType;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
 
 import java.time.Instant;
@@ -32,6 +34,7 @@ class PlainDrawingHandlerTest {
         FencedAttempt attempt = attempt();
         List<String> committedPayloads = new ArrayList<>();
         List<String> events = new ArrayList<>();
+        List<PlainAgentTraceEvent> trace = new ArrayList<>();
         PlainDrawingHandler handler = new PlainDrawingHandler(
                 (request, sink, cancellation) -> {
                     assertEquals(PlainDrawAction.CREATE, request.plan().action());
@@ -50,7 +53,9 @@ class PlainDrawingHandlerTest {
                                     "plain", command.payloadRef(), "{}"));
                 },
                 new PlainRuntimeRegistry(),
-                PlainExecutionProfile.m2SourceFree());
+                PlainExecutionProfile.m2SourceFree(),
+                new AttemptWriteGate(),
+                trace::add);
 
         FencedCommitOutcome outcome = handler.execute(
                 attempt,
@@ -63,6 +68,10 @@ class PlainDrawingHandlerTest {
         assertEquals(List.of("plain_started", "plain_committed"), events);
         assertEquals(TurnStatus.COMPLETED,
                 ((FencedCommitOutcome.Committed) outcome).outcome().status());
+        assertEquals(
+                List.of(PlainAgentTraceType.COMMIT_STARTED, PlainAgentTraceType.COMMIT_COMPLETED),
+                trace.stream().map(PlainAgentTraceEvent::type).toList());
+        assertEquals("COMMITTED", trace.get(1).outcomeCode());
     }
 
     @Test

@@ -59,7 +59,7 @@ class TelemetryPlainAgentTraceAdapterTest {
 
         assertThat(store.traceEvents).singleElement().satisfies(event -> {
             assertThat(event.getEventType()).isEqualTo("tool_completed");
-            assertThat(event.getPhase()).isEqualTo("plain_agent");
+            assertThat(event.getPhase()).isEqualTo("plain_draft");
             assertThat(event.getStatus()).isEqualTo("SUCCESS");
             assertThat(event.getMetadataJson())
                     .contains("\"toolName\":\"patch_draft\"")
@@ -69,9 +69,57 @@ class TelemetryPlainAgentTraceAdapterTest {
         });
         assertThat(store.toolCalls).singleElement().satisfies(call -> {
             assertThat(call.getToolName()).isEqualTo("patch_draft");
-            assertThat(call.getPhase()).isEqualTo("plain_agent");
+            assertThat(call.getPhase()).isEqualTo("plain_draft");
             assertThat(call.getStatus()).isEqualTo("SUCCESS");
             assertThat(call.getLatencyMs()).isEqualTo(12);
+        });
+    }
+
+    @Test
+    void recordsCommitAsItsOwnTimedPhase() {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService telemetry = new AgentUsageTelemetryService(
+                store,
+                Clock.fixed(Instant.parse("2026-07-28T00:00:00Z"), ZoneOffset.UTC));
+        var context = new AgentUsageTelemetryContext.RunContext(
+                "aru_plain_commit",
+                "turn-1",
+                "diagram-1",
+                "owner-1",
+                "300025",
+                "chat",
+                AgentUsageTelemetryService.PLATFORM,
+                null,
+                "openai",
+                "gpt-5.5",
+                "turn_v2_execution");
+
+        try (AgentUsageTelemetryContext.Scope ignored =
+                     AgentUsageTelemetryContext.bind(context)) {
+            new TelemetryPlainAgentTraceAdapter(telemetry).record(new PlainAgentTraceEvent(
+                    attempt(),
+                    0,
+                    PlainAgentTraceType.COMMIT_COMPLETED,
+                    "COMMIT",
+                    "plain_turn_commit",
+                    "",
+                    "",
+                    "",
+                    "COMMITTED",
+                    0,
+                    37,
+                    Instant.parse("2026-07-28T00:00:00Z")));
+        }
+
+        assertThat(store.traceEvents).singleElement().satisfies(event -> {
+            assertThat(event.getEventType()).isEqualTo("commit_completed");
+            assertThat(event.getPhase()).isEqualTo("plain_commit");
+            assertThat(event.getStatus()).isEqualTo("SUCCESS");
+        });
+        assertThat(store.toolCalls).singleElement().satisfies(call -> {
+            assertThat(call.getToolName()).isEqualTo("plain_turn_commit");
+            assertThat(call.getPhase()).isEqualTo("plain_commit");
+            assertThat(call.getLatencyMs()).isEqualTo(37);
         });
     }
 

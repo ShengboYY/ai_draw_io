@@ -52,8 +52,12 @@ public final class LoggingPlainAgentTraceAdapter implements PlainAgentTracePort 
     private boolean failed(PlainAgentTraceEvent event) {
         return (event.type() == PlainAgentTraceType.AGENT_STOPPED
                 && !"CANDIDATE_SUBMITTED".equals(event.outcomeCode()))
+                || (event.type() == PlainAgentTraceType.SKILLS_LOADED
+                && !"SUCCESS".equals(event.outcomeCode()))
                 || (event.type() == PlainAgentTraceType.TOOL_COMPLETED
-                && !"SUCCESS".equals(event.outcomeCode()));
+                && !"SUCCESS".equals(event.outcomeCode()))
+                || (event.type() == PlainAgentTraceType.COMMIT_COMPLETED
+                && !"COMMITTED".equals(event.outcomeCode()));
     }
 
     private String safeToken(String value) {

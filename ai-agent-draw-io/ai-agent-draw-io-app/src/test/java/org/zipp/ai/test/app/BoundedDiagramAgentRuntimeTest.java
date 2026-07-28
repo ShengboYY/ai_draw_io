@@ -42,6 +42,7 @@ import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.context.ValidatedSelectionContext;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.skill.DiagramSkillBundle;
+import org.zipp.ai.infrastructure.turn.agent.AgenticPlainGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.agent.DefaultDiagramAgentToolAdapter;
 import org.zipp.ai.infrastructure.turn.agent.InMemoryDiagramDraftStore;
 
@@ -54,6 +55,45 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BoundedDiagramAgentRuntimeTest {
+
+    @Test
+    void tracesSkillLoadingAndPublishesTheCandidateTerminalOnlyOnce() {
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        List<PlainAgentTraceEvent> trace = new ArrayList<>();
+        List<TurnEvent> progress = new ArrayList<>();
+        BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
+                (observation, cancellation) -> new CallDiagramTool(
+                        new CreateDraftRequest(graph(
+                                "<mxCell id=\"node-a\" value=\"Start\" "
+                                        + "vertex=\"1\" parent=\"1\"/>"))),
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                approvingReview(),
+                ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
+                DiagramAgentBudget.defaults(),
+                trace::add);
+        AgenticPlainGenerationAdapter adapter = new AgenticPlainGenerationAdapter(
+                (ownerKey, selection) -> DiagramSkillBundle.empty(),
+                runtime,
+                trace::add);
+
+        adapter.generate(
+                request(PlainDrawAction.CREATE, ""),
+                progress::add,
+                () -> false);
+
+        assertThat(trace)
+                .extracting(PlainAgentTraceEvent::type)
+                .containsSubsequence(
+                        PlainAgentTraceType.SKILL_LOADING_STARTED,
+                        PlainAgentTraceType.SKILLS_LOADED,
+                        PlainAgentTraceType.AGENT_STARTED,
+                        PlainAgentTraceType.DECISION_STARTED,
+                        PlainAgentTraceType.DECISION_SELECTED);
+        assertThat(progress)
+                .filteredOn(event -> event.type().equals("plain_agent_candidate_submitted"))
+                .hasSize(1);
+    }
 
     @Test
     void delegatesTheCreatedDraftToVisualReviewAndSubmitsWithoutAnotherDrawDecision() {
