@@ -32,6 +32,7 @@ import org.zipp.ai.domain.citation.service.CitationQueryService;
 import org.zipp.ai.trigger.http.service.AnonymousWorkspaceClaimService;
 import org.zipp.ai.trigger.http.service.ManualCanvasCommitCoordinator;
 import org.zipp.ai.trigger.http.turn.TurnV2ProductIngressAdapter;
+import org.zipp.ai.trigger.http.turn.TurnV2ProductStreamExecutor;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
@@ -69,6 +70,8 @@ public class AgentServiceController implements IAgentService {
     private static final String REQUEST_ID_HEADER = "X-Request-Id";
     private static final String RUN_ID_HEADER = "X-Agent-Run-Id";
     private static final String V2_INGRESS_NOT_READY = "TURN_V2_PRODUCT_INGRESS_NOT_READY";
+    private static final String V2_STREAM_CAPACITY_EXHAUSTED =
+            "TURN_V2_PRODUCT_STREAM_CAPACITY_EXHAUSTED";
     private static final MediaType NDJSON = MediaType.parseMediaType("application/x-ndjson");
     private static final Pattern CORRELATION_ID = Pattern.compile("^[A-Za-z0-9._:-]{8,128}$");
 
@@ -86,6 +89,9 @@ public class AgentServiceController implements IAgentService {
 
     @Autowired(required = false)
     private TurnV2ProductIngressAdapter turnV2ProductIngressAdapter;
+
+    @Autowired(required = false)
+    private TurnV2ProductStreamExecutor turnV2ProductStreamExecutor;
 
     @Resource
     private IDiagramConversationStore diagramConversationStore;
@@ -564,11 +570,26 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
-        if (turnV2ProductIngressAdapter == null) {
+        if (turnV2ProductIngressAdapter == null || turnV2ProductStreamExecutor == null) {
             sendV2IngressError(emitter, V2_INGRESS_NOT_READY);
             return emitter;
         }
-        turnV2ProductIngressAdapter.stream(workspaceId, requestDTO, requestId, runId, emitter);
+        // The controller must return the emitter before the ingress begins its terminal wait;
+        // otherwise Spring cannot commit the response and every progress event stays buffered.
+        boolean accepted = turnV2ProductStreamExecutor.execute(() -> {
+            log.info("[turn-v2-stream] event=started requestId={} runId={}", requestId, runId);
+            try {
+                turnV2ProductIngressAdapter.stream(
+                        workspaceId, requestDTO, requestId, runId, emitter);
+            } finally {
+                log.info("[turn-v2-stream] event=finished requestId={} runId={}", requestId, runId);
+            }
+        });
+        if (!accepted) {
+            log.warn("[turn-v2-stream] event=rejected requestId={} runId={} reason=capacity",
+                    requestId, runId);
+            sendV2IngressError(emitter, V2_STREAM_CAPACITY_EXHAUSTED);
+        }
         return emitter;
     }
 
