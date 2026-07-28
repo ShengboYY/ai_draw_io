@@ -134,10 +134,11 @@ public class TurnV2ExecutionCompositionConfig {
             havingValue = "agentic")
     public PlainGenerationPort agenticPlainGenerationPort(
             DiagramSkillContentPort skills,
-            BoundedDiagramAgentRuntime runtime
+            BoundedDiagramAgentRuntime runtime,
+            PlainAgentTracePort trace
     ) {
         // The handler still sees the original PlainGenerationPort and unchanged commit boundary.
-        return new AgenticPlainGenerationAdapter(skills, runtime);
+        return new AgenticPlainGenerationAdapter(skills, runtime, trace);
     }
 
     @Bean
@@ -176,9 +177,10 @@ public class TurnV2ExecutionCompositionConfig {
             PlainTurnCommitPort commit,
             PlainRuntimeRegistry runtime,
             PlainExecutionProfile profile,
-            TurnWriteGate writeGate
+            TurnWriteGate writeGate,
+            PlainAgentTracePort trace
     ) {
-        return new PlainDrawingHandler(generation, commit, runtime, profile, writeGate);
+        return new PlainDrawingHandler(generation, commit, runtime, profile, writeGate, trace);
     }
 
     @Bean

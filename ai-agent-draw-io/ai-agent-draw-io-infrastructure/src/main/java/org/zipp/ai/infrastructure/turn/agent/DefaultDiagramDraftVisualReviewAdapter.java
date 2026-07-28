@@ -1,6 +1,8 @@
 package org.zipp.ai.infrastructure.turn.agent;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.PlainDrawPlan;
 import org.zipp.ai.application.turn.agent.DiagramDraftSnapshot;
@@ -18,6 +20,7 @@ import org.zipp.ai.domain.agent.service.analysis.DrawioCellDocumentReader;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewGroundingGuard;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 
 import java.util.Base64;
 import java.util.List;
@@ -30,18 +33,59 @@ public final class DefaultDiagramDraftVisualReviewAdapter
 
     private static final String PNG_DATA_URL = "data:image/png;base64,";
     private final ICanvasVisualReviewer reviewer;
+    private final AgentUsageTelemetryService telemetry;
     private final DrawioCellDocumentReader cellReader = new DrawioCellDocumentReader();
     private final DrawioDraftPngRenderer renderer = new DrawioDraftPngRenderer();
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
     private final CanvasVisualReviewGroundingGuard groundingGuard =
             new CanvasVisualReviewGroundingGuard();
 
+    @Autowired
+    public DefaultDiagramDraftVisualReviewAdapter(
+            ICanvasVisualReviewer reviewer,
+            ObjectProvider<AgentUsageTelemetryService> telemetry
+    ) {
+        this(reviewer, telemetry.getIfAvailable());
+    }
+
     public DefaultDiagramDraftVisualReviewAdapter(ICanvasVisualReviewer reviewer) {
+        this(reviewer, (AgentUsageTelemetryService) null);
+    }
+
+    public DefaultDiagramDraftVisualReviewAdapter(
+            ICanvasVisualReviewer reviewer,
+            AgentUsageTelemetryService telemetry
+    ) {
         this.reviewer = reviewer;
+        this.telemetry = telemetry;
     }
 
     @Override
     public DiagramDraftVisualReview review(
+            PlainDrawPlan plan,
+            DiagramDraftSnapshot draft
+    ) {
+        if (telemetry == null) {
+            return reviewOnce(plan, draft);
+        }
+        try {
+            // The delegated-agent step parents rendering and the VLM call as one review phase.
+            return telemetry.recordStep(
+                    "plain_visual_review_agent",
+                    () -> reviewOnce(plan, draft));
+        } catch (RuntimeException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            log.warn(
+                    "[plain-agent-review] digest={} decision=UNAVAILABLE reason={} latencyMs=0",
+                    draft.digest(),
+                    failure.getClass().getSimpleName());
+            return DiagramDraftVisualReview.unavailable(
+                    draft.digest(), "review_trace_failed");
+        }
+    }
+
+    private DiagramDraftVisualReview reviewOnce(
             PlainDrawPlan plan,
             DiagramDraftSnapshot draft
     ) {

@@ -24,17 +24,47 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualRepairScop
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.infrastructure.turn.agent.DefaultDiagramDraftVisualReviewAdapter;
 import org.zipp.ai.infrastructure.turn.agent.DefaultDiagramAgentToolAdapter;
 import org.zipp.ai.infrastructure.turn.agent.InMemoryDiagramDraftStore;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class DefaultDiagramAgentToolAdapterTest {
+
+    @Test
+    void wrapsTheDelegatedReviewerInItsOwnTelemetryStep() throws Exception {
+        AgentUsageTelemetryService telemetry = mock(AgentUsageTelemetryService.class);
+        when(telemetry.recordStep(eq("plain_visual_review_agent"), any()))
+                .thenAnswer(invocation ->
+                        ((Callable<?>) invocation.getArgument(1)).call());
+        DefaultDiagramDraftVisualReviewAdapter reviews =
+                new DefaultDiagramDraftVisualReviewAdapter(
+                        command -> CanvasVisualReviewResult.builder()
+                                .available(true)
+                                .summary("Readable")
+                                .issues(List.of())
+                                .build(),
+                        telemetry);
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        var draft = store.create(attempt(), graph(
+                "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\"/>"));
+
+        reviews.review(new PlainDrawPlan(PlainDrawAction.CREATE, "draw a flow"), draft);
+
+        verify(telemetry).recordStep(eq("plain_visual_review_agent"), any());
+    }
 
     @Test
     void springUsesTheDraftStoreConstructor() {
