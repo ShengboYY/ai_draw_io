@@ -184,7 +184,9 @@ public final class InMemoryDiagramDraftStore implements DiagramDraftStore {
         for (int index = 0; index < nodes.getLength(); index++) {
             Element cell = (Element) nodes.item(index);
             String id = cell.getAttribute("id").trim();
-            if (id.isBlank() || cells.putIfAbsent(id, cell) != null) {
+            if (id.isBlank() || id.length() > 255
+                    || id.chars().anyMatch(Character::isISOControl)
+                    || cells.putIfAbsent(id, cell) != null) {
                 throw new IllegalArgumentException("DRAFT_CELL_ID_INVALID");
             }
         }
