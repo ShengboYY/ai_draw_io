@@ -3121,6 +3121,16 @@ function DrawioPageContent() {
             case 'drawio_preview': {
               if (requestedMoreInfo) break;
 
+              if (chunk.reset) {
+                // Every Agent mutation streams a complete working copy, so replay it from a clean
+                // preview state without treating the draft as a committed drawio_done result.
+                accumulatedNodes = [];
+                accumulatedEdges = [];
+                previewSkeletonXml = '';
+                nodeCount = 0;
+                edgeCount = 0;
+                receivedDrawioDone = false;
+              }
               const previewCounts = countDrawableCells(chunk.content);
               if (previewCounts.nodes === 0 && previewCounts.edges === 0) break;
 
@@ -3399,6 +3409,62 @@ function DrawioPageContent() {
 
             case 'status': {
               // Raw model status may include process text, so it is intentionally not rendered in Thinking.
+              break;
+            }
+
+            case 'agent_progress': {
+              const elapsed = typeof chunk.latencyMs === 'number' && chunk.latencyMs > 0
+                ? (chunk.latencyMs >= 1000
+                  ? `${(chunk.latencyMs / 1000).toFixed(1)} s`
+                  : `${chunk.latencyMs} ms`)
+                : '';
+              const step = chunk.step || 0;
+              const tool = chunk.tool || chunk.action || '';
+              let detail = '';
+              if (chunk.stage === 'agent_started') {
+                detail = useChinese ? 'Agent Loop 已启动。' : 'Agent loop started.';
+              } else if (chunk.stage === 'skills_loaded') {
+                const count = chunk.skillCount || 0;
+                detail = useChinese
+                  ? `已加载 ${count} 个绘图 Skill。`
+                  : `Loaded ${count} diagram skill${count === 1 ? '' : 's'}.`;
+              } else if (chunk.stage === 'decision_started') {
+                detail = useChinese
+                  ? `正在决定第 ${step} 步操作。`
+                  : `Choosing action for step ${step}.`;
+              } else if (chunk.stage === 'decision_completed') {
+                detail = useChinese
+                  ? `第 ${step} 步选择了 ${tool || '提交候选图'}${elapsed ? `（${elapsed}）` : ''}。`
+                  : `Step ${step} selected ${tool || 'candidate submission'}${elapsed ? ` (${elapsed})` : ''}.`;
+              } else if (chunk.stage === 'tool_started') {
+                detail = useChinese
+                  ? `正在执行 ${tool}。`
+                  : `Running ${tool}.`;
+              } else if (chunk.stage === 'tool_completed') {
+                const issues = chunk.issueCount || 0;
+                detail = useChinese
+                  ? `${tool} 已完成${elapsed ? `（${elapsed}）` : ''}，检测到 ${issues} 个问题。`
+                  : `${tool} completed${elapsed ? ` (${elapsed})` : ''}; ${issues} issue${issues === 1 ? '' : 's'} detected.`;
+              } else if (chunk.stage === 'candidate_submitted') {
+                detail = useChinese
+                  ? '候选草稿已完成，正在提交正式画布。'
+                  : 'Candidate draft is ready and is being committed.';
+              }
+              if (!detail) break;
+
+              const isDone = chunk.stage === 'decision_completed'
+                || chunk.stage === 'tool_completed'
+                || chunk.stage === 'candidate_submitted';
+              updateStep(phase, detail, isDone, true);
+              upsertRunEvent(`agent:${chunk.stage}:${step}:${tool}`, {
+                phase,
+                title: chunk.stage,
+                detail,
+                status: isDone ? 'done' : 'running',
+                tone: chunk.stage.includes('tool') ? 'tool' : 'analysis',
+                tool: chunk.tool,
+              });
+              publishSteps();
               break;
             }
 

@@ -13,6 +13,25 @@ import static org.junit.Assert.assertTrue;
 public class DrawioToolCallRendererTest {
 
     @Test
+    public void shouldRenderAgentDraftWithoutEmittingCommittedResult() {
+        DrawioToolCallRenderer renderer = new DrawioToolCallRenderer();
+        String xml = "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>"
+                + "<mxCell id='2' value='API' vertex='1' parent='1'/>"
+                + "<mxCell id='3' value='calls' edge='1' source='2' target='2' parent='1'/>"
+                + "</root></mxGraphModel>";
+
+        List<JSONObject> chunks = renderer.renderDraftPreview(xml);
+
+        assertEquals(3, chunks.size());
+        assertEquals("drawio_preview", chunks.get(0).getString("type"));
+        assertTrue(chunks.get(0).getBooleanValue("reset"));
+        assertEquals("drawio_node", chunks.get(1).getString("type"));
+        assertEquals("drawio_edge", chunks.get(2).getString("type"));
+        assertTrue(chunks.stream().noneMatch(chunk ->
+                "drawio_done".equals(chunk.getString("type"))));
+    }
+
+    @Test
     public void shouldRenderDisplayDiagramXmlAsStreamingChunks() {
         DrawioToolCallRenderer renderer = new DrawioToolCallRenderer();
         JSONObject toolCall = JSON.parseObject("""

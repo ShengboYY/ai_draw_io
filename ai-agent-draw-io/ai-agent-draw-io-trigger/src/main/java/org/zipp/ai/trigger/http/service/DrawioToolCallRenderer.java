@@ -35,10 +35,35 @@ public class DrawioToolCallRenderer {
         // Preview extraction may use a normalized projection, but the mutation candidate itself
         // must remain raw until CanvasMutationGate canonicalizes it exactly once.
         String previewGraphModel = xmlToolkit.toGraphModel(xml);
-        List<String> cells = extractRootCells(previewGraphModel);
+        List<JSONObject> chunks = new ArrayList<>(previewChunks(previewGraphModel, false));
+        chunks.add(validationChunk(previewGraphModel));
+        JSONObject done = chunk("drawio_done", "content", xml);
+        // "local" lets the frontend merge into the existing canvas; "full" triggers a clean reload.
+        done.put("mode", DrawioCanvasToolNames.LOCAL_EDIT_TOOL_NAMES.contains(toolCall.getString("type")) ? "local" : "full");
+        chunks.add(done);
+        return chunks;
+    }
 
+    /**
+     * Renders a non-persistent Agent working copy. It deliberately excludes validation_result and
+     * drawio_done so the browser cannot mistake a preview for a committed canvas.
+     */
+    public List<JSONObject> renderDraftPreview(String xml) {
+        if (StringUtils.isBlank(xml)) {
+            return List.of();
+        }
+        return previewChunks(xmlToolkit.toGraphModel(xml), true);
+    }
+
+    private List<JSONObject> previewChunks(String graphModel, boolean reset) {
+        List<String> cells = extractRootCells(graphModel);
         List<JSONObject> chunks = new ArrayList<>();
-        chunks.add(chunk("drawio_preview", "content", buildPreviewSkeleton(cells)));
+        JSONObject preview = chunk("drawio_preview", "content", buildPreviewSkeleton(cells));
+        if (reset) {
+            // Each Agent mutation publishes a complete working copy, replacing the prior preview.
+            preview.put("reset", true);
+        }
+        chunks.add(preview);
         for (String cell : cells) {
             if (isVertex(cell) && !isSkeletonCell(cell)) {
                 JSONObject node = chunk("drawio_node", "xml", cell);
@@ -57,11 +82,6 @@ public class DrawioToolCallRenderer {
                 chunks.add(edge);
             }
         }
-        chunks.add(validationChunk(previewGraphModel));
-        JSONObject done = chunk("drawio_done", "content", xml);
-        // "local" lets the frontend merge into the existing canvas; "full" triggers a clean reload.
-        done.put("mode", DrawioCanvasToolNames.LOCAL_EDIT_TOOL_NAMES.contains(toolCall.getString("type")) ? "local" : "full");
-        chunks.add(done);
         return chunks;
     }
 

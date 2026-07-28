@@ -10,6 +10,7 @@ import org.zipp.ai.application.turn.PlainExecutionProfile;
 import org.zipp.ai.application.turn.PlainGenerationRequest;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
+import org.zipp.ai.application.turn.TurnEvent;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.agent.BoundedDiagramAgentRuntime;
 import org.zipp.ai.application.turn.agent.CallDiagramTool;
@@ -65,6 +66,7 @@ class BoundedDiagramAgentRuntimeTest {
                     "Created the flow.");
         };
         List<PlainAgentTraceEvent> trace = new ArrayList<>();
+        List<TurnEvent> progress = new ArrayList<>();
         BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
                 decision,
                 new DefaultDiagramAgentToolAdapter(store),
@@ -76,7 +78,8 @@ class BoundedDiagramAgentRuntimeTest {
         var result = runtime.run(
                 request(PlainDrawAction.CREATE, ""),
                 DiagramSkillBundle.empty(),
-                () -> false);
+                () -> false,
+                progress::add);
 
         assertThat(decisions.get()).isEqualTo(2);
         assertThat(result.stepCount()).isEqualTo(2);
@@ -86,6 +89,21 @@ class BoundedDiagramAgentRuntimeTest {
                 .filteredOn(event -> event.type() == PlainAgentTraceType.TOOL_COMPLETED)
                 .extracting(PlainAgentTraceEvent::toolName)
                 .containsExactly("create_draft", "inspect_draft");
+        assertThat(progress)
+                .extracting(TurnEvent::type)
+                .containsSubsequence(
+                        "plain_agent_started",
+                        "plain_agent_decision_started",
+                        "plain_agent_decision_completed",
+                        "plain_agent_tool_started",
+                        "plain_agent_tool_completed",
+                        "plain_agent_draft_preview");
+        assertThat(progress)
+                .filteredOn(event -> event.type().equals("plain_agent_draft_preview"))
+                .singleElement()
+                .extracting(TurnEvent::payload)
+                .asString()
+                .contains("node-a");
         // The working copy is deleted after the XML has been captured for the outer commit seam.
         assertThatThrownBy(() -> store.read(attempt(), result.draftRef()))
                 .isInstanceOf(IllegalStateException.class)

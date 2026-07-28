@@ -43,6 +43,7 @@ import org.zipp.ai.application.turn.TurnStartCommitPort;
 import org.zipp.ai.application.turn.TurnStartOutcome;
 import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
+import org.zipp.ai.application.turn.TurnEvent;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.execution.TurnAttemptCompletion;
@@ -78,7 +79,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TurnApplicationCompositionConfigTest {
@@ -315,7 +319,7 @@ class TurnApplicationCompositionConfigTest {
     }
 
     @Test
-    void productV2StreamCreatesTheRootRunAndExecutionStep() {
+    void productV2StreamCreatesTheRootRunAndExecutionStep() throws Exception {
         TurnHttpDeliveryAdapter delivery = mock(TurnHttpDeliveryAdapter.class);
         TurnHttpControlAdapter control = mock(TurnHttpControlAdapter.class);
         ICanvasStateStore canvases = mock(ICanvasStateStore.class);
@@ -325,13 +329,27 @@ class TurnApplicationCompositionConfigTest {
         when(runner.getIfAvailable()).thenReturn(mock(TurnAttemptExecutionRunner.class));
 
         TurnKey key = new TurnKey("owner-1", "conversation-1", "request-1");
-        when(delivery.executeProductSync(any(), any())).thenReturn(new TurnHttpDeliveryResult(
-                new TurnSubmission.TerminalReplay(
-                        key,
-                        new PersistedTurnOutcome(
-                                TurnStatus.COMPLETED, "COMPLETED", "application/json", null, "{}")),
-                List.of(),
-                false));
+        when(delivery.executeProductTracked(any(), any(), any())).thenAnswer(invocation -> {
+            TurnEventSink progress = invocation.getArgument(2);
+            progress.publish(new TurnEvent(
+                    "plain_agent_decision_started",
+                    "1\tDECIDE\t\tSTARTED\t0\t0",
+                    Instant.now()));
+            progress.publish(new TurnEvent(
+                    "plain_agent_draft_preview",
+                    "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                            + "<mxCell id=\"node-a\" value=\"A\" vertex=\"1\" parent=\"1\"/>"
+                            + "</root></mxGraphModel>",
+                    Instant.now()));
+            return new TurnHttpDeliveryResult(
+                    new TurnSubmission.TerminalReplay(
+                            key,
+                            new PersistedTurnOutcome(
+                                    TurnStatus.COMPLETED, "COMPLETED",
+                                    "application/json", null, "{}")),
+                    List.of(),
+                    false);
+        });
         when(messages.findAssistantMessage(
                 "owner-1", "diagram-1", "conversation-1", "request-1"))
                 .thenReturn(Optional.of(DiagramConversationMessage.builder()
@@ -353,8 +371,16 @@ class TurnApplicationCompositionConfigTest {
         request.setDiagramId("diagram-1");
         request.setMessage("draw it");
 
+        ResponseBodyEmitter emitter = mock(ResponseBodyEmitter.class);
         ingress.stream(
-                "owner-1", request, "request-1", "aru_stream-1", mock(ResponseBodyEmitter.class));
+                "owner-1", request, "request-1", "aru_stream-1", emitter);
+
+        verify(emitter, atLeastOnce()).send(
+                argThat(value -> value.toString().contains("\"type\":\"agent_progress\"")),
+                any(org.springframework.http.MediaType.class));
+        verify(emitter, atLeastOnce()).send(
+                argThat(value -> value.toString().contains("\"type\":\"drawio_node\"")),
+                any(org.springframework.http.MediaType.class));
 
         assertThat(telemetryStore.runs).singleElement().satisfies(run -> {
             assertThat(run.getId()).isEqualTo("aru_stream-1");
