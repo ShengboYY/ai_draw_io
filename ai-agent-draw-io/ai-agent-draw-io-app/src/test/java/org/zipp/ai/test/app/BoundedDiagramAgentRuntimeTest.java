@@ -111,6 +111,46 @@ class BoundedDiagramAgentRuntimeTest {
     }
 
     @Test
+    void returnsTheLatestStructurallyValidDraftWhenStepBudgetIsExhausted() {
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        List<PlainAgentTraceEvent> trace = new ArrayList<>();
+        BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
+                (observation, cancellation) -> new CallDiagramTool(
+                        new CreateDraftRequest(graph(
+                                "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
+                                        + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
+                                        + "as=\"geometry\"/>"
+                                        + "</mxCell>"))),
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
+                new DiagramAgentBudget(1, 3, 1, 1, 1, 2),
+                trace::add);
+
+        var result = runtime.run(
+                request(PlainDrawAction.CREATE, ""),
+                DiagramSkillBundle.empty(),
+                () -> false);
+
+        assertThat(result.stepCount()).isEqualTo(1);
+        assertThat(result.canvasXml()).contains("node-a");
+        assertThat(result.assistantMessage()).contains("step budget was exhausted");
+        assertThat(trace)
+                .filteredOn(event -> event.type() == PlainAgentTraceType.CANDIDATE_SUBMITTED)
+                .singleElement()
+                .satisfies(event -> {
+                    assertThat(event.actionType()).isEqualTo("BUDGET_FALLBACK");
+                    assertThat(event.outcomeCode())
+                            .isEqualTo("CANDIDATE_SUBMITTED");
+                });
+        assertThat(trace)
+                .filteredOn(event -> event.type() == PlainAgentTraceType.AGENT_STOPPED)
+                .singleElement()
+                .extracting(PlainAgentTraceEvent::outcomeCode)
+                .isEqualTo("CANDIDATE_SUBMITTED");
+    }
+
+    @Test
     void neverCopiesArbitraryFailureTextIntoTheAgentTrace() {
         InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
         List<PlainAgentTraceEvent> trace = new ArrayList<>();

@@ -81,7 +81,10 @@ public final class BoundedDiagramAgentRuntime {
             int repeatedActionCount = 0;
             while (true) {
                 requireActive(request.attempt(), cancellation);
-                requireCanContinue(state);
+                if (state.stepCount() >= budget.maxSteps()) {
+                    return submitBudgetFallback(state, cancellation);
+                }
+                requireProgress(state);
                 DiagramAgentObservation observation = observation(state);
 
                 long decisionStarted = System.nanoTime();
@@ -227,6 +230,66 @@ public final class BoundedDiagramAgentRuntime {
                 state.mutationCount());
     }
 
+    private DiagramAgentRunResult submitBudgetFallback(
+            DiagramAgentState state,
+            CancellationSignal cancellation
+    ) {
+        if (state.activeDraft() == null) {
+            throw stop("PLAIN_AGENT_STEP_BUDGET_EXHAUSTED");
+        }
+        requireActive(state.request().attempt(), cancellation);
+        int stepNumber = state.stepCount();
+        InspectDraftRequest validationRequest = new InspectDraftRequest(
+                state.activeDraft().ref(),
+                DraftInspectionScope.SUMMARY,
+                List.of(),
+                "");
+        String validationArgumentsDigest = ModelInputBinding.digestOf(validationRequest.toString());
+        String draftDigest = state.activeDraft().digest();
+        trace(state.request().attempt(), stepNumber, PlainAgentTraceType.TOOL_REQUESTED,
+                "BUDGET_FALLBACK_VALIDATION", validationRequest.toolName(),
+                validationArgumentsDigest, draftDigest, draftDigest, "REQUESTED",
+                issueCount(state.latestAnalysis()), 0);
+        long validationStarted = System.nanoTime();
+        DiagramAgentToolResult validation = tools.execute(
+                state.request().attempt(),
+                state.request().plan(),
+                validationRequest);
+        long validationLatency = elapsedMillis(validationStarted);
+        trace(state.request().attempt(), stepNumber, PlainAgentTraceType.TOOL_COMPLETED,
+                "BUDGET_FALLBACK_VALIDATION", validationRequest.toolName(),
+                validationArgumentsDigest, draftDigest,
+                validation.success() ? validation.draft().digest() : draftDigest,
+                validation.outcomeCode(), issueCount(validation.analysis()), validationLatency);
+        if (!validation.success() || validation.analysis() == null
+                || !validation.analysis().structurallyValid()) {
+            throw stop("PLAIN_AGENT_BUDGET_FALLBACK_INVALID");
+        }
+
+        DiagramDraftSnapshot snapshot = drafts.read(
+                state.request().attempt(), state.activeDraft().ref());
+        if (!snapshot.digest().equals(state.activeDraft().digest())) {
+            throw stop("PLAIN_AGENT_SUBMISSION_STALE");
+        }
+        int remainingIssues = validation.analysis().issues().size();
+        // Budget exhaustion is a degraded success: the outer write gate still owns the real commit.
+        trace(state.request().attempt(), stepNumber, PlainAgentTraceType.CANDIDATE_SUBMITTED,
+                "BUDGET_FALLBACK", "", "",
+                snapshot.digest(), snapshot.digest(), "CANDIDATE_SUBMITTED",
+                remainingIssues, 0);
+        trace(state.request().attempt(), stepNumber, PlainAgentTraceType.AGENT_STOPPED,
+                "BUDGET_FALLBACK", "", "",
+                snapshot.digest(), snapshot.digest(), "CANDIDATE_SUBMITTED",
+                remainingIssues, 0);
+        return new DiagramAgentRunResult(
+                snapshot.ref(),
+                snapshot.digest(),
+                snapshot.canvasXml(),
+                budgetFallbackMessage(remainingIssues),
+                stepNumber,
+                state.mutationCount());
+    }
+
     private DiagramAgentState reduce(
             DiagramAgentState state,
             DiagramAgentToolRequest request,
@@ -340,13 +403,18 @@ public final class BoundedDiagramAgentRuntime {
                 : List.of("inspect_draft", "patch_draft");
     }
 
-    private void requireCanContinue(DiagramAgentState state) {
-        if (state.stepCount() >= budget.maxSteps()) {
-            throw stop("PLAIN_AGENT_STEP_BUDGET_EXHAUSTED");
-        }
+    private void requireProgress(DiagramAgentState state) {
         if (state.noProgressCount() >= budget.maxNoProgressSteps()) {
             throw stop("PLAIN_AGENT_NO_PROGRESS");
         }
+    }
+
+    private String budgetFallbackMessage(int issueCount) {
+        String message = "The diagram was generated from the latest structurally valid draft "
+                + "after the agent step budget was exhausted.";
+        return issueCount == 0
+                ? message
+                : message + " " + issueCount + " automated check(s) remain for review.";
     }
 
     private void requireActive(FencedAttempt attempt, CancellationSignal cancellation) {
