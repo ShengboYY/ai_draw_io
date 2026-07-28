@@ -22,6 +22,15 @@ test('admin run detail consumes the P1 unified diagram trace span model', () => 
   assert.match(pageSource, /traceDisplayName\(selected\)/);
 });
 
+test('admin run detail opens safe event metadata and shows span timing by default', () => {
+  assert.match(pageSource, /<details open/);
+  assert.match(pageSource, /Event metadata/);
+  assert.match(pageSource, /Started/);
+  assert.match(pageSource, /Completed/);
+  assert.match(pageSource, /Duration/);
+  assert.match(pageSource, /selected\.kind === 'EVENT'/);
+});
+
 test('admin run detail shows P2 diagram effect evidence on selected spans', () => {
   assert.match(pageSource, /selected\.diagramEffect/);
   assert.match(pageSource, /Diagram after this span/);

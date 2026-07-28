@@ -67,6 +67,12 @@ class TelemetryPlainAgentTraceAdapterTest {
                     .doesNotContain("mxGraphModel")
                     .doesNotContain("assistantMessage");
         });
+        assertThat(store.toolCalls).singleElement().satisfies(call -> {
+            assertThat(call.getToolName()).isEqualTo("patch_draft");
+            assertThat(call.getPhase()).isEqualTo("plain_agent");
+            assertThat(call.getStatus()).isEqualTo("SUCCESS");
+            assertThat(call.getLatencyMs()).isEqualTo(12);
+        });
     }
 
     private FencedAttempt attempt() {

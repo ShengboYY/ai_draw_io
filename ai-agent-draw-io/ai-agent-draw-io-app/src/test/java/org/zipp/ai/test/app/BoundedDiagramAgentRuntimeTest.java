@@ -64,8 +64,14 @@ class BoundedDiagramAgentRuntimeTest {
                     observation.state().activeDraft().digest(),
                     "Created the flow.");
         };
+        List<PlainAgentTraceEvent> trace = new ArrayList<>();
         BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
-                decision, new DefaultDiagramAgentToolAdapter(store), store);
+                decision,
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
+                DiagramAgentBudget.defaults(),
+                trace::add);
 
         var result = runtime.run(
                 request(PlainDrawAction.CREATE, ""),
@@ -76,6 +82,10 @@ class BoundedDiagramAgentRuntimeTest {
         assertThat(result.stepCount()).isEqualTo(2);
         assertThat(result.mutationCount()).isEqualTo(1);
         assertThat(result.canvasXml()).contains("node-a");
+        assertThat(trace)
+                .filteredOn(event -> event.type() == PlainAgentTraceType.TOOL_COMPLETED)
+                .extracting(PlainAgentTraceEvent::toolName)
+                .containsExactly("create_draft", "inspect_draft");
         // The working copy is deleted after the XML has been captured for the outer commit seam.
         assertThatThrownBy(() -> store.read(attempt(), result.draftRef()))
                 .isInstanceOf(IllegalStateException.class)

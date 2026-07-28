@@ -181,14 +181,27 @@ public final class BoundedDiagramAgentRuntime {
             throw stop("PLAIN_AGENT_SUBMISSION_STALE");
         }
         requireActive(state.request().attempt(), cancellation);
+        InspectDraftRequest validationRequest = new InspectDraftRequest(
+                submit.draftRef(),
+                DraftInspectionScope.SUMMARY,
+                List.of(),
+                "");
+        String validationArgumentsDigest = ModelInputBinding.digestOf(validationRequest.toString());
+        String draftDigest = state.activeDraft().digest();
+        trace(state.request().attempt(), stepNumber, PlainAgentTraceType.TOOL_REQUESTED,
+                "FINAL_VALIDATION", validationRequest.toolName(), validationArgumentsDigest,
+                draftDigest, draftDigest, "REQUESTED",
+                issueCount(state.latestAnalysis()), 0);
+        long validationStarted = System.nanoTime();
         DiagramAgentToolResult validation = tools.execute(
                 state.request().attempt(),
                 state.request().plan(),
-                new InspectDraftRequest(
-                        submit.draftRef(),
-                        DraftInspectionScope.SUMMARY,
-                        List.of(),
-                        ""));
+                validationRequest);
+        long validationLatency = elapsedMillis(validationStarted);
+        trace(state.request().attempt(), stepNumber, PlainAgentTraceType.TOOL_COMPLETED,
+                "FINAL_VALIDATION", validationRequest.toolName(), validationArgumentsDigest,
+                draftDigest, validation.success() ? validation.draft().digest() : draftDigest,
+                validation.outcomeCode(), issueCount(validation.analysis()), validationLatency);
         if (!validation.success() || validation.analysis() == null
                 || !validation.analysis().readyForSubmission()) {
             throw stop("PLAIN_AGENT_FINAL_VALIDATION_FAILED");
