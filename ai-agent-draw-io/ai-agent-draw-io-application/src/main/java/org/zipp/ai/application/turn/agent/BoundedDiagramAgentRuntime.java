@@ -17,9 +17,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
+import java.util.regex.Pattern;
 
 /** Code-owned loop that lets the model choose actions without granting authorization or commit. */
 public final class BoundedDiagramAgentRuntime {
+
+    private static final Pattern SAFE_OUTCOME_CODE = Pattern.compile("[A-Z0-9_]{3,80}");
 
     private final DiagramAgentDecisionPort decisions;
     private final DiagramAgentToolPort tools;
@@ -380,7 +383,10 @@ public final class BoundedDiagramAgentRuntime {
 
     private String safeCode(RuntimeException failure) {
         String message = failure.getMessage();
-        return message == null || message.isBlank() ? failure.getClass().getSimpleName() : message;
+        // Trace stores stable codes only; arbitrary exception text may contain model or XML content.
+        return message != null && SAFE_OUTCOME_CODE.matcher(message).matches()
+                ? message
+                : "PLAIN_AGENT_RUNTIME_FAILED";
     }
 
     private void trace(

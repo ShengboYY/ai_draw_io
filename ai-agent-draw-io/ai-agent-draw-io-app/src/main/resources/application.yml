@@ -170,6 +170,8 @@ zipp:
     v2:
       # V2 generation capabilities are composed as one product path.
       plain-agent-id: ${TURN_V2_PLAIN_AGENT_ID:300025}
+      # Keep one-shot as the rollback-safe default until the bounded loop is enabled explicitly.
+      plain-generation-mode: ${TURN_V2_PLAIN_GENERATION_MODE:one-shot}
       grounded-agent-id: ${TURN_V2_GROUNDED_AGENT_ID:300027}
       evidence-agent-id: ${TURN_V2_EVIDENCE_AGENT_ID:300028}
   visual-review:

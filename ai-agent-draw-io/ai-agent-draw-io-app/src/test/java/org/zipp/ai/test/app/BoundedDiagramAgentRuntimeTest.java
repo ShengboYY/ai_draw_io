@@ -9,12 +9,16 @@ import org.zipp.ai.application.turn.PlainDrawPlan;
 import org.zipp.ai.application.turn.PlainExecutionProfile;
 import org.zipp.ai.application.turn.PlainGenerationRequest;
 import org.zipp.ai.application.turn.TurnEngineMode;
+import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.agent.BoundedDiagramAgentRuntime;
 import org.zipp.ai.application.turn.agent.CallDiagramTool;
 import org.zipp.ai.application.turn.agent.CreateDraftRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentAction;
+import org.zipp.ai.application.turn.agent.DiagramAgentBudget;
 import org.zipp.ai.application.turn.agent.DiagramAgentDecisionPort;
+import org.zipp.ai.application.turn.agent.PlainAgentTraceEvent;
+import org.zipp.ai.application.turn.agent.PlainAgentTraceType;
 import org.zipp.ai.application.turn.agent.SubmitDiagramCandidate;
 import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.AvailableContext;
@@ -34,6 +38,7 @@ import org.zipp.ai.infrastructure.turn.agent.DefaultDiagramAgentToolAdapter;
 import org.zipp.ai.infrastructure.turn.agent.InMemoryDiagramDraftStore;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -93,6 +98,34 @@ class BoundedDiagramAgentRuntimeTest {
                 () -> false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("PLAIN_AGENT_REPEATED_ACTION");
+    }
+
+    @Test
+    void neverCopiesArbitraryFailureTextIntoTheAgentTrace() {
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        List<PlainAgentTraceEvent> trace = new ArrayList<>();
+        BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
+                (observation, cancellation) -> {
+                    throw new IllegalStateException("unsafe <mxGraphModel> model output");
+                },
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active(),
+                DiagramAgentBudget.defaults(),
+                trace::add);
+
+        assertThatThrownBy(() -> runtime.run(
+                request(PlainDrawAction.CREATE, ""),
+                DiagramSkillBundle.empty(),
+                () -> false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("mxGraphModel");
+
+        assertThat(trace)
+                .filteredOn(event -> event.type() == PlainAgentTraceType.AGENT_STOPPED)
+                .singleElement()
+                .extracting(PlainAgentTraceEvent::outcomeCode)
+                .isEqualTo("PLAIN_AGENT_RUNTIME_FAILED");
     }
 
     private PlainGenerationRequest request(PlainDrawAction action, String canvasXml) {

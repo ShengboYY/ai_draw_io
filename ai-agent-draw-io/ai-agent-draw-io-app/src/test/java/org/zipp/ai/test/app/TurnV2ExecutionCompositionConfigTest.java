@@ -36,6 +36,12 @@ import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 import org.zipp.ai.application.turn.execution.TurnAttemptRecoveryCoordinator;
+import org.zipp.ai.application.turn.agent.BoundedDiagramAgentRuntime;
+import org.zipp.ai.application.turn.agent.DiagramAgentDecisionPort;
+import org.zipp.ai.application.turn.agent.DiagramAgentToolPort;
+import org.zipp.ai.application.turn.agent.DiagramDraftStore;
+import org.zipp.ai.application.turn.agent.PlainAgentTracePort;
+import org.zipp.ai.application.turn.skill.DiagramSkillContentPort;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 
 import java.time.Instant;
@@ -86,6 +92,25 @@ class TurnV2ExecutionCompositionConfigTest {
                         .hasSingleBean(TurnAttemptRecoveryCoordinator.class)
                         .satisfies(appContext -> assertThat(appContext.getBean(ScheduledExecutorService.class))
                                 .isNotInstanceOf(ThreadPoolExecutor.class)));
+    }
+
+    @Test
+    void selectsTheBoundedAgenticPlainPortOnlyWhenItsModeIsEnabled() {
+        contextRunner
+                .withPropertyValues("zipp.turn.v2.plain-generation-mode=agentic")
+                .withBean(DiagramAgentDecisionPort.class, () -> mock(DiagramAgentDecisionPort.class))
+                .withBean(DiagramAgentToolPort.class, () -> mock(DiagramAgentToolPort.class))
+                .withBean(DiagramDraftStore.class, () -> mock(DiagramDraftStore.class))
+                .withBean(DiagramSkillContentPort.class, () -> mock(DiagramSkillContentPort.class))
+                .withBean(PlainTurnCommitPort.class, () -> mock(PlainTurnCommitPort.class))
+                .run(context -> assertThat(context)
+                        .hasSingleBean(BoundedDiagramAgentRuntime.class)
+                        .hasSingleBean(PlainGenerationPort.class)
+                        .hasSingleBean(PlainAgentTracePort.class)
+                        .hasSingleBean(PlainDrawingHandler.class)
+                        .satisfies(appContext -> assertThat(
+                                appContext.getBean(PlainGenerationPort.class).getClass().getSimpleName())
+                                .isEqualTo("AgenticPlainGenerationAdapter")));
     }
 
     @Test
