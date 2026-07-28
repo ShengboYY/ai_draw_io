@@ -16,8 +16,10 @@ import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.regex.Pattern;
 
@@ -567,9 +569,11 @@ public final class BoundedDiagramAgentRuntime {
         if (!state.activeDraft().ref().equals(target)) {
             throw stop("PLAIN_AGENT_DRAFT_REF_STALE");
         }
-        if (request instanceof PatchDraftRequest
-                && state.mutationCount() >= budget.maxMutations()) {
-            throw stop("PLAIN_AGENT_MUTATION_BUDGET_EXHAUSTED");
+        if (request instanceof PatchDraftRequest patch) {
+            authorizeVisualRepair(state, patch);
+            if (state.mutationCount() >= budget.maxMutations()) {
+                throw stop("PLAIN_AGENT_MUTATION_BUDGET_EXHAUSTED");
+            }
         }
         if (fullXmlInspection(request)
                 && state.fullXmlInspectionCount() >= budget.maxFullXmlInspections()) {
@@ -585,6 +589,28 @@ public final class BoundedDiagramAgentRuntime {
             if (hasCurrentVisualReview(state)) {
                 throw stop("PLAIN_AGENT_DRAFT_ALREADY_REVIEWED");
             }
+        }
+    }
+
+    private void authorizeVisualRepair(
+            DiagramAgentState state,
+            PatchDraftRequest patch
+    ) {
+        if (!hasCurrentVisualReview(state)
+                || !state.latestVisualReview().requestsRepair()) {
+            return;
+        }
+        Set<String> allowedTargets = new LinkedHashSet<>();
+        for (DiagramDraftVisualIssue issue : state.latestVisualReview().issues()) {
+            allowedTargets.addAll(issue.targetCellIds());
+        }
+        boolean unauthorized = allowedTargets.isEmpty()
+                || patch.mutations().stream().anyMatch(mutation ->
+                mutation.type() != DraftMutationType.REPLACE
+                        || !allowedTargets.contains(mutation.cellId()));
+        if (unauthorized) {
+            // Visual feedback authorizes only local replacement of explicitly grounded cells.
+            throw stop("PLAIN_AGENT_REPAIR_TARGET_NOT_ALLOWED");
         }
     }
 

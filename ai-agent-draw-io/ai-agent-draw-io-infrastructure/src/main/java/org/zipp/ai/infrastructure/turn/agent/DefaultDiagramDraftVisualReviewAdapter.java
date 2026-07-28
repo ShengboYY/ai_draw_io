@@ -69,7 +69,11 @@ public final class DefaultDiagramDraftVisualReviewAdapter
             CanvasVisualReviewDecision decision =
                     policy.decide(result, CanvasVisualReviewStage.POST_MUTATION, 0);
             CanvasVisualReviewGrounding grounding = groundingGuard.ground(cells, result);
-            if (decision == CanvasVisualReviewDecision.REPAIR && grounding.hasConflict()) {
+            boolean mixedTargetsAccepted = decision == CanvasVisualReviewDecision.REPAIR
+                    && "mixed_target_capabilities".equals(grounding.conflictReason());
+            if (decision == CanvasVisualReviewDecision.REPAIR
+                    && grounding.hasConflict()
+                    && !mixedTargetsAccepted) {
                 // Ungrounded model findings remain visible evidence but cannot request an automatic patch.
                 decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
             }
@@ -79,16 +83,17 @@ public final class DefaultDiagramDraftVisualReviewAdapter
                     result != null && result.isAvailable(),
                     bounded(result == null ? "" : result.getSummary(), 500),
                     issues(result),
-                    grounding.conflictReason(),
+                    mixedTargetsAccepted ? "" : grounding.conflictReason(),
                     bounded(result == null ? "" : result.getReviewerVersion(), 256));
             log.info(
                     "[plain-agent-review] digest={} decision={} available={} issues={} "
-                            + "groundingConflict={} latencyMs={} renderer={}",
+                            + "groundingConflict={} mixedTargetsAccepted={} latencyMs={} renderer={}",
                     draft.digest(),
                     projected.decision(),
                     projected.available(),
                     projected.issues().size(),
-                    projected.groundingConflict(),
+                    grounding.conflictReason(),
+                    mixedTargetsAccepted,
                     elapsedMillis(started),
                     image.rendererVersion());
             return projected;

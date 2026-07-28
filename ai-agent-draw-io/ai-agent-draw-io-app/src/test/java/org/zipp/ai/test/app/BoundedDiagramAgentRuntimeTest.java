@@ -18,6 +18,7 @@ import org.zipp.ai.application.turn.agent.CreateDraftRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentAction;
 import org.zipp.ai.application.turn.agent.DiagramAgentBudget;
 import org.zipp.ai.application.turn.agent.DiagramAgentDecisionPort;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualIssue;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReview;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
 import org.zipp.ai.application.turn.agent.DraftCellMutation;
@@ -140,7 +141,20 @@ class BoundedDiagramAgentRuntimeTest {
         DiagramDraftVisualReviewPort visualReviews = (plan, draft) -> {
             String decision = reviews.incrementAndGet() == 1 ? "REPAIR" : "APPROVE";
             return new DiagramDraftVisualReview(
-                    draft.digest(), decision, true, decision, List.of(), "", "test-reviewer");
+                    draft.digest(),
+                    decision,
+                    true,
+                    decision,
+                    "REPAIR".equals(decision)
+                            ? List.of(new DiagramDraftVisualIssue(
+                            "LAYOUT_HIERARCHY",
+                            "MAJOR",
+                            List.of("node-a"),
+                            "The node needs a local move.",
+                            "Replace node-a with corrected geometry."))
+                            : List.of(),
+                    "",
+                    "test-reviewer");
         };
         DiagramAgentDecisionPort decision = (observation, cancellation) -> {
             var state = observation.state();
@@ -182,6 +196,60 @@ class BoundedDiagramAgentRuntimeTest {
         assertThat(result.stepCount()).isEqualTo(4);
         assertThat(result.mutationCount()).isEqualTo(2);
         assertThat(result.canvasXml()).contains("x=\"20\"");
+    }
+
+    @Test
+    void rejectsVisualRepairOutsideTheGroundedTargetCells() {
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        DiagramDraftVisualReviewPort visualReviews = (plan, draft) ->
+                new DiagramDraftVisualReview(
+                        draft.digest(),
+                        "REPAIR",
+                        true,
+                        "Only node-a needs a local repair.",
+                        List.of(new DiagramDraftVisualIssue(
+                                "LAYOUT_HIERARCHY",
+                                "MAJOR",
+                                List.of("node-a"),
+                                "node-a is misplaced.",
+                                "Replace node-a with corrected geometry.")),
+                        "",
+                        "test-reviewer");
+        DiagramAgentDecisionPort decision = (observation, cancellation) -> {
+            var state = observation.state();
+            if (state.activeDraft() == null) {
+                return new CallDiagramTool(new CreateDraftRequest(graph(
+                        "<mxCell id=\"node-a\" value=\"A\" vertex=\"1\" parent=\"1\">"
+                                + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
+                                + "as=\"geometry\"/></mxCell>"
+                                + "<mxCell id=\"node-b\" value=\"B\" vertex=\"1\" parent=\"1\">"
+                                + "<mxGeometry x=\"120\" y=\"10\" width=\"80\" height=\"40\" "
+                                + "as=\"geometry\"/></mxCell>")));
+            }
+            if (state.latestVisualReview() == null) {
+                return new CallDiagramTool(new ReviewDraftRequest(
+                        state.activeDraft().ref(), state.activeDraft().digest()));
+            }
+            return new CallDiagramTool(new PatchDraftRequest(
+                    state.activeDraft().ref(),
+                    state.activeDraft().digest(),
+                    List.of(DraftCellMutation.replace(
+                            "node-b",
+                            "<mxCell id=\"node-b\" value=\"B\" vertex=\"1\" parent=\"1\">"
+                                    + "<mxGeometry x=\"160\" y=\"10\" width=\"80\" height=\"40\" "
+                                    + "as=\"geometry\"/></mxCell>"))));
+        };
+        BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
+                decision,
+                new DefaultDiagramAgentToolAdapter(store, visualReviews),
+                store);
+
+        assertThatThrownBy(() -> runtime.run(
+                request(PlainDrawAction.CREATE, ""),
+                DiagramSkillBundle.empty(),
+                () -> false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("PLAIN_AGENT_REPAIR_TARGET_NOT_ALLOWED");
     }
 
     @Test
