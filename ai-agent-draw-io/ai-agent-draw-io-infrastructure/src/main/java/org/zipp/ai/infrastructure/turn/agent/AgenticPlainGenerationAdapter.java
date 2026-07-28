@@ -1,5 +1,7 @@
 package org.zipp.ai.infrastructure.turn.agent;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainGenerationRequest;
 import org.zipp.ai.application.turn.PlainGenerationResult;
@@ -12,9 +14,14 @@ import org.zipp.ai.domain.retrieval.CancellationSignal;
 
 import java.time.Instant;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /** Adapts the bounded working-copy result back to the unchanged Plain commit contract. */
 public final class AgenticPlainGenerationAdapter implements PlainGenerationPort {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AgenticPlainGenerationAdapter.class);
+    private static final Pattern SAFE_OUTCOME_CODE = Pattern.compile("[A-Z0-9_]{3,80}");
 
     private final DiagramSkillContentPort skills;
     private final BoundedDiagramAgentRuntime runtime;
@@ -36,9 +43,21 @@ public final class AgenticPlainGenerationAdapter implements PlainGenerationPort 
         if (request == null || events == null) {
             throw new IllegalArgumentException("plain agent request and events are required");
         }
-        DiagramSkillBundle bundle = skills.load(
-                request.attempt().key().ownerKey(),
-                request.plan().skillSelection());
+        DiagramSkillBundle bundle;
+        try {
+            bundle = skills.load(
+                    request.attempt().key().ownerKey(),
+                    request.plan().skillSelection());
+        } catch (RuntimeException failure) {
+            // Skill bodies and model input stay out of operational logs; only stable codes are safe.
+            LOG.warn("[plain-agent] event=skill_load_failed attemptId={} epoch={} "
+                            + "outcome={} errorClass={}",
+                    request.attempt().attemptId(),
+                    request.attempt().attemptEpoch(),
+                    safeOutcome(failure),
+                    failure.getClass().getSimpleName());
+            throw failure;
+        }
         var candidate = runtime.run(request, bundle, cancellation);
         events.publish(new TurnEvent(
                 "plain_agent_candidate_submitted",
@@ -50,5 +69,12 @@ public final class AgenticPlainGenerationAdapter implements PlainGenerationPort 
                 payloadRef,
                 candidate.canvasXml(),
                 candidate.assistantMessage());
+    }
+
+    private String safeOutcome(RuntimeException failure) {
+        String message = failure.getMessage();
+        return message != null && SAFE_OUTCOME_CODE.matcher(message).matches()
+                ? message
+                : "PLAIN_AGENT_SKILL_LOAD_FAILED";
     }
 }
