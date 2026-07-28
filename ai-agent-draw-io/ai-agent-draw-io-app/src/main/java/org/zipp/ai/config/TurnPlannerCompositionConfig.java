@@ -20,6 +20,7 @@ import org.zipp.ai.application.turn.planning.DefaultTurnRouteComputer;
 import org.zipp.ai.application.turn.planning.DefaultTurnRouteDispatcher;
 import org.zipp.ai.application.turn.planning.TurnRouteComputer;
 import org.zipp.ai.application.turn.planning.TurnRouteDispatcher;
+import org.zipp.ai.application.turn.skill.DiagramSkillCatalogPort;
 
 /** Composes the checkpointed pre-probe planner graph without assigning production V2 turns. */
 @Configuration(proxyBeanMethods = false)
@@ -47,10 +48,12 @@ public class TurnPlannerCompositionConfig {
             RestrictedSourceDemandInputFactory demandInputFactory,
             TurnClassificationService classification,
             DefaultPrePlanner prePlanner,
-            TurnRouteDispatcher dispatcher
+            TurnRouteDispatcher dispatcher,
+            DiagramSkillCatalogPort skillCatalog
     ) {
         return new DefaultTurnRouteComputer(
-                routerProjector, demandInputFactory, classification, prePlanner, dispatcher);
+                routerProjector, demandInputFactory, classification, prePlanner, dispatcher,
+                skillCatalog);
     }
 
     @Bean

@@ -37,6 +37,7 @@ class TurnHttpRequestTranslatorTest {
         request.setDiagramId("diagram-1");
         request.setMessage("draw");
         request.setCanvasXml("client-authoritative-canvas");
+        request.setSkills(List.of("custom-flow"));
         var selectedVersions = ChatRequestDTO.class.getDeclaredField("selectedLibraryVersionIds");
         selectedVersions.setAccessible(true);
         selectedVersions.set(request, List.of("version-1"));
@@ -48,6 +49,8 @@ class TurnHttpRequestTranslatorTest {
         assertEquals(List.of("version-1"), command.declarations().legacySelectedSources()
                 .stream().map(value -> value.value()).toList());
         assertEquals("session-1", command.runtimeSessionId());
+        assertEquals(List.of("custom-flow"), command.declarations().requestedDiagramSkills()
+                .stream().map(value -> value.value()).toList());
         assertFalse(command.declarations().currentTurnAttachments().contains(
                 new org.zipp.ai.application.turn.OpaqueConversationFileRef("client-authoritative-canvas")));
     }

@@ -13,7 +13,8 @@ public record TurnHttpRequest(
         List<String> currentTurnAttachmentRefs,
         String clarificationId,
         List<String> legacySelectedSourceIds,
-        String memoryChartbookId
+        String memoryChartbookId,
+        List<String> requestedSkillNames
 ) {
 
     public TurnHttpRequest {
@@ -21,9 +22,11 @@ public record TurnHttpRequest(
                 currentTurnAttachmentRefs == null ? List.of() : currentTurnAttachmentRefs);
         legacySelectedSourceIds = List.copyOf(
                 legacySelectedSourceIds == null ? List.of() : legacySelectedSourceIds);
+        requestedSkillNames = List.copyOf(
+                requestedSkillNames == null ? List.of() : requestedSkillNames);
     }
 
-    /** Compatibility constructor for callers that do not declare a Memory target. */
+    /** Compatibility constructor for callers that predate V2 skill declarations. */
     public TurnHttpRequest(
             String turnId,
             String conversationReference,
@@ -37,6 +40,24 @@ public record TurnHttpRequest(
     ) {
         this(turnId, conversationReference, diagramId, clientMessageId, content,
                 runtimeSessionId, currentTurnAttachmentRefs, clarificationId,
-                legacySelectedSourceIds, null);
+                legacySelectedSourceIds, null, List.of());
+    }
+
+    /** Compatibility constructor for callers that declare Memory but not V2 skills. */
+    public TurnHttpRequest(
+            String turnId,
+            String conversationReference,
+            String diagramId,
+            String clientMessageId,
+            String content,
+            String runtimeSessionId,
+            List<String> currentTurnAttachmentRefs,
+            String clarificationId,
+            List<String> legacySelectedSourceIds,
+            String memoryChartbookId
+    ) {
+        this(turnId, conversationReference, diagramId, clientMessageId, content,
+                runtimeSessionId, currentTurnAttachmentRefs, clarificationId,
+                legacySelectedSourceIds, memoryChartbookId, List.of());
     }
 }

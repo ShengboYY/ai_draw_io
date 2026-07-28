@@ -26,6 +26,10 @@ public final class PlainDrawPlanFactory {
         if (action == null) {
             return new PlainDrawPlanRejected("PLAIN_ACTION_UNSUPPORTED");
         }
-        return new PlainDrawPlanReady(new PlainDrawPlan(action, classification.instruction().value()));
+        return new PlainDrawPlanReady(new PlainDrawPlan(
+                action,
+                classification.instruction().value(),
+                classification.intent().diagramType(),
+                classification.skillSelection()));
     }
 }

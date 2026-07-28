@@ -29,6 +29,9 @@ import org.zipp.ai.application.turn.demand.SourceDemandKind;
 import org.zipp.ai.application.turn.planning.PlanningLineageFingerprint;
 import org.zipp.ai.application.turn.planning.PrePlanOutcome;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
+import org.zipp.ai.application.turn.skill.DiagramSkillBinding;
+import org.zipp.ai.application.turn.skill.DiagramSkillSelectionSource;
+import org.zipp.ai.application.turn.skill.ResolvedDiagramSkillSelection;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,7 +44,7 @@ import java.util.Set;
 public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCodec {
 
     private static final String KIND = "TURN_ROUTE_V1";
-    private static final int VERSION = 4;
+    private static final int VERSION = 5;
     @Override
     public EncodedTurnRouteDecision encode(TurnRouteDecision decision) {
         if (decision == null) {
@@ -55,6 +58,8 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
                     value.lineage());
             root.put("action", value.plan().action().name());
             root.put("instruction", value.plan().instruction());
+            root.put("diagramType", value.plan().diagramType());
+            root.put("skillSelection", encodeSkillSelection(value.plan().skillSelection()));
         } else if (decision instanceof TurnRouteDecision.Response response) {
             PrePlanOutcome.SourceFreeResponseReady value = response.value();
             common(root, "PLAIN_RESPONSE", value.contextReadSetDigest(), value.inputBindingDigest(),
@@ -145,10 +150,77 @@ public final class FastjsonTurnRouteDecisionCodec implements TurnRouteDecisionCo
             String contextDigest,
             String inputDigest
     ) {
+        PlainDrawPlan plan;
+        if (root.getIntValue("version") >= 5) {
+            plan = new PlainDrawPlan(
+                    PlainDrawAction.valueOf(text(root, "action", 32)),
+                    text(root, "instruction", 16_000),
+                    text(root, "diagramType", 128),
+                    decodeSkillSelection(root.getJSONObject("skillSelection")));
+        } else {
+            plan = new PlainDrawPlan(
+                    PlainDrawAction.valueOf(text(root, "action", 32)),
+                    text(root, "instruction", 16_000));
+        }
         return new TurnRouteDecision.Plain(new PrePlanOutcome.SourceFreeReady(
-                new PlainDrawPlan(PlainDrawAction.valueOf(text(root, "action", 32)),
-                        text(root, "instruction", 16_000)),
+                plan,
                 lineage, contextDigest, inputDigest));
+    }
+
+    private JSONObject encodeSkillSelection(ResolvedDiagramSkillSelection selection) {
+        JSONObject value = new JSONObject(true);
+        value.put("source", selection.source().name());
+        value.put("catalogDigest", selection.catalogDigest());
+        value.put("selected", encodeSkills(selection.selectedSkills()));
+        value.put("required", encodeSkills(selection.requiredSkills()));
+        return value;
+    }
+
+    private JSONArray encodeSkills(List<DiagramSkillBinding> skills) {
+        JSONArray values = new JSONArray();
+        for (DiagramSkillBinding skill : skills) {
+            JSONObject value = new JSONObject(true);
+            value.put("name", skill.name());
+            value.put("diagramType", skill.diagramType());
+            value.put("contentDigest", skill.contentDigest());
+            values.add(value);
+        }
+        return values;
+    }
+
+    private ResolvedDiagramSkillSelection decodeSkillSelection(JSONObject value) {
+        if (value == null || !value.keySet().equals(
+                Set.of("source", "catalogDigest", "selected", "required"))) {
+            throw new IllegalArgumentException("plain skill selection fields are invalid");
+        }
+        return new ResolvedDiagramSkillSelection(
+                decodeSkills(value.getJSONArray("selected")),
+                decodeSkills(value.getJSONArray("required")),
+                DiagramSkillSelectionSource.valueOf(text(value, "source", 32)),
+                text(value, "catalogDigest", 64));
+    }
+
+    private List<DiagramSkillBinding> decodeSkills(JSONArray values) {
+        if (values == null || values.size() > 8) {
+            throw new IllegalArgumentException("plain skill bindings are invalid");
+        }
+        List<DiagramSkillBinding> result = new ArrayList<>();
+        Set<String> names = new HashSet<>();
+        for (Object item : values) {
+            if (!(item instanceof JSONObject value)
+                    || !value.keySet().equals(Set.of("name", "diagramType", "contentDigest"))) {
+                throw new IllegalArgumentException("plain skill binding fields are invalid");
+            }
+            DiagramSkillBinding skill = new DiagramSkillBinding(
+                    text(value, "name", 128),
+                    text(value, "diagramType", 128),
+                    text(value, "contentDigest", 64));
+            if (!names.add(skill.name())) {
+                throw new IllegalArgumentException("plain skill bindings contain duplicate names");
+            }
+            result.add(skill);
+        }
+        return List.copyOf(result);
     }
 
     private TurnRouteDecision decodeSourcePlanning(

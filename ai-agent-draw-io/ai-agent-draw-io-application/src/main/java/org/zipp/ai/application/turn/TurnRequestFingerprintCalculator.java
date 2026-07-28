@@ -27,6 +27,12 @@ public final class TurnRequestFingerprintCalculator {
                 .map(UntrustedLegacyVersionDeclaration::value)
                 .toList());
         append(canonical, "memory", memoryValue(command.declarations().memoryWrite()));
+        if (!command.declarations().requestedDiagramSkills().isEmpty()) {
+            // Additive declarations are bound without changing schema-v1 fingerprints for old callers.
+            append(canonical, "diagramSkills", command.declarations().requestedDiagramSkills().stream()
+                    .map(RequestedDiagramSkill::value)
+                    .toList());
+        }
         return new VersionedRequestFingerprint(CURRENT_SCHEMA_VERSION, sha256(canonical.toString()));
     }
 

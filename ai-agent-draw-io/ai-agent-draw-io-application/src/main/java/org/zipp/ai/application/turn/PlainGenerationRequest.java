@@ -20,6 +20,12 @@ public record PlainGenerationRequest(
 
     public ModelInputBinding modelInputBinding() {
         return ModelInputBinding.bound(
-                attempt.key(), readSet.digest(), ModelInputBinding.digestOf(plan.action().name(), plan.instruction()));
+                attempt.key(),
+                readSet.digest(),
+                ModelInputBinding.digestOf(
+                        plan.action().name(),
+                        plan.instruction(),
+                        plan.diagramType(),
+                        plan.skillSelection().bindingDigest()));
     }
 }

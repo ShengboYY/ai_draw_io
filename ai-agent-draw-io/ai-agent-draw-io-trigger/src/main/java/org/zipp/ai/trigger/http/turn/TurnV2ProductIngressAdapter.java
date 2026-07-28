@@ -511,7 +511,8 @@ public final class TurnV2ProductIngressAdapter {
                 request.getCurrentTurnAttachmentRefs(),
                 null,
                 request.getSelectedLibraryVersionIds(),
-                request.getMemoryChartbookId());
+                request.getMemoryChartbookId(),
+                request.getSkills());
     }
 
     private ChatResponseDTO toChatResponse(BridgeResult result) {

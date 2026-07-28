@@ -509,8 +509,12 @@ public class SkillCatalogService {
 
     /** Skills the given user's router may select: draw.io design skills, excluding shared skills. */
     public List<SkillInfo> selectableSkills(String ownerId) {
+        return selectableSkills(catalog(ownerId));
+    }
+
+    private List<SkillInfo> selectableSkills(Map<String, SkillInfo> visibleCatalog) {
         List<SkillInfo> list = new ArrayList<>();
-        for (SkillInfo info : catalog(ownerId).values()) {
+        for (SkillInfo info : visibleCatalog.values()) {
             if (!SHARED_SKILL.equals(info.name())
                     && !SHARED_XML_GUIDE_SKILL.equals(info.name())
                     && info.selectable()
@@ -519,7 +523,44 @@ public class SkillCatalogService {
                 list.add(info);
             }
         }
-        return list;
+        // Stable ordering makes router prompts and checkpoint digests reproducible across stores.
+        return list.stream().sorted(java.util.Comparator.comparing(SkillInfo::name)).toList();
+    }
+
+    /**
+     * Reads the owner-visible catalog once for V2 routing and later deterministic validation.
+     * Skill bodies remain in this domain snapshot only long enough for content digest calculation.
+     */
+    public RuntimeCatalog runtimeCatalog(String ownerId) {
+        Map<String, SkillInfo> visible = catalog(ownerId);
+        List<SkillInfo> selectable = selectableSkills(visible);
+        StringBuilder prompt = new StringBuilder();
+        for (SkillInfo info : selectable) {
+            prompt.append("- ").append(sanitizeForPrompt(info.name(), 64))
+                    .append(": ").append(sanitizeForPrompt(info.description(), 200)).append('\n');
+        }
+        List<SkillInfo> shared = new ArrayList<>();
+        // Shared ordering is an explicit runtime contract: XML rules precede visual guidance.
+        for (String name : List.of(SHARED_XML_GUIDE_SKILL, SHARED_SKILL)) {
+            SkillInfo info = visible.get(name);
+            if (info != null && info.valid() && ROUTER_SKILL_CATEGORY.equals(info.category())) {
+                shared.add(info);
+            }
+        }
+        return new RuntimeCatalog(prompt.toString(), selectable, shared);
+    }
+
+    /** Single-read V2 catalog projection, including required shared skills. */
+    public record RuntimeCatalog(
+            String promptText,
+            List<SkillInfo> selectableSkills,
+            List<SkillInfo> sharedSkills
+    ) {
+        public RuntimeCatalog {
+            promptText = promptText == null ? "" : promptText;
+            selectableSkills = List.copyOf(selectableSkills == null ? List.of() : selectableSkills);
+            sharedSkills = List.copyOf(sharedSkills == null ? List.of() : sharedSkills);
+        }
     }
 
     /**
@@ -528,14 +569,12 @@ public class SkillCatalogService {
      * instead of hitting the catalog (DB) a second time.
      */
     public RouterCatalog routerCatalog(String ownerId) {
-        StringBuilder sb = new StringBuilder();
+        RuntimeCatalog runtime = runtimeCatalog(ownerId);
         Set<String> names = new LinkedHashSet<>();
-        for (SkillInfo info : selectableSkills(ownerId)) {
-            sb.append("- ").append(sanitizeForPrompt(info.name(), 64))
-              .append(": ").append(sanitizeForPrompt(info.description(), 200)).append('\n');
+        for (SkillInfo info : runtime.selectableSkills()) {
             names.add(info.name());
         }
-        return new RouterCatalog(sb.toString(), names);
+        return new RouterCatalog(runtime.promptText(), names);
     }
 
     /** Router prompt menu paired with the set of skill names actually offered to the router. */

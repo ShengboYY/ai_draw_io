@@ -13,6 +13,7 @@ import org.zipp.ai.application.turn.demand.ResolvedSourceDemand;
 import org.zipp.ai.application.turn.demand.SourceDemandDecision;
 import org.zipp.ai.application.turn.demand.SourceDemandProposal;
 import org.zipp.ai.application.turn.demand.TypedSourceDemandProposal;
+import org.zipp.ai.application.turn.skill.DiagramSkillBinding;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -45,6 +46,14 @@ public final class PlanningLineageFingerprintCalculator {
         field(canonical, "targetNeed", intent.targetNeed().name());
         field(canonical, "diagramType", intent.diagramType());
         field(canonical, "skillName", intent.skillName());
+        field(canonical, "skillSelectionSource", classification.skillSelection().source().name());
+        field(canonical, "skillCatalogDigest", classification.skillSelection().catalogDigest());
+        for (DiagramSkillBinding skill : classification.skillSelection().selectedSkills()) {
+            field(canonical, "selectedSkill", skill.name() + ":" + skill.contentDigest());
+        }
+        for (DiagramSkillBinding skill : classification.skillSelection().requiredSkills()) {
+            field(canonical, "requiredSkill", skill.name() + ":" + skill.contentDigest());
+        }
         ProposalEvidence evidence = evidenceOf(classification.demandProposal());
         field(canonical, "demandInputDigest", evidence.inputDigest());
         field(canonical, "demandModelVersion", evidence.modelVersion());

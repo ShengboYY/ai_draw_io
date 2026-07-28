@@ -25,6 +25,12 @@ public final class TurnInputBindingDigestCalculator {
                 .map(UntrustedLegacyVersionDeclaration::value)
                 .toList());
         append(canonical, "memory", command.declarations().memoryWrite().toString());
+        if (!command.declarations().requestedDiagramSkills().isEmpty()) {
+            // Keep legacy empty-skill bindings stable while binding every new explicit selection.
+            append(canonical, "diagramSkills", command.declarations().requestedDiagramSkills().stream()
+                    .map(RequestedDiagramSkill::value)
+                    .toList());
+        }
         return sha256(canonical.toString());
     }
 

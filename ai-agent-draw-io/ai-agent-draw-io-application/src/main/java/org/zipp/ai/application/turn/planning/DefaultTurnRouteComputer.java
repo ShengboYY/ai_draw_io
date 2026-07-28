@@ -12,6 +12,8 @@ import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.RestrictedSourceDemandInputFactory;
 import org.zipp.ai.application.turn.context.SemanticRouterContextProjector;
+import org.zipp.ai.application.turn.skill.DiagramSkillCatalogPort;
+import org.zipp.ai.application.turn.skill.DiagramSkillCatalogSnapshot;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -27,7 +29,25 @@ public final class DefaultTurnRouteComputer implements TurnRouteComputer {
     private final TurnClassificationService classification;
     private final DefaultPrePlanner prePlanner;
     private final TurnRouteDispatcher dispatcher;
+    private final DiagramSkillCatalogPort skillCatalog;
 
+    public DefaultTurnRouteComputer(
+            SemanticRouterContextProjector routerProjector,
+            RestrictedSourceDemandInputFactory demandInputFactory,
+            TurnClassificationService classification,
+            DefaultPrePlanner prePlanner,
+            TurnRouteDispatcher dispatcher,
+            DiagramSkillCatalogPort skillCatalog
+    ) {
+        this.routerProjector = Objects.requireNonNull(routerProjector, "routerProjector");
+        this.demandInputFactory = Objects.requireNonNull(demandInputFactory, "demandInputFactory");
+        this.classification = Objects.requireNonNull(classification, "classification");
+        this.prePlanner = Objects.requireNonNull(prePlanner, "prePlanner");
+        this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
+        this.skillCatalog = Objects.requireNonNull(skillCatalog, "skillCatalog");
+    }
+
+    /** Compatibility constructor for isolated planner tests without a configured skill catalog. */
     public DefaultTurnRouteComputer(
             SemanticRouterContextProjector routerProjector,
             RestrictedSourceDemandInputFactory demandInputFactory,
@@ -35,11 +55,8 @@ public final class DefaultTurnRouteComputer implements TurnRouteComputer {
             DefaultPrePlanner prePlanner,
             TurnRouteDispatcher dispatcher
     ) {
-        this.routerProjector = Objects.requireNonNull(routerProjector, "routerProjector");
-        this.demandInputFactory = Objects.requireNonNull(demandInputFactory, "demandInputFactory");
-        this.classification = Objects.requireNonNull(classification, "classification");
-        this.prePlanner = Objects.requireNonNull(prePlanner, "prePlanner");
-        this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
+        this(routerProjector, demandInputFactory, classification, prePlanner, dispatcher,
+                DiagramSkillCatalogPort.empty());
     }
 
     @Override
@@ -63,7 +80,15 @@ public final class DefaultTurnRouteComputer implements TurnRouteComputer {
         var projectedRouter = routerProjector.forRouter(context);
         var projectedDemand = demandInputFactory.create(context);
         // The router sees only opaque source metadata. Authorization and source I/O remain later.
-        var combinedRouter = projectedRouter.withSourceContext(projectedDemand);
+        DiagramSkillCatalogSnapshot skills;
+        try {
+            skills = skillCatalog.snapshot(attempt.key().ownerKey());
+        } catch (RuntimeException exception) {
+            return unavailable("V2_SKILL_CATALOG_UNAVAILABLE");
+        }
+        var combinedRouter = projectedRouter
+                .withSourceContext(projectedDemand)
+                .withSkillContext(skills, command.declarations().requestedDiagramSkills());
         var routerInput = combinedRouter.withModelInputBinding(ModelInputBinding.bound(
                 attempt.key(), readSet.digest(), combinedRouter.inputDigest()));
         var demandInput = projectedDemand;

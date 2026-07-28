@@ -10,6 +10,7 @@ import org.zipp.ai.application.turn.classification.TurnClassificationService;
 import org.zipp.ai.application.turn.context.RestrictedSourceDemandInputFactory;
 import org.zipp.ai.application.turn.context.SemanticRouterContextProjector;
 import org.zipp.ai.application.turn.planning.TurnRouteComputer;
+import org.zipp.ai.application.turn.skill.DiagramSkillCatalogPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -27,6 +28,8 @@ class TurnPlannerCompositionConfigTest {
                     () -> mock(TurnDecisionCheckpointQueryPort.class))
             .withBean(TurnDecisionCheckpointCommitPort.class,
                     () -> mock(TurnDecisionCheckpointCommitPort.class))
+            .withBean(DiagramSkillCatalogPort.class,
+                    () -> mock(DiagramSkillCatalogPort.class))
             .withBean(TurnRouteDecisionCodec.class, () -> mock(TurnRouteDecisionCodec.class));
 
     @Test
