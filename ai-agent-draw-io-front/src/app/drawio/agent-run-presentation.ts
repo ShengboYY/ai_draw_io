@@ -3,6 +3,9 @@ export type AgentRunEventTone = 'analysis' | 'drawing' | 'tool' | 'validation' |
 export type AgentRunScope = 'full' | 'local' | 'append' | 'layout' | 'review';
 export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'answer_with_evidence' | 'clarify' | 'review_only';
 export type UserExecutionStage = 'analysis' | 'preparation' | 'generation' | 'verification';
+export type AgentLoopProgressStage = 'agent_started' | 'skills_loaded' | 'decision_started' | 'decision_completed'
+  | 'tool_started' | 'tool_completed' | 'visual_review_started'
+  | 'visual_review_completed' | 'candidate_submitted';
 export type VisualReviewDecision = 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
 export type VisualReviewStage = 'CURRENT_CANVAS' | 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
 
@@ -252,6 +255,90 @@ export const projectUserExecutionStep = ({
     label = useChinese ? '生成图表' : 'Generate diagram';
   }
   return { key: stage, phase: stage, label };
+};
+
+export const projectAgentLoopExecutionStep = ({
+  stage,
+  step = 0,
+  tool = '',
+  reviewRound = 0,
+  repairRound = 0,
+  useChinese = false,
+}: {
+  stage: AgentLoopProgressStage;
+  step?: number;
+  tool?: string;
+  reviewRound?: number;
+  repairRound?: number;
+  useChinese?: boolean;
+}): { key: string; phase: string; label: string } => {
+  if (stage === 'agent_started') {
+    return {
+      key: 'agent-loop-start',
+      phase: 'agent_loop',
+      label: useChinese ? '启动绘图 Agent' : 'Start drawing agent',
+    };
+  }
+  if (stage === 'skills_loaded') {
+    return {
+      key: 'agent-loop-skills',
+      phase: 'agent_skills',
+      label: useChinese ? '加载绘图 Skill' : 'Load diagram skills',
+    };
+  }
+  if (stage === 'decision_started' || stage === 'decision_completed') {
+    return {
+      key: `agent-decision-${step}`,
+      phase: 'agent_decision',
+      label: useChinese ? `规划第 ${step} 步` : `Plan step ${step}`,
+    };
+  }
+  if (stage === 'visual_review_started' || stage === 'visual_review_completed') {
+    const round = Math.max(1, reviewRound);
+    return {
+      key: `agent-visual-review-${round}`,
+      phase: 'agent_visual_review',
+      label: round === 1
+        ? (useChinese ? '视觉审查' : 'Visual review')
+        : (useChinese ? `再次视觉审查（第 ${round} 次）` : `Visual review round ${round}`),
+    };
+  }
+  if (stage === 'candidate_submitted') {
+    return {
+      key: 'agent-candidate-submit',
+      phase: 'agent_submit',
+      label: useChinese ? '提交结果' : 'Submit result',
+    };
+  }
+
+  const normalizedTool = tool || 'diagram_tool';
+  if (normalizedTool === 'create_draft') {
+    return {
+      key: `agent-tool-${step}-${normalizedTool}`,
+      phase: 'agent_drawing',
+      label: useChinese ? '生成初始草稿' : 'Generate initial draft',
+    };
+  }
+  if (normalizedTool === 'patch_draft') {
+    const round = Math.max(1, repairRound);
+    return {
+      key: `agent-tool-${step}-${normalizedTool}`,
+      phase: 'agent_repair',
+      label: useChinese ? `局部修复（第 ${round} 轮）` : `Local repair round ${round}`,
+    };
+  }
+  if (normalizedTool === 'inspect_draft') {
+    return {
+      key: `agent-tool-${step}-${normalizedTool}`,
+      phase: 'agent_inspection',
+      label: useChinese ? '读取当前草稿' : 'Read current draft',
+    };
+  }
+  return {
+    key: `agent-tool-${step}-${normalizedTool}`,
+    phase: 'agent_tool',
+    label: useChinese ? `执行 ${normalizedTool}` : `Run ${normalizedTool}`,
+  };
 };
 
 export const visualReviewStageLabel = (stage: VisualReviewStage | 'REPAIR', useChinese = false) => {

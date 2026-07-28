@@ -10,6 +10,7 @@ import {
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
+  projectAgentLoopExecutionStep,
   projectUserExecutionStep,
   shouldShowAgentTyping,
   thinkingPhaseLabel,
@@ -63,6 +64,69 @@ test('internal phases project onto stable user-visible execution stages', () => 
       { key: 'verification', phase: 'verification', label: '检查结果' },
     );
   }
+});
+
+test('plain agent loop projects each draft and review pass onto a distinct visible step', () => {
+  assert.deepEqual(
+    projectAgentLoopExecutionStep({
+      stage: 'tool_started',
+      step: 1,
+      tool: 'create_draft',
+      useChinese: true,
+    }),
+    {
+      key: 'agent-tool-1-create_draft',
+      phase: 'agent_drawing',
+      label: '生成初始草稿',
+    },
+  );
+  assert.deepEqual(
+    projectAgentLoopExecutionStep({
+      stage: 'visual_review_started',
+      step: 1,
+      reviewRound: 1,
+      useChinese: true,
+    }),
+    {
+      key: 'agent-visual-review-1',
+      phase: 'agent_visual_review',
+      label: '视觉审查',
+    },
+  );
+  assert.deepEqual(
+    projectAgentLoopExecutionStep({
+      stage: 'tool_completed',
+      step: 2,
+      tool: 'patch_draft',
+      repairRound: 1,
+      useChinese: true,
+    }),
+    {
+      key: 'agent-tool-2-patch_draft',
+      phase: 'agent_repair',
+      label: '局部修复（第 1 轮）',
+    },
+  );
+  assert.deepEqual(
+    projectAgentLoopExecutionStep({
+      stage: 'visual_review_completed',
+      step: 2,
+      reviewRound: 2,
+      useChinese: true,
+    }),
+    {
+      key: 'agent-visual-review-2',
+      phase: 'agent_visual_review',
+      label: '再次视觉审查（第 2 次）',
+    },
+  );
+  assert.equal(
+    projectAgentLoopExecutionStep({
+      stage: 'candidate_submitted',
+      useChinese: true,
+    }).label,
+    '提交结果',
+  );
 });
 
 test('route step describes the actual diagram type and selected skill', () => {
