@@ -65,6 +65,7 @@ import org.zipp.ai.application.turn.skill.DiagramSkillContentPort;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.infrastructure.turn.agent.AgenticPlainGenerationAdapter;
+import org.zipp.ai.infrastructure.turn.agent.LoggingPlainAgentTraceAdapter;
 import org.zipp.ai.infrastructure.turn.agent.TelemetryPlainAgentTraceAdapter;
 
 import java.util.concurrent.Executor;
@@ -96,9 +97,11 @@ public class TurnV2ExecutionCompositionConfig {
             ObjectProvider<AgentUsageTelemetryService> telemetry
     ) {
         AgentUsageTelemetryService service = telemetry.getIfAvailable();
-        return service == null
+        PlainAgentTracePort telemetryTrace = service == null
                 ? PlainAgentTracePort.NOOP
                 : new TelemetryPlainAgentTraceAdapter(service);
+        // Operational logs remain available even when the telemetry store is disabled.
+        return new LoggingPlainAgentTraceAdapter(telemetryTrace);
     }
 
     @Bean
