@@ -98,6 +98,7 @@ import {
   AgentRunEventStatus,
   AgentRunEventTone,
   VisualReviewPresentation,
+  agentLoopActionLabel,
   buildAgentCompletionReply,
   buildAgentRunView,
   buildRouteStepDetail,
@@ -111,6 +112,7 @@ import {
   shouldShowAgentTyping,
   thinkingRouteLabel,
   usesChinesePresentation,
+  visualReviewDecisionLabel,
   visualReviewUnavailableReason,
   visualReviewStageLabel,
 } from './agent-run-presentation';
@@ -3100,9 +3102,12 @@ function DrawioPageContent() {
 
           // A drawing turn may send its final assistant text in the answer phase after the canvas
           // is complete; that terminal copy must not relabel the generation step as an answer task.
+          const isAgentLoopCanvasChunk = agentLoopProgressObserved
+            && ['drawio_preview', 'drawio_node', 'drawio_edge', 'drawio_done'].includes(chunk.type);
           const shouldTrackPhase = phase !== 'done'
             && phase !== 'error'
             && chunk.type !== 'agent_progress'
+            && !isAgentLoopCanvasChunk
             && !(phase === 'answer' && receivedDrawioDone);
           if (shouldTrackPhase) {
             const previousPhase = activeStreamPhase;
@@ -3450,13 +3455,9 @@ function DrawioPageContent() {
 
             case 'agent_progress': {
               agentLoopProgressObserved = true;
-              const elapsed = typeof chunk.latencyMs === 'number' && chunk.latencyMs > 0
-                ? (chunk.latencyMs >= 1000
-                  ? `${(chunk.latencyMs / 1000).toFixed(1)} s`
-                  : `${chunk.latencyMs} ms`)
-                : '';
               const step = chunk.step || 0;
-              const tool = chunk.tool || chunk.action || '';
+              const tool = chunk.tool || '';
+              const action = chunk.action || '';
               if (chunk.stage === 'visual_review_started') {
                 agentLoopVisualReviewRound += 1;
               }
@@ -3468,42 +3469,66 @@ function DrawioPageContent() {
               }
               let detail = '';
               if (chunk.stage === 'agent_started') {
-                detail = useChinese ? 'Agent Loop 已启动。' : 'Agent loop started.';
+                detail = useChinese ? '绘图流程已启动。' : 'Drawing process started.';
               } else if (chunk.stage === 'skills_loaded') {
                 const count = chunk.skillCount || 0;
                 detail = useChinese
-                  ? `已加载 ${count} 个绘图 Skill。`
-                  : `Loaded ${count} diagram skill${count === 1 ? '' : 's'}.`;
+                  ? `已加载 ${count} 项绘图指导。`
+                  : `Loaded ${count} diagram guidance item${count === 1 ? '' : 's'}.`;
               } else if (chunk.stage === 'decision_started') {
                 detail = useChinese
-                  ? `正在决定第 ${step} 步操作。`
-                  : `Choosing action for step ${step}.`;
+                  ? '正在根据当前草稿规划下一步。'
+                  : 'Planning the next action from the current draft.';
               } else if (chunk.stage === 'decision_completed') {
+                const actionLabel = agentLoopActionLabel(tool, action, useChinese);
                 detail = useChinese
-                  ? `第 ${step} 步选择了 ${tool || '提交候选图'}${elapsed ? `（${elapsed}）` : ''}。`
-                  : `Step ${step} selected ${tool || 'candidate submission'}${elapsed ? ` (${elapsed})` : ''}.`;
+                  ? `下一步将${actionLabel}。`
+                  : `Next action: ${actionLabel}.`;
               } else if (chunk.stage === 'tool_started') {
+                const actionLabel = agentLoopActionLabel(tool, action, useChinese);
                 detail = useChinese
-                  ? `正在执行 ${tool}。`
-                  : `Running ${tool}.`;
+                  ? `正在${actionLabel}。`
+                  : `Starting to ${actionLabel}.`;
               } else if (chunk.stage === 'visual_review_started') {
                 detail = useChinese
-                  ? 'Visual Review Agent 正在审查当前草稿。'
-                  : 'Visual Review Agent is reviewing the current draft.';
+                  ? '正在检查画布的可读性、布局和连线表达。'
+                  : 'Checking canvas readability, layout, and connector clarity.';
               } else if (chunk.stage === 'visual_review_completed') {
                 const issues = chunk.issueCount || 0;
-                detail = useChinese
-                  ? `视觉审查已完成${elapsed ? `（${elapsed}）` : ''}，结论为 ${chunk.outcome || 'UNAVAILABLE'}，发现 ${issues} 个问题。`
-                  : `Visual review completed${elapsed ? ` (${elapsed})` : ''}; decision ${chunk.outcome || 'UNAVAILABLE'}, ${issues} issue${issues === 1 ? '' : 's'}.`;
+                const decision = visualReviewDecisionLabel(chunk.outcome, useChinese);
+                const reviewSummary = (chunk.reviewSummary || '').trim();
+                const summary = reviewSummary.toUpperCase() === (chunk.outcome || '').toUpperCase()
+                  ? ''
+                  : reviewSummary;
+                const feedback = (chunk.reviewFeedback || [])
+                  .map(value => value.trim())
+                  .filter(Boolean)
+                  .slice(0, 3);
+                const issueDetail = feedback.length > 0
+                  ? (useChinese
+                    ? `具体意见：${feedback.join('；')}`
+                    : `Feedback: ${feedback.join('; ')}`)
+                  : issues > 0
+                    ? (useChinese
+                      ? `发现 ${issues} 个需要处理的问题。`
+                      : `Found ${issues} issue${issues === 1 ? '' : 's'} to address.`)
+                    : '';
+                detail = [
+                  useChinese ? `视觉审查结论：${decision}。` : `Visual review result: ${decision}.`,
+                  summary,
+                  issueDetail,
+                ].filter(Boolean).join(' ');
               } else if (chunk.stage === 'tool_completed') {
-                if (tool === 'inspect_draft') {
+                if (tool === 'create_draft') {
+                  detail = useChinese ? '初始草稿已生成。' : 'Initial draft generated.';
+                } else if (tool === 'patch_draft') {
+                  detail = useChinese ? '局部修复已完成。' : 'Local repair completed.';
+                } else if (tool === 'inspect_draft') {
                   detail = useChinese
-                    ? `草稿读取完成${elapsed ? `（${elapsed}）` : ''}。`
-                    : `Draft read completed${elapsed ? ` (${elapsed})` : ''}.`;
+                    ? '已读取修复所需的画布信息。'
+                    : 'Read the canvas information needed for repair.';
                 } else {
-                  detail = useChinese
-                    ? `${tool} 已完成${elapsed ? `（${elapsed}）` : ''}。`
-                    : `${tool} completed${elapsed ? ` (${elapsed})` : ''}.`;
+                  detail = useChinese ? '当前处理已完成。' : 'Current draft operation completed.';
                 }
               } else if (chunk.stage === 'candidate_submitted') {
                 detail = useChinese

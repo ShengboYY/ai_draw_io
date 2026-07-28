@@ -14,8 +14,10 @@ import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.skill.DiagramSkillBundle;
 import org.zipp.ai.domain.retrieval.CancellationSignal;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -534,8 +536,8 @@ public final class BoundedDiagramAgentRuntime {
                 actionType, "visual_review_agent", "",
                 digest, digest, review.decision(), review.issues().size(), latency);
         publish(events, "plain_agent_visual_review_completed",
-                progressPayload(stepNumber, actionType, "visual_review_agent",
-                        review.decision(), latency, review.issues().size()));
+                visualReviewProgressPayload(
+                        stepNumber, actionType, review, latency));
 
         ArrayList<DiagramAgentStepRecord> steps = new ArrayList<>(state.steps());
         steps.add(new DiagramAgentStepRecord(
@@ -778,6 +780,65 @@ public final class BoundedDiagramAgentRuntime {
         // in the application module and can be safely projected by transport adapters.
         return step + "\t" + action + "\t" + tool + "\t" + outcome
                 + "\t" + latencyMillis + "\t" + issues;
+    }
+
+    private String visualReviewProgressPayload(
+            int step,
+            String action,
+            DiagramDraftVisualReview review,
+            long latencyMillis
+    ) {
+        // UI feedback is bounded and encoded so model text cannot break the tab-delimited envelope.
+        String feedback = review.issues().stream()
+                .limit(3)
+                .map(this::visualIssueFeedback)
+                .filter(value -> !value.isBlank())
+                .reduce((left, right) -> left + "\n" + right)
+                .orElse("");
+        return progressPayload(
+                step,
+                action,
+                "visual_review_agent",
+                review.decision(),
+                latencyMillis,
+                review.issues().size())
+                + "\t" + encodeProgressText(review.summary())
+                + "\t" + encodeProgressText(feedback);
+    }
+
+    private String visualIssueFeedback(DiagramDraftVisualIssue issue) {
+        String evidence = boundedProgressText(issue.evidence(), 400);
+        String repair = boundedProgressText(issue.repairInstruction(), 400);
+        if (!evidence.isBlank() && !repair.isBlank()) {
+            return evidence + " " + repair;
+        }
+        if (!evidence.isBlank()) {
+            return evidence;
+        }
+        if (!repair.isBlank()) {
+            return repair;
+        }
+        return boundedProgressText(issue.type(), 120);
+    }
+
+    private String encodeProgressText(String value) {
+        String bounded = boundedProgressText(value, 1_200);
+        if (bounded.isBlank()) {
+            return "";
+        }
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(bounded.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String boundedProgressText(String value, int maxLength) {
+        String safe = value == null
+                ? ""
+                : value.replace('\t', ' ')
+                        .replace('\r', ' ')
+                        .replace('\n', ' ')
+                        .trim();
+        return safe.length() <= maxLength ? safe : safe.substring(0, maxLength);
     }
 
     private void publish(TurnEventSink events, String type, String payload) {

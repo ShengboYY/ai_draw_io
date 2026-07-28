@@ -257,6 +257,34 @@ export const projectUserExecutionStep = ({
   return { key: stage, phase: stage, label };
 };
 
+export const agentLoopActionLabel = (tool = '', action = '', useChinese = false) => {
+  if (tool === 'create_draft') return useChinese ? '生成初始草稿' : 'generate the initial draft';
+  if (tool === 'patch_draft') return useChinese ? '局部修复草稿' : 'repair the draft locally';
+  if (tool === 'inspect_draft') return useChinese ? '读取修复所需信息' : 'read information needed for repair';
+  if (action === 'SUBMIT_CANDIDATE') return useChinese ? '提交结果' : 'submit the result';
+  return useChinese ? '继续处理当前草稿' : 'continue working on the draft';
+};
+
+export const visualReviewDecisionLabel = (decision = '', useChinese = false) => {
+  const labels = useChinese
+    ? {
+        APPROVE: '审查通过',
+        APPROVE_WITH_NOTES: '基本通过，但有补充建议',
+        REPAIR: '需要局部修复',
+        NEEDS_HUMAN_REVIEW: '建议人工确认',
+        UNAVAILABLE: '暂时无法完成审查',
+      }
+    : {
+        APPROVE: 'approved',
+        APPROVE_WITH_NOTES: 'approved with additional notes',
+        REPAIR: 'local repair needed',
+        NEEDS_HUMAN_REVIEW: 'human confirmation recommended',
+        UNAVAILABLE: 'review temporarily unavailable',
+      };
+  return labels[decision as keyof typeof labels]
+    || (useChinese ? '审查已完成' : 'review completed');
+};
+
 export const projectAgentLoopExecutionStep = ({
   stage,
   step = 0,
@@ -276,14 +304,14 @@ export const projectAgentLoopExecutionStep = ({
     return {
       key: 'agent-loop-start',
       phase: 'agent_loop',
-      label: useChinese ? '启动绘图 Agent' : 'Start drawing agent',
+      label: useChinese ? '启动绘图流程' : 'Start drawing process',
     };
   }
   if (stage === 'skills_loaded') {
     return {
       key: 'agent-loop-skills',
       phase: 'agent_skills',
-      label: useChinese ? '加载绘图 Skill' : 'Load diagram skills',
+      label: useChinese ? '加载绘图技能' : 'Load diagram guidance',
     };
   }
   if (stage === 'decision_started' || stage === 'decision_completed') {
@@ -331,13 +359,13 @@ export const projectAgentLoopExecutionStep = ({
     return {
       key: `agent-tool-${step}-${normalizedTool}`,
       phase: 'agent_inspection',
-      label: useChinese ? '读取当前草稿' : 'Read current draft',
+      label: useChinese ? '读取修复所需信息' : 'Read information needed for repair',
     };
   }
   return {
     key: `agent-tool-${step}-${normalizedTool}`,
     phase: 'agent_tool',
-    label: useChinese ? `执行 ${normalizedTool}` : `Run ${normalizedTool}`,
+    label: useChinese ? '处理当前草稿' : 'Work on current draft',
   };
 };
 

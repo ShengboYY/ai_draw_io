@@ -46,8 +46,10 @@ import org.zipp.ai.infrastructure.turn.agent.AgenticPlainGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.agent.DefaultDiagramAgentToolAdapter;
 import org.zipp.ai.infrastructure.turn.agent.InMemoryDiagramDraftStore;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -237,15 +239,34 @@ class BoundedDiagramAgentRuntimeTest {
                 store,
                 visualReviews);
 
+        List<TurnEvent> progress = new ArrayList<>();
         var result = runtime.run(
                 request(PlainDrawAction.CREATE, ""),
                 DiagramSkillBundle.empty(),
-                () -> false);
+                () -> false,
+                progress::add);
 
         assertThat(reviews.get()).isEqualTo(2);
         assertThat(result.stepCount()).isEqualTo(2);
         assertThat(result.mutationCount()).isEqualTo(2);
         assertThat(result.canvasXml()).contains("x=\"20\"");
+        assertThat(progress)
+                .filteredOn(event -> event.type().equals("plain_agent_visual_review_completed")
+                        && event.payload().contains("\tREPAIR\t"))
+                .singleElement()
+                .satisfies(event -> {
+                    String[] fields = event.payload().split("\\t", -1);
+                    assertThat(fields).hasSize(8);
+                    assertThat(new String(
+                            Base64.getUrlDecoder().decode(fields[6]),
+                            StandardCharsets.UTF_8))
+                            .isEqualTo("REPAIR");
+                    assertThat(new String(
+                            Base64.getUrlDecoder().decode(fields[7]),
+                            StandardCharsets.UTF_8))
+                            .contains("The node needs a local move.")
+                            .contains("Replace node-a with corrected geometry.");
+                });
     }
 
     @Test

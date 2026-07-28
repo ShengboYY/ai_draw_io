@@ -20,3 +20,11 @@ test('diagram restore merges cached execution progress into durable conversation
     /const cachedSession = sessionsRef\.current\.find[\s\S]*mergeRestoredConversationPresentation\([\s\S]*durableMessages,[\s\S]*cachedSession\?\.messages \|\| \[\]/,
   );
 });
+
+test('plain agent progress renders review feedback without exposing timing or backend tool names', () => {
+  assert.doesNotMatch(pageSource, /chunk\.latencyMs >= 1000/);
+  assert.match(pageSource, /const isAgentLoopCanvasChunk = agentLoopProgressObserved/);
+  assert.match(pageSource, /visualReviewDecisionLabel\(chunk\.outcome, useChinese\)/);
+  assert.match(pageSource, /chunk\.reviewFeedback \|\| \[\]/);
+  assert.match(pageSource, /具体意见：\$\{feedback\.join\('；'\)\}/);
+});

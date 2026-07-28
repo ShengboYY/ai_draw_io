@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  agentLoopActionLabel,
   buildAgentRunView,
   buildAgentCompletionReply,
   buildRouteStepDetail,
@@ -16,6 +17,7 @@ import {
   thinkingPhaseLabel,
   thinkingRouteLabel,
   usesChinesePresentation,
+  visualReviewDecisionLabel,
   visualReviewUnavailableReason,
   visualReviewStageLabel,
   visualReviewStaleMessage,
@@ -127,6 +129,16 @@ test('plain agent loop projects each draft and review pass onto a distinct visib
     }).label,
     '提交结果',
   );
+});
+
+test('plain agent loop hides backend action names behind localized user language', () => {
+  assert.equal(agentLoopActionLabel('create_draft', '', true), '生成初始草稿');
+  assert.equal(agentLoopActionLabel('patch_draft', '', false), 'repair the draft locally');
+  assert.equal(agentLoopActionLabel('inspect_draft', '', true), '读取修复所需信息');
+  assert.equal(agentLoopActionLabel('', 'SUBMIT_CANDIDATE', false), 'submit the result');
+  assert.equal(agentLoopActionLabel('internal_tool', 'CALL_TOOL', true), '继续处理当前草稿');
+  assert.equal(visualReviewDecisionLabel('REPAIR', true), '需要局部修复');
+  assert.equal(visualReviewDecisionLabel('APPROVE_WITH_NOTES', false), 'approved with additional notes');
 });
 
 test('route step describes the actual diagram type and selected skill', () => {
