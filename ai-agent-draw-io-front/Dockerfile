@@ -3,7 +3,9 @@ FROM node:22-alpine AS deps
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# npm can omit this platform-specific optional dependency from cross-platform lockfiles.
+RUN npm ci \
+    && npm install --no-save --package-lock=false lightningcss-linux-x64-musl@1.30.2
 
 FROM node:22-alpine AS build
 
