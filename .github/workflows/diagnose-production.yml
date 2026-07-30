@@ -44,7 +44,36 @@ jobs:
             aws ecs describe-services \
               --cluster "$ECS_CLUSTER" \
               --services "$service" \
-              --query 'services[0].{serviceName:serviceName,taskDefinition:taskDefinition,desiredCount:desiredCount,runningCount:runningCount,pendingCount:pendingCount,deployments:deployments,events:events[:20]}' \
+              --query 'services[0].{serviceName:serviceName,taskDefinition:taskDefinition,desiredCount:desiredCount,runningCount:runningCount,pendingCount:pendingCount,healthCheckGracePeriodSeconds:healthCheckGracePeriodSeconds,deployments:deployments,events:events[:20]}' \
               --output json
             echo "::endgroup::"
           done
+
+      - name: Read recent backend task failures
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Task stop reasons distinguish startup failures from load-balancer health-check failures.
+          mapfile -t task_ids < <(
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_BACKEND_SERVICE" \
+              --query 'services[0].events[].message' \
+              --output text \
+              | grep -Eo 'task [0-9a-f]{32}' \
+              | awk '{print $2}' \
+              | awk '!seen[$0]++' \
+              | head -n 10
+          )
+
+          if (( ${#task_ids[@]} == 0 )); then
+            echo "No recent backend task IDs were found in the ECS service events."
+            exit 0
+          fi
+
+          aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "${task_ids[@]}" \
+            --query 'tasks[].{taskArn:taskArn,taskDefinitionArn:taskDefinitionArn,lastStatus:lastStatus,stopCode:stopCode,stoppedReason:stoppedReason,stoppedAt:stoppedAt,containers:containers[].{name:name,lastStatus:lastStatus,exitCode:exitCode,reason:reason}}' \
+            --output json
