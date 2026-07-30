@@ -12,6 +12,7 @@ import org.zipp.ai.application.turn.TurnDeclarations;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Writes the pending Memory proposal inside the successful terminal transaction.
@@ -30,12 +31,12 @@ public final class MySqlCompletedTurnMemoryProposalWriter {
             """;
 
     private final JdbcOperations jdbc;
-    private final MemoryProposalService proposals;
+    private final Optional<MemoryProposalService> proposals;
     private final TurnInputBindingJsonCodec inputCodec = new TurnInputBindingJsonCodec();
 
     public MySqlCompletedTurnMemoryProposalWriter(
             JdbcOperations jdbc,
-            MemoryProposalService proposals
+            Optional<MemoryProposalService> proposals
     ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.proposals = Objects.requireNonNull(proposals, "proposals");
@@ -45,6 +46,10 @@ public final class MySqlCompletedTurnMemoryProposalWriter {
         Objects.requireNonNull(attempt, "attempt");
         if (diagramId == null || diagramId.isBlank()) {
             throw new IllegalArgumentException("diagramId must not be blank");
+        }
+        // Memory proposals share the catalog rollout gate; ordinary turns still commit while it is off.
+        if (proposals.isEmpty()) {
+            return;
         }
         List<String> payloads = jdbc.query(
                 SELECT_INPUT_BINDING,
@@ -62,7 +67,7 @@ public final class MySqlCompletedTurnMemoryProposalWriter {
         if (!declaration.hasPinnedProposal()) {
             throw new IllegalStateException("MEMORY_PINNED_PROPOSAL_UNAVAILABLE");
         }
-        MemoryProposalOutcome outcome = proposals.propose(new MemoryProposalCommand(
+        MemoryProposalOutcome outcome = proposals.orElseThrow().propose(new MemoryProposalCommand(
                 attempt.key(),
                 declaration.chartbookId(),
                 diagramId,
