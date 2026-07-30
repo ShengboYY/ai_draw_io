@@ -19,15 +19,14 @@ COPY . .
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -s docker/maven-settings.xml -pl ai-agent-draw-io-app -am package -Dmaven.test.skip=true
 
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-ubi9-minimal
 
-# Keep the minimal runtime packages current before dropping privileges.
-RUN apk upgrade --no-cache \
-    && addgroup --system app \
-    && adduser --system --ingroup app --home /app app
+# Keep the glibc-based runtime current while preserving production compatibility.
+RUN microdnf update -y \
+    && microdnf clean all
 
 WORKDIR /app
-COPY --from=build /workspace/ai-agent-draw-io-app/target/ai-agent-draw-io-app.jar /app/app.jar
+COPY --from=build --chown=10001:0 /workspace/ai-agent-draw-io-app/target/ai-agent-draw-io-app.jar /app/app.jar
 
 ENV SPRING_PROFILES_ACTIVE=prod
 ENV SPRING_CONFIG_IMPORT=optional:file:.env[.properties],classpath:agent/agent-draw-io.yml
@@ -36,6 +35,6 @@ ENV SERVER_SERVLET_SESSION_COOKIE_SECURE=true
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom -Djava.io.tmpdir=/tmp"
 
 EXPOSE 8091
-USER app
+USER 10001
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
