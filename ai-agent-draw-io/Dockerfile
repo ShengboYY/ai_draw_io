@@ -19,14 +19,12 @@ COPY . .
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -s docker/maven-settings.xml -pl ai-agent-draw-io-app -am package -Dmaven.test.skip=true
 
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:17-jre-alpine
 
-# Apply current Jammy security fixes to Wget inherited from the base image.
-RUN apt-get update \
-    && apt-get install --yes --only-upgrade --no-install-recommends wget \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system app \
-    && useradd --system --gid app --home-dir /app app
+# Keep the minimal runtime packages current before dropping privileges.
+RUN apk upgrade --no-cache \
+    && addgroup --system app \
+    && adduser --system --ingroup app --home /app app
 
 WORKDIR /app
 COPY --from=build /workspace/ai-agent-draw-io-app/target/ai-agent-draw-io-app.jar /app/app.jar
