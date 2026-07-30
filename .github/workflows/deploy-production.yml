@@ -392,12 +392,18 @@ jobs:
             --stack-name "$STATIC_SITE_STACK" \
             --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue | [0]' \
             --output text)
-          if [[ "$bucket" == "None" || "$distribution" == "None" ]]; then
+          # Use the CloudFront hostname for pre-cutover smoke tests.
+          domain=$(aws cloudformation describe-stacks \
+            --stack-name "$STATIC_SITE_STACK" \
+            --query 'Stacks[0].Outputs[?OutputKey==`DistributionDomainName`].OutputValue | [0]' \
+            --output text)
+          if [[ "$bucket" == "None" || "$distribution" == "None" || "$domain" == "None" ]]; then
             echo "Static site stack outputs are incomplete." >&2
             exit 1
           fi
           echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
           echo "distribution=$distribution" >> "$GITHUB_OUTPUT"
+          echo "domain=$domain" >> "$GITHUB_OUTPUT"
 
       - name: Publish static frontend
         env:
@@ -424,17 +430,19 @@ jobs:
             --id "$invalidation_id"
 
       - name: Test deployed frontend and API configuration
+        env:
+          CLOUDFRONT_DOMAIN: ${{ steps.static-site.outputs.domain }}
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location \
             --retry 10 --retry-delay 6 --retry-all-errors \
             --user-agent "FreeDrawAI-DeploymentCheck/2.0" \
-            "$PRODUCTION_BASE_URL/" > /dev/null
+            "https://${CLOUDFRONT_DOMAIN}/" > /dev/null
           curl --fail --silent --show-error --location \
             --retry 10 --retry-delay 6 --retry-all-errors \
             --user-agent "FreeDrawAI-DeploymentCheck/2.0" \
-            "$PRODUCTION_BASE_URL/env-config.js" \
+            "https://${CLOUDFRONT_DOMAIN}/env-config.js" \
             | grep -F "$PRODUCTION_API_BASE_URL" > /dev/null
 
       - name: Write deployment summary
