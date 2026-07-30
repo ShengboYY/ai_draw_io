@@ -28,6 +28,7 @@ import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -43,7 +44,7 @@ class MySqlCompletedTurnMemoryProposalWriterTest {
         RecordingStore store = new RecordingStore();
         MySqlCompletedTurnMemoryProposalWriter writer =
                 new MySqlCompletedTurnMemoryProposalWriter(
-                        jdbcReturning(payload), new MemoryProposalService(store));
+                        jdbcReturning(payload), Optional.of(new MemoryProposalService(store)));
 
         writer.write(attempt(), "diagram-1");
 
@@ -66,10 +67,18 @@ class MySqlCompletedTurnMemoryProposalWriterTest {
         };
         MySqlCompletedTurnMemoryProposalWriter writer =
                 new MySqlCompletedTurnMemoryProposalWriter(
-                        jdbcReturning(payload), new MemoryProposalService(failing));
+                        jdbcReturning(payload), Optional.of(new MemoryProposalService(failing)));
 
         assertThrows(TransientDataAccessResourceException.class,
                 () -> writer.write(attempt(), "diagram-1"));
+    }
+
+    @Test
+    void skipsDatabaseWorkWhenMemoryProposalFeatureIsDisabled() {
+        MySqlCompletedTurnMemoryProposalWriter writer =
+                new MySqlCompletedTurnMemoryProposalWriter(jdbcReturning("unused"), Optional.empty());
+
+        writer.write(attempt(), "diagram-1");
     }
 
     private FencedAttempt attempt() {
