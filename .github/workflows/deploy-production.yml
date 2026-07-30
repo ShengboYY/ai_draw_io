@@ -1,20 +1,19 @@
 name: Deploy Production
 
 on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       release_sha:
         description: Full 40-character Git SHA already published to ECR
         required: true
         type: string
-      database_change:
-        description: Confirm the database migration state for this release
-        required: true
-        default: no-database-change
-        type: choice
-        options:
-          - no-database-change
-          - migration-completed
 
 permissions:
   contents: read
@@ -26,50 +25,46 @@ concurrency:
 jobs:
   deploy:
     name: deploy-production
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     environment:
       name: production
-      url: ${{ vars.PRODUCTION_BASE_URL }}
+      url: https://freedrawai.com
     permissions:
       contents: read
       id-token: write
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
-      RELEASE_SHA: ${{ inputs.release_sha }}
-      IMAGE_TAG: sha-${{ inputs.release_sha }}
-      DATABASE_CHANGE: ${{ inputs.database_change }}
+      RELEASE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
       ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
-      ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
+      ECR_MIGRATION_REPOSITORY: ${{ vars.ECR_MIGRATION_REPOSITORY }}
       ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
       ECS_BACKEND_SERVICE: ${{ vars.ECS_BACKEND_SERVICE }}
-      ECS_FRONTEND_SERVICE: ${{ vars.ECS_FRONTEND_SERVICE }}
-      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+      ECS_MIGRATION_TASK_FAMILY: ai-drawio-db-migrate-prod
+      RDS_INSTANCE_IDENTIFIER: ai-drawio-mysql
+      STATIC_SITE_STACK: ai-drawio-static-site-prod
+      PRODUCTION_BASE_URL: https://freedrawai.com
+      PRODUCTION_API_BASE_URL: https://api.freedrawai.com/api/v1
+      # Official linux/amd64 2026.7.2 image, pinned to prevent tag drift.
+      CLOUDFLARED_IMAGE: cloudflare/cloudflared:2026.7.2@sha256:18626b1baac4450214535cd5bc40ef44c0635244d585ebf707749c22b6f3408f
 
     steps:
-      - name: Validate release input
+      - name: Validate release
         shell: bash
         run: |
           set -euo pipefail
-
           if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "release_sha must be a full lowercase 40-character Git SHA" >&2
+            echo "Release SHA must be a full lowercase 40-character Git SHA." >&2
             exit 1
           fi
-
-          case "$DATABASE_CHANGE" in
-            no-database-change|migration-completed)
-              ;;
-            *)
-              echo "Invalid database_change value" >&2
-              exit 1
-              ;;
-          esac
 
       - name: Checkout selected release
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: ${{ env.RELEASE_SHA }}
           fetch-depth: 0
 
       - name: Verify release belongs to main
@@ -89,97 +84,173 @@ jobs:
           mask-aws-account-id: true
           unset-current-credentials: true
 
-      - name: Resolve release image URIs
+      - name: Resolve immutable images
         id: images
         shell: bash
         run: |
           set -euo pipefail
-
           account_id=$(aws sts get-caller-identity --query Account --output text)
           registry="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          image_tag="sha-${RELEASE_SHA}"
+          echo "backend=${registry}/${ECR_BACKEND_REPOSITORY}:${image_tag}" >> "$GITHUB_OUTPUT"
+          echo "migration=${registry}/${ECR_MIGRATION_REPOSITORY}:${image_tag}" >> "$GITHUB_OUTPUT"
 
-          echo "backend_image=${registry}/${ECR_BACKEND_REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "frontend_image=${registry}/${ECR_FRONTEND_REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Verify release images and scan results
+      - name: Verify release images and scans
         shell: bash
         run: |
           set -euo pipefail
+          image_tag="sha-${RELEASE_SHA}"
 
-          # Both containers must come from the same tested commit, and neither scan may contain High/Critical findings.
-          for repository in "$ECR_BACKEND_REPOSITORY" "$ECR_FRONTEND_REPOSITORY"; do
-            digest=$(aws ecr describe-images \
+          # Runtime and schema changes must both come from the tested main commit.
+          for repository in "$ECR_BACKEND_REPOSITORY" "$ECR_MIGRATION_REPOSITORY"; do
+            aws ecr describe-images \
               --repository-name "$repository" \
-              --image-ids imageTag="$IMAGE_TAG" \
-              --query 'imageDetails[0].imageDigest' \
-              --output text)
+              --image-ids imageTag="$image_tag" \
+              > /dev/null
 
             scan_status=$(aws ecr describe-image-scan-findings \
               --repository-name "$repository" \
-              --image-id imageTag="$IMAGE_TAG" \
+              --image-id imageTag="$image_tag" \
               --query 'imageScanStatus.status' \
               --output text)
             critical=$(aws ecr describe-image-scan-findings \
               --repository-name "$repository" \
-              --image-id imageTag="$IMAGE_TAG" \
+              --image-id imageTag="$image_tag" \
               --query 'imageScanFindings.findingSeverityCounts.CRITICAL' \
               --output text)
             high=$(aws ecr describe-image-scan-findings \
               --repository-name "$repository" \
-              --image-id imageTag="$IMAGE_TAG" \
+              --image-id imageTag="$image_tag" \
               --query 'imageScanFindings.findingSeverityCounts.HIGH' \
               --output text)
 
             [[ "$critical" == "None" ]] && critical=0
             [[ "$high" == "None" ]] && high=0
-
-            if [[ "$scan_status" != "COMPLETE" ]]; then
-              echo "Image scan is not complete for ${repository}:${IMAGE_TAG}: ${scan_status}" >&2
+            if [[ "$scan_status" != "COMPLETE" ]] || (( critical > 0 || high > 0 )); then
+              echo "Blocking ${repository}:${image_tag}; scan=${scan_status}, Critical=${critical}, High=${high}" >&2
               exit 1
             fi
-
-            if (( critical > 0 || high > 0 )); then
-              echo "Blocking ${repository}:${IMAGE_TAG}; scan has Critical=${critical}, High=${high}" >&2
-              exit 1
-            fi
-
-            echo "Verified ${repository}:${IMAGE_TAG} at ${digest}"
           done
 
-      - name: Save current service revisions
+      - name: Save current production state
         id: previous
         shell: bash
         run: |
           set -euo pipefail
-
-          previous_backend=$(aws ecs describe-services \
+          service_json=$(aws ecs describe-services \
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_BACKEND_SERVICE" \
-            --query 'services[0].taskDefinition' \
+            --output json)
+          previous_task=$(jq -r '.services[0].taskDefinition' <<< "$service_json")
+          desired_count=$(jq -r '.services[0].desiredCount' <<< "$service_json")
+          rds_status=$(aws rds describe-db-instances \
+            --db-instance-identifier "$RDS_INSTANCE_IDENTIFIER" \
+            --query 'DBInstances[0].DBInstanceStatus' \
             --output text)
-          previous_frontend=$(aws ecs describe-services \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_FRONTEND_SERVICE" \
-            --query 'services[0].taskDefinition' \
-            --output text)
 
-          if [[ "$previous_backend" == "None" || "$previous_frontend" == "None" ]]; then
-            echo "Unable to resolve current ECS task definitions" >&2
-            exit 1
-          fi
+          echo "backend_task_definition=$previous_task" >> "$GITHUB_OUTPUT"
+          echo "desired_count=$desired_count" >> "$GITHUB_OUTPUT"
+          echo "rds_status=$rds_status" >> "$GITHUB_OUTPUT"
 
-          echo "backend_task_definition=$previous_backend" >> "$GITHUB_OUTPUT"
-          echo "frontend_task_definition=$previous_frontend" >> "$GITHUB_OUTPUT"
-
-      - name: Download current task definitions
-        env:
-          PREVIOUS_BACKEND: ${{ steps.previous.outputs.backend_task_definition }}
-          PREVIOUS_FRONTEND: ${{ steps.previous.outputs.frontend_task_definition }}
+      - name: Make the database available for migration and testing
         shell: bash
         run: |
           set -euo pipefail
+          status="${{ steps.previous.outputs.rds_status }}"
+          if [[ "$status" == "stopping" ]]; then
+            aws rds wait db-instance-stopped --db-instance-identifier "$RDS_INSTANCE_IDENTIFIER"
+            status=stopped
+          fi
+          if [[ "$status" == "stopped" ]]; then
+            aws rds start-db-instance --db-instance-identifier "$RDS_INSTANCE_IDENTIFIER" > /dev/null
+          elif [[ "$status" != "available" && "$status" != "starting" ]]; then
+            echo "RDS is not in a deployable state: $status" >&2
+            exit 1
+          fi
+          aws rds wait db-instance-available --db-instance-identifier "$RDS_INSTANCE_IDENTIFIER"
 
-          # Start from the revisions actually serving production, not an unverified newer family revision.
+      - name: Download migration task definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_MIGRATION_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json \
+            | jq '{
+                family,
+                taskRoleArn,
+                executionRoleArn,
+                networkMode,
+                containerDefinitions,
+                volumes,
+                placementConstraints,
+                requiresCompatibilities,
+                cpu,
+                memory,
+                runtimePlatform
+              } | with_entries(select(.value != null))' \
+            > "$RUNNER_TEMP/migration-task-definition.json"
+
+      - name: Render migration task definition
+        id: render-migration
+        uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1
+        with:
+          task-definition: ${{ runner.temp }}/migration-task-definition.json
+          container-name: migration
+          image: ${{ steps.images.outputs.migration }}
+
+      - name: Register and run idempotent database migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          migration_task_definition=$(aws ecs register-task-definition \
+            --cli-input-json "file://${{ steps.render-migration.outputs.task-definition }}" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          service_json=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_BACKEND_SERVICE" \
+            --output json)
+          subnets=$(jq -r '.services[0].networkConfiguration.awsvpcConfiguration.subnets | join(",")' <<< "$service_json")
+          security_groups=$(jq -r '.services[0].networkConfiguration.awsvpcConfiguration.securityGroups | join(",")' <<< "$service_json")
+          public_ip=$(jq -r '.services[0].networkConfiguration.awsvpcConfiguration.assignPublicIp' <<< "$service_json")
+
+          task_arn=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --launch-type FARGATE \
+            --task-definition "$migration_task_definition" \
+            --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$security_groups],assignPublicIp=$public_ip}" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+          if [[ "$task_arn" == "None" ]]; then
+            echo "ECS did not start the migration task." >&2
+            exit 1
+          fi
+
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$task_arn"
+          exit_code=$(aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$task_arn" \
+            --query 'tasks[0].containers[?name==`migration`].exitCode | [0]' \
+            --output text)
+          if [[ "$exit_code" != "0" ]]; then
+            reason=$(aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" \
+              --tasks "$task_arn" \
+              --query 'tasks[0].containers[?name==`migration`].reason | [0]' \
+              --output text)
+            echo "Database migration failed with exit code ${exit_code}: ${reason}" >&2
+            exit 1
+          fi
+
+      - name: Build backend and Tunnel task definition
+        shell: bash
+        env:
+          PREVIOUS_BACKEND: ${{ steps.previous.outputs.backend_task_definition }}
+          BACKEND_IMAGE: ${{ steps.images.outputs.backend }}
+        run: |
+          set -euo pipefail
           aws ecs describe-task-definition \
             --task-definition "$PREVIOUS_BACKEND" \
             --query taskDefinition \
@@ -195,57 +266,82 @@ jobs:
                 requiresCompatibilities,
                 cpu,
                 memory,
-                pidMode,
-                ipcMode,
-                proxyConfiguration,
-                inferenceAccelerators,
-                ephemeralStorage,
                 runtimePlatform
               } | with_entries(select(.value != null))' \
-            > "$RUNNER_TEMP/backend-task-definition.json"
+            > "$RUNNER_TEMP/backend-base.json"
 
-          aws ecs describe-task-definition \
-            --task-definition "$PREVIOUS_FRONTEND" \
-            --query taskDefinition \
-            --output json \
-            | jq '{
-                family,
-                taskRoleArn,
-                executionRoleArn,
-                networkMode,
-                containerDefinitions,
-                volumes,
-                placementConstraints,
-                requiresCompatibilities,
-                cpu,
-                memory,
-                pidMode,
-                ipcMode,
-                proxyConfiguration,
-                inferenceAccelerators,
-                ephemeralStorage,
-                runtimePlatform
-              } | with_entries(select(.value != null))' \
-            > "$RUNNER_TEMP/frontend-task-definition.json"
+          mysql_secret_ref=$(jq -r '.containerDefinitions[] | select(.name == "backend") |
+            .secrets[] | select(.name == "MYSQL_PASSWORD") | .valueFrom' "$RUNNER_TEMP/backend-base.json")
+          secret_arn="${mysql_secret_ref%:MYSQL_PASSWORD::}"
+          tunnel_secret_ref="${secret_arn}:CLOUDFLARE_TUNNEL_TOKEN::"
 
-      - name: Render backend task definition
-        id: render-backend
-        uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1
-        with:
-          task-definition: ${{ runner.temp }}/backend-task-definition.json
-          container-name: backend
-          image: ${{ steps.images.outputs.backend_image }}
+          # The Tunnel is an essential outbound-only sidecar; backend health replaces ALB health checks.
+          jq \
+            --arg backend_image "$BACKEND_IMAGE" \
+            --arg cloudflared_image "$CLOUDFLARED_IMAGE" \
+            --arg tunnel_secret_ref "$tunnel_secret_ref" \
+            '
+              .containerDefinitions = (
+                [.containerDefinitions[] | select(.name != "cloudflared") |
+                  if .name == "backend" then
+                    .image = $backend_image |
+                    .healthCheck = {
+                      command: ["CMD-SHELL", "curl -fsS http://localhost:8091/actuator/health/readiness >/dev/null || exit 1"],
+                      interval: 30,
+                      timeout: 5,
+                      retries: 3,
+                      startPeriod: 120
+                    }
+                  else . end
+                ] + [{
+                  name: "cloudflared",
+                  image: $cloudflared_image,
+                  cpu: 64,
+                  memoryReservation: 64,
+                  essential: true,
+                  command: ["tunnel", "--no-autoupdate", "--loglevel", "info", "run"],
+                  environment: [],
+                  secrets: [{
+                    name: "TUNNEL_TOKEN",
+                    valueFrom: $tunnel_secret_ref
+                  }],
+                  linuxParameters: {
+                    capabilities: {
+                      drop: ["ALL"]
+                    }
+                  },
+                  logConfiguration: {
+                    logDriver: "awslogs",
+                    options: {
+                      "awslogs-group": "/ecs/ai-drawio/backend",
+                      "awslogs-region": env.AWS_REGION,
+                      "awslogs-stream-prefix": "tunnel"
+                    }
+                  }
+                }]
+              )
+            ' "$RUNNER_TEMP/backend-base.json" > "$RUNNER_TEMP/backend-task-definition.json"
 
-      - name: Deploy backend
+      - name: Start one backend task for deployment testing
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_BACKEND_SERVICE" \
+            --desired-count 1 \
+            > /dev/null
+
+      - name: Deploy backend and Tunnel
         id: deploy-backend
         uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2
         with:
-          task-definition: ${{ steps.render-backend.outputs.task-definition }}
+          task-definition: ${{ runner.temp }}/backend-task-definition.json
           cluster: ${{ env.ECS_CLUSTER }}
           service: ${{ env.ECS_BACKEND_SERVICE }}
           wait-for-service-stability: true
 
-      - name: Smoke test backend through ALB
+      - name: Smoke test API through Cloudflare Tunnel
         shell: bash
         run: |
           set -euo pipefail
@@ -254,47 +350,94 @@ jobs:
             --silent \
             --show-error \
             --location \
-            --retry 10 \
+            --retry 12 \
             --retry-delay 10 \
             --retry-all-errors \
-            --user-agent "FreeDrawAI-DeploymentCheck/1.0" \
-            "$PRODUCTION_BASE_URL/api/v1/query_ai_agent_config_list" \
+            --user-agent "FreeDrawAI-DeploymentCheck/2.0" \
+            "${PRODUCTION_API_BASE_URL}/query_ai_agent_config_list" \
             > /dev/null
 
-      - name: Render frontend task definition
-        id: render-frontend
-        uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1
+      - name: Set up Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          task-definition: ${{ runner.temp }}/frontend-task-definition.json
-          container-name: frontend
-          image: ${{ steps.images.outputs.frontend_image }}
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ai-agent-draw-io-front/package-lock.json
 
-      - name: Deploy frontend
-        id: deploy-frontend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2
-        with:
-          task-definition: ${{ steps.render-frontend.outputs.task-definition }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          service: ${{ env.ECS_FRONTEND_SERVICE }}
-          wait-for-service-stability: true
-
-      - name: Smoke test frontend through Cloudflare and ALB
+      - name: Build static frontend
+        working-directory: ai-agent-draw-io-front
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
+          NEXT_TELEMETRY_DISABLED: "1"
         shell: bash
         run: |
           set -euo pipefail
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --location \
-            --retry 10 \
-            --retry-delay 10 \
-            --retry-all-errors \
-            --user-agent "FreeDrawAI-DeploymentCheck/1.0" \
-            "$PRODUCTION_BASE_URL/" \
-            > /dev/null
+          npm ci
+          printf 'window.__ENV = {\n  NEXT_PUBLIC_API_BASE_URL: "%s",\n};\n' \
+            "$PRODUCTION_API_BASE_URL" > public/env-config.js
+          npm run build
+          test -f out/index.html
+          test -f out/env-config.js
 
-      - name: Write successful deployment summary
+      - name: Resolve static site
+        id: static-site
+        shell: bash
+        run: |
+          set -euo pipefail
+          bucket=$(aws cloudformation describe-stacks \
+            --stack-name "$STATIC_SITE_STACK" \
+            --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue | [0]' \
+            --output text)
+          distribution=$(aws cloudformation describe-stacks \
+            --stack-name "$STATIC_SITE_STACK" \
+            --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue | [0]' \
+            --output text)
+          if [[ "$bucket" == "None" || "$distribution" == "None" ]]; then
+            echo "Static site stack outputs are incomplete." >&2
+            exit 1
+          fi
+          echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
+          echo "distribution=$distribution" >> "$GITHUB_OUTPUT"
+
+      - name: Publish static frontend
+        env:
+          STATIC_BUCKET: ${{ steps.static-site.outputs.bucket }}
+          DISTRIBUTION_ID: ${{ steps.static-site.outputs.distribution }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync ai-agent-draw-io-front/out "s3://${STATIC_BUCKET}" \
+            --delete \
+            --cache-control "public,max-age=300"
+          aws s3 cp ai-agent-draw-io-front/out/_next/static "s3://${STATIC_BUCKET}/_next/static" \
+            --recursive \
+            --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp ai-agent-draw-io-front/out/env-config.js "s3://${STATIC_BUCKET}/env-config.js" \
+            --cache-control "no-cache"
+          invalidation_id=$(aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --paths '/*' \
+            --query 'Invalidation.Id' \
+            --output text)
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --id "$invalidation_id"
+
+      - name: Test deployed frontend and API configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --retry 10 --retry-delay 6 --retry-all-errors \
+            --user-agent "FreeDrawAI-DeploymentCheck/2.0" \
+            "$PRODUCTION_BASE_URL/" > /dev/null
+          curl --fail --silent --show-error --location \
+            --retry 10 --retry-delay 6 --retry-all-errors \
+            --user-agent "FreeDrawAI-DeploymentCheck/2.0" \
+            "$PRODUCTION_BASE_URL/env-config.js" \
+            | grep -F "$PRODUCTION_API_BASE_URL" > /dev/null
+
+      - name: Write deployment summary
         shell: bash
         run: |
           set -euo pipefail
@@ -302,40 +445,54 @@ jobs:
             echo "## Production deployment succeeded"
             echo ""
             echo "- Commit: \`${RELEASE_SHA}\`"
-            echo "- Image tag: \`${IMAGE_TAG}\`"
-            echo "- Database gate: \`${DATABASE_CHANGE}\`"
-            echo "- Previous backend task: \`${{ steps.previous.outputs.backend_task_definition }}\`"
-            echo "- Previous frontend task: \`${{ steps.previous.outputs.frontend_task_definition }}\`"
-            echo "- URL: ${PRODUCTION_BASE_URL}"
+            echo "- Database migration: verified"
+            echo "- Backend task: \`${{ steps.deploy-backend.outputs.task-definition-arn }}\`"
+            echo "- API: ${PRODUCTION_API_BASE_URL}"
+            echo "- Frontend: ${PRODUCTION_BASE_URL}"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Restore both services after a failed deployment or smoke test
-        if: ${{ failure() && steps.previous.outputs.backend_task_definition != '' && steps.previous.outputs.frontend_task_definition != '' }}
+      - name: Restore backend revision after a failed deployment
+        if: ${{ failure() && steps.previous.outputs.backend_task_definition != '' }}
         env:
           PREVIOUS_BACKEND: ${{ steps.previous.outputs.backend_task_definition }}
-          PREVIOUS_FRONTEND: ${{ steps.previous.outputs.frontend_task_definition }}
         shell: bash
         run: |
           set -euo pipefail
-
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_BACKEND_SERVICE" \
             --task-definition "$PREVIOUS_BACKEND" \
-            > /dev/null
-          aws ecs update-service \
-            --cluster "$ECS_CLUSTER" \
-            --service "$ECS_FRONTEND_SERVICE" \
-            --task-definition "$PREVIOUS_FRONTEND" \
+            --desired-count 1 \
             > /dev/null
           aws ecs wait services-stable \
             --cluster "$ECS_CLUSTER" \
-            --services "$ECS_BACKEND_SERVICE" "$ECS_FRONTEND_SERVICE"
+            --services "$ECS_BACKEND_SERVICE"
 
-          {
-            echo "## Automatic rollback requested"
-            echo ""
-            echo "- Backend restored to: \`${PREVIOUS_BACKEND}\`"
-            echo "- Frontend restored to: \`${PREVIOUS_FRONTEND}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Restore cost schedule state
+        if: ${{ always() && steps.previous.outputs.desired_count != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          original_count="${{ steps.previous.outputs.desired_count }}"
+          original_rds="${{ steps.previous.outputs.rds_status }}"
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_BACKEND_SERVICE" \
+            --desired-count "$original_count" \
+            > /dev/null
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_BACKEND_SERVICE"
 
+          if [[ "$original_rds" == "stopped" || "$original_rds" == "stopping" ]]; then
+            current_rds=$(aws rds describe-db-instances \
+              --db-instance-identifier "$RDS_INSTANCE_IDENTIFIER" \
+              --query 'DBInstances[0].DBInstanceStatus' \
+              --output text)
+            if [[ "$current_rds" == "available" ]]; then
+              aws rds stop-db-instance --db-instance-identifier "$RDS_INSTANCE_IDENTIFIER" > /dev/null
+            elif [[ "$current_rds" != "stopped" && "$current_rds" != "stopping" ]]; then
+              echo "RDS could not be returned to the stopped schedule from state: $current_rds" >&2
+              exit 1
+            fi
+          fi

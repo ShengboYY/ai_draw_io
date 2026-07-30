@@ -1,14 +1,15 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { agentApi } from '@/api/agent';
 import type { EvalCaseWorkingCopyDTO, EvaluationTarget, TraceFindingViewDTO } from '@/types/api';
 import { AdminShell } from '../../admin-shell';
 import { EvaluationWorkspace } from '../../evaluation-workspace';
 import { Btn, ErrorNote, inputCls, StatusBadge } from '../../eval-ui';
 
-export default function EvalCaseStudioPage({ params }: { params: Promise<{ workingCopyId: string }> }) {
-  const { workingCopyId } = use(params);
+function EvalCaseStudioContent() {
+  const workingCopyId = useSearchParams().get('workingCopyId') || '';
   const [item, setItem] = useState<EvalCaseWorkingCopyDTO | null>(null);
   const [definition, setDefinition] = useState('');
   const [selectedTarget, setSelectedTarget] = useState<EvaluationTarget | ''>('');
@@ -206,4 +207,12 @@ function yamlScalar(value: unknown): string {
   if (value == null) return 'null';
   if (typeof value === 'string') return JSON.stringify(value);
   return String(value);
+}
+
+export default function EvalCaseStudioPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-stone-50" />}>
+      <EvalCaseStudioContent />
+    </Suspense>
+  );
 }

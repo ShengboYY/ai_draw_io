@@ -1,0 +1,82 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadReleaseImages",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:DescribeImages",
+        "ecr:DescribeImageScanFindings"
+      ],
+      "Resource": [
+        "arn:aws:ecr:ap-southeast-2:545432115589:repository/ai-drawio-backend",
+        "arn:aws:ecr:ap-southeast-2:545432115589:repository/ai-drawio-db-migrate"
+      ]
+    },
+    {
+      "Sid": "RegisterAndReadTaskDefinitions",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeTaskDefinition",
+        "ecs:RegisterTaskDefinition"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DeployOnlyBackendService",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeServices",
+        "ecs:UpdateService"
+      ],
+      "Resource": "arn:aws:ecs:ap-southeast-2:545432115589:service/ai-drawio-cluster/ai-drawio-backend-service"
+    },
+    {
+      "Sid": "RunOnlyProjectMigrations",
+      "Effect": "Allow",
+      "Action": "ecs:RunTask",
+      "Resource": "arn:aws:ecs:ap-southeast-2:545432115589:task-definition/ai-drawio-db-migrate-prod:*",
+      "Condition": {
+        "ArnEquals": {
+          "ecs:cluster": "arn:aws:ecs:ap-southeast-2:545432115589:cluster/ai-drawio-cluster"
+        }
+      }
+    },
+    {
+      "Sid": "DescribeProjectTasks",
+      "Effect": "Allow",
+      "Action": "ecs:DescribeTasks",
+      "Resource": "arn:aws:ecs:ap-southeast-2:545432115589:task/ai-drawio-cluster/*"
+    },
+    {
+      "Sid": "PassOnlyBackendTaskRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": [
+        "arn:aws:iam::545432115589:role/ai-drawio-backend-task-role",
+        "arn:aws:iam::545432115589:role/ecsTaskExecutionRole"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs-tasks.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ReadDatabaseState",
+      "Effect": "Allow",
+      "Action": "rds:DescribeDBInstances",
+      "Resource": "*"
+    },
+    {
+      "Sid": "ManageOnlyProjectDatabaseSchedule",
+      "Effect": "Allow",
+      "Action": [
+        "rds:StartDBInstance",
+        "rds:StopDBInstance"
+      ],
+      "Resource": "arn:aws:rds:ap-southeast-2:545432115589:db:ai-drawio-mysql"
+    }
+  ]
+}

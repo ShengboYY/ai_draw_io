@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const list = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-runs/page.tsx', import.meta.url)), 'utf8');
-const detail = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-runs/[evalRunId]/page.tsx', import.meta.url)), 'utf8');
-const targetReport = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-runs/[evalRunId]/target-report-panel.tsx', import.meta.url)), 'utf8');
+const detail = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-runs/details/page.tsx', import.meta.url)), 'utf8');
+const targetReport = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-runs/details/target-report-panel.tsx', import.meta.url)), 'utf8');
 
 test('Eval Run UI exposes progress and keeps FAIL distinct from infrastructure ERROR', () => {
   assert.match(list, /progress/); assert.match(list, /PASS/); assert.match(list, /FAIL/); assert.match(list, /ERROR/);

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
+import { evalCaseDetailsHref } from '@/utils/app-routes';
 import { AdminShell } from '../../admin-shell';
 import { EvaluationWorkspace } from '../../evaluation-workspace';
 import { Btn, ErrorNote } from '../../eval-ui';
@@ -22,7 +23,7 @@ export default function NewEvalCasePage() {
       : `evaluationTarget: ${value}\n${current}`);
   };
   const submit = () => agentApi.adminImportEvalCaseYaml(yaml)
-    .then(({ data }) => router.push(`/admin/eval-cases/${encodeURIComponent(data.id)}`))
+    .then(({ data }) => router.push(evalCaseDetailsHref(data.id)))
     .catch((reason) => setError(reason instanceof Error ? reason.message : 'Import failed'));
   return (
     <AdminShell active="cases">

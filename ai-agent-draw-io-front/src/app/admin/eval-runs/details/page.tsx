@@ -1,6 +1,7 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { agentApi } from '@/api/agent';
 import type { EvalEpisodeArtifactDTO, EvalEpisodeDetailDTO, EvalEpisodeViewDTO, EvalLiveRunReportDTO, EvalRunSummaryDTO, EvalTargetReportDTO } from '@/types/api';
@@ -11,8 +12,8 @@ import { TargetReportPanel } from './target-report-panel';
 
 const statuses = ['', 'PASS', 'FAIL', 'ERROR', 'UNAVAILABLE'];
 
-export default function AdminEvalRunDetailPage({ params }: { params: Promise<{ evalRunId: string }> }) {
-  const { evalRunId } = use(params);
+function AdminEvalRunDetailContent() {
+  const evalRunId = useSearchParams().get('evalRunId') || '';
   const [run, setRun] = useState<EvalRunSummaryDTO | null>(null);
   const [episodes, setEpisodes] = useState<EvalEpisodeViewDTO[]>([]);
   const [status, setStatus] = useState('');
@@ -293,4 +294,12 @@ function gateReasons(value: string): string[] {
 function parseStoredJson(value: string): unknown {
   // Corrupt historical evidence must remain inspectable without breaking the whole Run detail page.
   try { return JSON.parse(value); } catch { return { unavailable: 'Stored Judge evidence is not valid JSON' }; }
+}
+
+export default function AdminEvalRunDetailPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-stone-50" />}>
+      <AdminEvalRunDetailContent />
+    </Suspense>
+  );
 }

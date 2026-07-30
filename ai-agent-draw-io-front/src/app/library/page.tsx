@@ -7,6 +7,7 @@ import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
 import { createMaterialClient } from '@/api/material';
 import { MaterialUploader } from '@/features/materials/MaterialUploader';
 import { materialCapabilityMessage } from '@/features/materials/library-view';
+import { materialDetailsHref } from '@/utils/app-routes';
 import type { MaterialCapabilities, MaterialCatalogCard } from '@/features/materials/material-types';
 
 const idempotencyKey = () => globalThis.crypto.randomUUID();
@@ -100,7 +101,7 @@ export default function LibraryPage() {
           <form onSubmit={search} className="mb-4 flex gap-2"><input value={queryInput} onChange={event => setQueryInput(event.target.value)} type="search" placeholder="Search by item name" className="min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"/><button className="theme-btn-secondary rounded-lg px-4 text-sm">Search</button></form>
           {!loading && !capabilityMessage && materials.length === 0 && <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center text-sm text-zinc-500">{lifecycleState === 'TRASHED' ? 'The trash is empty.' : 'No items yet. Upload a PDF or image to get started.'}</div>}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{materials.map(material => <article key={material.materialId} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <Link href={`/library/${encodeURIComponent(material.materialId)}`} className="block"><h2 className="truncate font-semibold text-zinc-900">{material.displayName}</h2><p className="mt-1 text-sm text-zinc-500">{material.kind} · {material.processingStatus} · {material.progress}%</p></Link>
+            <Link href={materialDetailsHref(material.materialId)} className="block"><h2 className="truncate font-semibold text-zinc-900">{material.displayName}</h2><p className="mt-1 text-sm text-zinc-500">{material.kind} · {material.processingStatus} · {material.progress}%</p></Link>
             <div className="mt-4 flex items-center justify-between gap-2"><span className="text-xs text-zinc-500">{material.lifecycleState}</span>
               {lifecycleState === 'TRASHED' ? <button type="button" onClick={() => void restore(material)} className="text-sm font-medium text-zinc-700 underline">Restore</button> : <button type="button" onClick={() => void remove(material)} className="text-sm font-medium text-rose-700 underline">Move to trash</button>}
             </div>

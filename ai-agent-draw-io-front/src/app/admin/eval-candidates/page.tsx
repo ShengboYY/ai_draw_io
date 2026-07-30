@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { agentApi, ApiResponseError } from '@/api/agent';
 import type { EvalCaseCandidateDTO, TraceAnalysisJobDTO, TraceFindingViewDTO } from '@/types/api';
+import { evalCaseDetailsHref } from '@/utils/app-routes';
 import { buildLoginHref } from '@/utils/login-form';
 import { formatTime } from '../admin-shared';
 import { AdminShell } from '../admin-shell';
@@ -177,7 +178,7 @@ export default function AdminEvalCandidatesPage() {
       const { data } = await agentApi.adminCreateEvalCaseWorkingCopyFromDraft(
         candidate.id, identity.caseId.trim(), identity.caseVersion.trim(),
       );
-      router.push(`/admin/eval-cases/${encodeURIComponent(data.workingCopyId)}`);
+      router.push(evalCaseDetailsHref(data.workingCopyId));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Failed to create Case working copy');
       setBusyCandidateId(null);
