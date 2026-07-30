@@ -25,7 +25,10 @@ import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import java.util.Base64;
 import java.util.List;
 
-/** Adapts the existing VLM reviewer as the delegated agent in the Plain review loop. */
+/**
+ * Keeps explicit server-side draft review available while production defers to browser-rendered
+ * Draw.io evidence through {@link #defersToClientRenderedEvidence()}.
+ */
 @Component
 @Slf4j
 public final class DefaultDiagramDraftVisualReviewAdapter
@@ -58,6 +61,12 @@ public final class DefaultDiagramDraftVisualReviewAdapter
     ) {
         this.reviewer = reviewer;
         this.telemetry = telemetry;
+    }
+
+    @Override
+    public boolean defersToClientRenderedEvidence() {
+        // Draw.io in the browser is the authoritative renderer; the client reviews its exported PNG.
+        return true;
     }
 
     @Override

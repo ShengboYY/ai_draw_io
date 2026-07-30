@@ -89,9 +89,13 @@ class DefaultDiagramAgentToolAdapterTest {
                 .withUserConfiguration(
                         DefaultDiagramDraftVisualReviewAdapter.class,
                         DefaultDiagramAgentToolAdapter.class)
-                .run(context -> assertThat(context)
-                        .hasSingleBean(DiagramDraftVisualReviewPort.class)
-                        .hasSingleBean(DiagramAgentToolPort.class));
+                .run(context -> {
+                    assertThat(context)
+                            .hasSingleBean(DiagramDraftVisualReviewPort.class)
+                            .hasSingleBean(DiagramAgentToolPort.class);
+                    assertThat(context.getBean(DiagramDraftVisualReviewPort.class)
+                            .defersToClientRenderedEvidence()).isTrue();
+                });
     }
 
     @Test

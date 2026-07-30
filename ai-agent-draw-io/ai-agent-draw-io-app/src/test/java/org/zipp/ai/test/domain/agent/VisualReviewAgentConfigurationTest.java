@@ -25,6 +25,9 @@ public class VisualReviewAgentConfigurationTest {
 
             assertTrue(instruction.contains("targetCellIds contains at most 5 ids copied exactly from cellManifest"));
             assertTrue(instruction.contains("\"targetCellIds\":[]"));
+            assertTrue(instruction.contains("Do not impose a preferred palette"));
+            assertTrue(instruction.contains("minor spacing differences"));
+            assertTrue(instruction.contains("Use minor severity for a cosmetic observation"));
             assertFalse(instruction.contains("Do not output XML, cell ids"));
         }
     }

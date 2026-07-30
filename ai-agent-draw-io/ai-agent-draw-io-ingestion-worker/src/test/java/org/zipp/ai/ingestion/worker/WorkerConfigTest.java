@@ -37,6 +37,10 @@ class WorkerConfigTest {
             assertNotNull(stream);
             String configuration = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(configuration.contains("import: optional:file:.env[.properties]"));
+            assertTrue(configuration.contains(
+                    "url: ${DB_URL:${SPRING_DATASOURCE_URL:jdbc:mysql://${MYSQL_HOST:127.0.0.1}"));
+            assertTrue(configuration.contains(
+                    "username: ${DB_USERNAME:${SPRING_DATASOURCE_USERNAME:${MYSQL_USER:root}}}"));
             assertTrue(configuration.contains("materials-bucket: ${MATERIALS_BUCKET:}"));
             assertTrue(configuration.contains("materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}"));
             assertTrue(configuration.contains(

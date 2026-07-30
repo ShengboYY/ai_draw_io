@@ -7,9 +7,10 @@ spring:
   main:
     web-application-type: none
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    # Accept deployment DB_* variables while sharing the backend's MYSQL_* local settings.
+    url: ${DB_URL:${SPRING_DATASOURCE_URL:jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3307}/${MYSQL_DATABASE:ai_draw_io}?useUnicode=true&characterEncoding=utf8&serverTimezone=${MYSQL_TZ:UTC}&useSSL=false&allowPublicKeyRetrieval=true}}
+    username: ${DB_USERNAME:${SPRING_DATASOURCE_USERNAME:${MYSQL_USER:root}}}
+    password: ${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:${MYSQL_ROOT_PASSWORD:}}}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 mybatis:
