@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const read = path => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
-const page = read('../src/app/chartbooks/[chartbookId]/memory/page.tsx');
+const page = read('../src/app/chartbooks/memory/page.tsx');
 const client = read('../src/api/memory.ts');
 
 test('Memory page exposes explicit confirmation and owner-fenced management actions', () => {

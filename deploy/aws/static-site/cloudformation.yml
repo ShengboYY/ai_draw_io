@@ -1,0 +1,229 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private S3 origin and CloudFront distribution for the FreeDraw production frontend.
+
+Parameters:
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for freedrawai.com and www.freedrawai.com in us-east-1.
+    AllowedPattern: '^arn:aws:acm:us-east-1:[0-9]{12}:certificate/[0-9a-f-]+$'
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - prod
+  DeploymentRoleName:
+    Type: String
+    Default: ai-drawio-github-deployer-role
+    Description: Existing GitHub OIDC role that publishes the static frontend.
+    AllowedPattern: '^[A-Za-z0-9+=,.@_-]{1,64}$'
+
+Resources:
+  StaticSiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 7
+          - Id: AbortIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: ai-drawio
+      VersioningConfiguration:
+        Status: Enabled
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Description: !Sub '${AWS::StackName} private S3 access'
+        Name: !Sub '${AWS::StackName}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  StaticPathFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      AutoPublish: true
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+
+          // Next static export writes route files as /route/index.html.
+          if (uri.endsWith('/')) {
+            request.uri += 'index.html';
+          } else if (!uri.includes('.')) {
+            request.uri += '/index.html';
+          }
+
+          return request;
+        }
+      FunctionConfig:
+        Comment: Resolve extensionless Next.js static-export routes.
+        Runtime: cloudfront-js-2.0
+      Name: !Sub '${AWS::StackName}-static-paths'
+
+  SecurityHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-security-headers'
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: SAMEORIGIN
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Override: true
+          XSSProtection:
+            ModeBlock: true
+            Override: true
+            Protection: true
+
+  StaticSiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - freedrawai.com
+          - www.freedrawai.com
+        Comment: FreeDraw private S3 static frontend
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 0
+            ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+          - ErrorCachingMinTTL: 0
+            ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt StaticPathFunction.FunctionARN
+          ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+          TargetOriginId: static-s3-origin
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        Origins:
+          - DomainName: !GetAtt StaticSiteBucket.RegionalDomainName
+            Id: static-s3-origin
+            OriginAccessControlId: !Ref OriginAccessControl
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: ai-drawio
+
+  StaticSiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StaticSiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:GetObject
+            Resource: !Sub '${StaticSiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${StaticSiteDistribution}'
+
+  StaticSiteDeploymentPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AWS::StackName}-deploy'
+      Roles:
+        - !Ref DeploymentRoleName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ReadStaticSiteStack
+            Effect: Allow
+            Action:
+              - cloudformation:DescribeStacks
+            Resource: !Ref AWS::StackId
+          - Sid: ListStaticSiteBucket
+            Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+              - s3:ListBucket
+            Resource: !GetAtt StaticSiteBucket.Arn
+          - Sid: PublishStaticSiteObjects
+            Effect: Allow
+            Action:
+              - s3:DeleteObject
+              - s3:GetObject
+              - s3:PutObject
+            Resource: !Sub '${StaticSiteBucket.Arn}/*'
+          - Sid: InvalidateStaticSiteDistribution
+            Effect: Allow
+            Action:
+              - cloudfront:CreateInvalidation
+              - cloudfront:GetDistribution
+              - cloudfront:GetInvalidation
+            Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${StaticSiteDistribution}'
+
+Outputs:
+  BucketName:
+    Description: Private S3 bucket that receives the exported frontend.
+    Value: !Ref StaticSiteBucket
+  DistributionDomainName:
+    Description: CloudFront hostname used for DNS validation and cutover.
+    Value: !GetAtt StaticSiteDistribution.DomainName
+  DistributionId:
+    Description: CloudFront distribution identifier used for cache invalidation.
+    Value: !Ref StaticSiteDistribution

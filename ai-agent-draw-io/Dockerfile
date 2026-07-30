@@ -21,8 +21,9 @@ RUN --mount=type=cache,target=/root/.m2 \
 
 FROM eclipse-temurin:17-jre-ubi9-minimal
 
-# Keep the glibc-based runtime current while preserving production compatibility.
+# Keep the glibc-based runtime current and install the ECS health-check client.
 RUN microdnf update -y \
+    && microdnf install -y curl-minimal \
     && microdnf clean all
 
 WORKDIR /app

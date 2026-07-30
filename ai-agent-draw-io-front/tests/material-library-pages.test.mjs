@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
 const library = read('../src/app/library/page.tsx');
-const materialDetails = read('../src/app/library/[materialId]/page.tsx');
+const materialDetails = read('../src/app/library/details/page.tsx');
 const chartbooks = read('../src/app/chartbooks/page.tsx');
-const chartbookDetails = read('../src/app/chartbooks/[chartbookId]/page.tsx');
+const chartbookDetails = read('../src/app/chartbooks/details/page.tsx');
 const chartbookShelf = read('../src/features/chartbooks/use-chartbook-shelf.ts');
 const folderGrid = read('../src/features/chartbooks/ChartbookFolderGrid.tsx');
 const createDialog = read('../src/features/chartbooks/ChartbookCreateDialog.tsx');
@@ -118,8 +118,8 @@ test('the chartbooks route and the diagrams tab share one chartbook shelf implem
   // On the diagrams page folders are cells of the shared workspace grid, not a separate section.
   assert.match(diagrams, /isFolderView && visibleChartbooks\.map\(chartbook => \(\s*<ChartbookFolderCard/);
   assert.doesNotMatch(diagrams, /aria-label="Chartbooks"/);
-  // Folder tiles keep opening the existing chartbook detail route.
-  assert.match(folderGrid, /const href = `\/chartbooks\/\$\{encodeURIComponent\(chartbook\.chartbookId\)\}`/);
+  // Folder tiles keep opening the static-export-compatible chartbook detail route.
+  assert.match(folderGrid, /const href = chartbookDetailsHref\(chartbook\.chartbookId\)/);
 });
 
 test('dragging one diagram onto another groups both into a new chartbook', () => {

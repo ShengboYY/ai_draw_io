@@ -11,7 +11,7 @@ const source = relativePath => readFileSync(
 test('diagram cards use one chartbook-style action menu', () => {
   const menuSource = source('features/diagrams/DiagramActionMenu.tsx');
   const diagramsPage = source('app/diagrams/page.tsx');
-  const chartbookPage = source('app/chartbooks/[chartbookId]/page.tsx');
+  const chartbookPage = source('app/chartbooks/details/page.tsx');
 
   // These are the distinctive dimensions and treatments of the chartbook menu reference.
   assert.match(menuSource, /w-44 rounded-xl border border-stone-200\/90 bg-white p-1\.5/);
@@ -23,14 +23,14 @@ test('diagram cards use one chartbook-style action menu', () => {
 
 test('diagram action menus expose destructive delete rows with icons', () => {
   const diagramsPage = source('app/diagrams/page.tsx');
-  const chartbookPage = source('app/chartbooks/[chartbookId]/page.tsx');
+  const chartbookPage = source('app/chartbooks/details/page.tsx');
 
   assert.match(diagramsPage, /label: 'Delete',[\s\S]*icon: <TrashIcon \/>[\s\S]*tone: 'danger'/);
   assert.match(chartbookPage, /label: 'Delete',[\s\S]*icon: <TrashIcon \/>[\s\S]*tone: 'danger'/);
 });
 
 test('deleting from a chartbook deletes the diagram and clears both local collections', () => {
-  const chartbookPage = source('app/chartbooks/[chartbookId]/page.tsx');
+  const chartbookPage = source('app/chartbooks/details/page.tsx');
   const deleteHandler = chartbookPage.slice(
     chartbookPage.indexOf('const deleteDiagram = async'),
     chartbookPage.indexOf('const removeFile = async'),
@@ -46,7 +46,7 @@ test('deleting from a chartbook deletes the diagram and clears both local collec
 test('both diagram surfaces use the shared in-product delete confirmation', () => {
   const dialogSource = source('features/diagrams/DiagramDeleteDialog.tsx');
   const diagramsPage = source('app/diagrams/page.tsx');
-  const chartbookPage = source('app/chartbooks/[chartbookId]/page.tsx');
+  const chartbookPage = source('app/chartbooks/details/page.tsx');
 
   // The dialog follows the existing product overlay, focus, and destructive-action treatments.
   assert.match(dialogSource, /role="alertdialog"/);

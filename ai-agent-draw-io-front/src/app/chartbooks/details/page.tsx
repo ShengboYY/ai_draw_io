@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { agentApi } from '@/api/agent';
 import { API_CONFIG } from '@/config/api-config';
 import { createChartbookClient } from '@/api/chartbook';
@@ -67,9 +67,8 @@ const ICON_BUTTON_CLASS = 'flex h-9 w-9 shrink-0 items-center justify-center rou
 // Keep list preview frames aligned with the landscape Draw.io canvas shape.
 const DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS = 'aspect-[16/9] sm:aspect-[4/3]';
 
-export default function ChartbookDetailsPage() {
-  const params = useParams<{ chartbookId: string }>();
-  const chartbookId = params.chartbookId;
+function ChartbookDetailsContent() {
+  const chartbookId = useSearchParams().get('chartbookId') || '';
   const router = useRouter();
   const identity = useWorkspaceIdentity();
   const { ownerId } = identity;
@@ -675,5 +674,13 @@ export default function ChartbookDetailsPage() {
         />
       )}
     </main>
+  );
+}
+
+export default function ChartbookDetailsPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-stone-50" />}>
+      <ChartbookDetailsContent />
+    </Suspense>
   );
 }

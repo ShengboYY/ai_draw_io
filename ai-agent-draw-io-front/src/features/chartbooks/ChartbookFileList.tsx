@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { materialDetailsHref } from '@/utils/app-routes';
 import { filesPanelStatusLabel } from '../files/files-panel-model';
 import type { MaterialCatalogCard } from '../materials/material-types';
 
@@ -53,7 +54,7 @@ export const ChartbookFileList = ({
             {fileExtension(file.displayName)}
           </span>
           <Link
-            href={`/library/${encodeURIComponent(file.materialId)}`}
+            href={materialDetailsHref(file.materialId)}
             className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 hover:text-zinc-600"
           >
             {file.displayName}

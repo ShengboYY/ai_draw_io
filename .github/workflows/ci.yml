@@ -216,13 +216,6 @@ jobs:
           --tag ai-drawio-backend:ci
           ai-agent-draw-io
 
-      - name: Build frontend image
-        run: >-
-          docker build
-          --platform linux/amd64
-          --tag ai-drawio-frontend:ci
-          ai-agent-draw-io-front
-
       - name: Build database migration image
         run: >-
           docker build
@@ -246,7 +239,6 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
-      ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
       ECR_MIGRATION_REPOSITORY: ${{ vars.ECR_MIGRATION_REPOSITORY }}
 
     steps:
@@ -275,10 +267,8 @@ jobs:
           set -euo pipefail
 
           backend_uri="${ECR_REGISTRY}/${ECR_BACKEND_REPOSITORY}:${IMAGE_TAG}"
-          frontend_uri="${ECR_REGISTRY}/${ECR_FRONTEND_REPOSITORY}:${IMAGE_TAG}"
           migration_uri="${ECR_REGISTRY}/${ECR_MIGRATION_REPOSITORY}:${IMAGE_TAG}"
           backend_exists=false
-          frontend_exists=false
           migration_exists=false
 
           if aws ecr describe-images \
@@ -286,13 +276,6 @@ jobs:
             --image-ids imageTag="$IMAGE_TAG" \
             > /dev/null 2>&1; then
             backend_exists=true
-          fi
-
-          if aws ecr describe-images \
-            --repository-name "$ECR_FRONTEND_REPOSITORY" \
-            --image-ids imageTag="$IMAGE_TAG" \
-            > /dev/null 2>&1; then
-            frontend_exists=true
           fi
 
           if aws ecr describe-images \
@@ -311,15 +294,6 @@ jobs:
             echo "Backend image already exists; reusing immutable tag $IMAGE_TAG."
           fi
 
-          if [ "$frontend_exists" = false ]; then
-            docker build \
-              --platform linux/amd64 \
-              --tag "$frontend_uri" \
-              ai-agent-draw-io-front
-          else
-            echo "Frontend image already exists; reusing immutable tag $IMAGE_TAG."
-          fi
-
           if [ "$migration_exists" = false ]; then
             docker build \
               --provenance=false \
@@ -333,10 +307,6 @@ jobs:
 
           if [ "$backend_exists" = false ]; then
             docker push "$backend_uri"
-          fi
-
-          if [ "$frontend_exists" = false ]; then
-            docker push "$frontend_uri"
           fi
 
           if [ "$migration_exists" = false ]; then
@@ -355,11 +325,6 @@ jobs:
             --image-ids imageTag="$IMAGE_TAG" \
             --query 'imageDetails[0].imageDigest' \
             --output text)
-          frontend_digest=$(aws ecr describe-images \
-            --repository-name "$ECR_FRONTEND_REPOSITORY" \
-            --image-ids imageTag="$IMAGE_TAG" \
-            --query 'imageDetails[0].imageDigest' \
-            --output text)
           migration_digest=$(aws ecr describe-images \
             --repository-name "$ECR_MIGRATION_REPOSITORY" \
             --image-ids imageTag="$IMAGE_TAG" \
@@ -372,8 +337,6 @@ jobs:
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Backend: \`${ECR_REGISTRY}/${ECR_BACKEND_REPOSITORY}:${IMAGE_TAG}\`"
             echo "- Backend digest: \`${backend_digest}\`"
-            echo "- Frontend: \`${ECR_REGISTRY}/${ECR_FRONTEND_REPOSITORY}:${IMAGE_TAG}\`"
-            echo "- Frontend digest: \`${frontend_digest}\`"
             echo "- Migration: \`${ECR_REGISTRY}/${ECR_MIGRATION_REPOSITORY}:${IMAGE_TAG}\`"
             echo "- Migration digest: \`${migration_digest}\`"
           } >> "$GITHUB_STEP_SUMMARY"

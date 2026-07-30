@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createMemoryClient, type ConfirmedMemory, type MemoryCandidate, MemoryApiError } from '@/api/memory';
 import { API_CONFIG } from '@/config/api-config';
+import { chartbookDetailsHref } from '@/utils/app-routes';
 
 const formatExpiry = (value: string) => {
   const date = new Date(value);
@@ -12,9 +13,8 @@ const formatExpiry = (value: string) => {
 };
 
 /** Small, explicit review surface: candidates are never confirmed implicitly by the page. */
-export default function ChartbookMemoryPage() {
-  const params = useParams<{ chartbookId: string }>();
-  const chartbookId = params.chartbookId;
+function ChartbookMemoryContent() {
+  const chartbookId = useSearchParams().get('chartbookId') || '';
   const client = useMemo(() => createMemoryClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const [candidates, setCandidates] = useState<MemoryCandidate[]>([]);
   const [memories, setMemories] = useState<ConfirmedMemory[]>([]);
@@ -86,7 +86,7 @@ export default function ChartbookMemoryPage() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <Link href={`/chartbooks/${encodeURIComponent(chartbookId)}`} className="text-sm text-zinc-500 hover:text-zinc-900">
+            <Link href={chartbookDetailsHref(chartbookId)} className="text-sm text-zinc-500 hover:text-zinc-900">
               ← Back to chartbook
             </Link>
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">Confirmed Memory</h1>
@@ -174,5 +174,13 @@ export default function ChartbookMemoryPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function ChartbookMemoryPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-stone-50" />}>
+      <ChartbookMemoryContent />
+    </Suspense>
   );
 }

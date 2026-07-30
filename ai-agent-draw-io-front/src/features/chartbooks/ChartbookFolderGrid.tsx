@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { chartbookDetailsHref } from '@/utils/app-routes';
 import { chartbookFolderSummary } from './chartbook-shelf';
 import type { Chartbook } from '../materials/material-types';
 
@@ -64,7 +65,7 @@ export const ChartbookFolderCard = ({
   onDropDiagram?: (chartbook: Chartbook, diagramId: string) => void;
 }) => {
   const [isDropTarget, setIsDropTarget] = useState(false);
-  const href = `/chartbooks/${encodeURIComponent(chartbook.chartbookId)}`;
+  const href = chartbookDetailsHref(chartbook.chartbookId);
 
   const acceptsDrag = (event: React.DragEvent) =>
     Boolean(onDropDiagram) && event.dataTransfer.types.includes(DIAGRAM_DRAG_MIME);

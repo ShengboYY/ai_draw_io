@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
+import { evalRunDetailsHref } from '@/utils/app-routes';
 import type { EvalDatasetDTO, EvalDatasetVersionDTO, EvaluationProfileDTO, EvaluationTarget, EvalRunSummaryDTO } from '@/types/api';
 import { AdminShell } from '../admin-shell';
 import { EvaluationWorkspace } from '../evaluation-workspace';
@@ -69,7 +70,7 @@ export default function AdminEvalRunsPage() {
     agentApi.adminStartEvalRun({ mode: draft.mode, datasetId: draft.datasetId, datasetVersion: draft.datasetVersion,
       gitSha: draft.gitSha, candidateRef: draft.gitSha, baselineRef: draft.baselineRef || undefined,
       profileId: profile.profileId, profileVersion: profile.version, repetitions: profile.repetitions, idempotencyKey })
-      .then(({ data }) => router.push(`/admin/eval-runs/${encodeURIComponent(data.id)}`))
+      .then(({ data }) => router.push(evalRunDetailsHref(data.id)))
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'Start failed'));
   };
   const datasetTarget = datasets.find((item) => item.id === draft.datasetId)?.evaluationTarget;
@@ -168,7 +169,7 @@ export default function AdminEvalRunsPage() {
 
       <div className="space-y-3">
         {visibleRuns.map((run) => (
-          <Link key={run.id} href={`/admin/eval-runs/${encodeURIComponent(run.id)}`} className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-zinc-400">
+          <Link key={run.id} href={evalRunDetailsHref(run.id)} className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-zinc-400">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate font-medium text-zinc-900">{run.datasetId}<span className="text-zinc-400">@{run.datasetVersion}</span></div>
