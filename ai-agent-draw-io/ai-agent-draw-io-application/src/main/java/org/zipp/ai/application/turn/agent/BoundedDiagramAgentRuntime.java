@@ -155,6 +155,10 @@ public final class BoundedDiagramAgentRuntime {
                                 decisionLatency, visualIssueCount(state)));
 
                 if (action instanceof SubmitDiagramCandidate submit) {
+                    if (visualReviews.defersToClientRenderedEvidence()) {
+                        // The committed candidate is loaded into Draw.io before the client exports review pixels.
+                        return submit(state, submit, cancellation, stepNumber, events, runStarted);
+                    }
                     if (!hasCurrentVisualReview(state)
                             && state.visualReviewCount() < budget.maxVisualReviews()) {
                         state = reviewCurrentDraft(
@@ -207,6 +211,16 @@ public final class BoundedDiagramAgentRuntime {
                     DiagramDraftSnapshot preview = drafts.read(
                             request.attempt(), result.draft().ref());
                     publish(events, "plain_agent_draft_preview", preview.canvasXml());
+                    if (visualReviews.defersToClientRenderedEvidence()) {
+                        // Avoid a second model decision: browser review continues after the outer commit.
+                        return submit(
+                                state,
+                                clientRenderedReviewSubmission(state),
+                                cancellation,
+                                stepNumber,
+                                events,
+                                runStarted);
+                    }
                     state = reviewCurrentDraft(
                             state,
                             stepNumber,
@@ -316,7 +330,8 @@ public final class BoundedDiagramAgentRuntime {
         }
         requireActive(state.request().attempt(), cancellation);
         int stepNumber = state.stepCount();
-        if (!hasCurrentVisualReview(state)
+        if (!visualReviews.defersToClientRenderedEvidence()
+                && !hasCurrentVisualReview(state)
                 && state.visualReviewCount() < budget.maxVisualReviews()) {
             // Exhausting model steps does not skip the protocol-owned final visual checkpoint.
             state = reviewCurrentDraft(
@@ -531,6 +546,8 @@ public final class BoundedDiagramAgentRuntime {
             throw stop("PLAIN_AGENT_VISUAL_REVIEW_STALE");
         }
         review = boundRepairToRemainingBudget(state, review, stepNumber);
+        PreparedRepairContext repairContext = prepareVisualRepairContext(state, review);
+        review = repairContext.review();
         trace(state.request().attempt(), stepNumber,
                 PlainAgentTraceType.VISUAL_REVIEW_COMPLETED,
                 actionType, "visual_review_agent", "",
@@ -553,7 +570,7 @@ public final class BoundedDiagramAgentRuntime {
                 state.activeDraft(),
                 state.latestStructure(),
                 review,
-                state.latestToolResult(),
+                repairContext.toolResult(),
                 steps,
                 state.recentDraftDigests(),
                 state.stepCount(),
@@ -562,6 +579,71 @@ public final class BoundedDiagramAgentRuntime {
                 state.fullXmlInspectionCount(),
                 state.visualReviewCount() + 1,
                 state.noProgressCount());
+    }
+
+    private PreparedRepairContext prepareVisualRepairContext(
+            DiagramAgentState state,
+            DiagramDraftVisualReview review
+    ) {
+        if (!review.requestsRepair()) {
+            return new PreparedRepairContext(review, state.latestToolResult());
+        }
+        LinkedHashSet<String> targetIds = new LinkedHashSet<>();
+        for (DiagramDraftVisualIssue issue : review.issues()) {
+            targetIds.addAll(issue.targetCellIds());
+        }
+        if (targetIds.isEmpty()) {
+            return new PreparedRepairContext(
+                    requireHumanReview(review, "repair_targets_unavailable"),
+                    state.latestToolResult());
+        }
+
+        DiagramAgentToolResult inspected;
+        try {
+            // Model decisions use fresh sessions, so prepare the exact authorized cells server-side
+            // instead of asking the repair turn to reconstruct its previous XML from memory.
+            inspected = Objects.requireNonNull(
+                    tools.execute(
+                            state.request().attempt(),
+                            state.request().plan(),
+                            new InspectDraftRequest(
+                                    state.activeDraft().ref(),
+                                    DraftInspectionScope.TARGET_CELLS,
+                                    List.copyOf(targetIds),
+                                    "")),
+                    "repair target inspection");
+        } catch (RuntimeException failure) {
+            return new PreparedRepairContext(
+                    requireHumanReview(review, "repair_context_failed"),
+                    state.latestToolResult());
+        }
+        Set<String> inspectedIds = inspected.cells().stream()
+                .filter(cell -> !cell.rawXml().isBlank())
+                .map(InspectedDiagramCell::id)
+                .collect(java.util.stream.Collectors.toSet());
+        if (!inspected.success() || !inspectedIds.containsAll(targetIds)) {
+            return new PreparedRepairContext(
+                    requireHumanReview(review, "repair_context_incomplete"),
+                    state.latestToolResult());
+        }
+        return new PreparedRepairContext(review, inspected);
+    }
+
+    private DiagramDraftVisualReview requireHumanReview(
+            DiagramDraftVisualReview review,
+            String reason
+    ) {
+        String conflict = review.groundingConflict().isBlank()
+                ? reason
+                : review.groundingConflict() + ";" + reason;
+        return new DiagramDraftVisualReview(
+                review.reviewedDigest(),
+                "NEEDS_HUMAN_REVIEW",
+                review.available(),
+                review.summary(),
+                review.issues(),
+                conflict,
+                review.reviewerVersion());
     }
 
     private DiagramDraftVisualReview boundRepairToRemainingBudget(
@@ -601,6 +683,22 @@ public final class BoundedDiagramAgentRuntime {
                 state.activeDraft().ref(),
                 state.activeDraft().digest(),
                 terminalReviewMessage(state));
+    }
+
+    private SubmitDiagramCandidate clientRenderedReviewSubmission(DiagramAgentState state) {
+        return new SubmitDiagramCandidate(
+                state.activeDraft().ref(),
+                state.activeDraft().digest(),
+                clientRenderedReviewMessage(state));
+    }
+
+    private String clientRenderedReviewMessage(DiagramAgentState state) {
+        boolean chinese = state.request().context().request().instruction().value()
+                .codePoints()
+                .anyMatch(codePoint -> codePoint >= 0x3400 && codePoint <= 0x9FFF);
+        return chinese
+                ? "图表已生成并加载到 Draw.io 画布。"
+                : "The diagram was generated and loaded into the Draw.io canvas.";
     }
 
     private String terminalReviewMessage(DiagramAgentState state) {
@@ -887,6 +985,12 @@ public final class BoundedDiagramAgentRuntime {
                 issues,
                 latency,
                 Instant.now()));
+    }
+
+    private record PreparedRepairContext(
+            DiagramDraftVisualReview review,
+            DiagramAgentToolResult toolResult
+    ) {
     }
 
     private <T> T materialized(ContextRead<T> read, Class<T> type) {

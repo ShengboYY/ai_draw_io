@@ -82,6 +82,23 @@ test('saved repairs progress through one policy checkpoint and one final verific
   assert.equal(nextVisualReviewStage(3), undefined);
 });
 
+test('post-repair requests carry the exact completed repair round and lineage parent', () => {
+  for (const checkpoint of [
+    { stage: 'POST_REPAIR', visualRepairRound: 1, parentRunId: 'repair-run-1' },
+    { stage: 'VERIFY_ONLY', visualRepairRound: 2, parentRunId: 'repair-run-2' },
+  ]) {
+    const request = buildCanvasVisualReviewRequest({
+      ...base,
+      ...checkpoint,
+    });
+
+    assert.equal(request.stage, checkpoint.stage);
+    assert.equal(request.visualRepairRound, checkpoint.visualRepairRound);
+    assert.equal(request.parentRunId, checkpoint.parentRunId);
+    assert.equal(request.rendererVersion, 'drawio-embed-png-v1');
+  }
+});
+
 test('repair transport failures preserve an already presented VLM review', () => {
   assert.equal(shouldShowUnavailableReview(false), true);
   assert.equal(shouldShowUnavailableReview(true), false);

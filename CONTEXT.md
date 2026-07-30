@@ -2,7 +2,7 @@
 
 > 本文件记录本次多模态资料库需求中已经统一的领域语言，不包含具体实现方案。需求事实来源为本次产品讨论会话。
 
-> **规范更新（2026-07-26）**：本文件仍可作为资料 owner/scope、lifecycle/retention、citation persistence 与 target resolution 的术语参考；turn admission、claim/fence、source demand、requiredness、fallback、snapshot timing 和 transport cancellation 以 [ADR 0013](docs/adr/0013-freeze-turn-context-source-execution-contract.md) 及 [Wayfinder](docs/multimodal-library-chartbook/2026-07-25-context-memory-source-wayfinder.md) 为准。以下历史语义不得作为新实现合同：Personal Library 不属于 Project/Chartbook AUTO；不恢复逐消息来源 checkbox 或 `SourceMode` 选择器；snapshot 不在 Router/模型前冻结；断流只 detach，不取消产品 turn；所有 V2 turn 必须先完成 sticky assignment 与 atomic claim。
+> **规范更新（2026-07-28）**：本文件仍可作为资料 owner/scope、lifecycle/retention、citation persistence 与 target resolution 的术语参考；RAG/多模态架构、turn admission、claim/fence、source demand、requiredness、fallback、snapshot timing 和 transport cancellation 以 [AI Draw.io 多模态 RAG 完整方案](docs/multimodal-rag-design.md) 为准。以下历史语义不得作为新实现合同：Personal Library 不属于 Project/Chartbook AUTO；不恢复逐消息来源 checkbox 或 `SourceMode` 选择器；snapshot 不在 Router/模型前冻结；断流只 detach，不取消产品 turn；所有 V2 turn 必须先完成 sticky assignment 与 atomic claim。
 
 > 文中“自动引用”“指定引用”“仅使用所选资料”“来源策略”以及“Intent Router 先于 Source Probe”的定义是旧术语/旧顺序，保留仅为历史语境；新实现使用 typed source demand、Resolver、Pre-Planner 与 source-aware plan。
 ## Glossary
@@ -123,11 +123,11 @@
 
 实际参与生成的网页来源记录，包括标题、URL、访问日期和支持具体结论的短摘录，但不包含完整网页快照。只被搜索但未使用的网页不构成联网引用。
 
-### Source Probe（旧顺序定义，已由 ADR 0013 取代）
+### Source Probe（旧顺序定义，已由多模态 RAG 完整方案取代）
 
 意图识别前的轻量资料探测。它只读取权限、选择、版本、处理状态、类型、页数和质量概况等可信元数据，不读取正文或图片内容。
 
-### Intent Router（旧顺序定义，已由 ADR 0013 取代）
+### Intent Router（旧顺序定义，已由多模态 RAG 完整方案取代）
 
 识别用户主要动作、复合步骤和画布变更边界的意图路由器。它先于内容检索运行，以建立可信的工具和画布权限。
 

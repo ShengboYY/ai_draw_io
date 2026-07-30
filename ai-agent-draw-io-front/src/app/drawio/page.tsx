@@ -126,6 +126,10 @@ import {
   CanvasExportError,
 } from './canvas-export-coordinator';
 import {
+  drawioCanvasLoadFingerprint,
+  isExpectedDrawioCanvasLoaded,
+} from './canvas-load-readiness';
+import {
   VISUAL_REVIEW_DETAIL_WIDTH,
   VISUAL_REVIEW_RENDERER_VERSION,
   buildVisualReviewEvidencePlan,
@@ -672,6 +676,7 @@ function DrawioPageContent() {
   const pendingThumbnailExportRef = useRef<{ diagramId: string; xml: string } | null>(null);
   const canvasLoadWaitersRef = useRef<Array<{
     sessionId: string;
+    expectedFingerprint: string;
     resolve: (loaded: boolean) => void;
     timer: ReturnType<typeof setTimeout>;
   }>>([]);
@@ -1463,7 +1468,7 @@ function DrawioPageContent() {
     blankEditorGuardTimerRef.current = setTimeout(clearBlankEditorGuard, 100);
   };
 
-  const handleDrawioLoad = () => {
+  const handleDrawioLoad = (data?: { xml?: string }) => {
     isDrawIoReadyRef.current = true;
     setIsDrawIoReady(true);
     if (forceBlankEditorLoadRef.current && drawioRef.current) {
@@ -1476,8 +1481,13 @@ function DrawioPageContent() {
       finishBlankEditorGuardSoon();
     }
     const loadedSessionId = currentSessionRef.current;
-    const completedWaiters = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId === loadedSessionId);
-    canvasLoadWaitersRef.current = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId !== loadedSessionId);
+    // A streamed preview also emits "load". Release only waiters whose final graph
+    // model matches this event, otherwise visual review can export a partial draft.
+    const completedWaiters = canvasLoadWaitersRef.current.filter(waiter => (
+      waiter.sessionId === loadedSessionId
+      && isExpectedDrawioCanvasLoaded(waiter.expectedFingerprint, data?.xml)
+    ));
+    canvasLoadWaitersRef.current = canvasLoadWaitersRef.current.filter(waiter => !completedWaiters.includes(waiter));
     completedWaiters.forEach(waiter => {
       clearTimeout(waiter.timer);
       waiter.resolve(true);
@@ -1485,9 +1495,14 @@ function DrawioPageContent() {
     flushPendingThumbnailExport();
   };
 
-  const waitForCanvasLoad = (sessionId: string, timeoutMs = 5_000) => new Promise<boolean>(resolve => {
+  const waitForCanvasLoad = (
+    sessionId: string,
+    expectedXml: string,
+    timeoutMs = 15_000,
+  ) => new Promise<boolean>(resolve => {
     const waiter = {
       sessionId,
+      expectedFingerprint: drawioCanvasLoadFingerprint(expectedXml),
       resolve,
       timer: setTimeout(() => {
         canvasLoadWaitersRef.current = canvasLoadWaitersRef.current.filter(candidate => candidate !== waiter);
@@ -2831,7 +2846,10 @@ function DrawioPageContent() {
               if (chunk.type === 'drawio_done' && Number.isFinite(chunk.version) && chunk.contentHash) {
                 markVisualRepairCompleted(reviewRequest.visualRepairRound);
                 const repairedDiagramId = chunk.diagramId || reviewRequest.diagramId;
-                const loadPromise = waitForCanvasLoad(activeSession?.id || currentSessionId || '');
+                const loadPromise = waitForCanvasLoad(
+                  activeSession?.id || currentSessionId || '',
+                  chunk.content,
+                );
                 applyFinalDiagramXml(chunk.content, chunk.mode);
                 saveCurrentCanvasXml(chunk.content, {
                   diagramId: repairedDiagramId,
@@ -3312,7 +3330,7 @@ function DrawioPageContent() {
                     contentHash: chunk.contentHash,
                   });
                 const canvasLoaded = shouldReviewFinalCanvas && activeSession?.id
-                  ? waitForCanvasLoad(activeSession.id)
+                  ? waitForCanvasLoad(activeSession.id, finalXml)
                   : null;
                 // Local edits merge in place; full redraws recreate the iframe with the final stable XML.
                 if (currentSessionId === currentSessionRef.current && finalXml && finalXml.trim() !== '') {

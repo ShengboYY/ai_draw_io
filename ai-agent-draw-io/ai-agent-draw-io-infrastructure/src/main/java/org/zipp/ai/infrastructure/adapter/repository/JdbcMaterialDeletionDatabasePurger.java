@@ -8,7 +8,7 @@ import java.util.Objects;
 
 /** Fixed-statement content purge; statements are ordered from leaves toward MaterialVersion. */
 @Repository
-class JdbcMaterialDeletionDatabasePurger implements MaterialDeletionDatabasePurger {
+public class JdbcMaterialDeletionDatabasePurger implements MaterialDeletionDatabasePurger {
     private static final List<String> DELETE_SQL = List.of(
             "DELETE p FROM retrieval_chunk_vector_projection p JOIN retrieval_chunk c ON c.id=p.retrieval_chunk_id JOIN material_version v ON v.id=c.version_id WHERE v.material_id=?",
             "DELETE p FROM retrieval_projection_manifest p JOIN material_processing_revision r ON r.id=p.revision_id JOIN material_version v ON v.id=r.version_id WHERE v.material_id=?",
@@ -46,7 +46,7 @@ class JdbcMaterialDeletionDatabasePurger implements MaterialDeletionDatabasePurg
 
     private final JdbcTemplate jdbc;
 
-    JdbcMaterialDeletionDatabasePurger(JdbcTemplate jdbc) {
+    public JdbcMaterialDeletionDatabasePurger(JdbcTemplate jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 

@@ -18,6 +18,7 @@ import org.zipp.ai.application.turn.agent.CreateDraftRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentAction;
 import org.zipp.ai.application.turn.agent.DiagramAgentBudget;
 import org.zipp.ai.application.turn.agent.DiagramAgentDecisionPort;
+import org.zipp.ai.application.turn.agent.DiagramDraftSnapshot;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualIssue;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReview;
 import org.zipp.ai.application.turn.agent.DiagramDraftVisualReviewPort;
@@ -172,6 +173,48 @@ class BoundedDiagramAgentRuntimeTest {
     }
 
     @Test
+    void submitsTheDraftWithoutServerReviewWhenDrawioMustExportTheReviewPng() {
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        AtomicInteger reviews = new AtomicInteger();
+        List<TurnEvent> progress = new ArrayList<>();
+        DiagramDraftVisualReviewPort clientRenderedReview = new DiagramDraftVisualReviewPort() {
+            @Override
+            public DiagramDraftVisualReview review(PlainDrawPlan plan, DiagramDraftSnapshot draft) {
+                reviews.incrementAndGet();
+                return DiagramDraftVisualReview.unavailable(draft.digest(), "unexpected_server_review");
+            }
+
+            @Override
+            public boolean defersToClientRenderedEvidence() {
+                return true;
+            }
+        };
+        BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
+                (observation, cancellation) -> new CallDiagramTool(
+                        new CreateDraftRequest(graph(
+                                "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\"/>"))),
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                clientRenderedReview);
+
+        var result = runtime.run(
+                request(PlainDrawAction.CREATE, ""),
+                DiagramSkillBundle.empty(),
+                () -> false,
+                progress::add);
+
+        assertThat(reviews.get()).isZero();
+        assertThat(result.stepCount()).isEqualTo(1);
+        assertThat(result.canvasXml()).contains("node-a");
+        assertThat(progress)
+                .extracting(TurnEvent::type)
+                .contains("plain_agent_draft_preview", "plain_agent_candidate_submitted")
+                .doesNotContain(
+                        "plain_agent_visual_review_started",
+                        "plain_agent_visual_review_completed");
+    }
+
+    @Test
     void neverAutoSubmitsWhenTheModelRepeatsAnAction() {
         InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
         DiagramAgentAction repeated = new CallDiagramTool(new CreateDraftRequest(graph(
@@ -221,6 +264,16 @@ class BoundedDiagramAgentRuntimeTest {
                                 + "as=\"geometry\"/></mxCell>")));
             }
             if (state.latestVisualReview().requestsRepair()) {
+                assertThat(state.latestToolResult().toolName()).isEqualTo("inspect_draft");
+                assertThat(state.latestToolResult().cells())
+                        .singleElement()
+                        .satisfies(cell -> {
+                            assertThat(cell.id()).isEqualTo("node-a");
+                            assertThat(cell.rawXml()).contains(
+                                    "<mxCell id=\"node-a\"",
+                                    "<mxGeometry",
+                                    "x=\"10\"");
+                        });
                 return new CallDiagramTool(new PatchDraftRequest(
                         state.activeDraft().ref(),
                         state.activeDraft().digest(),
@@ -355,6 +408,38 @@ class BoundedDiagramAgentRuntimeTest {
                 DiagramSkillBundle.empty(),
                 () -> false);
 
+        assertThat(decisions.get()).isEqualTo(1);
+        assertThat(result.stepCount()).isEqualTo(1);
+        assertThat(result.canvasXml()).contains("node-a");
+        assertThat(result.assistantMessage()).contains("human review");
+    }
+
+    @Test
+    void requiresHumanReviewWhenTheRequestedRepairCellCannotBeInspected() {
+        InMemoryDiagramDraftStore store = new InMemoryDiagramDraftStore();
+        AtomicInteger decisions = new AtomicInteger();
+        DiagramAgentDecisionPort decision = (observation, cancellation) -> {
+            decisions.incrementAndGet();
+            if (observation.state().activeDraft() == null) {
+                return new CallDiagramTool(new CreateDraftRequest(graph(
+                        "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
+                                + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
+                                + "as=\"geometry\"/></mxCell>")));
+            }
+            throw new IllegalStateException("DECISION_SHOULD_NOT_CONTINUE");
+        };
+        BoundedDiagramAgentRuntime runtime = new BoundedDiagramAgentRuntime(
+                decision,
+                new DefaultDiagramAgentToolAdapter(store),
+                store,
+                repairingReview("missing-node"));
+
+        var result = runtime.run(
+                request(PlainDrawAction.CREATE, ""),
+                DiagramSkillBundle.empty(),
+                () -> false);
+
+        // Never give the model a repair turn without the exact authorized cell XML.
         assertThat(decisions.get()).isEqualTo(1);
         assertThat(result.stepCount()).isEqualTo(1);
         assertThat(result.canvasXml()).contains("node-a");

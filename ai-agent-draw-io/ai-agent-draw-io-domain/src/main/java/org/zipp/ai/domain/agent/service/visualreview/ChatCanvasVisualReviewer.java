@@ -35,7 +35,7 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
 
-    private static final String PROMPT_VERSION = "visual-review-prompt-v4";
+    private static final String PROMPT_VERSION = "visual-review-prompt-v5";
     private static final String RUBRIC_VERSION = "visual-review-rubric-v1";
     private static final String SCHEMA_VERSION = "visual-review-schema-v3";
     private static final int MAX_CELL_ID_LENGTH = 256;
@@ -182,8 +182,10 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
                     + "Inspect every page overview independently and use its matching detail tiles; for multi-page issues, name the page in evidence. "
                     + "Use cellManifest as structural grounding for which nodes and edges exist and how edges connect; use pixels to judge their visual readability. "
                     + "Never claim that a grounded cell is absent merely because it is visually hard to trace. "
-                    + "Trace every visible connector end to end, especially long return and retry routes. Report EDGE_TRACEABILITY when connectors overlap, become nearly indistinguishable, use accidental diagonal or zig-zag detours, cross a node or label, or cannot be followed unambiguously, even when cellManifest confirms their endpoints. "
-                    + "Judge only visible task fulfillment, readability, hierarchy, edge traceability, style coherence, and visible semantic risk. "
+                    + "Judge at normal viewing scale and do not impose a preferred palette, layout pattern, or house style. Judge style only for internal inconsistency. "
+                    + "Trace every visible connector end to end, especially long return and retry routes. Report EDGE_TRACEABILITY only when a connector cannot be followed unambiguously, materially overlaps another connector, or crosses a node or label. Do not report merely non-optimal bends or detours. "
+                    + "Do not report subjective aesthetic preferences, minor spacing differences, or cosmetic variations as blocking issues. Use minor severity when a visible cosmetic note is still useful. "
+                    + "Judge only visible task fulfillment, readability, hierarchy, edge traceability, internal style coherence, and visible semantic risk. "
                     + "Respond in the language named by languageHint. Do not output XML or propose changes unsupported by the original task. "
                     + "Return one JSON object with exactly summary(string), "
                     + "issues(array up to 5), recommendedHumanReview(boolean). Each issue must have exactly type, severity(minor|major|critical), "

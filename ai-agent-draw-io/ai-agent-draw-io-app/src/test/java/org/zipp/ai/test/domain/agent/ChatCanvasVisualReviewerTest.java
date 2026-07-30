@@ -113,7 +113,10 @@ public class ChatCanvasVisualReviewerTest {
         assertTrue(prompt.contains("\"targetLabel\":\"Database\""));
         assertTrue(prompt.contains("\"waypointCount\":1"));
         assertTrue(prompt.contains("Trace every visible connector end to end"));
-        assertTrue(prompt.contains("accidental diagonal or zig-zag detours"));
+        assertTrue(prompt.contains("do not impose a preferred palette"));
+        assertTrue(prompt.contains("Do not report merely non-optimal bends or detours"));
+        assertTrue(prompt.contains("minor spacing differences"));
+        assertFalse(prompt.contains("accidental diagonal or zig-zag detours"));
         assertFalse(prompt.contains("SECRET_STYLE"));
         assertFalse(prompt.contains("SECRET_EDGE_STYLE"));
         assertFalse(prompt.contains("secret='true'"));

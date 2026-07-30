@@ -16,6 +16,13 @@ import org.zipp.ai.application.turn.agent.CallDiagramTool;
 import org.zipp.ai.application.turn.agent.CreateDraftRequest;
 import org.zipp.ai.application.turn.agent.DiagramAgentObservation;
 import org.zipp.ai.application.turn.agent.DiagramAgentState;
+import org.zipp.ai.application.turn.agent.DiagramAgentToolResult;
+import org.zipp.ai.application.turn.agent.DiagramDraftStructure;
+import org.zipp.ai.application.turn.agent.DiagramDraftView;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualIssue;
+import org.zipp.ai.application.turn.agent.DiagramDraftVisualReview;
+import org.zipp.ai.application.turn.agent.DraftRef;
+import org.zipp.ai.application.turn.agent.InspectedDiagramCell;
 import org.zipp.ai.application.turn.agent.SubmitDiagramCandidate;
 import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.AvailableContext;
@@ -46,7 +53,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ChatDiagramAgentDecisionAdapterTest {
 
     @Test
-    void parsesStrictCreateActionAndRendersTheAgentProtocol() {
+    void parsesStrictCreateActionAndRendersTheFinalCompositionPrompt() {
         RecordingChat chat = new RecordingChat(
                 "{\"action\":\"CALL_TOOL\",\"toolName\":\"create_draft\",\"arguments\":"
                         + "{\"canvasXml\":\"<mxGraphModel><root><mxCell id=\\\"0\\\"/>"
@@ -58,11 +65,89 @@ class ChatDiagramAgentDecisionAdapterTest {
 
         CallDiagramTool call = assertInstanceOf(CallDiagramTool.class, action);
         assertInstanceOf(CreateDraftRequest.class, call.request());
-        assertTrue(chat.lastText.contains("PLAIN_XML_AGENT_DECISION_V1"));
-        assertTrue(chat.lastText.contains("ACTION_PROTOCOL"));
-        assertTrue(chat.lastText.contains("SUBMIT_CANDIDATE"));
-        assertTrue(chat.lastText.contains("Runtime delegates"));
-        assertFalse(chat.lastText.contains("CALL review_draft"));
+        assertTrue(chat.lastText.contains("PLAIN_XML_CREATE_DRAFT_V2"));
+        assertTrue(chat.lastText.contains("complete, presentation-ready diagram"));
+        assertTrue(chat.lastText.contains("CREATE_DRAFT_SCHEMA"));
+        assertTrue(chat.lastText.contains("not a rough intermediate sketch"));
+        assertFalse(chat.lastText.contains("ACTION_PROTOCOL"));
+        assertFalse(chat.lastText.contains("patch_draft"));
+        assertFalse(chat.lastText.contains("inspect_draft"));
+        assertFalse(chat.lastText.contains("REMAINING_STEPS"));
+    }
+
+    @Test
+    void rendersOnlyGroundedTargetCellXmlForVisualRepair() {
+        String digest = "sha256:" + "a".repeat(64);
+        DiagramDraftView draft = new DiagramDraftView(new DraftRef("draft-1"), digest, 1);
+        DiagramDraftStructure structure = new DiagramDraftStructure(1, 0, 3);
+        DiagramDraftVisualReview review = new DiagramDraftVisualReview(
+                digest,
+                "REPAIR",
+                true,
+                "Move one node.",
+                List.of(new DiagramDraftVisualIssue(
+                        "LAYOUT_HIERARCHY",
+                        "MAJOR",
+                        List.of("node-a"),
+                        "The node is visibly misplaced.",
+                        "Move node-a into alignment.")),
+                "",
+                "test-reviewer");
+        DiagramAgentToolResult targetContext = DiagramAgentToolResult.success(
+                "inspect_draft",
+                draft,
+                structure,
+                List.of(),
+                List.of(new InspectedDiagramCell(
+                        "node-a",
+                        "Start",
+                        "node",
+                        "1",
+                        "",
+                        "",
+                        10,
+                        10,
+                        80,
+                        40,
+                        "<mxCell id=\"node-a\" value=\"Start\" vertex=\"1\" parent=\"1\">"
+                                + "<mxGeometry x=\"10\" y=\"10\" width=\"80\" height=\"40\" "
+                                + "as=\"geometry\"/></mxCell>")),
+                "",
+                false);
+        DiagramAgentState state = new DiagramAgentState(
+                request(),
+                DiagramSkillBundle.empty(),
+                draft,
+                structure,
+                review,
+                targetContext,
+                List.of(),
+                List.of(digest),
+                1,
+                1,
+                1,
+                0,
+                1,
+                0);
+        String prompt = new PlainGenerationPromptRenderer().render(
+                new DiagramAgentObservation(
+                        state,
+                        List.of("inspect_draft", "patch_draft"),
+                        7,
+                        2,
+                        1,
+                        1));
+
+        assertTrue(prompt.contains("PLAIN_XML_REPAIR_DRAFT_V2"));
+        assertTrue(prompt.contains("TARGET_CELL_DATA"));
+        assertTrue(prompt.contains("node-a"));
+        assertTrue(prompt.contains("x=\\\"10\\\""));
+        assertTrue(prompt.contains("PRESERVATION_CONTRACT"));
+        assertTrue(prompt.contains("PATCH_DRAFT_SCHEMA"));
+        assertFalse(prompt.contains("create_draft"));
+        assertFalse(prompt.contains("inspect_draft"));
+        assertFalse(prompt.contains("SUBMIT_CANDIDATE"));
+        assertFalse(prompt.contains("CONVERSATION_DATA"));
     }
 
     @Test
