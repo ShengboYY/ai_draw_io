@@ -267,8 +267,18 @@ FEEDBACK/PREFERENCE 边界、PII 排除和 JSON 漂移。
 - [x] 完成最终运行时代码审查与干净全量验证：后端 `mvn clean test` 共执行 1,959 项测试
   （0 failure、0 error、14 项按 live/integration 开关跳过）；前端 312/312 项测试通过，
   ESLint 0 error，生产构建与 diff whitespace 检查通过。
+- [x] 在本地持久化 MySQL 上重复执行正式迁移，并以隔离测试账号完成浏览器端到端验证：
+  成功 Turn 创建 work，DeepSeek V4 Pro 完成推断，Item/Evidence 落库。
+- [x] 本地端到端测试发现 Context 查询的嵌套 `JSON_ARRAYAGG` 少一个右括号；修复 SQL，并增加
+  聚合表达式括号平衡回归测试。
+- [x] 验证显式 USER Memory 直接进入 ACTIVE；后续 Turn 的 Context read set 将 Memory 标记为
+  `PINNED`，模型能够准确召回跨项目绘图规则。
+- [ ] 推断型 Memory 上线前需稳定语义归并：同义输入的真实模型输出出现不同
+  `semanticKey`，会形成多个 OBSERVED Item，无法可靠累计到两条证据自动激活。
 
-当前实现边界：迁移已在一次性 MySQL 8.4 实例验证，但尚未在目标环境数据库执行；模型 agent
-的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过。feature flag 仍保持默认关闭；
-上线前还需按第 7 节在目标环境执行迁移，并以 shadow/canary 方式渐进启用。V4 Flash 的同 cohort
-成本/延迟对照不阻塞 Pro 上线，但应在扩大调用量前完成。
+当前实现边界：迁移已在一次性 MySQL 8.4 和本地持久化 MySQL 验证，但尚未在目标环境数据库
+执行；模型 agent 的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过，完整本地
+Turn → Extract → Persist → Recall 链路也已验证。feature flag 仍保持默认关闭，本地 `.env`
+单独开启；生产启用前应先解决推断型 semantic key 稳定性，再按第 7 节执行迁移并以
+shadow/canary 方式渐进启用。V4 Flash 的同 cohort 成本/延迟对照不阻塞 Pro 上线，但应在扩大
+调用量前完成。

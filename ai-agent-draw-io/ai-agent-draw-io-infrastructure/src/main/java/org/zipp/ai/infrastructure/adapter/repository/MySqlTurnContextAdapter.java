@@ -112,7 +112,7 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                              AND m.scope_key = cb.id))), 0) AS auto_memory_version,
                    COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT(
                        'scopeType', m.scope_type, 'memoryType', m.memory_type,
-                       'semanticKey', m.semantic_key, 'text', m.canonical_text)
+                       'semanticKey', m.semantic_key, 'text', m.canonical_text))
                        FROM memory_item m
                        WHERE m.owner_key = d.user_id AND m.status = 'ACTIVE'
                          AND ((m.scope_type = 'USER' AND m.scope_key = d.user_id)

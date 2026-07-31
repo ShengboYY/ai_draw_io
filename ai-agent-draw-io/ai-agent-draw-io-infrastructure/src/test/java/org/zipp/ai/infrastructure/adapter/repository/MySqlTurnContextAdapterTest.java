@@ -478,6 +478,8 @@ class MySqlTurnContextAdapterTest {
                     return List.of(map(rowMapper, execution));
                 }
                 if (sql.contains("FROM diagram d")) {
+                    // The proxy cannot parse SQL, so guard the nested JSON aggregate delimiter.
+                    assertEquals(count(sql, '('), count(sql, ')'), "domain SQL must be balanced");
                     return List.of(map(rowMapper, domain));
                 }
                 if (sql.contains("FROM diagram_conversation_message")) {
@@ -496,6 +498,10 @@ class MySqlTurnContextAdapterTest {
         };
         return (JdbcOperations) Proxy.newProxyInstance(
                 JdbcOperations.class.getClassLoader(), new Class<?>[]{JdbcOperations.class}, handler);
+    }
+
+    private static long count(String value, char target) {
+        return value.chars().filter(character -> character == target).count();
     }
 
     private static <T> T map(RowMapper<T> mapper, Map<String, Object> values) {
