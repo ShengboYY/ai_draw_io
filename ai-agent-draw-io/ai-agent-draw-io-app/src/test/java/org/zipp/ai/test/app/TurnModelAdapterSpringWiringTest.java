@@ -10,6 +10,7 @@ import org.zipp.ai.infrastructure.adapter.repository.MySqlDirectPreparationStore
 import org.zipp.ai.infrastructure.adapter.repository.MySqlEvidencePreparationStore;
 import org.zipp.ai.infrastructure.turn.model.PreparedDirectGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatEvidenceAnswerGenerationAdapter;
+import org.zipp.ai.infrastructure.turn.model.ChatAutoMemoryExtractionAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatGroundedGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatPlainGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatPlainResponseAdapter;
@@ -33,6 +34,16 @@ class TurnModelAdapterSpringWiringTest {
                 .hasSingleBean(PreparedDirectGenerationAdapter.class)
                 .hasSingleBean(ChatGroundedGenerationAdapter.class)
                 .hasSingleBean(ChatEvidenceAnswerGenerationAdapter.class));
+    }
+
+    @Test
+    void autoMemoryModelAdapterIsPresentOnlyBehindItsMigrationGate() {
+        contextRunner.run(context ->
+                assertThat(context).doesNotHaveBean(ChatAutoMemoryExtractionAdapter.class));
+
+        contextRunner.withPropertyValues("app.memory.auto-enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(ChatAutoMemoryExtractionAdapter.class));
     }
 
     @TestConfiguration(proxyBeanMethods = false)

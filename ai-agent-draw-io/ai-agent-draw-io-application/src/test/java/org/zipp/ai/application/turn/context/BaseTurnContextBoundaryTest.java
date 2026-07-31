@@ -29,13 +29,13 @@ class BaseTurnContextBoundaryTest {
         assertEquals("draw a flowchart", input.instruction().value());
         assertTrue(input.context().canvasAvailable());
         assertEquals("Use blue lanes", input.context().profileInstructions());
-        assertEquals(List.of("Prefer short labels"), input.context().confirmedMemoryDecisions());
+        assertEquals(List.of("Prefer short labels"), input.context().autoMemoryEntries());
         assertEquals(List.of(new OpaqueConversationFileRef("file-1")),
                 input.currentMessageAttachments());
 
         String prompt = new SemanticRouterPromptRenderer().render(input);
         assertTrue(prompt.contains("CHARTBOOK_PROFILE_DATA"));
-        assertTrue(prompt.contains("CONFIRMED_MEMORY_DATA"));
+        assertTrue(prompt.contains("AUTO_MEMORY_DATA"));
         assertTrue(prompt.contains("ELIGIBLE_ATTACHMENT_CANDIDATES_DATA"));
         assertTrue(prompt.contains("file-1"));
         assertFalse(prompt.contains("SOURCE_AVAILABILITY"));
@@ -147,7 +147,8 @@ class BaseTurnContextBoundaryTest {
                 new AvailableContext<>(new ChartbookMembershipContext("chartbook-1", 2, 3), "membership"),
                 new AvailableContext<>(new ChartbookProfileContext(
                         "Use blue lanes", "", "", List.of("flow"), "clean"), "profile"),
-                new AvailableContext<>(new ConfirmedMemoryContext(List.of("Prefer short labels")), "memory"),
+                new AvailableContext<>(new AutoMemoryContext(
+                        List.of("Prefer short labels"), List.of()), "memory"),
                 new ContextDiagnostics(List.of()));
     }
 }

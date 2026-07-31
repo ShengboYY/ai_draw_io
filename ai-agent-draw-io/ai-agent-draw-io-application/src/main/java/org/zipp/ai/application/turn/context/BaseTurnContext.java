@@ -12,7 +12,7 @@ public record BaseTurnContext(
         ContextRead<ConversationContext> conversation,
         ContextRead<ChartbookMembershipContext> membership,
         ContextRead<ChartbookProfileContext> chartbook,
-        ContextRead<ConfirmedMemoryContext> memory,
+        ContextRead<AutoMemoryContext> memory,
         ContextDiagnostics diagnostics
 ) {
 

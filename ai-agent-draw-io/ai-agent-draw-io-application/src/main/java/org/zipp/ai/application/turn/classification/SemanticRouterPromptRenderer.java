@@ -28,8 +28,8 @@ public final class SemanticRouterPromptRenderer {
                 + ";glossary=" + join(context.profileGlossary())
                 + ";defaultStyle=" + context.profileDefaultStyle()
                 + ";stableConstraints=" + join(context.profileStableConstraints()));
-        append(prompt, "CONFIRMED_MEMORY_DATA", "available=" + context.memoryAvailable()
-                + ";decisions=" + join(context.confirmedMemoryDecisions()));
+        append(prompt, "AUTO_MEMORY_DATA", "available=" + context.memoryAvailable()
+                + ";entries=" + join(context.autoMemoryEntries()));
         append(prompt, "ELIGIBLE_ATTACHMENT_CANDIDATES_DATA",
                 input.attachmentCandidates().stream()
                         .map(value -> "origin=" + value.origin()

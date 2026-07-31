@@ -37,7 +37,7 @@ class ContextReadSetContractTest {
     }
 
     @Test
-    void readSetDigestChangesWhenConfirmedMemoryPinChanges() {
+    void readSetDigestChangesWhenAutoMemoryPinChanges() {
         ContextReadSet absent = readSet(17, "profile-v1", 1);
         ContextReadSet pinned = ContextReadSet.create(
                 1,

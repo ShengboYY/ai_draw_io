@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.armory.node;
 
 import org.junit.Test;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 
 import static org.junit.Assert.assertEquals;
@@ -28,5 +29,16 @@ public class ChatModelNodeOptionsTest {
         config.setModel("production-model");
 
         assertNull(ChatModelNode.defaultOptions(config).getTemperature());
+    }
+
+    @Test
+    public void configuredJsonObjectIsAppliedToDefaultOptions() {
+        AiAgentConfigTableVO.Module.ChatModel config = new AiAgentConfigTableVO.Module.ChatModel();
+        config.setModel("extractor-model");
+        config.setResponseFormat("json_object");
+
+        OpenAiChatOptions options = ChatModelNode.defaultOptions(config);
+
+        assertEquals(ResponseFormat.Type.JSON_OBJECT, options.getResponseFormat().getType());
     }
 }

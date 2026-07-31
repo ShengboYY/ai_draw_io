@@ -6,10 +6,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Versioned, high-precision locale rules for explicit Memory confirmation.
+ * Versioned, high-precision locale rules for explicit Memory intent.
  *
  * <p>Every rule requires both a memory verb and a decision noun. This keeps ordinary chat from
- * creating pending Memory while supporting natural confirmation phrases without UI buttons.</p>
+ * immediately activating ordinary chat or relying on a confirmation-candidate UI.</p>
  */
 final class ExplicitMemoryLocaleRulePack {
 

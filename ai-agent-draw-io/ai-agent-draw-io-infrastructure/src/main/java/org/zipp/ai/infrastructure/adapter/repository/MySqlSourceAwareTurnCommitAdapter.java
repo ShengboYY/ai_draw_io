@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.zipp.ai.application.memory.AutoMemoryExtractionWorkPort;
 import org.zipp.ai.application.turn.DirectTurnCommit;
 import org.zipp.ai.application.turn.DirectTurnCommitPort;
 import org.zipp.ai.application.turn.DirectVisualProvenance;
@@ -147,21 +148,22 @@ public class MySqlSourceAwareTurnCommitAdapter
             """;
 
     private final JdbcOperations jdbc;
-    private final MySqlCompletedTurnMemoryProposalWriter memoryProposals;
+    private final AutoMemoryExtractionWorkPort memoryExtractionWork;
     private final CanvasXmlContentHasher canvasHasher = new CanvasXmlContentHasher();
     private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlSourceAwareTurnCommitAdapter(JdbcOperations jdbc) {
-        this(jdbc, null);
+        this(jdbc, AutoMemoryExtractionWorkPort.NOOP);
     }
 
     @Autowired
     public MySqlSourceAwareTurnCommitAdapter(
             JdbcOperations jdbc,
-            MySqlCompletedTurnMemoryProposalWriter memoryProposals
+            AutoMemoryExtractionWorkPort memoryExtractionWork
     ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
-        this.memoryProposals = memoryProposals;
+        this.memoryExtractionWork =
+                Objects.requireNonNull(memoryExtractionWork, "memoryExtractionWork");
     }
 
     @Override
@@ -545,9 +547,8 @@ public class MySqlSourceAwareTurnCommitAdapter
                 key.turnId(),
                 attempt.attemptId(),
                 attempt.attemptEpoch()), "SOURCE_COMMIT_FENCE_NOT_APPLIED");
-        if (memoryProposals != null) {
-            memoryProposals.write(attempt, diagramId);
-        }
+        // Source-aware paths enqueue the same bounded post-commit extraction identity.
+        memoryExtractionWork.enqueue(attempt.key(), diagramId);
         return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
                 TurnStatus.COMPLETED,
                 "COMPLETED",

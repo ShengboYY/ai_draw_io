@@ -5,14 +5,24 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
-/** Parses an explicit locale-rule action; ordinary chat never creates Memory. */
+/** Parses high-confidence explicit Memory intent before automatic post-turn extraction. */
 public record ExplicitMemoryDecision(
         String decisionKey,
         String applicabilityStage,
         String canonicalText,
         RememberDecisionDeclaration declaration
 ) {
+    private static final Pattern USER_SCOPE_MARKER = Pattern.compile(
+            "(?:"
+                    + "\\b(?:across|for|in)\\s+all\\s+(?:chartbooks?|projects?)\\b"
+                    + "|(?:所有|全部|每个|每個|每一個)(?:画册|畫冊|图册|圖冊|项目|項目|專案)"
+                    + "|(?:todos\\s+los|tous\\s+les|alle)\\s+(?:chartbooks?|proyectos|projets|projekte)"
+                    + "|(?:すべての|全ての)(?:チャートブック|プロジェクト)"
+                    + "|모든\\s*(?:차트북|프로젝트)"
+                    + ")",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
     public ExplicitMemoryDecision {
         ContractValues.requiredText(decisionKey, "decisionKey");
@@ -48,6 +58,23 @@ public record ExplicitMemoryDecision(
             return new ExplicitMemoryDecision(
                     decisionKey, applicabilityStage, match.canonicalText(), declaration);
         });
+    }
+
+    /**
+     * Replays the same deterministic locale rules over canonical committed content.
+     *
+     * <p>This is used only for an explicitly global instruction that cannot carry a legacy
+     * Chartbook-bound declaration. Ordinary unbound instructions still go through inference.</p>
+     */
+    public static Optional<String> canonicalTextFromExplicitUserContent(String content) {
+        return ExplicitMemoryLocaleRulePack.match(content)
+                .map(ExplicitMemoryLocaleRulePack.Match::canonicalText);
+    }
+
+    /** Returns true only when the user names an all-Chartbook/project applicability scope. */
+    public static boolean targetsUserScope(String content) {
+        String normalized = content == null ? "" : content.trim();
+        return !normalized.isEmpty() && USER_SCOPE_MARKER.matcher(normalized).find();
     }
 
     public String declarationDigest() {

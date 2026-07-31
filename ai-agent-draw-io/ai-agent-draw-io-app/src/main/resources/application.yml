@@ -44,6 +44,12 @@ app:
   security:
     # Credentialed CORS is restricted to known SPA origins; production should set this env var.
     allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  memory:
+    # Enable only after the 20260814 database migration has completed.
+    auto-enabled: ${AUTO_MEMORY_ENABLED:false}
+    extractor-agent-id: ${AUTO_MEMORY_EXTRACTOR_AGENT_ID:300030}
+    worker-delay-ms: ${AUTO_MEMORY_WORKER_DELAY_MS:5000}
+    worker-batch-size: ${AUTO_MEMORY_WORKER_BATCH_SIZE:10}
   material-catalog:
     # Enable only after the WP1 foundation and WP4-A idempotency migration are applied.
     enabled: ${MATERIAL_CATALOG_ENABLED:false}

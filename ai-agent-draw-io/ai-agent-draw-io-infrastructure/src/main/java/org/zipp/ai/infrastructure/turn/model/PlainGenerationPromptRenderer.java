@@ -14,7 +14,7 @@ import org.zipp.ai.application.turn.context.AvailableContext;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.context.ChartbookProfileContext;
 import org.zipp.ai.application.turn.context.ContextRead;
-import org.zipp.ai.application.turn.context.ConfirmedMemoryContext;
+import org.zipp.ai.application.turn.context.AutoMemoryContext;
 import org.zipp.ai.application.turn.context.ConversationContext;
 import org.zipp.ai.application.turn.context.TruncatedContext;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
@@ -423,13 +423,14 @@ final class PlainGenerationPromptRenderer {
     }
 
     private void appendMemory(StringBuilder prompt, BaseTurnContext context) {
-        ConfirmedMemoryContext memory = materialized(context.memory(), ConfirmedMemoryContext.class);
-        prompt.append("CONFIRMED_MEMORY_DATA:\n");
+        AutoMemoryContext memory = materialized(context.memory(), AutoMemoryContext.class);
+        prompt.append("AUTO_MEMORY_DATA:\n");
         if (memory == null) {
             prompt.append("unavailable\n");
             return;
         }
-        appendLines(prompt, "decision", memory.decisions());
+        appendLines(prompt, "chartbookMemory", memory.chartbookMemories());
+        appendLines(prompt, "userMemory", memory.userMemories());
     }
 
     private void appendLines(StringBuilder prompt, String label, List<String> values) {

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.zipp.ai.application.memory.AutoMemoryExtractionWorkPort;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.FencedCommitOutcome;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
@@ -90,21 +91,22 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
             """;
 
     private final JdbcOperations jdbc;
-    private final MySqlCompletedTurnMemoryProposalWriter memoryProposals;
+    private final AutoMemoryExtractionWorkPort memoryExtractionWork;
     private final CanvasXmlContentHasher canvasHasher = new CanvasXmlContentHasher();
     private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlPlainTurnCommitAdapter(JdbcOperations jdbc) {
-        this(jdbc, null);
+        this(jdbc, AutoMemoryExtractionWorkPort.NOOP);
     }
 
     @Autowired
     public MySqlPlainTurnCommitAdapter(
             JdbcOperations jdbc,
-            MySqlCompletedTurnMemoryProposalWriter memoryProposals
+            AutoMemoryExtractionWorkPort memoryExtractionWork
     ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
-        this.memoryProposals = memoryProposals;
+        this.memoryExtractionWork =
+                Objects.requireNonNull(memoryExtractionWork, "memoryExtractionWork");
     }
 
     @Override
@@ -173,9 +175,8 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
         if (updated != 1) {
             throw new IllegalStateException("PLAIN_COMMIT_FENCE_NOT_APPLIED");
         }
-        if (memoryProposals != null) {
-            memoryProposals.write(attempt, command.diagramId());
-        }
+        // Only durable work identity enters this short transaction; model extraction runs later.
+        memoryExtractionWork.enqueue(attempt.key(), command.diagramId());
         return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
                 TurnStatus.COMPLETED,
                 "COMPLETED",

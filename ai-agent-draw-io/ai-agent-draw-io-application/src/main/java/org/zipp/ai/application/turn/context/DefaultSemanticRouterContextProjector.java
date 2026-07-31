@@ -18,7 +18,7 @@ public final class DefaultSemanticRouterContextProjector implements SemanticRout
         ConversationContext conversation = value(base.conversation());
         ChartbookMembershipContext membership = value(base.membership());
         ChartbookProfileContext profile = value(base.chartbook());
-        ConfirmedMemoryContext memory = value(base.memory());
+        AutoMemoryContext memory = value(base.memory());
 
         List<String> recentTurns = conversation == null ? List.of() : conversation.recentTurns();
         return new SemanticRouterInput(
@@ -41,7 +41,7 @@ public final class DefaultSemanticRouterContextProjector implements SemanticRout
                         profile == null ? List.of() : profile.glossary(),
                         profile == null ? "" : profile.defaultStyle(),
                         profile == null ? List.of() : profile.stableConstraints(),
-                        memory == null ? List.of() : memory.decisions()));
+                        memory == null ? List.of() : memory.prioritizedEntries()));
     }
 
     @SuppressWarnings("unchecked")

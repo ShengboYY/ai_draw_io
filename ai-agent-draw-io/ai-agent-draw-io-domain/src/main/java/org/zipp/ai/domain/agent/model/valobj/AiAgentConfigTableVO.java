@@ -76,6 +76,9 @@ public class AiAgentConfigTableVO {
             // Optional so existing production agents retain their provider sampling default.
             private Double temperature;
 
+            // Optional provider-neutral structured output mode for fixed internal agents.
+            private String responseFormat;
+
             private List<ToolMcp> toolMcpList;
 
             private List<ToolSkills> toolSkillsList;

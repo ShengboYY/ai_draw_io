@@ -20,7 +20,7 @@ import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.context.ConversationContext;
 import org.zipp.ai.application.turn.context.ConversationAttachmentView;
-import org.zipp.ai.application.turn.context.ConfirmedMemoryContext;
+import org.zipp.ai.application.turn.context.AutoMemoryContext;
 import org.zipp.ai.application.turn.context.DegradedContext;
 
 import java.lang.reflect.InvocationHandler;
@@ -125,7 +125,7 @@ class MySqlTurnContextAdapterTest {
     }
 
     @Test
-    void confirmedMemoryIsPinnedAndProjectedAsContextOnlyData() {
+    void scopedAutoMemoryIsPinnedAndProjectedAsContextOnlyData() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);
         Map<String, Object> domain = domainRow(2L, "canvas-hash", "<xml>");
@@ -134,9 +134,12 @@ class MySqlTurnContextAdapterTest {
         domain.put("chartbook_owner_key", "owner-1");
         domain.put("chartbook_status", "ACTIVE");
         domain.put("chartbook_updated_at", Timestamp.from(UPDATED_AT));
-        domain.put("chartbook_memory_version", 1L);
-        domain.put("chartbook_memory_json",
-                "[{\"decisionKey\":\"labels\",\"text\":\"Prefer short labels\"}]");
+        domain.put("auto_memory_version", 1L);
+        domain.put("auto_memory_json",
+                "[{\"scopeType\":\"CHARTBOOK\",\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"labels\",\"text\":\"Prefer short labels\"},"
+                        + "{\"scopeType\":\"USER\",\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"language\",\"text\":\"Prefer English labels\"}]");
 
         MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
                 jdbc(executionRow(attempt), domain, List.of()));
@@ -144,13 +147,16 @@ class MySqlTurnContextAdapterTest {
                 ContextCandidateLoadOutcome.Ready.class,
                 adapter.loadCandidate(attempt, command)).value().readSet();
 
-        assertEquals("chartbook-memory:book-1", readSet.memory().reference());
+        assertEquals("auto-memory:owner-1:book-1", readSet.memory().reference());
         ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
                 ContextMaterializationOutcome.Ready.class,
                 adapter.materialize(attempt, command, readSet));
-        AvailableContext<ConfirmedMemoryContext> memory = assertInstanceOf(
+        AvailableContext<AutoMemoryContext> memory = assertInstanceOf(
                 AvailableContext.class, materialized.value().memory());
-        assertEquals(List.of("labels: Prefer short labels"), memory.value().decisions());
+        assertEquals(List.of("PREFERENCE/labels: Prefer short labels"),
+                memory.value().chartbookMemories());
+        assertEquals(List.of("PREFERENCE/language: Prefer English labels"),
+                memory.value().userMemories());
     }
 
     @Test
@@ -164,9 +170,10 @@ class MySqlTurnContextAdapterTest {
         initial.put("chartbook_profile_default_style_json", "{}");
         initial.put("chartbook_profile_stable_constraints_json", "[]");
         initial.put("chartbook_profile_state", "CONFIGURED");
-        initial.put("chartbook_memory_version", 1L);
-        initial.put("chartbook_memory_json",
-                "[{\"decisionKey\":\"labels\",\"text\":\"Prefer short labels\"}]");
+        initial.put("auto_memory_version", 1L);
+        initial.put("auto_memory_json",
+                "[{\"scopeType\":\"CHARTBOOK\",\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"labels\",\"text\":\"Prefer short labels\"}]");
 
         ContextReadSet readSet = assertInstanceOf(
                 ContextCandidateLoadOutcome.Ready.class,
@@ -183,7 +190,7 @@ class MySqlTurnContextAdapterTest {
                         .materialize(attempt, command, readSet));
 
         Map<String, Object> changedMemory = new HashMap<>(initial);
-        changedMemory.put("chartbook_memory_version", 2L);
+        changedMemory.put("auto_memory_version", 2L);
         assertInstanceOf(
                 ContextMaterializationOutcome.Retry.class,
                 new MySqlTurnContextAdapter(jdbc(
@@ -201,10 +208,12 @@ class MySqlTurnContextAdapterTest {
         domain.put("chartbook_profile_default_style_json", "{}");
         domain.put("chartbook_profile_stable_constraints_json", "[]");
         domain.put("chartbook_profile_state", "CONFIGURED");
-        domain.put("chartbook_memory_version", 1L);
-        domain.put("chartbook_memory_json",
-                "[{\"decisionKey\":\"labels\",\"text\":\"short\"},"
-                        + "{\"decisionKey\":\"labels\",\"text\":\"long\"}]");
+        domain.put("auto_memory_version", 1L);
+        domain.put("auto_memory_json",
+                "[{\"scopeType\":\"CHARTBOOK\",\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"labels\",\"text\":\"short\"},"
+                        + "{\"scopeType\":\"CHARTBOOK\",\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"labels\",\"text\":\"long\"}]");
 
         MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
                 jdbc(executionRow(attempt), domain, List.of()));
@@ -227,9 +236,8 @@ class MySqlTurnContextAdapterTest {
         Map<String, Object> domain = activeChartbookDomain();
         domain.put("chartbook_owner_key", "owner-2");
         domain.put("chartbook_profile_version", 3L);
-        domain.put("chartbook_memory_version", 1L);
-        domain.put("chartbook_memory_json",
-                "[{\"decisionKey\":\"labels\",\"text\":\"private\"}]");
+        domain.put("auto_memory_version", 0L);
+        domain.put("auto_memory_json", "[]");
 
         MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
                 jdbc(executionRow(attempt), domain, List.of()));
@@ -242,7 +250,7 @@ class MySqlTurnContextAdapterTest {
 
         assertEquals("NO_ACTIVE_CHARTBOOK", readSet.membership().reference());
         assertEquals("PROFILE_NOT_AVAILABLE", readSet.profile().reference());
-        assertEquals("NO_CONFIRMED_MEMORY", readSet.memory().reference());
+        assertEquals("NO_ACTIVE_AUTO_MEMORY", readSet.memory().reference());
         assertInstanceOf(AbsentContext.class, materialized.value().chartbook());
         assertInstanceOf(AbsentContext.class, materialized.value().memory());
     }
