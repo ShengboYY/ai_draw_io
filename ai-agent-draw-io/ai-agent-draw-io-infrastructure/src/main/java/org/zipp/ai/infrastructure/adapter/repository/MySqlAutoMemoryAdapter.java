@@ -8,6 +8,7 @@ import org.zipp.ai.application.memory.AutoMemoryActivationPolicy;
 import org.zipp.ai.application.memory.AutoMemoryFence;
 import org.zipp.ai.application.memory.AutoMemoryManagementOutcome;
 import org.zipp.ai.application.memory.AutoMemoryManagementStorePort;
+import org.zipp.ai.application.memory.AutoMemoryMaintenancePort;
 import org.zipp.ai.application.memory.AutoMemoryObservationOutcome;
 import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
@@ -35,7 +36,7 @@ import java.util.UUID;
 @Repository
 public class MySqlAutoMemoryAdapter
         implements AutoMemoryObservationStorePort, AutoMemoryQueryPort,
-        AutoMemoryManagementStorePort {
+        AutoMemoryManagementStorePort, AutoMemoryMaintenancePort {
 
     private static final String VERIFY_CHARTBOOK = """
             SELECT COUNT(*)
@@ -188,6 +189,13 @@ public class MySqlAutoMemoryAdapter
             DELETE FROM memory_item
             WHERE memory_id = ? AND owner_key = ? AND scope_type = ?
               AND scope_key = ? AND version = ?
+            """;
+
+    private static final String PURGE_STALE_OBSERVED = """
+            DELETE FROM memory_item
+            WHERE status = 'OBSERVED' AND is_explicit = 0 AND updated_at < ?
+            ORDER BY updated_at, memory_id
+            LIMIT ?
             """;
 
     private final JdbcOperations jdbc;
@@ -351,6 +359,17 @@ public class MySqlAutoMemoryAdapter
                 scope.scopeKey(),
                 includeObserved,
                 includeDisabled));
+    }
+
+    @Override
+    public int purgeStaleObserved(Instant cutoffExclusive, int limit) {
+        Objects.requireNonNull(cutoffExclusive, "cutoffExclusive");
+        if (limit < 1 || limit > 1_000) {
+            throw new IllegalArgumentException("limit must be between 1 and 1000");
+        }
+        // The status and explicit guards are repeated in the atomic DELETE so a concurrent
+        // activation or user edit cannot be removed by a stale maintenance read.
+        return jdbc.update(PURGE_STALE_OBSERVED, Timestamp.from(cutoffExclusive), limit);
     }
 
     @Override

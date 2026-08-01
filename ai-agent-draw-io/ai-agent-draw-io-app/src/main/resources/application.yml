@@ -50,6 +50,11 @@ app:
     extractor-agent-id: ${AUTO_MEMORY_EXTRACTOR_AGENT_ID:300030}
     worker-delay-ms: ${AUTO_MEMORY_WORKER_DELAY_MS:5000}
     worker-batch-size: ${AUTO_MEMORY_WORKER_BATCH_SIZE:10}
+    # V1.2 ages only unconfirmed OBSERVED candidates and remains opt-in after Auto Memory rollout.
+    aging-enabled: ${AUTO_MEMORY_AGING_ENABLED:false}
+    observed-retention-days: ${AUTO_MEMORY_OBSERVED_RETENTION_DAYS:90}
+    aging-delay-ms: ${AUTO_MEMORY_AGING_DELAY_MS:3600000}
+    aging-batch-size: ${AUTO_MEMORY_AGING_BATCH_SIZE:100}
   material-catalog:
     # Enable only after the WP1 foundation and WP4-A idempotency migration are applied.
     enabled: ${MATERIAL_CATALOG_ENABLED:false}

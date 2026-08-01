@@ -27,6 +27,7 @@ import org.zipp.ai.infrastructure.adapter.repository.MySqlAutoMemoryAdapter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -53,6 +54,7 @@ class MySqlAutoMemoryIntegrationTest {
     private final String legacyOwner = "auto-memory-legacy-" + suffix;
     private final String legacyChartbook = "auto-memory-legacy-book-" + suffix;
     private final String adapterOwner = "auto-memory-adapter-" + suffix;
+    private final String agingOwner = "auto-memory-aging-" + suffix;
     private final String otherOwner = "auto-memory-other-" + suffix;
     private final String adapterChartbook = "auto-memory-adapter-book-" + suffix;
     private final String activeLegacyMemory = "legacy-active-" + suffix;
@@ -92,6 +94,17 @@ class MySqlAutoMemoryIntegrationTest {
         executeSql(
                 dataSource,
                 "docs/sql/migrations/2026-08-14-create-auto-memory.sql");
+        if (count("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = DATABASE() AND table_name = 'memory_item'
+                  AND index_name = 'idx_memory_item_aging'
+                """) == 0) {
+            // The release runner owns idempotence; this direct fixture may reuse a local schema.
+            executeSql(
+                    dataSource,
+                    "docs/sql/migrations/2026-08-15-add-auto-memory-aging-index.sql");
+        }
         schemaReady = true;
     }
 
@@ -101,8 +114,8 @@ class MySqlAutoMemoryIntegrationTest {
             return;
         }
         // Evidence is deleted by the Item foreign key; released schema remains for inspection.
-        jdbc.update("DELETE FROM memory_item WHERE owner_key IN (?, ?)",
-                legacyOwner, adapterOwner);
+        jdbc.update("DELETE FROM memory_item WHERE owner_key IN (?, ?, ?)",
+                legacyOwner, adapterOwner, agingOwner);
         jdbc.update("DELETE FROM chartbook_memory WHERE owner_key IN (?, ?)",
                 legacyOwner, adapterOwner);
         jdbc.update("DELETE FROM chartbook_memory_candidate WHERE owner_key IN (?, ?)",
@@ -227,6 +240,74 @@ class MySqlAutoMemoryIntegrationTest {
                         "turn-5",
                         MemoryObservationKind.EXPLICIT))));
         assertEquals("AUTO_MEMORY_SCOPE_NOT_FOUND", rejected.code());
+    }
+
+    @Test
+    void agingPurgesOnlyStaleUnconfirmedObservationsInBoundedBatches() {
+        MySqlAutoMemoryAdapter adapter = new MySqlAutoMemoryAdapter(jdbc);
+        AutoMemoryObservationService service = service(adapter);
+        // Keep aging fixtures on their own owner so JUnit method order cannot leak state.
+        AutoMemoryScope scope = AutoMemoryScope.user(agingOwner);
+
+        AutoMemory oldA = assertInstanceOf(
+                AutoMemoryObservationOutcome.Applied.class,
+                transaction(() -> service.observe(observation(
+                        scope, "aging-old-a", "Prefer compact groups", "aging-conversation-1",
+                        "aging-turn-1", MemoryObservationKind.INFERRED))))
+                .memory();
+        AutoMemory oldB = assertInstanceOf(
+                AutoMemoryObservationOutcome.Applied.class,
+                transaction(() -> service.observe(observation(
+                        scope, "aging-old-b", "Prefer compact boundaries", "aging-conversation-2",
+                        "aging-turn-2", MemoryObservationKind.INFERRED))))
+                .memory();
+        transaction(() -> service.observe(observation(
+                scope, "aging-recent", "Prefer recent labels", "aging-conversation-3",
+                "aging-turn-3", MemoryObservationKind.INFERRED)));
+        AutoMemory active = assertInstanceOf(
+                AutoMemoryObservationOutcome.Applied.class,
+                transaction(() -> service.observe(observation(
+                        scope, "aging-active", "Prefer active labels", "aging-conversation-4",
+                        "aging-turn-4", MemoryObservationKind.EXPLICIT))))
+                .memory();
+        AutoMemory disabledSource = assertInstanceOf(
+                AutoMemoryObservationOutcome.Applied.class,
+                transaction(() -> service.observe(observation(
+                        scope, "aging-disabled", "Avoid disabled icons", "aging-conversation-5",
+                        "aging-turn-5", MemoryObservationKind.EXPLICIT))))
+                .memory();
+        transaction(() -> adapter.disable(
+                new AutoMemoryFence(scope, disabledSource.memoryId(), disabledSource.version()),
+                NOW));
+
+        // A historical test-only cutoff prevents this gated suite from matching developer rows.
+        Instant old = Instant.parse("2001-01-01T00:00:00Z");
+        jdbc.update("""
+                UPDATE memory_item
+                SET updated_at = ?
+                WHERE owner_key = ? AND semantic_key IN (
+                    'aging-old-a', 'aging-old-b', 'aging-active', 'aging-disabled')
+                """, Timestamp.from(old), agingOwner);
+
+        Instant cutoff = Instant.parse("2002-01-01T00:00:00Z");
+        assertEquals(1, adapter.purgeStaleObserved(cutoff, 1));
+        assertEquals(1, count("""
+                SELECT COUNT(*) FROM memory_item
+                WHERE owner_key = ? AND semantic_key IN ('aging-old-a', 'aging-old-b')
+                """, agingOwner));
+        assertEquals(1, adapter.purgeStaleObserved(cutoff, 1));
+
+        List<String> remaining = adapter.list(scope, true, true).stream()
+                .map(AutoMemory::semanticKey)
+                .toList();
+        assertEquals(0, count("""
+                SELECT COUNT(*) FROM memory_evidence WHERE memory_id IN (?, ?)
+                """, oldA.memoryId(), oldB.memoryId()));
+        assertFalse(remaining.contains("aging-old-a"));
+        assertFalse(remaining.contains("aging-old-b"));
+        assertTrue(remaining.contains("aging-recent"));
+        assertTrue(remaining.contains(active.semanticKey()));
+        assertTrue(remaining.contains(disabledSource.semanticKey()));
     }
 
     private AutoMemoryObservationService service(MySqlAutoMemoryAdapter adapter) {

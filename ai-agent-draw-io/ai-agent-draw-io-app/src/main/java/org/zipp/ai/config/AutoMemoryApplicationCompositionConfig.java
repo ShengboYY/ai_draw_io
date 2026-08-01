@@ -1,6 +1,7 @@
 package org.zipp.ai.config;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -11,11 +12,14 @@ import org.zipp.ai.application.memory.AutoMemoryExtractionWorkPort;
 import org.zipp.ai.application.memory.AutoMemoryExtractionWorker;
 import org.zipp.ai.application.memory.AutoMemoryManagementService;
 import org.zipp.ai.application.memory.AutoMemoryManagementStorePort;
+import org.zipp.ai.application.memory.AutoMemoryMaintenancePort;
+import org.zipp.ai.application.memory.AutoMemoryMaintenanceService;
 import org.zipp.ai.application.memory.AutoMemoryObservationService;
 import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 
 import java.time.Clock;
+import java.time.Duration;
 
 /** Composes Auto Memory independently from the legacy material-catalog feature boundary. */
 @Configuration(proxyBeanMethods = false)
@@ -68,5 +72,31 @@ public class AutoMemoryApplicationCompositionConfig {
             AutoMemoryExtractionWorker worker
     ) {
         return new AutoMemoryExtractionJob(worker);
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+            name = {"app.memory.auto-enabled", "app.memory.aging-enabled"},
+            havingValue = "true")
+    public AutoMemoryMaintenanceService autoMemoryMaintenanceService(
+            AutoMemoryMaintenancePort maintenance,
+            ObjectProvider<Clock> clocks,
+            @Value("${app.memory.observed-retention-days:90}") long retentionDays
+    ) {
+        return new AutoMemoryMaintenanceService(
+                maintenance,
+                clocks.getIfAvailable(Clock::systemUTC),
+                Duration.ofDays(retentionDays));
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+            name = {"app.memory.auto-enabled", "app.memory.aging-enabled"},
+            havingValue = "true")
+    public AutoMemoryMaintenanceJob autoMemoryMaintenanceJob(
+            AutoMemoryMaintenanceService maintenance,
+            @Value("${app.memory.aging-batch-size:100}") int batchSize
+    ) {
+        return new AutoMemoryMaintenanceJob(maintenance, batchSize);
     }
 }

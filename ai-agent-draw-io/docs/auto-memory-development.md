@@ -145,6 +145,9 @@ OBSERVED、DISABLED、置信度、显式来源和证据数。用户可以编辑�
 - `docs/sql/migrations/2026-08-14-create-auto-memory.sql`
 - `deploy/aws/database/release-20260814.manifest`
 - `deploy/aws/database/Dockerfile.20260814`
+- `docs/sql/migrations/2026-08-15-add-auto-memory-aging-index.sql`
+- `deploy/aws/database/release-20260815.manifest`
+- `deploy/aws/database/Dockerfile.20260815`
 
 迁移创建统一三张表，并把旧 `chartbook_memory` 中 ACTIVE/DISABLED 内容迁入
 CHARTBOOK/PROJECT Memory。旧表暂不删除，因为 MySQL DDL 不完全事务化，保留它们可用于数据
@@ -157,6 +160,7 @@ CHARTBOOK/PROJECT Memory。旧表暂不删除，因为 MySQL DDL 不完全事务
 3. 配置并验证 tool-free extractor agent `300030`。
 4. 开启 `AUTO_MEMORY_ENABLED=true`，先观察 work backlog、重试率、拒绝率和激活质量。
 5. 稳定后再安排独立的破坏性迁移删除旧表；不要与本次切换合并。
+6. 单独执行 `20260815` 索引迁移；确认待清理分布后，才按第 10 节逐步开启候选老化。
 
 开关关闭时不创建新工作、不调用提取模型、不暴露新管理 Controller，Context 回到旧
 `chartbook_memory` 只读投影。完整产品回滚还需同步回滚前端，因为旧候选 API 不再由新后端
@@ -321,7 +325,45 @@ semantic key，因为持久化身份是 `scope + semanticKey`；只有复用了�
 
 - `evaluation/auto-memory-consolidation-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-consolidation-v1.json`
 
-## 10. 开发日志
+## 10. V1.2 长期记忆老化
+
+当前系统能看到 Memory 被提取、重复支持和注入 Context，但还没有可靠的“模型实际使用了这条
+Memory”信号。因此 V1.2 不按时间降级 `ACTIVE`：长期未重复不代表偏好已经失效，也不使用
+DeepSeek 判断是否删除。
+
+老化只处理同时满足以下条件的弱候选：
+
+```text
+status = OBSERVED
+AND is_explicit = false
+AND updated_at < now - retention
+```
+
+- `ACTIVE`、所有显式 Memory 和 `DISABLED` 永不由该任务修改；用户管理仍是它们的唯一生命周期
+  控制面。
+- 默认 retention 为 90 天，代码拒绝低于 30 天；默认每小时最多清理 100 条，硬上限 1,000 条。
+- 每次调度只执行一个有序、原子的 `DELETE ... LIMIT` 批次，不先读后删，避免与并发激活或用户
+  编辑产生竞态。
+- 删除未确认 Item 时 Evidence 由外键级联删除；未来出现新的稳定证据仍可重新学习。这里不写
+  `DELETED` tombstone，因为候选从未进入 Context，也没有用户 opt-out 语义。
+- `idx_memory_item_aging(status, is_explicit, updated_at, memory_id)` 只服务全局小批量维护；权威数据
+  仍在 MySQL，不引入第二存储或向量索引。
+
+配置保持独立且默认关闭：
+
+| 环境变量 | 默认值 | 约束 |
+| --- | ---: | --- |
+| `AUTO_MEMORY_AGING_ENABLED` | `false` | 同时要求 `AUTO_MEMORY_ENABLED=true` 才组合任务 |
+| `AUTO_MEMORY_OBSERVED_RETENTION_DAYS` | `90` | 至少 30 天 |
+| `AUTO_MEMORY_AGING_DELAY_MS` | `3600000` | 固定延迟调度 |
+| `AUTO_MEMORY_AGING_BATCH_SIZE` | `100` | 1–1,000 |
+
+上线时先执行 `20260815`，保持老化关闭并用同一谓词统计 90 天前候选数量；确认数量和样本合理后
+再开启开关。若需要回退，只关闭老化开关；索引可以保留，不影响提取、召回或管理路径。后续只有
+建立可靠的召回使用、用户纠正或规则冲突信号后，才单独设计 ACTIVE 的复核机制，不能复用当前
+时间清理策略。
+
+## 11. 开发日志
 
 ### 2026-07-31
 
@@ -374,10 +416,17 @@ semantic key，因为持久化身份是 `scope + semanticKey`；只有复用了�
   错误归并、跨 scope、DISABLED 绕过、不安全候选接受和协议失败均为 0。
 - [x] V1.1 完整后端 `mvn test` 共执行 1,967 项测试，0 failure、0 error；15 项按现有
   live/integration 开关跳过，其中两个 Auto Memory live 门槛已分别通过显式联网运行。
+- [x] 完成 V1.2 保守老化：只清理过期、非显式 `OBSERVED`，不按时间修改 ACTIVE、显式或
+  DISABLED Memory；任务独立 opt-in，并限制 retention 和单批规模。
+- [x] 增加 `20260815` 老化索引与顺序发布包；在一次性 MySQL 8.4 执行正式迁移，并通过 4 个
+  集成场景验证批量边界、状态保护、Evidence 级联、重复运行夹具和 owner/scope 隔离。
+- [x] V1.2 完整后端 `mvn test` 共执行 1,977 项测试，0 failure、0 error；16 项按既有
+  live/integration 开关跳过，正式 MySQL 老化集成测试已另行显式运行通过。
 
 当前实现边界：迁移已在一次性 MySQL 8.4 和本地持久化 MySQL 验证，但尚未在目标环境数据库
 执行；V5 Prompt 的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过，完整本地
 Turn → Extract → Persist → Recall 链路及候选非空的 V1.1 专项门槛也已验证。feature flag 仍
-保持默认关闭，本地 `.env` 单独开启；下一步按第 7 节准备目标环境迁移和 shadow/canary 方案，
-未经用户授权不执行生产变更。长期记忆老化和候选规模扩张应基于真实分布单独设计，不与 V1.1
-归并门槛耦合；V4 Flash 的成本/延迟对照也不阻塞 Pro 上线。
+保持默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
+下一步按第 7 节准备目标环境迁移和 shadow/canary 方案，未经用户授权不执行生产变更。候选召回
+规模扩张和 ACTIVE 复核应基于真实分布与可靠使用信号单独设计；V4 Flash 的成本/延迟对照也不
+阻塞 Pro 上线。
