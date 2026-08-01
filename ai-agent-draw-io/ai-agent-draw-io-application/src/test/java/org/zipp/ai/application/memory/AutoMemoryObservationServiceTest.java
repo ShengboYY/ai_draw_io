@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,6 +58,17 @@ class AutoMemoryObservationServiceTest {
                 policy.afterSupportingEvidence(AutoMemoryStatus.DISABLED, true, 4));
         assertEquals(AutoMemoryStatus.DELETED,
                 policy.afterSupportingEvidence(AutoMemoryStatus.DELETED, true, 4));
+    }
+
+    @Test
+    void inferredChallengerNeedsTwoTurnsAndCannotReplaceExplicitContent() {
+        AutoMemoryActivationPolicy policy = new AutoMemoryActivationPolicy();
+
+        assertFalse(policy.shouldPromoteInferredChallenger(false, 1));
+        assertTrue(policy.shouldPromoteInferredChallenger(false, 2));
+        assertFalse(policy.shouldPromoteInferredChallenger(true, 4));
+        assertThrows(IllegalArgumentException.class,
+                () -> policy.shouldPromoteInferredChallenger(false, 0));
     }
 
     @Test

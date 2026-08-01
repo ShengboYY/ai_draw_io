@@ -221,6 +221,8 @@ class ChatV2ModelAdapterTest {
         assertTrue(chat.lastText.contains("EXISTING_MEMORY_CANDIDATES_JSON"));
         assertTrue(chat.lastText.contains("Prefer dark blue main nodes"));
         assertTrue(chat.lastText.contains("reuse"));
+        assertTrue(chat.lastText.contains("same decision dimension"));
+        assertTrue(chat.lastText.contains("changes or opposes"));
     }
 
     @Test

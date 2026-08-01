@@ -48,7 +48,7 @@ USER 和 CHARTBOOK 共用一组领域对象、端口和表，避免维护两套�
 | `scope_type` | `USER` 或 `CHARTBOOK` |
 | `scope_key` | USER 使用 owner key；CHARTBOOK 使用 chartbook id |
 | `memory_type` | `PREFERENCE`、`FEEDBACK`、`PROJECT`、`REFERENCE` |
-| `semantic_key` | 同一作用域内的稳定去重键 |
+| `semantic_key` | 同一作用域内的稳定决策维度键，不包含当前选择值 |
 | `title` / `canonical_text` | 管理界面和上下文使用的规范内容 |
 | `status` | `OBSERVED`、`ACTIVE`、`DISABLED`、`DELETED` |
 | `confidence` | 合并后置信度 |
@@ -62,8 +62,9 @@ scope，避免跨租户或跨 Chartbook 读取。
 ### 3.2 `memory_evidence`
 
 Evidence 保存来源 Turn、观察类型、规范文本、置信度和 disposition，不复制整段原始会话。
-同一 Memory、Turn 和观察摘要只计一次，使重试保持幂等。冲突观察保留为 `CONFLICTING`，
-不会直接覆盖已有 ACTIVE 内容；后续明确表达可以 supersede 旧证据。
+同一 Memory、Turn 和观察摘要只计一次，使重试保持幂等。一次推断冲突只保留为
+`CONFLICTING`；同一新值得到两个不同 Turn 的支持后才可替换非显式内容，显式内容仍只能由用户
+编辑或显式同键观察替换。
 
 ### 3.3 `memory_extraction_work`
 
@@ -93,6 +94,10 @@ inferred observation  ──1 turn──────> OBSERVED
 OBSERVED              ──2 turns─────> ACTIVE
 ACTIVE/OBSERVED       ──user action─> DISABLED
 any managed item      ──user action─> deleted
+
+inferred current A    ──1 turn says B──> keep A + CONFLICTING(B)
+inferred current A    ──2 turns say B─> ACTIVE(B), old evidence SUPERSEDED
+explicit current A    ──inference says B──> keep A regardless of count
 ```
 
 - 严格的显式规则（例如“请记住这个决定……”）绕过模型推断并直接激活。
@@ -111,8 +116,9 @@ any managed item      ──user action─> deleted
 
 模型提取时会在同一次调用中看到受限的现有候选（USER 与当前 CHARTBOOK 各最多 16 条）。候选
 只包含作用域、类型、语义键、标题、规范文本和状态，不包含 owner、来源 Turn 或原始对话。同义且
-同作用域时复用候选的完整规范字段，新 Turn 只增加 Evidence；相关但不同义或不同作用域时才创建
-新键。`DISABLED` 也参与候选匹配，防止用户禁用的规则被换一个 key 自动恢复。
+同作用域且同值时复用候选的完整规范字段，新 Turn 只增加 Evidence；同一决策维度但选择值改变时
+复用候选身份并保留新 `canonicalText` 作为 challenger；相关但不同维度或不同作用域时才创建新键。
+`DISABLED` 也参与候选匹配，防止用户禁用的规则被换一个 key 自动恢复。
 
 ## 5. Context 召回
 
@@ -192,11 +198,14 @@ Memory Item 是小规模、结构化、带明确作用域和语义键的数据�
 - 候选归并质量：独立冻结样本位于
   `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-consolidation-v1/cohort.json`，
   复用同一个正式 Prompt、解析器、DeepSeek 请求和报告骨架，只维护归并专用的判定指标。
+- 冲突识别质量：V1.3 冻结样本位于
+  `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-conflict-v1/cohort.json`，继续复用
+  归并评估器，只增加同维度换值的 `CHALLENGE` 指标。
 
 ### 9.1 Agent `300030` 校准门槛
 
 `auto-memory-v1` 当前包含 15 个纯合成案例，Prompt contract 已升级为
-`AUTO_MEMORY_EXTRACTION_V5`，覆盖中英文、USER/CHARTBOOK、无 Chartbook、
+`AUTO_MEMORY_EXTRACTION_V6`，覆盖中英文、USER/CHARTBOOK、无 Chartbook、
 一次性任务、画布事实、Profile 字段、URL、secret、PII 和 Prompt Injection。离线测试保证：
 
 - fixture schema、Prompt contract version 和风险切片不会静默漂移；
@@ -325,6 +334,41 @@ semantic key，因为持久化身份是 `scope + semanticKey`；只有复用了�
 
 - `evaluation/auto-memory-consolidation-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-consolidation-v1.json`
 
+### 9.5 V1.3 冲突演进校准
+
+`AUTO_MEMORY_EXTRACTION_V6` 把 `semanticKey` 定义为“决策维度”而不是“当前选择值”。同作用域、
+同维度、同值继续完整复用；同维度换值复用候选身份并输出新 `canonicalText`；相关但不同维度或
+不同作用域仍新建。输出 schema 没有增加 action/relation 字段，运行时仍只有一次模型调用。
+
+`auto-memory-conflict-v1` 包含 8 个合成案例，覆盖 USER/CHARTBOOK、ACTIVE/OBSERVED/DISABLED、
+同值复用、同维度换值、相关但不同规则、相反值但不同 scope、危险候选和模糊输入。每例三轮，
+最终 24 次调用结果：
+
+| 指标 | V1.3 结果 | 门槛 |
+| --- | ---: | ---: |
+| challenger 识别 | `100%`（9/9） | `>= 95%` |
+| 候选精确复用 | `100%`（3/3） | `100%` |
+| 正确新建 | `100%`（9/9） | `100%` |
+| 模糊输入排除 | `100%`（3/3） | `100%` |
+| 错误/跨 scope 归并 | `0%` | `0%` |
+| DISABLED 身份绕过 | `0%`（0/3） | `0%` |
+| 不安全候选接受 | `0%`（0/3） | `0%` |
+| 协议失败 | `0` | `0` |
+
+DeepSeek 的 reasoning token 与最终 JSON 共用 `max_tokens`。`2048` 预算下业务判断正确，但一个
+跨 scope CREATE 样本偶发在输出 JSON 前达到长度上限；门槛没有放宽，校准工具改为 `4096` 后
+通过。最终报告使用 34,001 tokens，平均延迟 6,816 ms，P95 11,242 ms；失败报告保留用于区分
+模型判断错误与输出预算截断：
+
+- `evaluation/auto-memory-conflict-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-conflict-v1-2048-failed.json`
+- `evaluation/auto-memory-conflict-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-conflict-v1.json`
+
+V6 同时回归原有两个 cohort。基础提取仍为 `94.44% / 100% / 0%`，协议失败 0；V1.1 归并的
+复用、新建和排除均为 `100%`，所有安全错误率及协议失败为 0：
+
+- `evaluation/auto-memory-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-v1-v6.json`
+- `evaluation/auto-memory-consolidation-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-consolidation-v1-v6.json`
+
 ## 10. V1.2 长期记忆老化
 
 当前系统能看到 Memory 被提取、重复支持和注入 Context，但还没有可靠的“模型实际使用了这条
@@ -363,7 +407,29 @@ AND updated_at < now - retention
 建立可靠的召回使用、用户纠正或规则冲突信号后，才单独设计 ACTIVE 的复核机制，不能复用当前
 时间清理策略。
 
-## 11. 开发日志
+## 11. V1.3 ACTIVE 冲突演进
+
+V1.3 只解决已有 `semanticKey` 下的值变化，不扩展为通用语义图或多候选投票：
+
+1. 模型返回与候选相同的 scope/key/type/title、不同的 `canonicalText`，Worker 保留新值作为
+   challenger；相同值仍固定为服务端候选的规范文本。
+2. 持久化先写 `CONFLICTING` Evidence。一个 Turn 不改变当前 Item；同一新值在两个不同 Turn
+   出现后，才可替换非显式 Item。
+3. 晋升在现有行锁事务内完成：旧 SUPPORTING 和其他 challenger 标为 `SUPERSEDED`，获胜
+   challenger 的 Evidence 改为 `SUPPORTING`，同一 Item 更新为新值并保持 `ACTIVE`。
+4. 当前 Item 只要 `is_explicit=true`，任意数量的推断冲突都不能替换它；`DISABLED` 仍在冲突
+   判断前直接抑制。用户管理 edit/activate/disable/delete 的语义不变。
+5. USER 与 CHARTBOOK 通过现有唯一身份隔离；跨 scope 的相反值不会互相挑战。
+
+本次不增加表、状态、迁移、向量库、第二次模型调用或平行归并框架。challenger 暂按安全策略
+规范化后的精确文本累计，不用 embedding 猜测两个不同改写是否相同；真实数据证明漏合并明显后，
+再评估规范化策略。
+
+严格“请记住……”仍走确定性显式路径并使用内容摘要键，保证不依赖模型即可直接激活。因此它
+不会自动把任意新句子映射到旧决策维度；需要确定替换已有显式 Memory 时，当前可靠入口是管理
+页面 edit，或未来单独设计用户可解释的显式目标选择，不能暗中复用推断模型。
+
+## 12. 开发日志
 
 ### 2026-07-31
 
@@ -422,11 +488,19 @@ AND updated_at < now - retention
   集成场景验证批量边界、状态保护、Evidence 级联、重复运行夹具和 owner/scope 隔离。
 - [x] V1.2 完整后端 `mvn test` 共执行 1,977 项测试，0 failure、0 error；16 项按既有
   live/integration 开关跳过，正式 MySQL 老化集成测试已另行显式运行通过。
+- [x] 完成 V1.3 冲突演进：`semanticKey` 收敛为决策维度；同值继续支持，同维度换值先累计
+  CONFLICTING Evidence，两个不同 Turn 才能替换非显式 ACTIVE，显式与 DISABLED 保持受保护。
+- [x] 沿用现有 Item/Evidence、行锁事务和归并评估器，没有增加 schema、状态、模型调用、向量库
+  或平行框架；一次性 MySQL 8.4 的 5 个集成场景全部通过。
+- [x] V6 基础提取与 V1.1 归并回归通过；V1.3 冲突专项 8 例各三轮，challenger、复用、新建与
+  排除全部正确，错误归并、跨 scope、DISABLED 绕过、不安全候选接受和协议失败均为 0。
+- [x] V1.3 完整后端 `mvn test` 共执行 1,983 项测试，0 failure、0 error；18 项按既有
+  live/integration 开关跳过，三个 Auto Memory live 门槛和 MySQL 集成已另行显式运行通过。
 
 当前实现边界：迁移已在一次性 MySQL 8.4 和本地持久化 MySQL 验证，但尚未在目标环境数据库
-执行；V5 Prompt 的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过，完整本地
-Turn → Extract → Persist → Recall 链路及候选非空的 V1.1 专项门槛也已验证。feature flag 仍
-保持默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
-下一步按第 7 节准备目标环境迁移和 shadow/canary 方案，未经用户授权不执行生产变更。候选召回
-规模扩张和 ACTIVE 复核应基于真实分布与可靠使用信号单独设计；V4 Flash 的成本/延迟对照也不
-阻塞 Pro 上线。
+执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
+Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已验证。feature flag 仍保持
+默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
+下一步按第 7 节准备目标环境迁移和 shadow/canary 方案，未经用户授权不执行生产变更。严格显式
+句子的跨值维度映射、候选召回规模扩张和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的
+成本/延迟对照也不阻塞 Pro 上线。

@@ -14,7 +14,7 @@ public sealed interface AutoMemoryObservationOutcome
         }
     }
 
-    /** A model inference never overwrites a different existing canonical value. */
+    /** One unresolved model inference never overwrites a different canonical value. */
     record Conflict(AutoMemory current) implements AutoMemoryObservationOutcome {
         public Conflict {
             if (current == null) {

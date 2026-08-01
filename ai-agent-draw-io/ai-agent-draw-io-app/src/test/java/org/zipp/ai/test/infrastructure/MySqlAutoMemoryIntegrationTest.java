@@ -55,6 +55,7 @@ class MySqlAutoMemoryIntegrationTest {
     private final String legacyChartbook = "auto-memory-legacy-book-" + suffix;
     private final String adapterOwner = "auto-memory-adapter-" + suffix;
     private final String agingOwner = "auto-memory-aging-" + suffix;
+    private final String conflictOwner = "auto-memory-conflict-" + suffix;
     private final String otherOwner = "auto-memory-other-" + suffix;
     private final String adapterChartbook = "auto-memory-adapter-book-" + suffix;
     private final String activeLegacyMemory = "legacy-active-" + suffix;
@@ -114,8 +115,8 @@ class MySqlAutoMemoryIntegrationTest {
             return;
         }
         // Evidence is deleted by the Item foreign key; released schema remains for inspection.
-        jdbc.update("DELETE FROM memory_item WHERE owner_key IN (?, ?, ?)",
-                legacyOwner, adapterOwner, agingOwner);
+        jdbc.update("DELETE FROM memory_item WHERE owner_key IN (?, ?, ?, ?)",
+                legacyOwner, adapterOwner, agingOwner, conflictOwner);
         jdbc.update("DELETE FROM chartbook_memory WHERE owner_key IN (?, ?)",
                 legacyOwner, adapterOwner);
         jdbc.update("DELETE FROM chartbook_memory_candidate WHERE owner_key IN (?, ?)",
@@ -240,6 +241,79 @@ class MySqlAutoMemoryIntegrationTest {
                         "turn-5",
                         MemoryObservationKind.EXPLICIT))));
         assertEquals("AUTO_MEMORY_SCOPE_NOT_FOUND", rejected.code());
+    }
+
+    @Test
+    void inferredChallengerNeedsTwoTurnsAndCannotOverrideExplicitMemory() {
+        MySqlAutoMemoryAdapter adapter = new MySqlAutoMemoryAdapter(jdbc);
+        AutoMemoryObservationService service = service(adapter);
+        AutoMemoryScope scope = AutoMemoryScope.user(conflictOwner);
+
+        transaction(() -> service.observe(observation(
+                scope, "label-density", "Prefer concise labels", "conflict-conversation-1",
+                "conflict-turn-1", MemoryObservationKind.INFERRED)));
+        AutoMemory active = assertInstanceOf(
+                AutoMemoryObservationOutcome.Applied.class,
+                transaction(() -> service.observe(observation(
+                        scope, "label-density", "Prefer concise labels", "conflict-conversation-2",
+                        "conflict-turn-2", MemoryObservationKind.INFERRED))))
+                .memory();
+        assertEquals(AutoMemoryStatus.ACTIVE, active.status());
+
+        assertInstanceOf(
+                AutoMemoryObservationOutcome.Conflict.class,
+                transaction(() -> service.observe(observation(
+                        scope, "label-density", "Prefer detailed labels", "conflict-conversation-3",
+                        "conflict-turn-3", MemoryObservationKind.INFERRED))));
+        assertEquals("Prefer concise labels", adapter.recallActive(scope, 10).get(0).canonicalText());
+
+        AutoMemory promoted = assertInstanceOf(
+                AutoMemoryObservationOutcome.Applied.class,
+                transaction(() -> service.observe(observation(
+                        scope, "label-density", "Prefer detailed labels", "conflict-conversation-4",
+                        "conflict-turn-4", MemoryObservationKind.INFERRED))))
+                .memory();
+        assertEquals("Prefer detailed labels", promoted.canonicalText());
+        assertEquals(2, promoted.evidenceCount());
+        assertFalse(promoted.explicit());
+        assertEquals(2, count("""
+                SELECT COUNT(*) FROM memory_evidence
+                WHERE memory_id = ? AND disposition = 'SUPPORTING'
+                  AND observed_text = 'Prefer detailed labels'
+                """, promoted.memoryId()));
+        assertEquals(2, count("""
+                SELECT COUNT(*) FROM memory_evidence
+                WHERE memory_id = ? AND disposition = 'SUPERSEDED'
+                  AND observed_text = 'Prefer concise labels'
+                """, promoted.memoryId()));
+
+        AutoMemory explicit = assertInstanceOf(
+                AutoMemoryObservationOutcome.Applied.class,
+                transaction(() -> service.observe(observation(
+                        scope, "decorative-icons", "Avoid decorative icons", "conflict-conversation-5",
+                        "conflict-turn-5", MemoryObservationKind.EXPLICIT))))
+                .memory();
+        assertInstanceOf(
+                AutoMemoryObservationOutcome.Conflict.class,
+                transaction(() -> service.observe(observation(
+                        scope, "decorative-icons", "Prefer decorative icons", "conflict-conversation-6",
+                        "conflict-turn-6", MemoryObservationKind.INFERRED))));
+        assertInstanceOf(
+                AutoMemoryObservationOutcome.Conflict.class,
+                transaction(() -> service.observe(observation(
+                        scope, "decorative-icons", "Prefer decorative icons", "conflict-conversation-7",
+                        "conflict-turn-7", MemoryObservationKind.INFERRED))));
+
+        AutoMemory protectedExplicit = adapter.list(scope, true, true).stream()
+                .filter(memory -> memory.memoryId().equals(explicit.memoryId()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("Avoid decorative icons", protectedExplicit.canonicalText());
+        assertTrue(protectedExplicit.explicit());
+        assertEquals(2, count("""
+                SELECT COUNT(*) FROM memory_evidence
+                WHERE memory_id = ? AND disposition = 'CONFLICTING'
+                """, explicit.memoryId()));
     }
 
     @Test

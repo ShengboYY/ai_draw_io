@@ -36,6 +36,9 @@ class AutoMemoryConsolidationCohortTest {
     private static final Set<String> REQUIRED_TAGS = Set.of(
             "reuse", "create", "empty", "active", "observed", "disabled", "best-of-many",
             "related", "cross-scope", "unsafe-candidate", "uncertain", "zh-cn");
+    private static final Set<String> CONFLICT_REQUIRED_TAGS = Set.of(
+            "challenge", "reuse", "create", "empty", "active", "observed", "disabled",
+            "not-challenge", "cross-scope", "unsafe-candidate", "uncertain", "zh-cn");
 
     @Test
     void frozenCohortCoversConsolidationReleaseRisks() throws Exception {
@@ -82,7 +85,51 @@ class AutoMemoryConsolidationCohortTest {
 
     @Test
     void fixtureExpectationsExerciseTheOfflineMatcher() throws Exception {
-        for (Object rawCase : cohort().getJSONArray("cases")) {
+        assertFixtureExpectations(cohort());
+    }
+
+    @Test
+    void frozenConflictCohortCoversV13ReleaseRisks() throws Exception {
+        JSONObject cohort = cohort("/evals/auto-memory-conflict-v1/cohort.json");
+        assertEquals(ROOT_FIELDS, cohort.keySet());
+        assertEquals("AUTO_MEMORY_CONFLICT_CASES_V1", cohort.getString("schemaVersion"));
+        assertEquals("auto-memory-conflict-v1", cohort.getString("datasetVersion"));
+        assertEquals(
+                AutoMemoryExtractionProtocol.CONTRACT_VERSION,
+                cohort.getString("promptContractVersion"));
+        assertEquals("synthetic", cohort.getString("privacyClassification"));
+
+        JSONObject gate = cohort.getJSONObject("qualityGate");
+        assertEquals(0.95d, gate.getDoubleValue("minimumChallengeAccuracy"));
+        assertEquals(0.0d, gate.getDoubleValue("maximumFalseMergeRate"));
+        assertEquals(0.0d, gate.getDoubleValue("maximumCrossScopeMergeRate"));
+        assertEquals(0.0d, gate.getDoubleValue("maximumDisabledBypassRate"));
+        assertEquals(0, gate.getIntValue("maximumProtocolFailures"));
+
+        Set<String> ids = new HashSet<>();
+        Set<String> tags = new HashSet<>();
+        JSONArray cases = cohort.getJSONArray("cases");
+        assertEquals(8, cases.size());
+        for (Object rawCase : cases) {
+            JSONObject testCase = (JSONObject) rawCase;
+            assertEquals(CASE_FIELDS, testCase.keySet());
+            assertTrue(ids.add(testCase.getString("id")), "case ids must be unique");
+            tags.addAll(testCase.getJSONArray("tags").toJavaList(String.class));
+            List<AutoMemoryExtractionCandidate> candidates = candidates(testCase);
+            assertTrue(!candidates.isEmpty());
+            assertExpected(testCase.getJSONObject("expected"), candidates);
+            assertInputAccepted(testCase, candidates);
+        }
+        assertTrue(tags.containsAll(CONFLICT_REQUIRED_TAGS));
+    }
+
+    @Test
+    void conflictFixtureExpectationsExerciseTheOfflineMatcher() throws Exception {
+        assertFixtureExpectations(cohort("/evals/auto-memory-conflict-v1/cohort.json"));
+    }
+
+    private void assertFixtureExpectations(JSONObject cohort) {
+        for (Object rawCase : cohort.getJSONArray("cases")) {
             JSONObject testCase = (JSONObject) rawCase;
             List<AutoMemoryExtractionCandidate> candidates = candidates(testCase);
             JSONObject expected = testCase.getJSONObject("expected");
@@ -109,6 +156,11 @@ class AutoMemoryConsolidationCohortTest {
     ) {
         String outcome = expected.getString("outcome");
         if ("REUSE".equals(outcome)) {
+            assertEquals(Set.of("outcome", "scopeType", "semanticKey"), expected.keySet());
+            assertTrue(candidates.stream().anyMatch(candidate ->
+                    candidate.scopeType().name().equals(expected.getString("scopeType"))
+                            && candidate.semanticKey().equals(expected.getString("semanticKey"))));
+        } else if ("CHALLENGE".equals(outcome)) {
             assertEquals(Set.of("outcome", "scopeType", "semanticKey"), expected.keySet());
             assertTrue(candidates.stream().anyMatch(candidate ->
                     candidate.scopeType().name().equals(expected.getString("scopeType"))
@@ -159,6 +211,22 @@ class AutoMemoryConsolidationCohortTest {
                     .map(candidate -> List.of(draft(candidate)))
                     .orElseThrow();
         }
+        if ("CHALLENGE".equals(outcome)) {
+            return candidates.stream()
+                    .filter(candidate -> candidate.scopeType().name()
+                            .equals(expected.getString("scopeType")))
+                    .filter(candidate -> candidate.semanticKey()
+                            .equals(expected.getString("semanticKey")))
+                    .findFirst()
+                    .map(candidate -> List.of(new AutoMemoryExtractionDraft(
+                            candidate.scopeType(),
+                            candidate.type(),
+                            candidate.semanticKey(),
+                            candidate.title(),
+                            "A changed durable value",
+                            0.8d)))
+                    .orElseThrow();
+        }
         String semanticKey = testCase.getJSONArray("tags").contains("cross-scope")
                 ? candidates.get(0).semanticKey()
                 : "new-" + testCase.getString("id");
@@ -204,8 +272,11 @@ class AutoMemoryConsolidationCohortTest {
     }
 
     private JSONObject cohort() throws Exception {
-        try (InputStream input = getClass().getResourceAsStream(
-                "/evals/auto-memory-consolidation-v1/cohort.json")) {
+        return cohort("/evals/auto-memory-consolidation-v1/cohort.json");
+    }
+
+    private JSONObject cohort(String resource) throws Exception {
+        try (InputStream input = getClass().getResourceAsStream(resource)) {
             assertNotNull(input);
             return JSON.parseObject(new String(input.readAllBytes(), StandardCharsets.UTF_8));
         }

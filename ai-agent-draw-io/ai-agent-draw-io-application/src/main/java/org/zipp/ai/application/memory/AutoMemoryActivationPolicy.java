@@ -39,6 +39,16 @@ public final class AutoMemoryActivationPolicy {
         return AutoMemoryStatus.OBSERVED;
     }
 
+    public boolean shouldPromoteInferredChallenger(
+            boolean currentExplicit,
+            int distinctConflictEvidenceCount
+    ) {
+        if (distinctConflictEvidenceCount < 1) {
+            throw new IllegalArgumentException("conflicting evidence count must be positive");
+        }
+        return !currentExplicit && distinctConflictEvidenceCount >= inferredEvidenceThreshold;
+    }
+
     public int inferredEvidenceThreshold() {
         return inferredEvidenceThreshold;
     }

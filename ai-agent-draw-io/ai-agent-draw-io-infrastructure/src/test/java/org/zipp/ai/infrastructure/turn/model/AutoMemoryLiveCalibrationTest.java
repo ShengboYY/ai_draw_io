@@ -42,6 +42,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         matches = "true")
 class AutoMemoryLiveCalibrationTest {
     private static final int DEFAULT_REPETITIONS = 3;
+    // DeepSeek reasoning tokens share this budget; smaller caps can truncate before JSON output.
+    private static final int MAX_TOKENS = 4_096;
 
     @Test
     void deepSeekCohortMeetsTheReleaseGate() throws Exception {
@@ -58,6 +60,15 @@ class AutoMemoryLiveCalibrationTest {
                 "/evals/auto-memory-consolidation-v1/cohort.json",
                 "AUTO_MEMORY_CONSOLIDATION_REPORT_V1",
                 "AUTO_MEMORY_CONSOLIDATION_REPORT",
+                new ConsolidationEvaluator());
+    }
+
+    @Test
+    void deepSeekConflictCohortMeetsTheReleaseGate() throws Exception {
+        runReleaseGate(
+                "/evals/auto-memory-conflict-v1/cohort.json",
+                "AUTO_MEMORY_CONFLICT_REPORT_V1",
+                "AUTO_MEMORY_CONFLICT_REPORT",
                 new ConsolidationEvaluator());
     }
 
@@ -115,7 +126,7 @@ class AutoMemoryLiveCalibrationTest {
         report.put("endpoint", baseUrl);
         report.put("requestParameters", Map.of(
                 "temperature", 0,
-                "maxTokens", 1_024,
+                "maxTokens", MAX_TOKENS,
                 "responseFormat", "json_object"));
         report.put("repetitions", repetitions);
         report.put("gate", gate);
@@ -231,7 +242,7 @@ class AutoMemoryLiveCalibrationTest {
         JSONObject request = new JSONObject(true);
         request.put("model", model);
         request.put("messages", messages);
-        request.put("max_tokens", 1_024);
+        request.put("max_tokens", MAX_TOKENS);
         request.put("temperature", 0);
         // Match the fixed production agent's provider-level JSON mode.
         request.put("response_format", Map.of("type", "json_object"));
@@ -288,6 +299,19 @@ class AutoMemoryLiveCalibrationTest {
                     && draft.type().name().equals(expected.getString("memoryType"));
             return expectedShape && candidates(testCase).stream()
                     .noneMatch(candidate -> sameIdentity(candidate, draft));
+        }
+        if ("CHALLENGE".equals(outcome)) {
+            return candidates(testCase).stream()
+                    .filter(candidate -> candidate.scopeType().name()
+                            .equals(expected.getString("scopeType")))
+                    .filter(candidate -> candidate.semanticKey()
+                            .equals(expected.getString("semanticKey")))
+                    .findFirst()
+                    .map(candidate -> sameIdentity(candidate, draft)
+                            && candidate.type() == draft.type()
+                            && candidate.title().equals(draft.title())
+                            && !candidate.canonicalText().equals(draft.canonicalText()))
+                    .orElse(false);
         }
         if (!"REUSE".equals(outcome)) {
             return false;
@@ -494,6 +518,8 @@ class AutoMemoryLiveCalibrationTest {
         private int disabledBypasses;
         private int unsafeRuns;
         private int unsafeCandidateAcceptances;
+        private int challengeRuns;
+        private int challengeMatches;
         private int protocolFailures;
 
         @Override
@@ -528,6 +554,11 @@ class AutoMemoryLiveCalibrationTest {
                 if (run.matched()) {
                     emptyMatches++;
                 }
+            } else if ("CHALLENGE".equals(outcome)) {
+                challengeRuns++;
+                if (run.matched()) {
+                    challengeMatches++;
+                }
             }
             JSONArray tags = testCase.getJSONArray("tags");
             if (tags.contains("cross-scope")) {
@@ -538,7 +569,9 @@ class AutoMemoryLiveCalibrationTest {
             }
             if (tags.contains("disabled")) {
                 disabledRuns++;
-                if (!run.matched()) {
+                // A bypass means losing the server-owned identity, not merely formatting its value
+                // incorrectly; persistence suppresses every observation that keeps this identity.
+                if (!mergedCandidate) {
                     disabledBypasses++;
                 }
             }
@@ -575,6 +608,9 @@ class AutoMemoryLiveCalibrationTest {
             metrics.put(
                     "unsafeCandidateAcceptanceRate",
                     ratio(unsafeCandidateAcceptances, unsafeRuns));
+            metrics.put("challengeRuns", challengeRuns);
+            metrics.put("challengeMatches", challengeMatches);
+            metrics.put("challengeAccuracy", ratio(challengeMatches, challengeRuns));
             metrics.put("protocolFailures", protocolFailures);
             return metrics;
         }
@@ -596,6 +632,9 @@ class AutoMemoryLiveCalibrationTest {
                     <= gate.getDoubleValue("maximumDisabledBypassRate")
                     && values.getDoubleValue("unsafeCandidateAcceptanceRate")
                     <= gate.getDoubleValue("maximumUnsafeCandidateAcceptanceRate")
+                    && (!gate.containsKey("minimumChallengeAccuracy")
+                    || values.getDoubleValue("challengeAccuracy")
+                    >= gate.getDoubleValue("minimumChallengeAccuracy"))
                     && values.getIntValue("protocolFailures")
                     <= gate.getIntValue("maximumProtocolFailures");
         }

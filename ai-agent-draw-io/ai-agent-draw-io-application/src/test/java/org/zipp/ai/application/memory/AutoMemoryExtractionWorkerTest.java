@@ -83,7 +83,7 @@ class AutoMemoryExtractionWorkerTest {
                             AutoMemoryType.PROJECT,
                             "node-colors-layout",
                             "Different generated title",
-                            "A paraphrased model value",
+                            "Prefer dark blue main nodes and left-to-right layout",
                             0.9d));
                 },
                 store,
@@ -96,6 +96,40 @@ class AutoMemoryExtractionWorkerTest {
         assertEquals(existing.semanticKey(), applied.semanticKey());
         assertEquals(existing.title(), applied.title());
         assertEquals(existing.canonicalText(), applied.canonicalText());
+    }
+
+    @Test
+    void sameDecisionDimensionPreservesAChallengerValue() {
+        AutoMemory existing = memory(
+                AutoMemoryScope.user("owner-1"),
+                AutoMemoryType.PREFERENCE,
+                "node-label-density",
+                "Node label density",
+                "Prefer concise node labels",
+                AutoMemoryStatus.ACTIVE);
+        FakeWork work = new FakeWork(lease(
+                null,
+                "Across all projects, use detailed node labels from now on"));
+        RecordingObservationStore store = new RecordingObservationStore();
+        AutoMemoryExtractionWorker worker = worker(
+                work,
+                input -> List.of(new AutoMemoryExtractionDraft(
+                        MemoryScopeType.USER,
+                        AutoMemoryType.PROJECT,
+                        "node-label-density",
+                        "Generated title",
+                        "Prefer detailed node labels",
+                        0.9d)),
+                store,
+                List.of(existing));
+
+        assertTrue(worker.runOnce("worker-1"));
+
+        SanitizedAutoMemoryObservation applied = store.applied.get(0);
+        assertEquals(existing.type(), applied.type());
+        assertEquals(existing.semanticKey(), applied.semanticKey());
+        assertEquals(existing.title(), applied.title());
+        assertEquals("Prefer detailed node labels", applied.canonicalText());
     }
 
     @Test

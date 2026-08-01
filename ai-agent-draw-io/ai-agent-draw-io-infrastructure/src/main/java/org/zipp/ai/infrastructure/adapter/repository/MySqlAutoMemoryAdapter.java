@@ -79,16 +79,47 @@ public class MySqlAutoMemoryAdapter
             WHERE memory_id = ? AND disposition = 'SUPPORTING'
             """;
 
+    private static final String COUNT_MATCHING_CONFLICT_TURNS = """
+            SELECT COUNT(DISTINCT source_conversation_id, source_turn_id)
+            FROM memory_evidence
+            WHERE memory_id = ? AND disposition = 'CONFLICTING' AND observed_text = ?
+            """;
+
     private static final String SUPERSEDE_SUPPORTING_EVIDENCE = """
             UPDATE memory_evidence
             SET disposition = 'SUPERSEDED'
             WHERE memory_id = ? AND disposition = 'SUPPORTING'
             """;
 
+    private static final String SUPERSEDE_DISPLACED_EVIDENCE = """
+            UPDATE memory_evidence
+            SET disposition = 'SUPERSEDED'
+            WHERE memory_id = ? AND (
+                disposition = 'SUPPORTING'
+                OR (disposition = 'CONFLICTING' AND observed_text <> ?)
+            )
+            """;
+
+    private static final String PROMOTE_MATCHING_CONFLICT_EVIDENCE = """
+            UPDATE memory_evidence
+            SET disposition = 'SUPPORTING'
+            WHERE memory_id = ? AND disposition = 'CONFLICTING' AND observed_text = ?
+            """;
+
     private static final String UPDATE_REPLACED_ITEM = """
             UPDATE memory_item
             SET memory_type = ?, title = ?, canonical_text = ?, status = 'ACTIVE',
                 confidence = ?, evidence_count = 1, is_explicit = 1,
+                policy_version = ?, source_conversation_id = ?, source_turn_id = ?,
+                source_diagram_id = ?, version = version + 1, activated_at = ?,
+                updated_at = ?
+            WHERE memory_id = ?
+            """;
+
+    private static final String UPDATE_PROMOTED_CHALLENGER = """
+            UPDATE memory_item
+            SET memory_type = ?, title = ?, canonical_text = ?, status = 'ACTIVE',
+                confidence = ?, evidence_count = ?, is_explicit = 0,
                 policy_version = ?, source_conversation_id = ?, source_turn_id = ?,
                 source_diagram_id = ?, version = version + 1, activated_at = ?,
                 updated_at = ?
@@ -260,8 +291,51 @@ public class MySqlAutoMemoryAdapter
 
         if (!sameCanonicalText(current.canonicalText(), observation.canonicalText())) {
             if (!observation.explicit()) {
-                insertEvidence(current.memoryId(), observation, "CONFLICTING");
-                return new AutoMemoryObservationOutcome.Conflict(current);
+                int evidenceAdded = insertEvidence(
+                        current.memoryId(), observation, "CONFLICTING");
+                int conflictCount = matchingConflictTurnCount(
+                        current.memoryId(), observation.canonicalText());
+                // Explicit active content retains user authority; inference can only surface
+                // conflicting evidence until the user edits or replaces it explicitly.
+                if (!activationPolicy.shouldPromoteInferredChallenger(
+                        current.explicit(), conflictCount)) {
+                    return new AutoMemoryObservationOutcome.Conflict(current);
+                }
+                // Promote only one independently reinforced challenger generation. Older support
+                // and alternative challengers cannot be reused later to cause a stale flip-flop.
+                jdbc.update(
+                        SUPERSEDE_DISPLACED_EVIDENCE,
+                        current.memoryId(),
+                        observation.canonicalText());
+                int promoted = jdbc.update(
+                        PROMOTE_MATCHING_CONFLICT_EVIDENCE,
+                        current.memoryId(),
+                        observation.canonicalText());
+                if (promoted < conflictCount) {
+                    throw new IllegalStateException("AUTO_MEMORY_CHALLENGER_EVIDENCE_MISSING");
+                }
+                int updated = jdbc.update(
+                        UPDATE_PROMOTED_CHALLENGER,
+                        observation.type().name(),
+                        observation.title(),
+                        observation.canonicalText(),
+                        observation.confidence(),
+                        conflictCount,
+                        observation.policyVersion(),
+                        observation.sourceTurn().canonicalConversationId(),
+                        observation.sourceTurn().turnId(),
+                        observation.sourceDiagramId(),
+                        Timestamp.from(observation.observedAt()),
+                        Timestamp.from(observation.observedAt()),
+                        current.memoryId());
+                if (updated != 1) {
+                    throw new IllegalStateException("AUTO_MEMORY_CHALLENGER_NOT_APPLIED");
+                }
+                AutoMemory replaced = findForUpdate(observation);
+                return new AutoMemoryObservationOutcome.Applied(
+                        replaced,
+                        evidenceAdded > 0,
+                        current.status() != AutoMemoryStatus.ACTIVE);
             }
             // A later explicit user statement supersedes earlier supporting evidence for this key.
             jdbc.update(SUPERSEDE_SUPPORTING_EVIDENCE, current.memoryId());
@@ -561,6 +635,15 @@ public class MySqlAutoMemoryAdapter
             throw new IllegalStateException("AUTO_MEMORY_SUPPORTING_EVIDENCE_MISSING");
         }
         return count;
+    }
+
+    private int matchingConflictTurnCount(String memoryId, String canonicalText) {
+        Integer count = jdbc.queryForObject(
+                COUNT_MATCHING_CONFLICT_TURNS,
+                Integer.class,
+                memoryId,
+                canonicalText);
+        return count == null ? 0 : count;
     }
 
     private AutoMemory mapMemory(ResultSet resultSet, int rowNumber) throws SQLException {

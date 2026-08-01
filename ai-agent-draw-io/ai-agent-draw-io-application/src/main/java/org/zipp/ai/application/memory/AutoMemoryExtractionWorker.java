@@ -177,13 +177,15 @@ public final class AutoMemoryExtractionWorker {
         for (AutoMemoryExtractionCandidate candidate : input.existingCandidates()) {
             if (candidate.scopeType() == draft.scopeType()
                     && candidate.semanticKey().equals(draft.semanticKey())) {
-                // Existing canonical fields remain authoritative while the new Turn adds evidence.
+                // Identity fields remain server-owned. A different canonical value is preserved as
+                // challenger evidence; persistence decides whether it has enough independent support.
                 return new AutoMemoryExtractionDraft(
                         candidate.scopeType(),
                         candidate.type(),
                         candidate.semanticKey(),
                         candidate.title(),
-                        candidate.canonicalText(),
+                        normalize(candidate.canonicalText()).equals(normalize(draft.canonicalText()))
+                                ? candidate.canonicalText() : draft.canonicalText(),
                         draft.confidence());
             }
         }
