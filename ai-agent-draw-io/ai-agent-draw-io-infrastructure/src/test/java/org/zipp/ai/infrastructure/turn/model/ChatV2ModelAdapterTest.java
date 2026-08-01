@@ -186,7 +186,7 @@ class ChatV2ModelAdapterTest {
         assertEquals(MemoryScopeType.USER, drafts.get(0).scopeType());
         assertEquals(AutoMemoryType.PREFERENCE, drafts.get(0).type());
         assertTrue(chat.lastText.contains(AutoMemoryExtractionProtocol.CONTRACT_VERSION));
-        assertTrue(chat.lastText.contains("EXISTING_MEMORY_CANDIDATES_JSON"));
+        assertFalse(chat.lastText.contains("EXISTING_MEMORY_CANDIDATES_JSON"));
         assertTrue(chat.lastText.contains("USER_TURN_DATA_JSON"));
     }
 
@@ -218,6 +218,7 @@ class ChatV2ModelAdapterTest {
                 binding(ModelInputBinding.digestOf("memory-input"))));
 
         assertEquals("explicit.preference-1", drafts.get(0).semanticKey());
+        assertTrue(chat.lastText.contains("EXISTING_MEMORY_CANDIDATES_JSON"));
         assertTrue(chat.lastText.contains("Prefer dark blue main nodes"));
         assertTrue(chat.lastText.contains("reuse"));
     }

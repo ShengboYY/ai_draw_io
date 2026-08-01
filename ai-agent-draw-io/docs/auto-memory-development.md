@@ -189,7 +189,7 @@ Memory Item 是小规模、结构化、带明确作用域和语义键的数据�
 ### 9.1 Agent `300030` 校准门槛
 
 `auto-memory-v1` 当前包含 15 个纯合成案例，Prompt contract 已升级为
-`AUTO_MEMORY_EXTRACTION_V4`，覆盖中英文、USER/CHARTBOOK、无 Chartbook、
+`AUTO_MEMORY_EXTRACTION_V5`，覆盖中英文、USER/CHARTBOOK、无 Chartbook、
 一次性任务、画布事实、Profile 字段、URL、secret、PII 和 Prompt Injection。离线测试保证：
 
 - fixture schema、Prompt contract version 和风险切片不会静默漂移；
@@ -251,7 +251,7 @@ FEEDBACK/PREFERENCE 边界、PII 排除和 JSON 漂移。
 - V3 通过报告：
   `evaluation/auto-memory-v1/results/2026-07-31-deepseek-v4-pro-auto-memory-v1-v3.json`
 
-### 9.3 V4 归并与前置筛选验证
+### 9.3 V4/V5 归并与前置筛选验证
 
 `AUTO_MEMORY_EXTRACTION_V4` 在 V3 安全合同上增加受限候选复用，输出 schema 不变，没有引入
 第二次模型调用或额外 action DTO。2026-08-01 的本地持久化 MySQL + 浏览器真实链路结果：
@@ -263,8 +263,30 @@ FEEDBACK/PREFERENCE 边界、PII 排除和 JSON 漂移。
 - 单元测试覆盖纯问候、记忆查询、一次性绘图和局部修改的跳过，以及持久信号和模糊输入的放行；
 - MySQL 集成测试覆盖候选排序、owner 隔离和 `DISABLED` 候选可见性。
 
-V3 的 45 次安全校准是历史发布证据，不能自动视为 V4 已完成同等校准。生产启用 V4 前仍需按
-9.1 的同一 cohort 重跑三轮并保存报告；本次本地真实调用只证明归并链路和前置筛选按设计工作。
+V3 的 45 次安全校准是历史发布证据，不能自动视为新 Prompt 已完成同等校准，因此本次继续按
+9.1 的同一 cohort 重跑三轮并保存失败与通过报告。
+
+第一次 V4 三轮校准把候选说明和空候选 JSON 注入所有请求。安全门槛仍通过，但正例只有
+`77.78%`（14/18）：出现一次 FEEDBACK→PREFERENCE、一次中文 PREFERENCE→PROJECT，以及
+两次中文跨画册偏好漏提取。失败报告保留为：
+
+- `evaluation/auto-memory-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-v1-v4-failed.json`
+
+`AUTO_MEMORY_EXTRACTION_V5` 只在候选非空时注入归并合同和候选 JSON；没有候选时保持短分类
+合同，既避免无关指令干扰首条 Memory 提取，也减少 token。V5 对同一 cohort 的 45 次调用结果：
+
+| 指标 | V5 结果 | 门槛 |
+| --- | ---: | ---: |
+| 正例 scope/type 准确率 | `94.44%`（17/18） | `>= 90%` |
+| 负例排除率 | `100%`（27/27） | `100%` |
+| unsafe 接受率 | `0%`（0/12） | `0%` |
+| 协议失败 | `0` | `0` |
+
+唯一误差是中文、无 Chartbook 的跨画册偏好在一轮返回空数组；另外两轮正确。三轮共使用
+44,109 tokens，平均延迟 5,645 ms，P95 12,207 ms。V5 已通过发布门槛；候选非空分支继续由
+协议测试和真实本地同义归并链路覆盖。通过报告为：
+
+- `evaluation/auto-memory-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-v1-v5.json`
 
 ## 10. 开发日志
 
@@ -312,10 +334,13 @@ V3 的 45 次安全校准是历史发布证据，不能自动视为 V4 已完成
 - [x] 补充策略、Worker、协议、Spring composition 和 MySQL 候选查询回归测试。
 - [x] 在本地 UI → Turn → DeepSeek V4 Pro → MySQL 链路验证同义 key 复用、两证据激活及问候
   跳过 DeepSeek。
-- [ ] 生产启用前以 V4 Prompt 对冻结 cohort 重跑三轮完整校准并保存报告。
+- [x] 保留 V4 三轮校准失败证据：安全门槛通过，但空候选归并说明使正例降到 77.78%。
+- [x] 升级为 V5：仅在候选非空时注入归并合同；同一 cohort 三轮达到 94.44% / 100% / 0%，
+  协议失败为 0，保存完整通过报告。
 
 当前实现边界：迁移已在一次性 MySQL 8.4 和本地持久化 MySQL 验证，但尚未在目标环境数据库
-执行；V3 Prompt 的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过，完整本地
-Turn → Extract → Persist → Recall 链路及 V4 同义归并也已验证。feature flag 仍保持默认关闭，
-本地 `.env` 单独开启；生产启用前需完成 V4 三轮校准，再按第 7 节执行迁移并以 shadow/canary
-方式渐进启用。V4 Flash 的同 cohort 成本/延迟对照不阻塞 Pro 上线，但应在扩大调用量前完成。
+执行；V5 Prompt 的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过，完整本地
+Turn → Extract → Persist → Recall 链路及候选非空的同义归并也已验证。feature flag 仍保持默认
+关闭，本地 `.env` 单独开启；下一步按第 7 节准备目标环境迁移和 shadow/canary 方案，未经用户
+授权不执行生产变更。V4 Flash 的同 cohort 成本/延迟对照不阻塞 Pro 上线，但应在扩大调用量前
+完成。
