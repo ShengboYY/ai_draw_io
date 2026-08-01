@@ -5,6 +5,8 @@ import com.google.adk.events.Event;
 import io.reactivex.rxjava3.core.Flowable;
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.application.memory.AutoMemoryExtractionInput;
+import org.zipp.ai.application.memory.AutoMemoryExtractionCandidate;
+import org.zipp.ai.application.memory.AutoMemoryStatus;
 import org.zipp.ai.application.memory.AutoMemoryType;
 import org.zipp.ai.application.memory.MemoryScopeType;
 import org.zipp.ai.application.turn.ModelInputBinding;
@@ -184,7 +186,40 @@ class ChatV2ModelAdapterTest {
         assertEquals(MemoryScopeType.USER, drafts.get(0).scopeType());
         assertEquals(AutoMemoryType.PREFERENCE, drafts.get(0).type());
         assertTrue(chat.lastText.contains(AutoMemoryExtractionProtocol.CONTRACT_VERSION));
+        assertTrue(chat.lastText.contains("EXISTING_MEMORY_CANDIDATES_JSON"));
         assertTrue(chat.lastText.contains("USER_TURN_DATA_JSON"));
+    }
+
+    @Test
+    void autoMemoryExtractorOffersExistingCandidatesForKeyReuse() {
+        RecordingChat chat = new RecordingChat(
+                "{\"memories\":[{\"scopeType\":\"USER\","
+                        + "\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"explicit.preference-1\","
+                        + "\"title\":\"Node colors\","
+                        + "\"canonicalText\":\"Prefer dark blue main nodes\","
+                        + "\"confidence\":0.92}]}");
+        ChatAutoMemoryExtractionAdapter adapter = new ChatAutoMemoryExtractionAdapter(
+                new ToolFreeChatModelInvoker(chat, "300030", "test-memory"));
+        AutoMemoryExtractionCandidate candidate = new AutoMemoryExtractionCandidate(
+                MemoryScopeType.USER,
+                AutoMemoryType.PREFERENCE,
+                "explicit.preference-1",
+                "Node colors",
+                "Prefer dark blue main nodes",
+                AutoMemoryStatus.ACTIVE);
+
+        var drafts = adapter.extract(new AutoMemoryExtractionInput(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "diagram-1",
+                null,
+                "Across all projects, keep main nodes dark blue",
+                List.of(candidate),
+                binding(ModelInputBinding.digestOf("memory-input"))));
+
+        assertEquals("explicit.preference-1", drafts.get(0).semanticKey());
+        assertTrue(chat.lastText.contains("Prefer dark blue main nodes"));
+        assertTrue(chat.lastText.contains("reuse"));
     }
 
     @Test

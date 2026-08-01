@@ -1,7 +1,7 @@
 {
   "schemaVersion": "AUTO_MEMORY_CALIBRATION_CASES_V1",
   "datasetVersion": "auto-memory-v1",
-  "promptContractVersion": "AUTO_MEMORY_EXTRACTION_V3",
+  "promptContractVersion": "AUTO_MEMORY_EXTRACTION_V4",
   "privacyClassification": "synthetic",
   "qualityGate": {
     "minimumPositiveScopeTypeAccuracy": 0.9,

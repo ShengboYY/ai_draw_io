@@ -6,6 +6,7 @@ import org.zipp.ai.application.turn.ExplicitMemoryDecision;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -17,23 +18,30 @@ import java.util.Optional;
  */
 public final class AutoMemoryExtractionWorker {
     private static final int MAX_DRAFTS = 4;
+    private static final int CANDIDATES_PER_SCOPE = 16;
     private static final Duration LEASE_DURATION = Duration.ofMinutes(2);
     private static final Duration MAX_RETRY_DELAY = Duration.ofHours(1);
 
     private final AutoMemoryExtractionWorkPort work;
     private final AutoMemoryExtractionPort extractor;
+    private final AutoMemoryQueryPort memories;
     private final AutoMemoryObservationService observations;
+    private final AutoMemoryExtractionEligibilityPolicy eligibility;
     private final Clock clock;
 
     public AutoMemoryExtractionWorker(
             AutoMemoryExtractionWorkPort work,
             AutoMemoryExtractionPort extractor,
+            AutoMemoryQueryPort memories,
             AutoMemoryObservationService observations,
+            AutoMemoryExtractionEligibilityPolicy eligibility,
             Clock clock
     ) {
         this.work = Objects.requireNonNull(work, "work");
         this.extractor = Objects.requireNonNull(extractor, "extractor");
+        this.memories = Objects.requireNonNull(memories, "memories");
         this.observations = Objects.requireNonNull(observations, "observations");
+        this.eligibility = Objects.requireNonNull(eligibility, "eligibility");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -48,7 +56,7 @@ public final class AutoMemoryExtractionWorker {
             Optional<String> explicitText = explicitText(lease);
             if (explicitText.isPresent()) {
                 observeExplicit(lease, explicitText.get());
-            } else {
+            } else if (eligibility.shouldExtract(lease.userContent())) {
                 observeInferred(lease);
             }
             if (!work.complete(lease, clock.instant())) {
@@ -100,8 +108,10 @@ public final class AutoMemoryExtractionWorker {
     }
 
     private void observeInferred(AutoMemoryExtractionLease lease) {
+        List<AutoMemoryExtractionCandidate> candidates = loadCandidates(lease);
+        String candidateDigest = candidateDigest(candidates);
         String contextDigest = ModelInputBinding.digestOf(
-                "auto-memory", lease.diagramId(), lease.chartbookId());
+                "auto-memory", lease.diagramId(), lease.chartbookId(), candidateDigest);
         String inputDigest = ModelInputBinding.digestOf(
                 lease.userContent(), contextDigest);
         AutoMemoryExtractionInput input = new AutoMemoryExtractionInput(
@@ -109,6 +119,7 @@ public final class AutoMemoryExtractionWorker {
                 lease.diagramId(),
                 lease.chartbookId(),
                 lease.userContent(),
+                candidates,
                 ModelInputBinding.bound(lease.turn(), contextDigest, inputDigest));
         List<AutoMemoryExtractionDraft> drafts = extractor.extract(input);
         if (drafts == null || drafts.size() > MAX_DRAFTS) {
@@ -122,17 +133,74 @@ public final class AutoMemoryExtractionWorker {
             AutoMemoryScope scope = draft.scopeType() == MemoryScopeType.USER
                     ? AutoMemoryScope.user(lease.turn().ownerKey())
                     : AutoMemoryScope.chartbook(lease.turn().ownerKey(), lease.chartbookId());
+            AutoMemoryExtractionDraft consolidated = consolidate(input, draft);
             observations.observe(new AutoMemoryObservationCommand(
                     scope,
-                    draft.type(),
-                    draft.semanticKey(),
-                    draft.title(),
-                    draft.canonicalText(),
+                    consolidated.type(),
+                    consolidated.semanticKey(),
+                    consolidated.title(),
+                    consolidated.canonicalText(),
                     lease.turn(),
                     lease.diagramId(),
                     MemoryObservationKind.INFERRED,
                     draft.confidence()));
         }
+    }
+
+    private List<AutoMemoryExtractionCandidate> loadCandidates(
+            AutoMemoryExtractionLease lease
+    ) {
+        List<AutoMemoryExtractionCandidate> candidates = new ArrayList<>(
+                AutoMemoryExtractionInput.MAX_EXISTING_CANDIDATES);
+        addCandidates(candidates, AutoMemoryScope.user(lease.turn().ownerKey()));
+        if (lease.chartbookId() != null) {
+            addCandidates(candidates, AutoMemoryScope.chartbook(
+                    lease.turn().ownerKey(), lease.chartbookId()));
+        }
+        return List.copyOf(candidates);
+    }
+
+    private void addCandidates(
+            List<AutoMemoryExtractionCandidate> candidates,
+            AutoMemoryScope scope
+    ) {
+        memories.findConsolidationCandidates(scope, CANDIDATES_PER_SCOPE)
+                .stream()
+                .map(AutoMemoryExtractionCandidate::from)
+                .forEach(candidates::add);
+    }
+
+    private static AutoMemoryExtractionDraft consolidate(
+            AutoMemoryExtractionInput input,
+            AutoMemoryExtractionDraft draft
+    ) {
+        for (AutoMemoryExtractionCandidate candidate : input.existingCandidates()) {
+            if (candidate.scopeType() == draft.scopeType()
+                    && candidate.semanticKey().equals(draft.semanticKey())) {
+                // Existing canonical fields remain authoritative while the new Turn adds evidence.
+                return new AutoMemoryExtractionDraft(
+                        candidate.scopeType(),
+                        candidate.type(),
+                        candidate.semanticKey(),
+                        candidate.title(),
+                        candidate.canonicalText(),
+                        draft.confidence());
+            }
+        }
+        return draft;
+    }
+
+    private static String candidateDigest(List<AutoMemoryExtractionCandidate> candidates) {
+        StringBuilder canonical = new StringBuilder();
+        for (AutoMemoryExtractionCandidate candidate : candidates) {
+            canonical.append(candidate.scopeType()).append('\u001f')
+                    .append(candidate.type()).append('\u001f')
+                    .append(candidate.semanticKey()).append('\u001f')
+                    .append(candidate.title()).append('\u001f')
+                    .append(candidate.canonicalText()).append('\u001f')
+                    .append(candidate.status()).append('\u001e');
+        }
+        return ModelInputBinding.digestOf(canonical.toString());
     }
 
     private static AutoMemoryType explicitType(String text) {

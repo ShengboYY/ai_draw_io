@@ -11,6 +11,7 @@ import org.zipp.ai.application.memory.AutoMemoryManagementService;
 import org.zipp.ai.application.memory.AutoMemoryManagementStorePort;
 import org.zipp.ai.application.memory.AutoMemoryObservationService;
 import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
+import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 import org.zipp.ai.config.AutoMemoryApplicationCompositionConfig;
 import org.zipp.ai.config.AutoMemoryExtractionJob;
 
@@ -52,6 +53,11 @@ class AutoMemoryApplicationCompositionConfigTest {
         @Bean
         AutoMemoryManagementStorePort managementStore() {
             return mock(AutoMemoryManagementStorePort.class);
+        }
+
+        @Bean
+        AutoMemoryQueryPort memoryQuery() {
+            return mock(AutoMemoryQueryPort.class);
         }
 
         @Bean

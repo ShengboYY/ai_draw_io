@@ -6,12 +6,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.memory.AutoMemoryExtractionPort;
+import org.zipp.ai.application.memory.AutoMemoryExtractionEligibilityPolicy;
 import org.zipp.ai.application.memory.AutoMemoryExtractionWorkPort;
 import org.zipp.ai.application.memory.AutoMemoryExtractionWorker;
 import org.zipp.ai.application.memory.AutoMemoryManagementService;
 import org.zipp.ai.application.memory.AutoMemoryManagementStorePort;
 import org.zipp.ai.application.memory.AutoMemoryObservationService;
 import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
+import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 
 import java.time.Clock;
 
@@ -47,11 +49,17 @@ public class AutoMemoryApplicationCompositionConfig {
     public AutoMemoryExtractionWorker autoMemoryExtractionWorker(
             AutoMemoryExtractionWorkPort work,
             AutoMemoryExtractionPort extractor,
+            AutoMemoryQueryPort memories,
             AutoMemoryObservationService observations,
             ObjectProvider<Clock> clocks
     ) {
         return new AutoMemoryExtractionWorker(
-                work, extractor, observations, clocks.getIfAvailable(Clock::systemUTC));
+                work,
+                extractor,
+                memories,
+                observations,
+                new AutoMemoryExtractionEligibilityPolicy(),
+                clocks.getIfAvailable(Clock::systemUTC));
     }
 
     @Bean

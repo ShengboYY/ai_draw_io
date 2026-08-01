@@ -78,6 +78,7 @@ Turn 成功事务只写入轻量工作项。带 lease、version fence 和重试�
 ```text
 Completed Turn
   → durable work item
+  → Eligibility（仅跳过明确非记忆 Turn）
   → Extract（最多 4 条结构化观察）
   → Select（安全、作用域、Profile 边界）
   → Consolidate（语义键、证据、冲突、状态）
@@ -102,6 +103,16 @@ any managed item      ──user action─> deleted
 - 删除会物理删除 Item 与 Evidence。未来出现新的独立证据时允许重新创建同一语义键；如果用户
   不希望自动恢复，应使用禁用。
 - secret、PII、URL/外部事实和 Profile 已负责的目标、术语、样式、约束等内容会被拒绝。
+
+提取前置筛选只处理高确定性的低价值输入：纯问候/确认、纯记忆查询、一次性绘图创建和明确指向
+当前对象的局部修改。出现“以后 / 总是 / 偏好 / 喜欢 / 不喜欢”等稳定信号时始终放行；不能明确
+判断的输入也继续交给模型，避免为了省一次调用而漏掉真实偏好。显式“请记住”路径不经过筛选，
+仍保持确定性直接激活。
+
+模型提取时会在同一次调用中看到受限的现有候选（USER 与当前 CHARTBOOK 各最多 16 条）。候选
+只包含作用域、类型、语义键、标题、规范文本和状态，不包含 owner、来源 Turn 或原始对话。同义且
+同作用域时复用候选的完整规范字段，新 Turn 只增加 Evidence；相关但不同义或不同作用域时才创建
+新键。`DISABLED` 也参与候选匹配，防止用户禁用的规则被换一个 key 自动恢复。
 
 ## 5. Context 召回
 
@@ -162,7 +173,8 @@ Memory Item 是小规模、结构化、带明确作用域和语义键的数据�
 ## 9. 验证策略
 
 - 领域：作用域校验、安全过滤、显式直接激活、推断累计激活、冲突、幂等和禁用保护。
-- Worker：显式绕过模型、无 Chartbook 的 USER 显式记忆、失败重试与 lease fence。
+- Worker：显式绕过模型、明确非记忆 Turn 跳过模型、现有候选复用、无 Chartbook 的 USER 显式
+  记忆、失败重试与 lease fence。
 - Schema：表、检查约束、唯一键、外键、旧数据迁移语句和发布 manifest。
 - Context：Chartbook/User 分层、ACTIVE-only、优先级、版本 pin、损坏数据单片降级。
 - Composition：feature flag 关闭时无新模型/服务，开启时只组合一套端口与 worker。
@@ -176,7 +188,8 @@ Memory Item 是小规模、结构化、带明确作用域和语义键的数据�
 
 ### 9.1 Agent `300030` 校准门槛
 
-`auto-memory-v1` 当前包含 15 个纯合成案例，覆盖中英文、USER/CHARTBOOK、无 Chartbook、
+`auto-memory-v1` 当前包含 15 个纯合成案例，Prompt contract 已升级为
+`AUTO_MEMORY_EXTRACTION_V4`，覆盖中英文、USER/CHARTBOOK、无 Chartbook、
 一次性任务、画布事实、Profile 字段、URL、secret、PII 和 Prompt Injection。离线测试保证：
 
 - fixture schema、Prompt contract version 和风险切片不会静默漂移；
@@ -238,6 +251,21 @@ FEEDBACK/PREFERENCE 边界、PII 排除和 JSON 漂移。
 - V3 通过报告：
   `evaluation/auto-memory-v1/results/2026-07-31-deepseek-v4-pro-auto-memory-v1-v3.json`
 
+### 9.3 V4 归并与前置筛选验证
+
+`AUTO_MEMORY_EXTRACTION_V4` 在 V3 安全合同上增加受限候选复用，输出 schema 不变，没有引入
+第二次模型调用或额外 action DTO。2026-08-01 的本地持久化 MySQL + 浏览器真实链路结果：
+
+- 第一条“所有项目节点标签不超过六个字并省略技术后缀”生成 USER/OBSERVED Item，Evidence=1；
+- 同义改写复用完全相同的 `semanticKey` 和规范字段，数据库仍只有一行，Evidence=2 并自动进入
+  ACTIVE；
+- 纯问候“你好”的 work 正常完成，没有 DeepSeek 请求，也没有新增 Memory；
+- 单元测试覆盖纯问候、记忆查询、一次性绘图和局部修改的跳过，以及持久信号和模糊输入的放行；
+- MySQL 集成测试覆盖候选排序、owner 隔离和 `DISABLED` 候选可见性。
+
+V3 的 45 次安全校准是历史发布证据，不能自动视为 V4 已完成同等校准。生产启用 V4 前仍需按
+9.1 的同一 cohort 重跑三轮并保存报告；本次本地真实调用只证明归并链路和前置筛选按设计工作。
+
 ## 10. 开发日志
 
 ### 2026-07-31
@@ -273,12 +301,21 @@ FEEDBACK/PREFERENCE 边界、PII 排除和 JSON 漂移。
   聚合表达式括号平衡回归测试。
 - [x] 验证显式 USER Memory 直接进入 ACTIVE；后续 Turn 的 Context read set 将 Memory 标记为
   `PINNED`，模型能够准确召回跨项目绘图规则。
-- [ ] 推断型 Memory 上线前需稳定语义归并：同义输入的真实模型输出出现不同
-  `semanticKey`，会形成多个 OBSERVED Item，无法可靠累计到两条证据自动激活。
+- [x] 解决推断型 Memory 的语义键漂移：在同一次提取调用中提供受限现有候选，模型复用候选
+  的完整规范字段，服务端再次按 scope + key 固定 canonical 内容。
+
+### 2026-08-01
+
+- [x] 增加保守前置筛选；只跳过高确定性的非记忆 Turn，稳定信号优先，模糊输入继续调用模型。
+- [x] 增加 USER/CHARTBOOK 分作用域候选读取与 V4 Prompt 归并协议，不增加第二次模型调用。
+- [x] 保留 `DISABLED` 候选参与归并，避免同义规则以新 key 绕过用户 opt-out。
+- [x] 补充策略、Worker、协议、Spring composition 和 MySQL 候选查询回归测试。
+- [x] 在本地 UI → Turn → DeepSeek V4 Pro → MySQL 链路验证同义 key 复用、两证据激活及问候
+  跳过 DeepSeek。
+- [ ] 生产启用前以 V4 Prompt 对冻结 cohort 重跑三轮完整校准并保存报告。
 
 当前实现边界：迁移已在一次性 MySQL 8.4 和本地持久化 MySQL 验证，但尚未在目标环境数据库
-执行；模型 agent 的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过，完整本地
-Turn → Extract → Persist → Recall 链路也已验证。feature flag 仍保持默认关闭，本地 `.env`
-单独开启；生产启用前应先解决推断型 semantic key 稳定性，再按第 7 节执行迁移并以
-shadow/canary 方式渐进启用。V4 Flash 的同 cohort 成本/延迟对照不阻塞 Pro 上线，但应在扩大
-调用量前完成。
+执行；V3 Prompt 的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过，完整本地
+Turn → Extract → Persist → Recall 链路及 V4 同义归并也已验证。feature flag 仍保持默认关闭，
+本地 `.env` 单独开启；生产启用前需完成 V4 三轮校准，再按第 7 节执行迁移并以 shadow/canary
+方式渐进启用。V4 Flash 的同 cohort 成本/延迟对照不阻塞 Pro 上线，但应在扩大调用量前完成。

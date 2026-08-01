@@ -118,6 +118,22 @@ public class MySqlAutoMemoryAdapter
             LIMIT ?
             """;
 
+    private static final String SELECT_CONSOLIDATION_CANDIDATES = """
+            SELECT memory_id, owner_key, scope_type, scope_key, memory_type,
+                   semantic_key, title, canonical_text, status, confidence,
+                   evidence_count, is_explicit, version, created_at, updated_at
+            FROM memory_item
+            WHERE owner_key = ? AND scope_type = ? AND scope_key = ?
+              AND status <> 'DELETED'
+            ORDER BY CASE status
+                         WHEN 'OBSERVED' THEN 0
+                         WHEN 'DISABLED' THEN 1
+                         ELSE 2
+                     END,
+                     updated_at DESC, memory_id
+            LIMIT ?
+            """;
+
     private static final String SELECT_MANAGED = """
             SELECT memory_id, owner_key, scope_type, scope_key, memory_type,
                    semantic_key, title, canonical_text, status, confidence,
@@ -295,6 +311,24 @@ public class MySqlAutoMemoryAdapter
         }
         return List.copyOf(jdbc.query(
                 SELECT_ACTIVE,
+                this::mapMemory,
+                scope.ownerKey(),
+                scope.type().name(),
+                scope.scopeKey(),
+                limit));
+    }
+
+    @Override
+    public List<AutoMemory> findConsolidationCandidates(
+            AutoMemoryScope scope,
+            int limit
+    ) {
+        Objects.requireNonNull(scope, "scope");
+        if (limit < 1 || limit > 100) {
+            throw new IllegalArgumentException("limit must be between 1 and 100");
+        }
+        return List.copyOf(jdbc.query(
+                SELECT_CONSOLIDATION_CANDIDATES,
                 this::mapMemory,
                 scope.ownerKey(),
                 scope.type().name(),

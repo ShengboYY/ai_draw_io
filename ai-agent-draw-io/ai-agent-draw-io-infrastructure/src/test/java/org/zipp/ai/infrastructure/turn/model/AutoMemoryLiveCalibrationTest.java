@@ -180,7 +180,7 @@ class AutoMemoryLiveCalibrationTest {
 
         try {
             List<AutoMemoryExtractionDraft> drafts =
-                    AutoMemoryExtractionProtocol.parse(output, input.hasChartbook());
+                    AutoMemoryExtractionProtocol.parse(output, input);
             boolean matched = matches(testCase.getJSONArray("expected"), drafts);
             runReport.put("protocolValid", true);
             runReport.put("matched", matched);

@@ -44,6 +44,61 @@ class AutoMemoryExtractionWorkerTest {
     }
 
     @Test
+    void clearNonMemoryTurnCompletesWithoutCallingTheModel() {
+        FakeWork work = new FakeWork(lease(null, "你好"));
+        RecordingObservationStore store = new RecordingObservationStore();
+        int[] modelCalls = {0};
+        AutoMemoryExtractionWorker worker = worker(work, input -> {
+            modelCalls[0]++;
+            return List.of();
+        }, store);
+
+        assertTrue(worker.runOnce("worker-1"));
+
+        assertEquals(0, modelCalls[0]);
+        assertTrue(work.completed);
+        assertFalse(work.retried);
+        assertTrue(store.applied.isEmpty());
+    }
+
+    @Test
+    void reusedCandidateKeepsCanonicalFieldsForEvidenceConsolidation() {
+        AutoMemory existing = memory(
+                AutoMemoryScope.user("owner-1"),
+                AutoMemoryType.PREFERENCE,
+                "node-colors-layout",
+                "Node colors and layout",
+                "Prefer dark blue main nodes and left-to-right layout",
+                AutoMemoryStatus.OBSERVED);
+        FakeWork work = new FakeWork(lease(
+                null,
+                "Across all projects, keep dark blue main nodes and arrange them left to right"));
+        RecordingObservationStore store = new RecordingObservationStore();
+        AutoMemoryExtractionWorker worker = worker(
+                work,
+                input -> {
+                    assertEquals(1, input.existingCandidates().size());
+                    return List.of(new AutoMemoryExtractionDraft(
+                            MemoryScopeType.USER,
+                            AutoMemoryType.PROJECT,
+                            "node-colors-layout",
+                            "Different generated title",
+                            "A paraphrased model value",
+                            0.9d));
+                },
+                store,
+                List.of(existing));
+
+        assertTrue(worker.runOnce("worker-1"));
+
+        SanitizedAutoMemoryObservation applied = store.applied.get(0);
+        assertEquals(existing.type(), applied.type());
+        assertEquals(existing.semanticKey(), applied.semanticKey());
+        assertEquals(existing.title(), applied.title());
+        assertEquals(existing.canonicalText(), applied.canonicalText());
+    }
+
+    @Test
     void explicitDeclarationBypassesTheModelAndBecomesActive() {
         FakeWork work = new FakeWork(lease("Prefer concise labels"));
         RecordingObservationStore store = new RecordingObservationStore();
@@ -113,16 +168,34 @@ class AutoMemoryExtractionWorkerTest {
             AutoMemoryExtractionPort extractor,
             RecordingObservationStore store
     ) {
+        return worker(work, extractor, store, List.of());
+    }
+
+    private static AutoMemoryExtractionWorker worker(
+            FakeWork work,
+            AutoMemoryExtractionPort extractor,
+            RecordingObservationStore store,
+            List<AutoMemory> candidates
+    ) {
         AutoMemoryObservationService observations = new AutoMemoryObservationService(
                 new MemoryPolicySanitizer(),
                 new AutoMemoryActivationPolicy(),
                 store,
                 Clock.fixed(NOW, ZoneOffset.UTC));
         return new AutoMemoryExtractionWorker(
-                work, extractor, observations, Clock.fixed(NOW, ZoneOffset.UTC));
+                work,
+                extractor,
+                new FakeMemoryQuery(candidates),
+                observations,
+                new AutoMemoryExtractionEligibilityPolicy(),
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private static AutoMemoryExtractionLease lease(String explicitText) {
+        return lease(explicitText, "Keep labels concise in future diagrams");
+    }
+
+    private static AutoMemoryExtractionLease lease(String explicitText, String userContent) {
         return new AutoMemoryExtractionLease(
                 "work-1",
                 "worker-1",
@@ -131,8 +204,32 @@ class AutoMemoryExtractionWorkerTest {
                 TURN,
                 "diagram-1",
                 "chartbook-1",
-                "Keep labels concise in future diagrams",
+                userContent,
                 explicitText);
+    }
+
+    private static AutoMemory memory(
+            AutoMemoryScope scope,
+            AutoMemoryType type,
+            String semanticKey,
+            String title,
+            String canonicalText,
+            AutoMemoryStatus status
+    ) {
+        return new AutoMemory(
+                "memory-1",
+                scope,
+                type,
+                semanticKey,
+                title,
+                canonicalText,
+                status,
+                0.8d,
+                1,
+                false,
+                1,
+                NOW,
+                NOW);
     }
 
     private static final class FakeWork implements AutoMemoryExtractionWorkPort {
@@ -204,6 +301,30 @@ class AutoMemoryExtractionWorkerTest {
             memories.add(memory);
             return new AutoMemoryObservationOutcome.Applied(
                     memory, true, status == AutoMemoryStatus.ACTIVE);
+        }
+    }
+
+    private static final class FakeMemoryQuery implements AutoMemoryQueryPort {
+        private final List<AutoMemory> candidates;
+
+        private FakeMemoryQuery(List<AutoMemory> candidates) {
+            this.candidates = List.copyOf(candidates);
+        }
+
+        @Override
+        public List<AutoMemory> recallActive(AutoMemoryScope scope, int limit) {
+            return List.of();
+        }
+
+        @Override
+        public List<AutoMemory> findConsolidationCandidates(
+                AutoMemoryScope scope,
+                int limit
+        ) {
+            return candidates.stream()
+                    .filter(memory -> memory.scope().equals(scope))
+                    .limit(limit)
+                    .toList();
         }
     }
 }

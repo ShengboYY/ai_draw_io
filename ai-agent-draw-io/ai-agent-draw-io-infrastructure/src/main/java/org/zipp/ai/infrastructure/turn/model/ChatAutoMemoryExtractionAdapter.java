@@ -37,6 +37,6 @@ public final class ChatAutoMemoryExtractionAdapter implements AutoMemoryExtracti
         String output = model.invoke(
                 input.modelInputBinding(),
                 AutoMemoryExtractionProtocol.render(input));
-        return AutoMemoryExtractionProtocol.parse(output, input.hasChartbook());
+        return AutoMemoryExtractionProtocol.parse(output, input);
     }
 }

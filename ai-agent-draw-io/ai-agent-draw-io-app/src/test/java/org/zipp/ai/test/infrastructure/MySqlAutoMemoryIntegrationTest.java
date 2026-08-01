@@ -153,6 +153,13 @@ class MySqlAutoMemoryIntegrationTest {
                         MemoryObservationKind.INFERRED))));
         assertEquals(AutoMemoryStatus.OBSERVED, first.memory().status());
         assertEquals(1, first.memory().evidenceCount());
+        assertEquals(
+                List.of("label-density"),
+                adapter.findConsolidationCandidates(scope, 10).stream()
+                        .map(AutoMemory::semanticKey)
+                        .toList());
+        assertTrue(adapter.findConsolidationCandidates(
+                AutoMemoryScope.user(otherOwner), 10).isEmpty());
 
         AutoMemoryObservationOutcome.Applied duplicate = assertInstanceOf(
                 AutoMemoryObservationOutcome.Applied.class,
@@ -181,6 +188,9 @@ class MySqlAutoMemoryIntegrationTest {
                                 scope, active.get(0).memoryId(), active.get(0).version()),
                         NOW.plusSeconds(1))));
         assertEquals(AutoMemoryStatus.DISABLED, disabled.memory().status());
+        assertEquals(
+                AutoMemoryStatus.DISABLED,
+                adapter.findConsolidationCandidates(scope, 10).get(0).status());
 
         AutoMemoryObservationOutcome.Suppressed suppressed = assertInstanceOf(
                 AutoMemoryObservationOutcome.Suppressed.class,
