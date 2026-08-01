@@ -6,8 +6,12 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.zipp.ai.application.memory.AutoMemoryExtractionCandidate;
 import org.zipp.ai.application.memory.AutoMemoryExtractionDraft;
 import org.zipp.ai.application.memory.AutoMemoryExtractionInput;
+import org.zipp.ai.application.memory.AutoMemoryStatus;
+import org.zipp.ai.application.memory.AutoMemoryType;
+import org.zipp.ai.application.memory.MemoryScopeType;
 import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.application.turn.TurnKey;
 
@@ -21,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +45,29 @@ class AutoMemoryLiveCalibrationTest {
 
     @Test
     void deepSeekCohortMeetsTheReleaseGate() throws Exception {
-        JSONObject cohort = cohort();
+        runReleaseGate(
+                "/evals/auto-memory-v1/cohort.json",
+                "AUTO_MEMORY_CALIBRATION_REPORT_V1",
+                "AUTO_MEMORY_CALIBRATION_REPORT",
+                new ExtractionEvaluator());
+    }
+
+    @Test
+    void deepSeekConsolidationCohortMeetsTheReleaseGate() throws Exception {
+        runReleaseGate(
+                "/evals/auto-memory-consolidation-v1/cohort.json",
+                "AUTO_MEMORY_CONSOLIDATION_REPORT_V1",
+                "AUTO_MEMORY_CONSOLIDATION_REPORT",
+                new ConsolidationEvaluator());
+    }
+
+    private void runReleaseGate(
+            String cohortResource,
+            String reportSchema,
+            String reportEnvironment,
+            CohortEvaluator evaluator
+    ) throws Exception {
+        JSONObject cohort = cohort(cohortResource);
         String model = environment("AUTO_MEMORY_MODEL", "deepseek-v4-pro");
         String baseUrl = withoutTrailingSlash(
                 environment("AUTO_MEMORY_BASE_URL", "https://api.deepseek.com"));
@@ -58,7 +85,6 @@ class AutoMemoryLiveCalibrationTest {
                 .connectTimeout(Duration.ofSeconds(20))
                 .build();
         JSONArray runs = new JSONArray();
-        Counters counters = new Counters();
 
         for (int repetition = 1; repetition <= repetitions; repetition++) {
             for (Object rawCase : cohort.getJSONArray("cases")) {
@@ -69,23 +95,19 @@ class AutoMemoryLiveCalibrationTest {
                         apiKey,
                         model,
                         testCase,
-                        repetition);
+                        repetition,
+                        evaluator);
                 runs.add(run.report());
-                counters.accept(testCase, run);
+                evaluator.accept(testCase, run);
             }
         }
 
         JSONObject gate = cohort.getJSONObject("qualityGate");
-        JSONObject metrics = counters.metrics();
-        boolean passed = metrics.getDoubleValue("positiveScopeTypeAccuracy")
-                >= gate.getDoubleValue("minimumPositiveScopeTypeAccuracy")
-                && metrics.getDoubleValue("negativeExclusionRate")
-                >= gate.getDoubleValue("minimumNegativeExclusionRate")
-                && metrics.getDoubleValue("unsafeAcceptanceRate")
-                <= gate.getDoubleValue("maximumUnsafeAcceptanceRate");
+        JSONObject metrics = evaluator.metrics();
+        boolean passed = evaluator.passed(gate);
 
         JSONObject report = new JSONObject(true);
-        report.put("schemaVersion", "AUTO_MEMORY_CALIBRATION_REPORT_V1");
+        report.put("schemaVersion", reportSchema);
         report.put("generatedAt", Instant.now().toString());
         report.put("datasetVersion", cohort.getString("datasetVersion"));
         report.put("promptContractVersion", AutoMemoryExtractionProtocol.CONTRACT_VERSION);
@@ -100,7 +122,10 @@ class AutoMemoryLiveCalibrationTest {
         report.put("metrics", metrics);
         report.put("passed", passed);
         report.put("runs", runs);
-        Path reportPath = reportPath(model, cohort.getString("datasetVersion"));
+        Path reportPath = reportPath(
+                model,
+                cohort.getString("datasetVersion"),
+                reportEnvironment);
         Files.createDirectories(reportPath.toAbsolutePath().getParent());
         Files.writeString(
                 reportPath,
@@ -120,7 +145,8 @@ class AutoMemoryLiveCalibrationTest {
             String apiKey,
             String model,
             JSONObject testCase,
-            int repetition
+            int repetition,
+            CohortEvaluator evaluator
     ) throws Exception {
         String caseId = testCase.getString("id");
         TurnKey turn = new TurnKey(
@@ -131,12 +157,14 @@ class AutoMemoryLiveCalibrationTest {
         String contextDigest = ModelInputBinding.digestOf(
                 "auto-memory-calibration",
                 Boolean.toString(testCase.getBooleanValue("chartbookAvailable")));
+        List<AutoMemoryExtractionCandidate> candidates = candidates(testCase);
         AutoMemoryExtractionInput input = new AutoMemoryExtractionInput(
                 turn,
                 "calibration-diagram",
                 testCase.getBooleanValue("chartbookAvailable")
                         ? "calibration-chartbook" : null,
                 userTurn,
+                candidates,
                 ModelInputBinding.bound(
                         turn,
                         contextDigest,
@@ -181,7 +209,7 @@ class AutoMemoryLiveCalibrationTest {
         try {
             List<AutoMemoryExtractionDraft> drafts =
                     AutoMemoryExtractionProtocol.parse(output, input);
-            boolean matched = matches(testCase.getJSONArray("expected"), drafts);
+            boolean matched = evaluator.matches(testCase, drafts);
             runReport.put("protocolValid", true);
             runReport.put("matched", matched);
             return new CalibrationRun(runReport, drafts, true, matched);
@@ -218,7 +246,7 @@ class AutoMemoryLiveCalibrationTest {
         return message;
     }
 
-    private boolean matches(
+    private static boolean matchesExtraction(
             JSONArray expected,
             List<AutoMemoryExtractionDraft> actual
     ) {
@@ -238,20 +266,88 @@ class AutoMemoryLiveCalibrationTest {
         return expectedSignatures.equals(actualSignatures);
     }
 
-    private void add(Map<String, Integer> counts, String value) {
+    private static void add(Map<String, Integer> counts, String value) {
         counts.merge(value, 1, Integer::sum);
     }
 
-    private JSONObject cohort() throws Exception {
-        try (InputStream input = getClass().getResourceAsStream(
-                "/evals/auto-memory-v1/cohort.json")) {
+    static boolean matchesConsolidation(
+            JSONObject testCase,
+            List<AutoMemoryExtractionDraft> actual
+    ) {
+        JSONObject expected = testCase.getJSONObject("expected");
+        String outcome = expected.getString("outcome");
+        if ("EMPTY".equals(outcome)) {
+            return actual.isEmpty();
+        }
+        if (actual.size() != 1) {
+            return false;
+        }
+        AutoMemoryExtractionDraft draft = actual.get(0);
+        if ("CREATE".equals(outcome)) {
+            boolean expectedShape = draft.scopeType().name().equals(expected.getString("scopeType"))
+                    && draft.type().name().equals(expected.getString("memoryType"));
+            return expectedShape && candidates(testCase).stream()
+                    .noneMatch(candidate -> sameIdentity(candidate, draft));
+        }
+        if (!"REUSE".equals(outcome)) {
+            return false;
+        }
+        return candidates(testCase).stream()
+                .filter(candidate -> candidate.scopeType().name()
+                        .equals(expected.getString("scopeType")))
+                .filter(candidate -> candidate.semanticKey()
+                        .equals(expected.getString("semanticKey")))
+                .findFirst()
+                .map(candidate -> sameContent(candidate, draft))
+                .orElse(false);
+    }
+
+    private static boolean sameIdentity(
+            AutoMemoryExtractionCandidate candidate,
+            AutoMemoryExtractionDraft draft
+    ) {
+        return candidate.scopeType() == draft.scopeType()
+                && candidate.semanticKey().equals(draft.semanticKey());
+    }
+
+    private static boolean sameContent(
+            AutoMemoryExtractionCandidate candidate,
+            AutoMemoryExtractionDraft draft
+    ) {
+        return sameIdentity(candidate, draft)
+                && candidate.type() == draft.type()
+                && candidate.title().equals(draft.title())
+                && candidate.canonicalText().equals(draft.canonicalText());
+    }
+
+    private static List<AutoMemoryExtractionCandidate> candidates(JSONObject testCase) {
+        JSONArray values = testCase.getJSONArray("existingCandidates");
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        List<AutoMemoryExtractionCandidate> candidates = new ArrayList<>(values.size());
+        for (Object rawValue : values) {
+            JSONObject value = (JSONObject) rawValue;
+            candidates.add(new AutoMemoryExtractionCandidate(
+                    MemoryScopeType.valueOf(value.getString("scopeType")),
+                    AutoMemoryType.valueOf(value.getString("memoryType")),
+                    value.getString("semanticKey"),
+                    value.getString("title"),
+                    value.getString("canonicalText"),
+                    AutoMemoryStatus.valueOf(value.getString("status"))));
+        }
+        return List.copyOf(candidates);
+    }
+
+    private JSONObject cohort(String resource) throws Exception {
+        try (InputStream input = getClass().getResourceAsStream(resource)) {
             assertNotNull(input);
             return JSON.parseObject(new String(input.readAllBytes(), StandardCharsets.UTF_8));
         }
     }
 
-    private Path reportPath(String model, String datasetVersion) {
-        String configured = System.getenv("AUTO_MEMORY_CALIBRATION_REPORT");
+    private Path reportPath(String model, String datasetVersion, String reportEnvironment) {
+        String configured = System.getenv(reportEnvironment);
         if (configured != null && !configured.isBlank()) {
             return Path.of(configured).toAbsolutePath().normalize();
         }
@@ -300,7 +396,17 @@ class AutoMemoryLiveCalibrationTest {
     ) {
     }
 
-    private static final class Counters {
+    private interface CohortEvaluator {
+        boolean matches(JSONObject testCase, List<AutoMemoryExtractionDraft> actual);
+
+        void accept(JSONObject testCase, CalibrationRun run);
+
+        JSONObject metrics();
+
+        boolean passed(JSONObject gate);
+    }
+
+    private static final class ExtractionEvaluator implements CohortEvaluator {
         private int positiveRuns;
         private int positiveMatches;
         private int negativeRuns;
@@ -309,7 +415,13 @@ class AutoMemoryLiveCalibrationTest {
         private int unsafeAcceptances;
         private int protocolFailures;
 
-        private void accept(JSONObject testCase, CalibrationRun run) {
+        @Override
+        public boolean matches(JSONObject testCase, List<AutoMemoryExtractionDraft> actual) {
+            return matchesExtraction(testCase.getJSONArray("expected"), actual);
+        }
+
+        @Override
+        public void accept(JSONObject testCase, CalibrationRun run) {
             boolean positive = !testCase.getJSONArray("expected").isEmpty();
             boolean unsafe = testCase.getJSONArray("tags").contains("unsafe");
             if (!run.protocolValid()) {
@@ -334,7 +446,8 @@ class AutoMemoryLiveCalibrationTest {
             }
         }
 
-        private JSONObject metrics() {
+        @Override
+        public JSONObject metrics() {
             JSONObject metrics = new JSONObject(true);
             metrics.put("positiveRuns", positiveRuns);
             metrics.put("positiveMatches", positiveMatches);
@@ -355,8 +468,140 @@ class AutoMemoryLiveCalibrationTest {
             return metrics;
         }
 
-        private double ratio(int numerator, int denominator) {
-            return denominator == 0 ? 0.0d : (double) numerator / denominator;
+        @Override
+        public boolean passed(JSONObject gate) {
+            JSONObject values = metrics();
+            return values.getDoubleValue("positiveScopeTypeAccuracy")
+                    >= gate.getDoubleValue("minimumPositiveScopeTypeAccuracy")
+                    && values.getDoubleValue("negativeExclusionRate")
+                    >= gate.getDoubleValue("minimumNegativeExclusionRate")
+                    && values.getDoubleValue("unsafeAcceptanceRate")
+                    <= gate.getDoubleValue("maximumUnsafeAcceptanceRate");
         }
+    }
+
+    private static final class ConsolidationEvaluator implements CohortEvaluator {
+        private int reuseRuns;
+        private int reuseMatches;
+        private int createRuns;
+        private int createMatches;
+        private int falseMerges;
+        private int emptyRuns;
+        private int emptyMatches;
+        private int crossScopeRuns;
+        private int crossScopeMerges;
+        private int disabledRuns;
+        private int disabledBypasses;
+        private int unsafeRuns;
+        private int unsafeCandidateAcceptances;
+        private int protocolFailures;
+
+        @Override
+        public boolean matches(JSONObject testCase, List<AutoMemoryExtractionDraft> actual) {
+            return matchesConsolidation(testCase, actual);
+        }
+
+        @Override
+        public void accept(JSONObject testCase, CalibrationRun run) {
+            String outcome = testCase.getJSONObject("expected").getString("outcome");
+            boolean mergedCandidate = candidates(testCase).stream()
+                    .anyMatch(candidate -> run.drafts().stream()
+                            .anyMatch(draft -> sameIdentity(candidate, draft)));
+            if (!run.protocolValid()) {
+                protocolFailures++;
+            }
+            if ("REUSE".equals(outcome)) {
+                reuseRuns++;
+                if (run.matched()) {
+                    reuseMatches++;
+                }
+            } else if ("CREATE".equals(outcome)) {
+                createRuns++;
+                if (run.matched()) {
+                    createMatches++;
+                }
+                if (mergedCandidate) {
+                    falseMerges++;
+                }
+            } else if ("EMPTY".equals(outcome)) {
+                emptyRuns++;
+                if (run.matched()) {
+                    emptyMatches++;
+                }
+            }
+            JSONArray tags = testCase.getJSONArray("tags");
+            if (tags.contains("cross-scope")) {
+                crossScopeRuns++;
+                if (mergedCandidate) {
+                    crossScopeMerges++;
+                }
+            }
+            if (tags.contains("disabled")) {
+                disabledRuns++;
+                if (!run.matched()) {
+                    disabledBypasses++;
+                }
+            }
+            if (tags.contains("unsafe-candidate")) {
+                unsafeRuns++;
+                if (mergedCandidate) {
+                    unsafeCandidateAcceptances++;
+                }
+            }
+        }
+
+        @Override
+        public JSONObject metrics() {
+            JSONObject metrics = new JSONObject(true);
+            metrics.put("reuseRuns", reuseRuns);
+            metrics.put("reuseMatches", reuseMatches);
+            metrics.put("reuseAccuracy", ratio(reuseMatches, reuseRuns));
+            metrics.put("createRuns", createRuns);
+            metrics.put("createMatches", createMatches);
+            metrics.put("createAccuracy", ratio(createMatches, createRuns));
+            metrics.put("falseMerges", falseMerges);
+            metrics.put("falseMergeRate", ratio(falseMerges, createRuns));
+            metrics.put("emptyRuns", emptyRuns);
+            metrics.put("emptyMatches", emptyMatches);
+            metrics.put("emptyAccuracy", ratio(emptyMatches, emptyRuns));
+            metrics.put("crossScopeRuns", crossScopeRuns);
+            metrics.put("crossScopeMerges", crossScopeMerges);
+            metrics.put("crossScopeMergeRate", ratio(crossScopeMerges, crossScopeRuns));
+            metrics.put("disabledRuns", disabledRuns);
+            metrics.put("disabledBypasses", disabledBypasses);
+            metrics.put("disabledBypassRate", ratio(disabledBypasses, disabledRuns));
+            metrics.put("unsafeRuns", unsafeRuns);
+            metrics.put("unsafeCandidateAcceptances", unsafeCandidateAcceptances);
+            metrics.put(
+                    "unsafeCandidateAcceptanceRate",
+                    ratio(unsafeCandidateAcceptances, unsafeRuns));
+            metrics.put("protocolFailures", protocolFailures);
+            return metrics;
+        }
+
+        @Override
+        public boolean passed(JSONObject gate) {
+            JSONObject values = metrics();
+            return values.getDoubleValue("reuseAccuracy")
+                    >= gate.getDoubleValue("minimumReuseAccuracy")
+                    && values.getDoubleValue("createAccuracy")
+                    >= gate.getDoubleValue("minimumCreateAccuracy")
+                    && values.getDoubleValue("emptyAccuracy")
+                    >= gate.getDoubleValue("minimumEmptyAccuracy")
+                    && values.getDoubleValue("falseMergeRate")
+                    <= gate.getDoubleValue("maximumFalseMergeRate")
+                    && values.getDoubleValue("crossScopeMergeRate")
+                    <= gate.getDoubleValue("maximumCrossScopeMergeRate")
+                    && values.getDoubleValue("disabledBypassRate")
+                    <= gate.getDoubleValue("maximumDisabledBypassRate")
+                    && values.getDoubleValue("unsafeCandidateAcceptanceRate")
+                    <= gate.getDoubleValue("maximumUnsafeCandidateAcceptanceRate")
+                    && values.getIntValue("protocolFailures")
+                    <= gate.getIntValue("maximumProtocolFailures");
+        }
+    }
+
+    private static double ratio(int numerator, int denominator) {
+        return denominator == 0 ? 0.0d : (double) numerator / denominator;
     }
 }

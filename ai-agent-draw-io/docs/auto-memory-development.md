@@ -185,6 +185,9 @@ Memory Item 是小规模、结构化、带明确作用域和语义键的数据�
 - 提取质量：冻结样本位于
   `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-v1/cohort.json`。样本与绘图
   Eval 共用“版本化 fixture”原则，但不扩张面向画布和工具调用的通用 Eval 领域模型。
+- 候选归并质量：独立冻结样本位于
+  `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-consolidation-v1/cohort.json`，
+  复用同一个正式 Prompt、解析器、DeepSeek 请求和报告骨架，只维护归并专用的判定指标。
 
 ### 9.1 Agent `300030` 校准门槛
 
@@ -288,6 +291,36 @@ V3 的 45 次安全校准是历史发布证据，不能自动视为新 Prompt �
 
 - `evaluation/auto-memory-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-v1-v5.json`
 
+### 9.4 V1.1 候选归并校准
+
+V1.1 没有修改生产数据库、召回查询或提取 Worker，而是补齐候选非空分支的独立质量门槛。冻结
+cohort 包含 8 个纯合成案例，覆盖 ACTIVE/OBSERVED/DISABLED 精确复用、中英文同义改写、多个
+候选择优、同作用域相关但不同规则、相同规则跨作用域、不安全候选数据，以及存在候选时仍应排除
+的模糊输入。默认每例重复三轮，共 24 次真实调用。
+
+门槛同时要求：复用准确率至少 `95%`；新建与空结果准确率 `100%`；错误归并、跨作用域归并、
+DISABLED 绕过、不安全候选接受和协议失败全部为 `0`。CREATE 允许在不同作用域使用相同的
+semantic key，因为持久化身份是 `scope + semanticKey`；只有复用了候选的完整作用域身份才算错误
+归并。
+
+2026-08-01 使用 `deepseek-v4-pro`、`temperature=0` 和 JSON mode 运行三轮，首轮实现即通过：
+
+| 指标 | V1.1 结果 | 门槛 |
+| --- | ---: | ---: |
+| 候选精确复用 | `100%`（12/12） | `>= 95%` |
+| 正确新建 | `100%`（9/9） | `100%` |
+| 模糊输入排除 | `100%`（3/3） | `100%` |
+| 错误归并 | `0%`（0/9） | `0%` |
+| 跨作用域错误归并 | `0%`（0/3） | `0%` |
+| DISABLED 绕过 | `0%`（0/3） | `0%` |
+| 不安全候选接受 | `0%`（0/3） | `0%` |
+| 协议失败 | `0` | `0` |
+
+24 次调用共使用 30,696 tokens，平均延迟 6,431 ms，P95 9,136 ms。报告继续只保存合成输入对应
+的最终结构化输出、usage 和聚合指标，不保存凭证或 provider reasoning：
+
+- `evaluation/auto-memory-consolidation-v1/results/2026-08-01-deepseek-v4-pro-auto-memory-consolidation-v1.json`
+
 ## 10. 开发日志
 
 ### 2026-07-31
@@ -337,10 +370,14 @@ V3 的 45 次安全校准是历史发布证据，不能自动视为新 Prompt �
 - [x] 保留 V4 三轮校准失败证据：安全门槛通过，但空候选归并说明使正例降到 77.78%。
 - [x] 升级为 V5：仅在候选非空时注入归并合同；同一 cohort 三轮达到 94.44% / 100% / 0%，
   协议失败为 0，保存完整通过报告。
+- [x] 完成 V1.1 候选归并专项 cohort：8 个风险案例各跑三轮，复用、新建与排除全部正确，
+  错误归并、跨 scope、DISABLED 绕过、不安全候选接受和协议失败均为 0。
+- [x] V1.1 完整后端 `mvn test` 共执行 1,967 项测试，0 failure、0 error；15 项按现有
+  live/integration 开关跳过，其中两个 Auto Memory live 门槛已分别通过显式联网运行。
 
 当前实现边界：迁移已在一次性 MySQL 8.4 和本地持久化 MySQL 验证，但尚未在目标环境数据库
 执行；V5 Prompt 的离线协议、安全门槛和 DeepSeek V4 Pro 三轮真实校准已经通过，完整本地
-Turn → Extract → Persist → Recall 链路及候选非空的同义归并也已验证。feature flag 仍保持默认
-关闭，本地 `.env` 单独开启；下一步按第 7 节准备目标环境迁移和 shadow/canary 方案，未经用户
-授权不执行生产变更。V4 Flash 的同 cohort 成本/延迟对照不阻塞 Pro 上线，但应在扩大调用量前
-完成。
+Turn → Extract → Persist → Recall 链路及候选非空的 V1.1 专项门槛也已验证。feature flag 仍
+保持默认关闭，本地 `.env` 单独开启；下一步按第 7 节准备目标环境迁移和 shadow/canary 方案，
+未经用户授权不执行生产变更。长期记忆老化和候选规模扩张应基于真实分布单独设计，不与 V1.1
+归并门槛耦合；V4 Flash 的成本/延迟对照也不阻塞 Pro 上线。
