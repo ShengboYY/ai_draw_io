@@ -9,8 +9,9 @@
 3. **User Auto Memory**：同一用户跨 Chartbook 有效的稳定偏好与反馈。
 
 Canvas State、Chartbook Profile、RAG 继续作为独立上下文源，不并入 Memory。运行时不再存在
-Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-D 已验证默认关闭的
-Memory 向量影子检索与 MySQL 权威回查，但不会改变 Worker 实际使用的 SQL 候选。
+Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-E 已验证默认关闭的
+Memory 向量影子检索、MySQL 权威回查和可复现随机 shadow，但不会改变 Worker 实际使用的
+SQL 候选。
 
 ## 2. 边界与优先级
 
@@ -519,11 +520,33 @@ V1.4-D 增加一个显式 opt-in 的 live evaluation，不添加模拟 embedding
 
 - `evaluation/auto-memory-retrieval-v2/results/2026-08-02-pinecone-multilingual-e5-large.json`
 
-这证明冻结合成分布已通过，不等于真实业务分布已经通过。下一步只在本地/隔离环境开启
-projection + shadow，累计真实 Turn 的有效回查率和 SQL 重合率；在有足够样本前，向量候选仍不
-进入 DeepSeek Prompt。
+这证明冻结合成分布已通过，不等于真实业务分布已经通过。下一步的受控随机 shadow 基线见下节。
 
-## 16. 开发日志
+## 16. V1.4-E 可复现随机 shadow 基线
+
+V1.4-E 在本地 MySQL 8.4 和隔离 Pinecone namespace 中运行生产 shadow 装饰器，不调用
+DeepSeek，也不改变 Worker feature flag：
+
+1. 复用 V2 检索 cohort 的 8 个中英文语义主题，按固定 seed 随机分配 USER/CHARTBOOK scope、
+   Turn 顺序和自然语言前缀。正确目标是显式真值，不依赖模型自评。
+2. 每个授权 scope 写入 10 条更新更近的干扰 Memory，SQL 每 scope 只取最近 8 条；正确目标故意
+   设为旧记录，用于观察语义检索能否补回 SQL 时间窗口之外的候选。
+3. 每个目标还在其他 Chartbook 和其他 owner 写入同文本副本，检查 Pinecone metadata 过滤是否
+   在 MySQL 回查前已经阻止越权结果。模拟记录和向量都带随机 run ID，并在 `finally` 清理。
+4. shadow 直接运行 `ShadowAutoMemoryConsolidationCandidateRetriever`。每轮必须原样返回 SQL，
+   Pinecone 结果只用于统计真实 query embedding、向量命中和 MySQL 权威回查。
+
+seed `20260802` 的 32 个 Turn 结果：SQL 真值召回 `0%`（由上述压力场景刻意造成），向量真值
+召回 `100%`；Top-1 为 `37.5%`，全部目标均位于前 4。向量回查率 `97.85%`，其余结果因每 scope
+上限被正常裁剪；向量候选与 SQL 候选重合率 `62.67%`。shadow 成功率和 SQL 返回保持率均为
+`100%`，原始跨 scope/owner 命中及未知向量均为 `0`。报告位于：
+
+- `evaluation/auto-memory-retrieval-v2/results/2026-08-02-random-shadow-seed-20260802.json`
+
+这仍是有真值的受控压力分布，不能冒充真实用户流量。下一步才是本地实际 Turn 的长期采样；在
+有足够样本前，向量候选仍不进入 DeepSeek Prompt。
+
+## 17. 开发日志
 
 ### 2026-07-31
 
@@ -625,13 +648,18 @@ projection + shadow，累计真实 Turn 的有效回查率和 SQL 重合率；�
   相关/禁用召回均 100%，MRR 1.0，未授权、终态和未知返回均为 0；没有连接生产 namespace。
 - [x] V1.4-D 完整后端 `mvn test` 共执行 2,013 项测试，0 failure、0 error；19 项按既有
   live/integration 开关跳过，新增 live gate 已另行显式运行并保存通过报告。
+- [x] 增加 seed 可复现的本地随机 shadow：真实 MySQL SQL 窗口、生产 shadow 装饰器、真实
+  Pinecone query embedding 和 MySQL 回查共同运行；32/32 个旧目标被向量找回，SQL 返回保持
+  100%，跨 owner/scope 命中为 0，结束后确认 MySQL 和 Pinecone fixture 已清理。
+- [x] V1.4-E 完整后端 `mvn clean test`/增量复核共执行 2,014 项测试，0 failure、0 error；20 项
+  按 live/integration 开关跳过。随机 shadow 已另行显式运行并保存报告。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
 Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已验证。feature flag 仍保持
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
-V1.4-D 的投影、权威回查、真实 Pinecone cohort 和报告均已完成，两个向量开关保持关闭，Worker
-仍只使用 MySQL；下一步是第 15 节所述的本地真实 Turn shadow 样本，不接入生产。
+V1.4-E 的投影、权威回查、真实 Pinecone cohort、随机 shadow 和报告均已完成，两个向量开关
+保持关闭，Worker 仍只使用 MySQL；下一步是第 16 节所述的本地实际 Turn 长期样本，不接入生产。
 目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权不执行生产变更。严格显式
 句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
 阻塞 Pro 上线。

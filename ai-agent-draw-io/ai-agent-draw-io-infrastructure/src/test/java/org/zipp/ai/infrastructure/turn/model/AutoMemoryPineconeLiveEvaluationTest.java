@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -47,36 +46,12 @@ class AutoMemoryPineconeLiveEvaluationTest {
     @Test
     void pineconeCohortMeetsSemanticIsolationAndLifecycleGates() throws Exception {
         AutoMemoryRetrievalCohort.Dataset dataset = AutoMemoryRetrievalCohort.load();
-        String namespace = requiredEnvironment("AUTO_MEMORY_VECTOR_PINECONE_NAMESPACE");
-        String normalizedNamespace = namespace.toLowerCase(Locale.ROOT);
-        assertTrue(normalizedNamespace.contains("test")
-                        || normalizedNamespace.contains("dev")
-                        || normalizedNamespace.contains("eval"),
-                "live evaluation requires an explicitly disposable namespace");
-
-        String apiKey = requiredEnvironment(
-                "AUTO_MEMORY_VECTOR_PINECONE_API_KEY", "PINECONE_API_KEY");
-        String indexHost = requiredEnvironment(
-                "AUTO_MEMORY_VECTOR_PINECONE_INDEX_HOST", "PINECONE_INDEX_HOST");
-        String model = environment(
-                "AUTO_MEMORY_VECTOR_EMBEDDING_MODEL",
-                environment("PINECONE_EMBEDDING_MODEL", "multilingual-e5-large"));
-        int dimension = positiveInteger(environment(
-                "AUTO_MEMORY_VECTOR_DIMENSION",
-                environment("PINECONE_DIMENSION", "1024")));
+        AutoMemoryPineconeLiveTestSupport.Session pinecone =
+                AutoMemoryPineconeLiveTestSupport.connect(new ObjectMapper());
         String partitionSecret = requiredEnvironment(
                 "AUTO_MEMORY_VECTOR_PARTITION_SECRET", "PINECONE_TENANT_HMAC_SECRET");
-
-        PineconeVectorClient client = new PineconeVectorClient(
-                apiKey,
-                indexHost,
-                model,
-                dimension,
-                new ObjectMapper(),
-                PineconeAutoMemoryVectorStoreAdapter.METADATA_FIELDS);
-        PineconeAutoMemoryVectorStoreAdapter vectors =
-                new PineconeAutoMemoryVectorStoreAdapter(
-                        client, namespace, partitionSecret);
+        PineconeVectorClient client = pinecone.client();
+        PineconeAutoMemoryVectorStoreAdapter vectors = pinecone.vectors();
         String runId = "ameval_" + UUID.randomUUID().toString()
                 .replace("-", "").substring(0, 12);
         Corpus corpus = corpus(dataset, runId, partitionSecret);
@@ -97,8 +72,8 @@ class AutoMemoryPineconeLiveEvaluationTest {
                 }
             }
             vectors.upsert(eligible);
-            client.upsert(namespace, staleTerminal);
-            waitUntilVisible(vectors, corpus.vectorIds());
+            client.upsert(pinecone.namespace(), staleTerminal);
+            AutoMemoryPineconeLiveTestSupport.waitUntilVisible(vectors, corpus.vectorIds());
             waitUntilIndexed(corpus, vectors);
 
             QueryResult result = query(dataset, corpus, vectors);
@@ -106,14 +81,21 @@ class AutoMemoryPineconeLiveEvaluationTest {
                     dataset, result.rankings());
             boolean passed = metrics.passes(dataset.gate());
             Path reportPath = reportPath();
-            writeReport(reportPath, dataset, model, dimension, metrics, passed, result.caseReports());
+            writeReport(
+                    reportPath,
+                    dataset,
+                    pinecone.model(),
+                    pinecone.dimension(),
+                    metrics,
+                    passed,
+                    result.caseReports());
 
             assertTrue(passed, () -> "Auto Memory Pinecone retrieval gate failed: "
                     + metrics + "; report=" + reportPath.toAbsolutePath());
         } finally {
             // Run-specific vector IDs and partitions make this cleanup safe under concurrent evals.
             vectors.delete(corpus.vectorIds());
-            waitUntilDeleted(vectors, corpus.vectorIds());
+            AutoMemoryPineconeLiveTestSupport.waitUntilDeleted(vectors, corpus.vectorIds());
         }
     }
 
@@ -353,32 +335,6 @@ class AutoMemoryPineconeLiveEvaluationTest {
         return chartbookId == null ? null : casePartition + "_" + chartbookId;
     }
 
-    private void waitUntilVisible(
-            PineconeAutoMemoryVectorStoreAdapter vectors,
-            List<String> vectorIds
-    ) throws InterruptedException {
-        for (int attempt = 0; attempt < 20; attempt++) {
-            if (vectors.existingVectorIds(vectorIds).containsAll(vectorIds)) {
-                return;
-            }
-            Thread.sleep(500L);
-        }
-        throw new IllegalStateException("Memory vectors were not visible within 10 seconds");
-    }
-
-    private void waitUntilDeleted(
-            PineconeAutoMemoryVectorStoreAdapter vectors,
-            List<String> vectorIds
-    ) throws InterruptedException {
-        for (int attempt = 0; attempt < 20; attempt++) {
-            if (vectors.existingVectorIds(vectorIds).isEmpty()) {
-                return;
-            }
-            Thread.sleep(500L);
-        }
-        throw new IllegalStateException("Memory evaluation vectors remained after cleanup");
-    }
-
     private Path reportPath() {
         String configured = System.getenv("AUTO_MEMORY_VECTOR_RETRIEVAL_REPORT");
         if (configured != null && !configured.isBlank()) {
@@ -395,19 +351,6 @@ class AutoMemoryPineconeLiveEvaluationTest {
             }
         }
         throw new IllegalStateException("required Memory vector environment is missing");
-    }
-
-    private String environment(String name, String fallback) {
-        String value = System.getenv(name);
-        return value == null || value.isBlank() ? fallback : value.trim();
-    }
-
-    private int positiveInteger(String value) {
-        int parsed = Integer.parseInt(value);
-        if (parsed < 1) {
-            throw new IllegalArgumentException("embedding dimension must be positive");
-        }
-        return parsed;
     }
 
     private record CorpusEntry(
