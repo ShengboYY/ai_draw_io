@@ -221,6 +221,117 @@ class AutoMemoryContextSelectorTest {
     }
 
     @Test
+    void plannedIntentsAreGatedIndependentlyAndMergedBeforeTheOriginalQuery() {
+        AutoMemory labels = memory(
+                "memory-labels", AutoMemoryScope.user("owner-1"),
+                "label-style", "Italicize database labels", 2);
+        AutoMemory endpoints = memory(
+                "memory-endpoints", AutoMemoryScope.user("owner-1"),
+                "endpoint-badge", "Add globe badges to public endpoints", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(labels, endpoints));
+        List<String> searches = new ArrayList<>();
+        AutoMemoryVectorSearchPort vectors = (vectorQuery, topK) -> {
+            searches.add(vectorQuery.userContent());
+            return switch (vectorQuery.userContent()) {
+                case "database label style" -> List.of(
+                        new AutoMemoryVectorSearchHit(vectorId(labels), 0.91d));
+                case "public endpoint badge style" -> List.of(
+                        new AutoMemoryVectorSearchHit(vectorId(endpoints), 0.90d));
+                default -> List.of();
+            };
+        };
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                ignored -> List.of("database label style", "public endpoint badge style"),
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-labels", "memory-endpoints"), selected.references()
+                .stream().map(AutoMemoryContextSelection.Reference::memoryId).toList());
+        assertEquals(List.of(
+                "database label style", "public endpoint badge style", query().userContent()),
+                searches);
+    }
+
+    @Test
+    void oneFailedPlannedQueryDoesNotDiscardAnotherSuccessfulIntent() {
+        AutoMemory endpoints = memory(
+                "memory-endpoints", AutoMemoryScope.user("owner-1"),
+                "endpoint-badge", "Add globe badges to public endpoints", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(endpoints));
+        AutoMemoryVectorSearchPort vectors = (vectorQuery, topK) -> {
+            if (vectorQuery.userContent().equals("unavailable intent")) {
+                throw new IllegalStateException("one embedding call failed");
+            }
+            if (vectorQuery.userContent().equals("public endpoint badge style")) {
+                return List.of(new AutoMemoryVectorSearchHit(vectorId(endpoints), 0.90d));
+            }
+            return List.of();
+        };
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                ignored -> List.of("unavailable intent", "public endpoint badge style"),
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-endpoints"), selected.references()
+                .stream().map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void allPlannedSearchesFailBackToTheStableSqlBaseline() {
+        AutoMemory baseline = memory(
+                "memory-baseline", AutoMemoryScope.user("owner-1"),
+                "labels", "Use concise labels", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(baseline));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                (vectorQuery, topK) -> {
+                    throw new IllegalStateException("vector unavailable");
+                },
+                ignored -> List.of("first intent", "second intent"),
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-baseline"), selected.references()
+                .stream().map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void plannerFailureKeepsTheOriginalSemanticQueryAvailable() {
+        AutoMemory relevant = memory(
+                "memory-relevant", AutoMemoryScope.user("owner-1"),
+                "labels", "Use concise labels", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(relevant));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                (vectorQuery, topK) -> List.of(
+                        new AutoMemoryVectorSearchHit(vectorId(relevant), 0.90d)),
+                ignored -> {
+                    throw new IllegalStateException("planner unavailable");
+                },
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-relevant"), selected.references()
+                .stream().map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
     void totalCharacterBudgetSkipsEntriesThatDoNotFit() {
         AutoMemory first = memory(
                 "memory-first", AutoMemoryScope.user("owner-1"),

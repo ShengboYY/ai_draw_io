@@ -18,6 +18,8 @@ import org.zipp.ai.application.turn.classification.SemanticIntentReady;
 import org.zipp.ai.application.turn.classification.SemanticRouterInput;
 import org.zipp.ai.application.turn.classification.SourceIntentKind;
 import org.zipp.ai.application.turn.classification.TargetNeed;
+import org.zipp.ai.application.turn.context.AutoMemoryContextQuery;
+import org.zipp.ai.application.turn.context.AutoMemoryRecallPlanningEligibilityPolicy;
 import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
@@ -188,6 +190,58 @@ class ChatV2ModelAdapterTest {
         assertTrue(chat.lastText.contains(AutoMemoryExtractionProtocol.CONTRACT_VERSION));
         assertFalse(chat.lastText.contains("EXISTING_MEMORY_CANDIDATES_JSON"));
         assertTrue(chat.lastText.contains("USER_TURN_DATA_JSON"));
+    }
+
+    @Test
+    void autoMemoryRecallPlannerUsesTheStrictBoundedProtocol() {
+        RecordingChat chat = new RecordingChat(
+                "{\"queries\":[\"database label style\",\"public endpoint badges\"]}");
+        ChatAutoMemoryRecallPlannerAdapter adapter = new ChatAutoMemoryRecallPlannerAdapter(
+                new ToolFreeChatModelInvoker(chat, "300031", "test-memory-planner"),
+                new AutoMemoryRecallPlanningEligibilityPolicy());
+        AutoMemoryContextQuery query = new AutoMemoryContextQuery(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "chartbook-1",
+                "Italicize database labels and add badges to public endpoints",
+                binding(ModelInputBinding.digestOf("memory-recall-plan")));
+
+        List<String> planned = adapter.plan(query);
+
+        assertEquals(List.of("database label style", "public endpoint badges"), planned);
+        assertEquals(1, chat.createSessionCalls);
+        assertTrue(chat.lastText.contains(AutoMemoryRecallPlanningProtocol.CONTRACT_VERSION));
+        assertTrue(chat.lastText.contains("USER_REQUEST_DATA_JSON"));
+    }
+
+    @Test
+    void autoMemoryRecallPlannerSkipsClearlySingleIntentRequests() {
+        RecordingChat chat = new RecordingChat("{\"queries\":[]}");
+        ChatAutoMemoryRecallPlannerAdapter adapter = new ChatAutoMemoryRecallPlannerAdapter(
+                new ToolFreeChatModelInvoker(chat, "300031", "test-memory-planner"),
+                new AutoMemoryRecallPlanningEligibilityPolicy());
+        AutoMemoryContextQuery query = new AutoMemoryContextQuery(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                null,
+                "Use concise labels",
+                binding(ModelInputBinding.digestOf("memory-recall-plan")));
+
+        assertTrue(adapter.plan(query).isEmpty());
+        assertEquals(0, chat.createSessionCalls);
+    }
+
+    @Test
+    void autoMemoryRecallPlannerRejectsAOneQueryPseudoSplit() {
+        RecordingChat chat = new RecordingChat("{\"queries\":[\"only one query\"]}");
+        ChatAutoMemoryRecallPlannerAdapter adapter = new ChatAutoMemoryRecallPlannerAdapter(
+                new ToolFreeChatModelInvoker(chat, "300031", "test-memory-planner"),
+                new AutoMemoryRecallPlanningEligibilityPolicy());
+        AutoMemoryContextQuery query = new AutoMemoryContextQuery(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                null,
+                "Use concise labels and keep retry paths dashed",
+                binding(ModelInputBinding.digestOf("memory-recall-plan")));
+
+        assertThrows(IllegalStateException.class, () -> adapter.plan(query));
     }
 
     @Test

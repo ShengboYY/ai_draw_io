@@ -11,6 +11,7 @@ import org.zipp.ai.infrastructure.adapter.repository.MySqlEvidencePreparationSto
 import org.zipp.ai.infrastructure.turn.model.PreparedDirectGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatEvidenceAnswerGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatAutoMemoryExtractionAdapter;
+import org.zipp.ai.infrastructure.turn.model.ChatAutoMemoryRecallPlannerAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatGroundedGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatPlainGenerationAdapter;
 import org.zipp.ai.infrastructure.turn.model.ChatPlainResponseAdapter;
@@ -44,6 +45,20 @@ class TurnModelAdapterSpringWiringTest {
         contextRunner.withPropertyValues("app.memory.auto-enabled=true")
                 .run(context -> assertThat(context)
                         .hasSingleBean(ChatAutoMemoryExtractionAdapter.class));
+    }
+
+    @Test
+    void recallPlannerRequiresItsIndependentSemanticOptIn() {
+        contextRunner.withPropertyValues("app.memory.auto-enabled=true")
+                .run(context -> assertThat(context)
+                        .doesNotHaveBean(ChatAutoMemoryRecallPlannerAdapter.class));
+
+        contextRunner.withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.context.semantic-enabled=true",
+                        "app.memory.context.multi-intent-enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(ChatAutoMemoryRecallPlannerAdapter.class));
     }
 
     @TestConfiguration(proxyBeanMethods = false)

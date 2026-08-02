@@ -21,6 +21,7 @@ import org.zipp.ai.application.memory.ScopedAutoMemoryConsolidationCandidateRetr
 import org.zipp.ai.application.memory.ShadowAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.turn.context.AutoMemoryContextHydrationPort;
 import org.zipp.ai.application.turn.context.AutoMemoryContextSelector;
+import org.zipp.ai.application.turn.context.AutoMemoryRecallPlanner;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeAutoMemoryVectorStoreAdapter;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeVectorClient;
 import org.zipp.ai.infrastructure.adapter.telemetry.AutoMemoryVectorShadowMetrics;
@@ -42,6 +43,7 @@ public class AutoMemoryVectorConfig {
             AutoMemoryQueryPort memories,
             AutoMemoryContextHydrationPort hydration,
             AutoMemoryVectorStorePort vectors,
+            ObjectProvider<AutoMemoryRecallPlanner> recallPlanners,
             @Value("${app.memory.context.minimum-score:0.82}") double minimumScore,
             @Value("${app.memory.context.minimum-lead:0.02}") double minimumLead,
             @Value("${app.memory.context.maximum-score-drop:0.03}") double maximumScoreDrop,
@@ -52,6 +54,7 @@ public class AutoMemoryVectorConfig {
                 memories,
                 hydration,
                 vectors,
+                recallPlanners.getIfAvailable(() -> AutoMemoryRecallPlanner.NONE),
                 new AutoMemoryContextSelector.SemanticPolicy(
                         minimumScore, minimumLead, maximumScoreDrop),
                 new AutoMemoryContextSelector.Budget(maxEntries, maxCharacters));

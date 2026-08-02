@@ -1,6 +1,7 @@
 package org.zipp.ai.application.turn.context;
 
 import org.zipp.ai.application.memory.AutoMemoryScope;
+import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.application.turn.TurnKey;
 
 import java.util.ArrayList;
@@ -10,7 +11,8 @@ import java.util.List;
 public record AutoMemoryContextQuery(
         TurnKey turn,
         String chartbookId,
-        String userContent
+        String userContent,
+        ModelInputBinding planningInputBinding
 ) {
     public AutoMemoryContextQuery {
         if (turn == null) {
@@ -21,6 +23,14 @@ public record AutoMemoryContextQuery(
             throw new IllegalArgumentException("userContent must not be blank");
         }
         userContent = userContent.trim();
+        if (planningInputBinding == null) {
+            throw new IllegalArgumentException("planningInputBinding must not be null");
+        }
+    }
+
+    /** Compatibility constructor for SQL-only and deterministic test callers. */
+    public AutoMemoryContextQuery(TurnKey turn, String chartbookId, String userContent) {
+        this(turn, chartbookId, userContent, ModelInputBinding.unbound());
     }
 
     /** Narrow Chartbook context is considered before the user-global fallback. */

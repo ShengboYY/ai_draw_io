@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.FencedAttempt;
+import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.TurnFailureCode;
 import org.zipp.ai.application.turn.TurnKey;
@@ -230,7 +231,7 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                 return new ContextCandidateLoadOutcome.Revoked("DIAGRAM_NOT_AVAILABLE");
             }
             AutoMemoryContextSelection memorySelection = autoMemoryEnabled
-                    ? memoryContexts.select(memoryQuery(attempt.key(), command, domain))
+                    ? memoryContexts.select(memoryQuery(attempt, command, domain))
                     : null;
             return new ContextCandidateLoadOutcome.Ready(
                     new ContextCandidate(candidateReadSet(
@@ -568,6 +569,22 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                 turn,
                 domain.hasActiveChartbook() ? domain.chartbookId() : null,
                 command.content());
+    }
+
+    private AutoMemoryContextQuery memoryQuery(
+            FencedAttempt attempt,
+            UserTurnCommand command,
+            DomainRow domain
+    ) {
+        String chartbookId = domain.hasActiveChartbook() ? domain.chartbookId() : null;
+        String planningContextDigest = ModelInputBinding.digestOf(
+                "auto-memory-recall-planning-v1", chartbookId, command.content());
+        return new AutoMemoryContextQuery(
+                attempt.key(),
+                chartbookId,
+                command.content(),
+                ModelInputBinding.bound(
+                        attempt.key(), planningContextDigest, attempt.inputBindingDigest()));
     }
 
     private List<CurrentMessageAttachmentView> materializeAttachments(

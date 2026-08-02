@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,6 +33,7 @@ public final class AutoMemoryContextSelector {
     private final AutoMemoryQueryPort memories;
     private final AutoMemoryContextHydrationPort hydration;
     private final AutoMemoryVectorSearchPort vectors;
+    private final AutoMemoryRecallPlanner recallPlanner;
     private final SemanticPolicy semanticPolicy;
     private final Budget budget;
 
@@ -50,9 +52,21 @@ public final class AutoMemoryContextSelector {
             SemanticPolicy semanticPolicy,
             Budget budget
     ) {
+        this(memories, hydration, vectors, AutoMemoryRecallPlanner.NONE, semanticPolicy, budget);
+    }
+
+    public AutoMemoryContextSelector(
+            AutoMemoryQueryPort memories,
+            AutoMemoryContextHydrationPort hydration,
+            AutoMemoryVectorSearchPort vectors,
+            AutoMemoryRecallPlanner recallPlanner,
+            SemanticPolicy semanticPolicy,
+            Budget budget
+    ) {
         this.memories = Objects.requireNonNull(memories, "memories");
         this.hydration = Objects.requireNonNull(hydration, "hydration");
         this.vectors = vectors;
+        this.recallPlanner = Objects.requireNonNull(recallPlanner, "recallPlanner");
         this.semanticPolicy = Objects.requireNonNull(semanticPolicy, "semanticPolicy");
         this.budget = Objects.requireNonNull(budget, "budget");
     }
@@ -109,20 +123,54 @@ public final class AutoMemoryContextSelector {
     }
 
     private SemanticRecall semantic(AutoMemoryContextQuery query) {
-        try {
-            List<String> vectorIds = semanticPolicy.accept(vectors.search(
-                            AutoMemoryVectorSearchQuery.activeContext(
-                                    query.turn(), query.chartbookId(), query.userContent()),
-                            VECTOR_TOP_K)).stream()
-                    .map(AutoMemoryVectorSearchHit::vectorId)
-                    .toList();
-            return new SemanticRecall(
-                    false,
-                    hydration.hydrateActiveVectorMatches(query, vectorIds));
-        } catch (RuntimeException ignored) {
-            // Generation remains available through the deterministic MySQL baseline.
+        Set<String> vectorIds = new LinkedHashSet<>();
+        int successfulQueries = 0;
+        for (String recallText : recallTexts(query)) {
+            try {
+                List<AutoMemoryVectorSearchHit> accepted = semanticPolicy.accept(vectors.search(
+                        AutoMemoryVectorSearchQuery.activeContext(
+                                query.turn(), query.chartbookId(), recallText),
+                        VECTOR_TOP_K));
+                accepted.stream().map(AutoMemoryVectorSearchHit::vectorId).forEach(vectorIds::add);
+                successfulQueries++;
+            } catch (RuntimeException ignored) {
+                // One failed facet must not discard independently successful semantic facets.
+            }
+        }
+        if (successfulQueries == 0) {
             return new SemanticRecall(true, List.of());
         }
+        try {
+            return new SemanticRecall(false, hydration.hydrateActiveVectorMatches(
+                    query, List.copyOf(vectorIds)));
+        } catch (RuntimeException ignored) {
+            // MySQL authority failure cannot be replaced by unverified vector identities.
+            return new SemanticRecall(true, List.of());
+        }
+    }
+
+    private List<String> recallTexts(AutoMemoryContextQuery query) {
+        List<String> planned;
+        try {
+            planned = recallPlanner.plan(query);
+        } catch (RuntimeException ignored) {
+            planned = List.of();
+        }
+        if (planned == null || planned.size() > AutoMemoryRecallPlanner.MAX_SUBQUERIES) {
+            return List.of(query.userContent());
+        }
+        LinkedHashMap<String, String> unique = new LinkedHashMap<>();
+        for (String value : planned) {
+            if (value == null || value.isBlank() || value.length() > 500) {
+                return List.of(query.userContent());
+            }
+            String trimmed = value.trim();
+            unique.putIfAbsent(trimmed.toLowerCase(java.util.Locale.ROOT), trimmed);
+        }
+        // Precise facets run first; the untouched request remains the semantic fallback.
+        unique.putIfAbsent(query.userContent().toLowerCase(java.util.Locale.ROOT),
+                query.userContent());
+        return List.copyOf(unique.values());
     }
 
     private static List<AutoMemory> merge(

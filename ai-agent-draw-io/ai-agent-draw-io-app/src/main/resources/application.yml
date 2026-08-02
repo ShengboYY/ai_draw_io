@@ -53,6 +53,9 @@ app:
     context:
       # V1.7 semantic selection is opt-in; SQL ordering remains the failure fallback.
       semantic-enabled: ${AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED:false}
+      # V1.8 planning is a separate opt-in and has no effect while semantic selection is disabled.
+      multi-intent-enabled: ${AUTO_MEMORY_CONTEXT_MULTI_INTENT_ENABLED:false}
+      planner-agent-id: ${AUTO_MEMORY_CONTEXT_PLANNER_AGENT_ID:300031}
       minimum-score: ${AUTO_MEMORY_CONTEXT_MINIMUM_SCORE:0.82}
       minimum-lead: ${AUTO_MEMORY_CONTEXT_MINIMUM_LEAD:0.02}
       maximum-score-drop: ${AUTO_MEMORY_CONTEXT_MAXIMUM_SCORE_DROP:0.03}
