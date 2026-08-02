@@ -52,4 +52,15 @@ The locked implementation passed development-v2 with candidate Recall@4 `100%`, 
 disabled and forbidden selections were all zero. The `0.01` facet lead was kept as a round,
 conservative boundary instead of tuning a smaller decimal to the two development near-ties.
 
-Full evidence is stored in `development-report.json`. The holdout remains unseen at this point.
+Full evidence is stored in `development-report.json`.
+
+## One-shot holdout result
+
+After commit `89f1f2e8` locked the implementation and development evidence, holdout-v2 was run once.
+It passed with candidate Recall@4 `100%`, final target recall `90%`, complete-positive Case rate
+`83.33%`, Prompt precision `90%`, irrelevant injection `10%`, negative Case injection `25%`, and
+selection-to-Prompt parity `100%`. Unauthorized, disabled and forbidden selections were all zero.
+
+One relevant candidate was conservatively dropped because two different decisions were only
+`0.0019` apart, and one one-off operation injected an irrelevant position Memory. Both outcomes are
+retained without parameter changes or a holdout rerun. Full evidence is in `holdout-report.json`.

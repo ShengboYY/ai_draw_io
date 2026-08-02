@@ -709,7 +709,13 @@ development-v2 与一次性 holdout 在实现前冻结于提交 `f31ed6e8`，并
 
 - `evaluation/auto-memory-context-e2e-v2/development-report.json`
 
-实现与 development 证据提交锁定后，V2 holdout 只运行一次；无论结果如何都不调参或重跑。
+实现与 development 证据在提交 `89f1f2e8` 锁定后，V2 holdout 只运行一次并通过：候选 Recall@4
+100%、最终目标 Recall 90%、完整正例 Case 83.33%、Prompt Precision 90%、无关注入 10%、负例
+误注入 25%、Prompt parity 100%，未授权、禁用和 forbidden 选择均为 0。一条正确候选因不同决策
+仅相差 `0.0019` 被保守放弃，一条一次性局部操作注入了位置 Memory；两项均按预注册门槛保留，未
+修改参数或重跑。完整报告位于：
+
+- `evaluation/auto-memory-context-e2e-v2/holdout-report.json`
 
 ## 19. 开发日志
 
@@ -888,6 +894,11 @@ development-v2 与一次性 holdout 在实现前冻结于提交 `f31ed6e8`，并
   planner fallback；未增加模型调用、持久化字段或第二个排序器。
 - [x] V1.8.2 development-v2 通过冻结门槛：candidate Recall@4 100%、最终 Recall 80%、Prompt
   Precision 88.89%、无关注入 11.11%，权限/生命周期泄漏 0，Prompt parity 100%。
+- [x] 锁定实现后唯一一次 V1.8.2 holdout-v2 通过：candidate Recall@4 100%、最终 Recall 90%、
+  Prompt Precision 90%、无关注入 10%，权限/生命周期泄漏 0，Prompt parity 100%；未调参或重跑。
+- [x] V1.8.2 最终后端 `mvn clean test` 共执行 2,065 项测试，0 failure、0 error；24 项按既有
+  live/integration 开关跳过。holdout 已另行显式运行，本地 `amctx_*` Memory/Chartbook 清理计数
+  均为 0，隔离 Pinecone vector 也在评估退出前删除并确认不可见。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
@@ -903,10 +914,11 @@ V1.7.2 已在新 development-v2 上选定分数下限加相对分差的有界准
 V1.7.3 的 V4 将候选无关率降至 0，但 60% 召回未通过 release gate；V4 同样不再用于调参。
 V1.8 已分离多意图查询规划，并保持 semantic 与 multi-intent 两个开关默认关闭；首次 holdout
 因漏拆未通过；V1.8.1 的 V2 holdout 将多意图覆盖提升到 100%，但一次共享颜色决策过拆使
-abstention 门槛失败。实现作为默认关闭的实验能力保留，不再围绕这些合成 Case 调整。单目标跨
-语言召回仍是独立问题，不能继续修改全局 score 参数顺带处理。与此同时随本地真实使用积累非
-合成样本并比较错误归并，
-不因早期受控测试通过而接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
+abstention 门槛失败。V1.8.2 将 planned facet 改为前四候选、单次 MySQL 权威回查和每 facet 单
+winner，并通过新的冻结 holdout；但一次性局部操作仍可能误注入，且近似并列时选择保守放弃。
+semantic 与 multi-intent 开关因此继续默认关闭，应先随本地真实使用积累非合成样本，分别观察
+相关召回、近似并列 abstention 和局部操作误注入，不因早期受控测试通过而接入生产。目标环境迁移
+和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
 不执行生产变更。V1.6 完整质量观测按用户决定暂时跳过；V1.7 已完成 SQL 默认选择与可选 semantic
 Context 代码，semantic 开关仍默认及本地关闭，未使用合成结果替代真实注入质量证据。严格显式
 句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
