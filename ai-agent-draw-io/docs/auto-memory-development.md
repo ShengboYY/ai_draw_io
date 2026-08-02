@@ -9,7 +9,7 @@
 3. **User Auto Memory**：同一用户跨 Chartbook 有效的稳定偏好与反馈。
 
 Canvas State、Chartbook Profile、RAG 继续作为独立上下文源，不并入 Memory。运行时不再存在
-Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-C 已补齐默认关闭的
+Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-D 已验证默认关闭的
 Memory 向量影子检索与 MySQL 权威回查，但不会改变 Worker 实际使用的 SQL 候选。
 
 ## 2. 边界与优先级
@@ -211,7 +211,7 @@ Pinecone transport，Memory 使用独立 namespace、metadata allowlist、投影
   `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-conflict-v1/cohort.json`，继续复用
   归并评估器，只增加同维度换值的 `CHALLENGE` 指标。
 - 候选检索质量：V1.4-A 冻结样本位于
-  `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-retrieval-v1/cohort.json`，覆盖
+  `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-retrieval-v2/cohort.json`，覆盖
   中英文同义 challenger、否定语义、相关但不同维度、`DISABLED` opt-out、owner/scope 隔离及
   `SUPERSEDED/DELETED` 排除。向量实现必须通过相关召回、禁用召回和零泄漏门槛后才能替换 SQL。
 
@@ -451,7 +451,9 @@ V1.4-A 只建立下一阶段真正需要、且当前可以验证的最小边界�
 2. Worker 只依赖 `AutoMemoryConsolidationCandidateRetriever`；默认实现继续逐 scope 调用 MySQL，
    因此 Prompt、DeepSeek 调用次数和持久化行为不变。Spring 允许后续语义适配器显式替换默认实现。
 3. 冻结 8 个纯合成 retrieval case，门槛为相关候选 `Recall@K >= 95%`、`DISABLED Recall@K = 100%`、
-   未授权候选率 `0%`、终态候选率 `0%`。隔离和生命周期是硬门禁，不能拿相关度作权衡。
+   未授权候选率 `0%`、终态候选率 `0%`。V2 明确让 Chartbook 场景同时授权 USER 与当前
+   CHARTBOOK，与生产 Query 合同一致；其他 Chartbook 和 owner 仍是未授权干扰项。隔离和
+   lifecycle 是硬门禁，不能拿相关度作权衡。
 
 本阶段没有定义未使用的通用向量抽象，也没有把 Material RAG 投影强行复用到 Memory。
 
@@ -493,12 +495,35 @@ V1.4-C 只完成语义命中的安全闭环，不让向量候选参与 DeepSeek 
    以及真实 MySQL 的 owner/scope、`DISABLED` 和 challenger 生命周期。没有增加模拟余弦相似度或重复
    happy-path 测试，因为它们不能证明真实 embedding 与 Pinecone 的召回质量。
 
-下一步是在独立 Memory namespace 上运行第 12 节冻结 cohort 和一段真实 shadow 流量，对照相关
-召回、`DISABLED` 召回、无效回查率及 SQL 重合率并保存报告。只有真实数据稳定通过门槛后，才
-单独设计让语义候选参与 Worker 的切换；即使切换，MySQL 仍负责授权、lifecycle、Evidence 和
-冲突晋升。
+真实 Pinecone cohort 门槛已经通过，执行边界和结果见下一节；真实业务 Turn 的 shadow 分布仍需
+单独采集。
 
-## 15. 开发日志
+## 15. V1.4-D 真实 Pinecone 检索门槛
+
+V1.4-D 增加一个显式 opt-in 的 live evaluation，不添加模拟 embedding：
+
+1. 测试直接使用生产 `PineconeAutoMemoryVectorStoreAdapter` 生成 passage/query embedding、写入
+   metadata 并执行 owner/scope/lifecycle 过滤。namespace 必须显式包含 `test`、`dev` 或 `eval`，
+   否则拒绝运行。
+2. 每个 case 使用随机隔离的 owner/scope 分区；测试还直接写入 `SUPERSEDED/DELETED` stale
+   vector，验证即使清理延迟也不会被搜索返回。所有向量均使用本次 run ID，`finally` 删除并确认
+   已清理。
+3. fetch 可见不等于 ANN 可检索。正式评分前逐个用生产过滤器确认所有 eligible candidate 已进入
+   检索面，避免把 Pinecone 最终一致性瞬态误算为排序质量。
+4. 硬门槛仍只判断候选召回、`DISABLED`、授权和 lifecycle；Top-1 与 MRR 作为诊断指标记录，
+   不让向量层越权承担 DeepSeek 的最终归并职责。
+
+`multilingual-e5-large`、1024 维的真实结果为：相关 `Recall@K = 100%`，禁用候选召回为
+`100%`，Top-1 为 `100%`，MRR 为 `1.0`，未授权、终态和未知向量返回均为 `0`。8 个 case 的
+最终目标都排第 1，单次查询延迟约 515–741 ms。报告位于：
+
+- `evaluation/auto-memory-retrieval-v2/results/2026-08-02-pinecone-multilingual-e5-large.json`
+
+这证明冻结合成分布已通过，不等于真实业务分布已经通过。下一步只在本地/隔离环境开启
+projection + shadow，累计真实 Turn 的有效回查率和 SQL 重合率；在有足够样本前，向量候选仍不
+进入 DeepSeek Prompt。
+
+## 16. 开发日志
 
 ### 2026-07-31
 
@@ -592,14 +617,21 @@ V1.4-C 只完成语义命中的安全闭环，不让向量候选参与 DeepSeek 
   owner 隔离、未解决 challenger 命中、晋升后旧 challenger 失效和当前值命中。
 - [x] V1.4-C 完整后端 `mvn test` 共执行 2,012 项测试，0 failure、0 error；18 项按既有
   live/integration 开关跳过。本阶段没有用模拟向量代替真实召回质量结论，也未连接生产环境。
+- [x] 修正 V1 retrieval cohort 与生产 scope 的偏差并升级为 V2：Chartbook Turn 同时允许 USER
+  与当前 CHARTBOOK，其他 Chartbook/owner 继续作为硬隔离干扰项。
+- [x] 增加显式 opt-in 的真实 Pinecone release gate：直接复用生产适配器、注入 stale terminal
+  vector、等待全部 eligible vector 可检索、保存逐 case 排名并确认清理。
+- [x] 在隔离 `auto-memory-eval-test-v2` namespace 运行 `multilingual-e5-large`：8/8 目标排第 1，
+  相关/禁用召回均 100%，MRR 1.0，未授权、终态和未知返回均为 0；没有连接生产 namespace。
+- [x] V1.4-D 完整后端 `mvn test` 共执行 2,013 项测试，0 failure、0 error；19 项按既有
+  live/integration 开关跳过，新增 live gate 已另行显式运行并保存通过报告。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
 Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已验证。feature flag 仍保持
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
-V1.4-C 的投影、权威回查和 shadow 对照代码及本地数据库验证已完成，两个向量开关保持关闭，
-Worker 仍只使用 MySQL；下一步是第 14 节所述的真实 Pinecone cohort/shadow 质量报告，不接入
-生产。
+V1.4-D 的投影、权威回查、真实 Pinecone cohort 和报告均已完成，两个向量开关保持关闭，Worker
+仍只使用 MySQL；下一步是第 15 节所述的本地真实 Turn shadow 样本，不接入生产。
 目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权不执行生产变更。严格显式
 句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
 阻塞 Pro 上线。

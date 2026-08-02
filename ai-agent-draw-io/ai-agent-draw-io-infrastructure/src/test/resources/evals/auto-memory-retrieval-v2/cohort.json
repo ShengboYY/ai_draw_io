@@ -1,7 +1,7 @@
 {
   "schemaVersion": "AUTO_MEMORY_RETRIEVAL_CASES_V1",
-  "datasetVersion": "auto-memory-retrieval-v1",
-  "retrievalContractVersion": "AUTO_MEMORY_RETRIEVAL_V1",
+  "datasetVersion": "auto-memory-retrieval-v2",
+  "retrievalContractVersion": "AUTO_MEMORY_RETRIEVAL_V2",
   "privacyClassification": "synthetic",
   "qualityGate": {
     "minimumRelevantRecallAtK": 0.95,
@@ -49,6 +49,7 @@
       "tags": ["challenger", "paraphrase", "zh-cn", "chartbook"],
       "queryText": "这个画册里的依赖线以后都用虚线。",
       "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "USER", "scopeKey": "owner-a"},
         {"ownerKey": "owner-a", "scopeType": "CHARTBOOK", "scopeKey": "book-1"}
       ],
       "topK": 3,
@@ -185,6 +186,7 @@
       "tags": ["current", "scope-isolation", "chartbook", "en"],
       "queryText": "In this chartbook, use left-to-right layouts.",
       "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "USER", "scopeKey": "owner-a"},
         {"ownerKey": "owner-a", "scopeType": "CHARTBOOK", "scopeKey": "book-1"}
       ],
       "topK": 3,
