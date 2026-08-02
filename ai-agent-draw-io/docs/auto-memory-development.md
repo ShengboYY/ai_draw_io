@@ -725,6 +725,12 @@ Prompt 的 ACTIVE Memory 选择边界：
 - [x] V1.7 定向选择、预算、Prompt 顺序、Pinecone filter、read-set codec 和 Spring 组合测试通过；
   本地 MySQL 6 个集成场景全部通过，完整后端 `mvn test` 共执行 2,031 项，0 failure、0 error，
   21 项按既有 live/integration 开关跳过。
+- [x] 在首次联网运行前冻结独立 `auto-memory-context-v1` 合成 holdout、预注册门槛并提交；评估器
+  不调用 DeepSeek、不写 MySQL，只在隔离 `eval` namespace 临时写入 48 个向量并确认全部删除。
+- [x] V1.7 首次盲测未通过门槛：12 个目标中语义选择 Recall@1/3/12 分别为
+  8.33% / 16.67% / 66.67%，MRR 0.1933，无关注入率 93.33%；SQL Recall@12 为 0，语义方向有
+  提升但不足以上线。同键 Chartbook 覆盖和 owner/scope 隔离均通过，未修改 holdout、阈值或实现
+  来美化结果，完整证据保存在 `evaluation/auto-memory-context-v1/results/`。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
@@ -732,8 +738,11 @@ Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已�
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
 V1.4-E 的投影、权威回查、真实 Pinecone cohort、随机 shadow 和报告均已完成；V1.5 canary
 代码和隔离环境端到端验收均已完成，向量召回与 SQL 故障回退通过，但三个相关开关仍保持默认及
-本地关闭，普通 Worker 继续只使用 MySQL。下一步是随本地真实使用积累非合成样本并比较错误归并，
-不因本次受控通过而接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
+本地关闭，普通 Worker 继续只使用 MySQL。V1.7 语义 Context 的首次冻结 holdout 未通过质量门槛，
+因此 `AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED` 必须继续默认及本地关闭；该 holdout 不再用于调参。
+下一步应先用独立 development cohort 观察原始向量 rank/score，再决定是否增加 score cutoff 或
+有界 reranker，之后使用全新未见 holdout 复评。与此同时随本地真实使用积累非合成样本并比较错误归并，
+不因早期受控测试通过而接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
 不执行生产变更。V1.6 完整质量观测按用户决定暂时跳过；V1.7 已完成 SQL 默认选择与可选 semantic
 Context 代码，semantic 开关仍默认及本地关闭，未使用合成结果替代真实注入质量证据。严格显式
 句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
