@@ -38,6 +38,10 @@ class AutoMemoryRecallPlanningLiveEvaluationTest {
             "cc274217e5b29334226d1583b9b05c3f432a5152a226659cbb3512066baa0227";
     private static final String HOLDOUT_SHA256 =
             "01bd2a8694e53cb6c0bc59cbd3f8479ee4452ceed3ec4fe8bdec0176bce50e1b";
+    private static final String DEVELOPMENT_V2_SHA256 =
+            "31d872aa229c7ece68e878c66c5aa220171c9cee6645b610fd5272c5c4f48019";
+    private static final String HOLDOUT_V2_SHA256 =
+            "52566e2605bd7ae70e8fd6d3b9996f91de8d5d2f9833bfc38e479530d9df7405";
     private static final int MAX_TOKENS = 2_048;
 
     @Test
@@ -252,6 +256,14 @@ class AutoMemoryRecallPlanningLiveEvaluationTest {
             case "holdout-v1" -> new Profile(
                     "auto-memory-recall-planning-v1/holdout.json",
                     HOLDOUT_SHA256,
+                    true);
+            case "development-v2" -> new Profile(
+                    "auto-memory-recall-planning-development-v2/cohort.json",
+                    DEVELOPMENT_V2_SHA256,
+                    false);
+            case "holdout-v2" -> new Profile(
+                    "auto-memory-recall-planning-v2/holdout.json",
+                    HOLDOUT_V2_SHA256,
                     true);
             default -> throw new IllegalArgumentException("unknown recall planning dataset");
         };

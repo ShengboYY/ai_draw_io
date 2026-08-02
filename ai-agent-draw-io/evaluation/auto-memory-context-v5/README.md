@@ -71,3 +71,8 @@ semantic vector thresholds.
 Development-v2 may be used to finalize the generic prompt distinction. The untouched V2 holdout
 may run once only after that revision is committed; the failed V1 holdout cannot be counted as
 independent evidence for the new revision.
+
+Development-v2 ran once with `AUTO_MEMORY_RECALL_PLANNING_V2` and passed all ten cases: exact case
+accuracy, multi-intent coverage and single-intent abstention were 100%, with 0% protocol failures.
+No further prompt or eligibility changes were made. The V2 holdout remains untouched until this
+revision is committed.

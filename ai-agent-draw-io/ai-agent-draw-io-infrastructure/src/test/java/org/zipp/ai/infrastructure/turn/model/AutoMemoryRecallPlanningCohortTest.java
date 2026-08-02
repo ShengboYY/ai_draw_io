@@ -20,7 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AutoMemoryRecallPlanningCohortTest {
     private static final List<String> RESOURCES = List.of(
             "/evals/auto-memory-recall-planning-development-v1/cohort.json",
-            "/evals/auto-memory-recall-planning-v1/holdout.json");
+            "/evals/auto-memory-recall-planning-v1/holdout.json",
+            "/evals/auto-memory-recall-planning-development-v2/cohort.json",
+            "/evals/auto-memory-recall-planning-v2/holdout.json");
     private static final Set<String> ROOT_FIELDS = Set.of(
             "schemaVersion", "datasetVersion", "privacyClassification", "usagePolicy",
             "qualityGate", "cases");

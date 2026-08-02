@@ -12,6 +12,7 @@ class AutoMemoryRecallPlanningEligibilityPolicyTest {
     @Test
     void allowsBroadCoordinationSignalsForModelClassification() {
         assertTrue(policy.shouldPlan("Use blue nodes and keep retry paths dashed"));
+        assertTrue(policy.shouldPlan("Keep failed jobs red but show successful jobs in green"));
         assertTrue(policy.shouldPlan("节点纵向排列，同时把队列填充成紫色"));
         assertTrue(policy.shouldPlan("Keep labels short; leave more whitespace"));
     }
