@@ -27,6 +27,7 @@ public final class AutoMemoryContextSelector {
     private static final int SQL_LIMIT_PER_SCOPE = 16;
     private static final int VECTOR_TOP_K = 16;
     private static final int MAX_PER_SCOPE = 8;
+    private static final int MAX_SEMANTIC_COHORT = 4;
 
     private final AutoMemoryQueryPort memories;
     private final AutoMemoryContextHydrationPort hydration;
@@ -228,13 +229,23 @@ public final class AutoMemoryContextSelector {
         }
     }
 
-    public record SemanticPolicy(double minimumScore, double minimumLead) {
+    public record SemanticPolicy(
+            double minimumScore,
+            double minimumLead,
+            double maximumScoreDrop
+    ) {
         public SemanticPolicy {
             if (!Double.isFinite(minimumScore)
                     || !Double.isFinite(minimumLead)
-                    || minimumLead < 0.0d) {
+                    || !Double.isFinite(maximumScoreDrop)
+                    || minimumLead < 0.0d
+                    || maximumScoreDrop < 0.0d) {
                 throw new IllegalArgumentException("invalid semantic acceptance policy");
             }
+        }
+
+        public SemanticPolicy(double minimumScore, double minimumLead) {
+            this(minimumScore, minimumLead, Double.MAX_VALUE);
         }
 
         public SemanticPolicy(double minimumScore) {
@@ -244,20 +255,35 @@ public final class AutoMemoryContextSelector {
         private List<AutoMemoryVectorSearchHit> accept(
                 List<AutoMemoryVectorSearchHit> ranked
         ) {
-            if (ranked.isEmpty() || ranked.get(0).score() < minimumScore) {
+            if (!acceptsQuery(ranked)) {
                 return List.of();
+            }
+            return includeCandidates(ranked);
+        }
+
+        private boolean acceptsQuery(List<AutoMemoryVectorSearchHit> ranked) {
+            if (ranked.isEmpty() || ranked.get(0).score() < minimumScore) {
+                return false;
             }
             // A close runner-up is safe only when it independently clears the relevance floor.
             boolean secondIsStrong = ranked.size() > 1
                     && ranked.get(1).score() >= minimumScore;
             boolean firstHasClearLead = ranked.size() == 1
                     || ranked.get(0).score() - ranked.get(1).score() >= minimumLead;
-            if (!secondIsStrong && !firstHasClearLead) {
-                return List.of();
-            }
-            return ranked.stream()
-                    .filter(hit -> hit.score() >= minimumScore)
+            return secondIsStrong || firstHasClearLead;
+        }
+
+        private List<AutoMemoryVectorSearchHit> includeCandidates(
+                List<AutoMemoryVectorSearchHit> ranked
+        ) {
+            double topScore = ranked.get(0).score();
+            List<AutoMemoryVectorSearchHit> included = ranked.stream()
+                    // The absolute floor accepts the query; the relative window bounds its cohort.
+                    .filter(hit -> hit.score() >= minimumScore
+                            && topScore - hit.score() <= maximumScoreDrop)
                     .toList();
+            // A broad near-tie is ambiguous; truncating it would hide rather than remove pollution.
+            return included.size() > MAX_SEMANTIC_COHORT ? List.of() : included;
         }
     }
 

@@ -56,6 +56,10 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             "48f55a6830993e7474da10f11b461dae7d8e64fe3ee8efa5f3d409f107185eb5";
     private static final String V3_HOLDOUT_SHA256 =
             "e19cb9a885132e1bdcb3ee41c1cf3c5409154f6b00df866a9ce3d838dcb0bd64";
+    private static final String DEVELOPMENT_V3_SHA256 =
+            "5347df5d500c9632c97f34a2f561be18d4808d1e41c71a3916f98274a6b2a900";
+    private static final String V4_HOLDOUT_SHA256 =
+            "9f7d173ea029478dea137227e72b6fd30c674792c8d20510913802df0f3fdfab";
     private static final String OWNER = "auto-memory-v17-eval-owner";
     private static final String CHARTBOOK = "auto-memory-v17-eval-book";
     private static final Instant OLD = Instant.parse("2025-01-01T00:00:00Z");
@@ -107,13 +111,15 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     "AUTO_MEMORY_CONTEXT_EVALUATION_MINIMUM_SCORE", 0.0d);
             double minimumLead = doubleEnvironment(
                     "AUTO_MEMORY_CONTEXT_EVALUATION_MINIMUM_LEAD", 0.0d);
+            double maximumScoreDrop = doubleEnvironment(
+                    "AUTO_MEMORY_CONTEXT_EVALUATION_MAXIMUM_SCORE_DROP", Double.MAX_VALUE);
             Evaluation semantic = evaluate(
                     new AutoMemoryContextSelector(
                             repository,
                             repository,
                             recordingVectors,
                             new AutoMemoryContextSelector.SemanticPolicy(
-                                    minimumScore, minimumLead),
+                                    minimumScore, minimumLead, maximumScoreDrop),
                             budget),
                     cohort.cases(),
                     repository,
@@ -122,7 +128,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             Path report = reportPath(cohort.datasetVersion());
             writeReport(
                     mapper, report, cohort, profile, pinecone,
-                    minimumScore, minimumLead, result);
+                    minimumScore, minimumLead, maximumScoreDrop, result);
 
             assertTrue(!profile.enforceGate() || result.passed(),
                     () -> "V1.7 context evaluation failed: sql="
@@ -189,6 +195,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
         int forbiddenOpportunities = 0;
         int unauthorized = 0;
         int positiveCases = 0;
+        int positiveHitCases = 0;
         int negativeCases = 0;
         int selectedNegativeCases = 0;
         double reciprocalRanks = 0.0d;
@@ -212,6 +219,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             } else {
                 positiveCases++;
                 if (result.firstRelevantRank() >= 0) {
+                    positiveHitCases++;
                     reciprocalRanks += 1.0d / (result.firstRelevantRank() + 1);
                 }
             }
@@ -226,7 +234,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                 ratio(selected, cases.size()),
                 ratio(forbidden, forbiddenOpportunities),
                 unauthorized,
-                ratio(selectedNegativeCases, negativeCases));
+                ratio(selectedNegativeCases, negativeCases),
+                ratio(positiveHitCases, positiveCases));
     }
 
     private int hits(CaseResult result, int limit) {
@@ -252,7 +261,9 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                 && semantic.metrics().irrelevantSelectionRate()
                 <= gate.maximumIrrelevantSelectionRate()
                 && semantic.metrics().negativeCaseSelectionRate()
-                <= gate.maximumNegativeCaseSelectionRate();
+                <= gate.maximumNegativeCaseSelectionRate()
+                && semantic.metrics().positiveCaseHitRate()
+                >= gate.minimumPositiveCaseHitRate();
         List<Comparison> comparisons = new ArrayList<>();
         for (int index = 0; index < cohort.cases().size(); index++) {
             CaseSpec testCase = cohort.cases().get(index);
@@ -341,6 +352,13 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             assertTrue(positiveCases >= 4 && negativeCases >= 4,
                     "V1.7.2 evaluation needs both positive and negative cases");
         }
+        if (profile.requiresMultiTargetCases()) {
+            long multiTargetCases = cohort.cases().stream()
+                    .filter(testCase -> testCase.expectedRelevantIds().size() > 1)
+                    .count();
+            assertTrue(multiTargetCases >= 2,
+                    "V1.7.3 evaluation needs multi-target positive cases");
+        }
     }
 
     private PineconeSession connectPinecone(ObjectMapper mapper) {
@@ -427,6 +445,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             PineconeSession pinecone,
             double minimumScore,
             double minimumLead,
+            double maximumScoreDrop,
             EvaluationReport result
     ) throws Exception {
         Map<String, Object> report = new LinkedHashMap<>();
@@ -444,6 +463,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
         report.put("embeddingDimension", pinecone.dimension());
         report.put("minimumSemanticScore", minimumScore);
         report.put("minimumSemanticLead", minimumLead);
+        report.put("maximumSemanticScoreDrop", maximumScoreDrop);
         report.put("caseCount", cohort.cases().size());
         report.put("memoryCount", cohort.memories().size());
         report.put("qualityGate", cohort.qualityGate());
@@ -485,6 +505,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     "auto-memory-context-development-v1/cohort.json",
                     DEVELOPMENT_SHA256,
                     false,
+                    false,
                     false);
             case "development-v2" -> new EvaluationProfile(
                     "AUTO_MEMORY_CONTEXT_DEVELOPMENT_V2",
@@ -493,6 +514,25 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     "auto-memory-context-development-v2/cohort.json",
                     DEVELOPMENT_V2_SHA256,
                     false,
+                    true,
+                    false);
+            case "development-v3" -> new EvaluationProfile(
+                    "AUTO_MEMORY_CONTEXT_DEVELOPMENT_V3",
+                    "auto-memory-context-development-v3",
+                    "development-tuning-allowed",
+                    "auto-memory-context-development-v3/cohort.json",
+                    DEVELOPMENT_V3_SHA256,
+                    false,
+                    true,
+                    true);
+            case "holdout-v4" -> new EvaluationProfile(
+                    "AUTO_MEMORY_CONTEXT_HOLDOUT_V4",
+                    "auto-memory-context-v4",
+                    "frozen-holdout-not-for-tuning",
+                    "auto-memory-context-v4/holdout.json",
+                    V4_HOLDOUT_SHA256,
+                    true,
+                    true,
                     true);
             case "holdout-v3" -> new EvaluationProfile(
                     "AUTO_MEMORY_CONTEXT_HOLDOUT_V3",
@@ -501,7 +541,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     "auto-memory-context-v3/holdout.json",
                     V3_HOLDOUT_SHA256,
                     true,
-                    true);
+                    true,
+                    false);
             case "holdout-v2" -> new EvaluationProfile(
                     "AUTO_MEMORY_CONTEXT_HOLDOUT_V2",
                     "auto-memory-context-v2",
@@ -509,6 +550,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     "auto-memory-context-v2/holdout.json",
                     V2_HOLDOUT_SHA256,
                     true,
+                    false,
                     false);
             case "holdout-v1" -> new EvaluationProfile(
                     "AUTO_MEMORY_CONTEXT_HOLDOUT_V1",
@@ -517,6 +559,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     "auto-memory-context-v1/holdout.json",
                     V1_HOLDOUT_SHA256,
                     true,
+                    false,
                     false);
             default -> throw new IllegalArgumentException(
                     "unknown Auto Memory context evaluation dataset");
@@ -575,7 +618,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             double maximumForbiddenSelectionRate,
             int maximumUnauthorizedSelectionCount,
             double maximumIrrelevantSelectionRate,
-            double maximumNegativeCaseSelectionRate
+            double maximumNegativeCaseSelectionRate,
+            double minimumPositiveCaseHitRate
     ) {
     }
 
@@ -623,7 +667,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             double meanSelectedCount,
             double forbiddenSelectionRate,
             int unauthorizedSelectionCount,
-            double negativeCaseSelectionRate
+            double negativeCaseSelectionRate,
+            double positiveCaseHitRate
     ) {
     }
 
@@ -667,7 +712,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             String relativePath,
             String sha256,
             boolean enforceGate,
-            boolean requiresNegativeCases
+            boolean requiresNegativeCases,
+            boolean requiresMultiTargetCases
     ) {
     }
 

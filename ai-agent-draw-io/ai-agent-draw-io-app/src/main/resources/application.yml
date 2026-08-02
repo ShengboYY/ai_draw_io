@@ -55,6 +55,7 @@ app:
       semantic-enabled: ${AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED:false}
       minimum-score: ${AUTO_MEMORY_CONTEXT_MINIMUM_SCORE:0.82}
       minimum-lead: ${AUTO_MEMORY_CONTEXT_MINIMUM_LEAD:0.02}
+      maximum-score-drop: ${AUTO_MEMORY_CONTEXT_MAXIMUM_SCORE_DROP:0.03}
       max-entries: ${AUTO_MEMORY_CONTEXT_MAX_ENTRIES:12}
       max-characters: ${AUTO_MEMORY_CONTEXT_MAX_CHARACTERS:6000}
     # V1.2 ages only unconfirmed OBSERVED candidates and remains opt-in after Auto Memory rollout.

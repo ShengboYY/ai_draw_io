@@ -169,6 +169,58 @@ class AutoMemoryContextSelectorTest {
     }
 
     @Test
+    void relativeWindowExcludesStrongHitsFarBehindTheTopCandidate() {
+        AutoMemory relevant = memory(
+                "memory-relevant", AutoMemoryScope.user("owner-1"),
+                "owner-position", "Place owner badges at the top", 2);
+        AutoMemory related = memory(
+                "memory-related", AutoMemoryScope.user("owner-1"),
+                "owner-color", "Use blue owner badges", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(relevant, related));
+        FakeVectors vectors = FakeVectors.scored(List.of(
+                new AutoMemoryVectorSearchHit(vectorId(relevant), 0.89d),
+                new AutoMemoryVectorSearchHit(vectorId(related), 0.84d)));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-relevant"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void ambiguousBroadCohortIsRejectedInsteadOfTruncated() {
+        List<AutoMemory> memories = java.util.stream.IntStream.range(0, 5)
+                .mapToObj(index -> memory(
+                        "memory-" + index,
+                        AutoMemoryScope.user("owner-1"),
+                        "label-rule-" + index,
+                        "Use label rule " + index,
+                        2))
+                .toList();
+        FakeAuthority authority = new FakeAuthority(memories);
+        List<AutoMemoryVectorSearchHit> hits = java.util.stream.IntStream.range(0, 5)
+                .mapToObj(index -> new AutoMemoryVectorSearchHit(
+                        vectorId(memories.get(index)), 0.829d - index * 0.001d))
+                .toList();
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                FakeVectors.scored(hits),
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d),
+                new AutoMemoryContextSelector.Budget(8, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertTrue(selected.references().isEmpty());
+    }
+
+    @Test
     void totalCharacterBudgetSkipsEntriesThatDoNotFit() {
         AutoMemory first = memory(
                 "memory-first", AutoMemoryScope.user("owner-1"),
