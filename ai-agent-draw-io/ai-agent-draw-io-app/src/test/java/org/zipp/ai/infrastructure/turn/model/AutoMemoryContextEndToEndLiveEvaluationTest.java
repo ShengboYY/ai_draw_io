@@ -247,10 +247,10 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                     String memoryId = AutoMemoryVectorDocument.currentMemoryIdFromVectorId(
                             hit.vectorId()).orElse("");
                     if (fixture.unauthorizedIds().contains(memoryId)) {
-                        rawUnauthorized.add(memoryId);
+                        rawUnauthorized.add(fixture.datasetIdByMemoryId().get(memoryId));
                     }
                     if (fixture.disabledIds().contains(memoryId)) {
-                        rawDisabled.add(memoryId);
+                        rawDisabled.add(fixture.datasetIdByMemoryId().get(memoryId));
                     }
                 }
             }
@@ -264,7 +264,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                     promptLines,
                     parity,
                     planner.run(testCase.id()),
-                    recordingVectors.calls(),
+                    vectorSearchReports(recordingVectors.calls(), fixture),
                     List.copyOf(rawUnauthorized),
                     List.copyOf(rawDisabled)));
         }
@@ -491,6 +491,22 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                 .map(reference -> fixture.datasetIdByMemoryId().getOrDefault(
                         reference.memoryId(), "unknown-" + reference.memoryId()))
                 .toList();
+    }
+
+    private List<VectorSearchReport> vectorSearchReports(
+            List<VectorSearchCall> calls,
+            Fixture fixture
+    ) {
+        return calls.stream().map(call -> new VectorSearchReport(
+                call.queryText(),
+                call.hits().size(),
+                call.hits().stream().limit(4).map(hit -> {
+                    String memoryId = AutoMemoryVectorDocument.currentMemoryIdFromVectorId(
+                            hit.vectorId()).orElse("");
+                    return new ScoredDatasetHit(
+                            fixture.datasetIdByMemoryId().getOrDefault(memoryId, "unknown"),
+                            hit.score());
+                }).toList())).toList();
     }
 
     private void writeReport(
@@ -868,6 +884,16 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
     ) {
     }
 
+    private record VectorSearchReport(
+            String queryText,
+            int rawHitCount,
+            List<ScoredDatasetHit> topHits
+    ) {
+    }
+
+    private record ScoredDatasetHit(String datasetId, double score) {
+    }
+
     private record CaseRun(
             String id,
             String queryText,
@@ -878,7 +904,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
             List<String> promptMemoryLines,
             boolean promptParity,
             PlannerRun planner,
-            List<VectorSearchCall> vectorSearches,
+            List<VectorSearchReport> vectorSearches,
             List<String> rawUnauthorizedVectorHits,
             List<String> rawDisabledVectorHits
     ) {

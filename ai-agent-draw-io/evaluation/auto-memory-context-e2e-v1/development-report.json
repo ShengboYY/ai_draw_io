@@ -1,6 +1,6 @@
 {
 	"schemaVersion":"AUTO_MEMORY_CONTEXT_E2E_REPORT_V1",
-	"generatedAt":"2026-08-02T08:05:37.196668Z",
+	"generatedAt":"2026-08-02T08:08:06.586688Z",
 	"datasetVersion":"auto-memory-context-e2e-development-v1",
 	"datasetSha256":"7fd96c2abd033cb094857705e7eb26dde9e7406bababe167f1b6e63476065f57",
 	"plannerContractVersion":"AUTO_MEMORY_RECALL_PLANNING_V2",
@@ -53,10 +53,10 @@
 			],
 			"id":"e2ed-multi-user",
 			"planner":{
-				"latencyMillis":2739,
+				"latencyMillis":6054,
 				"queries":[
 					"Keep API borders navy",
-					"Make retry paths dashed"
+					"make retry paths dashed"
 				],
 				"status":"SUCCEEDED"
 			},
@@ -88,211 +88,70 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"Keep API borders navy",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.864975214,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
+							"datasetId":"e2ed-u-api-navy",
+							"score":0.864975214
 						},
 						{
-							"score":0.810209811,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
+							"datasetId":"noise-user-4-gateway-border-pattern",
+							"score":0.810209811
 						},
 						{
-							"score":0.802282214,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.802282214
 						},
 						{
-							"score":0.800927281,
-							"vectorId":"am-current.bWVtb3J5X2ZiMzIyZmZhLTEyZDUtNGRjNi1hNjAxLTAyZThkNDgzYmQzMg"
-						},
-						{
-							"score":0.799586833,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.792140901,
-							"vectorId":"am-current.bWVtb3J5XzY0Yzg1Y2NmLTFhNzUtNDFiZS1hYTBlLTUzZmQ3Y2MwM2JkNw"
-						},
-						{
-							"score":0.788204432,
-							"vectorId":"am-current.bWVtb3J5XzY2Njg1NDEwLTYyZjItNDMxYy05MGE1LTgzNjI5NzZmNzIwMA"
-						},
-						{
-							"score":0.787045419,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.786024868,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
-						},
-						{
-							"score":0.784137785,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.782972038,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.780275464,
-							"vectorId":"am-current.bWVtb3J5X2I2NWM5MDUxLTlmMTAtNDI3MS1iNTM1LWU2MDAwYmU5MjY0ZA"
-						},
-						{
-							"score":0.77519536,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.774940789,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.771818697,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
-						},
-						{
-							"score":0.77135247,
-							"vectorId":"am-current.bWVtb3J5XzZlYmRmYTkyLTQwZmEtNDU3Zi1iYTcyLTM5Njg3NDM5Yzk2ZA"
+							"datasetId":"e2ed-u-owner-top",
+							"score":0.800927281
 						}
-					],
-					"queryText":"Keep API borders navy"
+					]
 				},
 				{
-					"hits":[
+					"queryText":"make retry paths dashed",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.879035175,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
+							"datasetId":"e2ed-u-retry-dashed",
+							"score":0.887447059
 						},
 						{
-							"score":0.784975469,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
+							"datasetId":"noise-user-4-gateway-border-pattern",
+							"score":0.797459304
 						},
 						{
-							"score":0.783295393,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.796225071
 						},
 						{
-							"score":0.781397343,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.778415501,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.772152126,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.769831121,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.76941,
-							"vectorId":"am-current.bWVtb3J5X2I2NWM5MDUxLTlmMTAtNDI3MS1iNTM1LWU2MDAwYmU5MjY0ZA"
-						},
-						{
-							"score":0.769182205,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.767902672,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
-						},
-						{
-							"score":0.765755653,
-							"vectorId":"am-current.bWVtb3J5XzY0Yzg1Y2NmLTFhNzUtNDFiZS1hYTBlLTUzZmQ3Y2MwM2JkNw"
-						},
-						{
-							"score":0.765557,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.759634376,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.75953263,
-							"vectorId":"am-current.bWVtb3J5X2U0ZmVkZDUzLWE1ODgtNDlmNC05YjhhLWZhNjMyNjIyYzA3Nw"
-						},
-						{
-							"score":0.758981586,
-							"vectorId":"am-current.bWVtb3J5X2ZiMzIyZmZhLTEyZDUtNGRjNi1hNjAxLTAyZThkNDgzYmQzMg"
-						},
-						{
-							"score":0.755210042,
-							"vectorId":"am-current.bWVtb3J5XzZlYmRmYTkyLTQwZmEtNDU3Zi1iYTcyLTM5Njg3NDM5Yzk2ZA"
+							"datasetId":"noise-user-2-client-node-shape",
+							"score":0.792700171
 						}
-					],
-					"queryText":"Make retry paths dashed"
+					]
 				},
 				{
-					"hits":[
+					"queryText":"Keep API borders navy while making retry paths dashed.",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.848248065,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
+							"datasetId":"e2ed-u-retry-dashed",
+							"score":0.848248065
 						},
 						{
-							"score":0.843445897,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
+							"datasetId":"e2ed-u-api-navy",
+							"score":0.843445897
 						},
 						{
-							"score":0.807480872,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
+							"datasetId":"noise-user-4-gateway-border-pattern",
+							"score":0.807480872
 						},
 						{
-							"score":0.783814192,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.782213569,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.779710531,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.779547632,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.776501536,
-							"vectorId":"am-current.bWVtb3J5X2I2NWM5MDUxLTlmMTAtNDI3MS1iNTM1LWU2MDAwYmU5MjY0ZA"
-						},
-						{
-							"score":0.776205361,
-							"vectorId":"am-current.bWVtb3J5XzY0Yzg1Y2NmLTFhNzUtNDFiZS1hYTBlLTUzZmQ3Y2MwM2JkNw"
-						},
-						{
-							"score":0.77544266,
-							"vectorId":"am-current.bWVtb3J5XzY2Njg1NDEwLTYyZjItNDMxYy05MGE1LTgzNjI5NzZmNzIwMA"
-						},
-						{
-							"score":0.773826838,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.77339,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
-						},
-						{
-							"score":0.770578444,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.770186186,
-							"vectorId":"am-current.bWVtb3J5X2ZiMzIyZmZhLTEyZDUtNGRjNi1hNjAxLTAyZThkNDgzYmQzMg"
-						},
-						{
-							"score":0.770082235,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.761914134,
-							"vectorId":"am-current.bWVtb3J5X2U0ZmVkZDUzLWE1ODgtNDlmNC05YjhhLWZhNjMyNjIyYzA3Nw"
+							"datasetId":"noise-user-10-timeout-edge-color",
+							"score":0.783814192
 						}
-					],
-					"queryText":"Keep API borders navy while making retry paths dashed."
+					]
 				}
 			]
 		},
@@ -304,7 +163,7 @@
 			],
 			"id":"e2ed-multi-chartbook",
 			"planner":{
-				"latencyMillis":13894,
+				"latencyMillis":6052,
 				"queries":[
 					"当前画册的异步处理泳道横向排列",
 					"把 Pager 节点画成三角形"
@@ -341,211 +200,70 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"当前画册的异步处理泳道横向排列",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.806870401,
-							"vectorId":"am-current.bWVtb3J5XzAyZDVhOTAzLTk2YmUtNDA4Ny1hZjE4LTU4Y2M1YTA3ZGNiZA"
+							"datasetId":"e2ed-b-lane-horizontal",
+							"score":0.806870401
 						},
 						{
-							"score":0.80458051,
-							"vectorId":"am-current.bWVtb3J5XzA3NmYxNDAwLTQzYmQtNDQ1Ny05Y2ZmLWY4ZTdiMjVmNWRmZQ"
+							"datasetId":"e2ed-b-database-cylinder",
+							"score":0.80458051
 						},
 						{
-							"score":0.804504037,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
+							"datasetId":"noise-chartbook-11-footer-visibility",
+							"score":0.804504037
 						},
 						{
-							"score":0.804456055,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.802012742,
-							"vectorId":"am-current.bWVtb3J5XzZjZTBmOGQ5LTFkMzItNDVkNC05ZjA4LWQyYzEyOGQ3M2ExNg"
-						},
-						{
-							"score":0.799677074,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
-						},
-						{
-							"score":0.794834912,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.794198,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.794102311,
-							"vectorId":"am-current.bWVtb3J5XzAzOWJkZTY0LWY5YjEtNDRlYS05ZWJiLWQ4Y2Q3MDEyNTVmOQ"
-						},
-						{
-							"score":0.794084787,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.793331504,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.793306947,
-							"vectorId":"am-current.bWVtb3J5X2UyMDI3YmNhLTUxNGYtNDM1NS1hMjcyLTEyNDAxNDg0MmUyNA"
-						},
-						{
-							"score":0.792919,
-							"vectorId":"am-current.bWVtb3J5X2RjYWZhYzNiLWNmMDYtNDc2ZS05MzJmLTMwYjRjZjQwZmMwMw"
-						},
-						{
-							"score":0.79278,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.791026652,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
-						},
-						{
-							"score":0.787580192,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.804456055
 						}
-					],
-					"queryText":"当前画册的异步处理泳道横向排列"
+					]
 				},
 				{
-					"hits":[
+					"queryText":"把 Pager 节点画成三角形",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.87311697,
-							"vectorId":"am-current.bWVtb3J5XzZjZTBmOGQ5LTFkMzItNDVkNC05ZjA4LWQyYzEyOGQ3M2ExNg"
+							"datasetId":"e2ed-b-pager-triangle",
+							"score":0.87311697
 						},
 						{
-							"score":0.824710548,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
+							"datasetId":"noise-chartbook-11-footer-visibility",
+							"score":0.824710548
 						},
 						{
-							"score":0.82466042,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.82466042
 						},
 						{
-							"score":0.821555555,
-							"vectorId":"am-current.bWVtb3J5XzA3NmYxNDAwLTQzYmQtNDQ1Ny05Y2ZmLWY4ZTdiMjVmNWRmZQ"
-						},
-						{
-							"score":0.82117039,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
-						},
-						{
-							"score":0.820573926,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.82044214,
-							"vectorId":"am-current.bWVtb3J5X2QzOWFiYTJkLTdlMDQtNDg0Ni1iOTA5LTRjNjFkZjY0Y2NlOA"
-						},
-						{
-							"score":0.820262194,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.820170164,
-							"vectorId":"am-current.bWVtb3J5XzAzOWJkZTY0LWY5YjEtNDRlYS05ZWJiLWQ4Y2Q3MDEyNTVmOQ"
-						},
-						{
-							"score":0.816586256,
-							"vectorId":"am-current.bWVtb3J5X2RjYWZhYzNiLWNmMDYtNDc2ZS05MzJmLTMwYjRjZjQwZmMwMw"
-						},
-						{
-							"score":0.816559851,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.815896,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
-						},
-						{
-							"score":0.813844919,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.810555756,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.81017673,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.81016618,
-							"vectorId":"am-current.bWVtb3J5X2UyMDI3YmNhLTUxNGYtNDM1NS1hMjcyLTEyNDAxNDg0MmUyNA"
+							"datasetId":"e2ed-b-database-cylinder",
+							"score":0.821555555
 						}
-					],
-					"queryText":"把 Pager 节点画成三角形"
+					]
 				},
 				{
-					"hits":[
+					"queryText":"当前画册的异步处理泳道横向排列，同时把 Pager 节点画成三角形。",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.843662858,
-							"vectorId":"am-current.bWVtb3J5XzZjZTBmOGQ5LTFkMzItNDVkNC05ZjA4LWQyYzEyOGQ3M2ExNg"
+							"datasetId":"e2ed-b-pager-triangle",
+							"score":0.843662858
 						},
 						{
-							"score":0.816023,
-							"vectorId":"am-current.bWVtb3J5XzA3NmYxNDAwLTQzYmQtNDQ1Ny05Y2ZmLWY4ZTdiMjVmNWRmZQ"
+							"datasetId":"e2ed-b-database-cylinder",
+							"score":0.816023
 						},
 						{
-							"score":0.812980711,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
+							"datasetId":"noise-chartbook-11-footer-visibility",
+							"score":0.812980711
 						},
 						{
-							"score":0.812958181,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.809090853,
-							"vectorId":"am-current.bWVtb3J5XzAyZDVhOTAzLTk2YmUtNDA4Ny1hZjE4LTU4Y2M1YTA3ZGNiZA"
-						},
-						{
-							"score":0.807113111,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
-						},
-						{
-							"score":0.804118931,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.803979039,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.803920686,
-							"vectorId":"am-current.bWVtb3J5XzAzOWJkZTY0LWY5YjEtNDRlYS05ZWJiLWQ4Y2Q3MDEyNTVmOQ"
-						},
-						{
-							"score":0.803606212,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.803479791,
-							"vectorId":"am-current.bWVtb3J5X2QzOWFiYTJkLTdlMDQtNDg0Ni1iOTA5LTRjNjFkZjY0Y2NlOA"
-						},
-						{
-							"score":0.802860558,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
-						},
-						{
-							"score":0.802410364,
-							"vectorId":"am-current.bWVtb3J5X2RjYWZhYzNiLWNmMDYtNDc2ZS05MzJmLTMwYjRjZjQwZmMwMw"
-						},
-						{
-							"score":0.802325606,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.799397886,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.798901141,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.812958181
 						}
-					],
-					"queryText":"当前画册的异步处理泳道横向排列，同时把 Pager 节点画成三角形。"
+					]
 				}
 			]
 		},
@@ -557,7 +275,7 @@
 			],
 			"id":"e2ed-negative-positive",
 			"planner":{
-				"latencyMillis":10358,
+				"latencyMillis":2852,
 				"queries":[
 					
 				],
@@ -591,73 +309,26 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"Do not expose internal IDs, and keep user-facing labels in title case.",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.854338288,
-							"vectorId":"am-current.bWVtb3J5XzY2Njg1NDEwLTYyZjItNDMxYy05MGE1LTgzNjI5NzZmNzIwMA"
+							"datasetId":"e2ed-u-hide-ids",
+							"score":0.854338288
 						},
 						{
-							"score":0.848267257,
-							"vectorId":"am-current.bWVtb3J5XzZlYmRmYTkyLTQwZmEtNDU3Zi1iYTcyLTM5Njg3NDM5Yzk2ZA"
+							"datasetId":"e2ed-u-title-labels",
+							"score":0.848267257
 						},
 						{
-							"score":0.822294056,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
+							"datasetId":"noise-user-7-connector-label-case",
+							"score":0.822294056
 						},
 						{
-							"score":0.79850328,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.788061082,
-							"vectorId":"am-current.bWVtb3J5X2ZiMzIyZmZhLTEyZDUtNGRjNi1hNjAxLTAyZThkNDgzYmQzMg"
-						},
-						{
-							"score":0.780914426,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.78086561,
-							"vectorId":"am-current.bWVtb3J5XzMyMTI5ZjJmLWFiN2QtNDUwOC05OWIyLTY5NWU2NjQ2OThjYQ"
-						},
-						{
-							"score":0.77816844,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.775523245,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.773326695,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.770575225,
-							"vectorId":"am-current.bWVtb3J5X2I2NWM5MDUxLTlmMTAtNDI3MS1iNTM1LWU2MDAwYmU5MjY0ZA"
-						},
-						{
-							"score":0.767685831,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
-						},
-						{
-							"score":0.765671134,
-							"vectorId":"am-current.bWVtb3J5XzUwNDkxNDJiLTIxMjQtNDhhMC05MWY3LWFiZDlmODQ1N2I3MA"
-						},
-						{
-							"score":0.764091372,
-							"vectorId":"am-current.bWVtb3J5XzY0Yzg1Y2NmLTFhNzUtNDFiZS1hYTBlLTUzZmQ3Y2MwM2JkNw"
-						},
-						{
-							"score":0.7588799,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.757329166,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.79850328
 						}
-					],
-					"queryText":"Do not expose internal IDs, and keep user-facing labels in title case."
+					]
 				}
 			]
 		},
@@ -669,7 +340,7 @@
 			],
 			"id":"e2ed-multi-properties",
 			"planner":{
-				"latencyMillis":3545,
+				"latencyMillis":4266,
 				"queries":[
 					"Color caches teal",
 					"databases should remain cylindrical"
@@ -708,211 +379,70 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"Color caches teal",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.856274664,
-							"vectorId":"am-current.bWVtb3J5XzRlM2FhMDUyLTk1MmMtNGIwYy04N2I0LWI2MzZkNDNkZDkwNA"
+							"datasetId":"e2ed-b-cache-teal",
+							"score":0.856274664
 						},
 						{
-							"score":0.790727079,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
+							"datasetId":"noise-user-1-queue-node-color",
+							"score":0.790727079
 						},
 						{
-							"score":0.790605843,
-							"vectorId":"am-current.bWVtb3J5XzAzOWJkZTY0LWY5YjEtNDRlYS05ZWJiLWQ4Y2Q3MDEyNTVmOQ"
+							"datasetId":"noise-chartbook-1-queue-node-color",
+							"score":0.790605843
 						},
 						{
-							"score":0.788570046,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.788474381,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
-						},
-						{
-							"score":0.786939681,
-							"vectorId":"am-current.bWVtb3J5Xzc4NGQwNjQ3LWY4YjQtNDUxMi1hOWQ2LTkwMzg5NDE1OWM3OQ"
-						},
-						{
-							"score":0.786860108,
-							"vectorId":"am-current.bWVtb3J5X2U0ZmVkZDUzLWE1ODgtNDlmNC05YjhhLWZhNjMyNjIyYzA3Nw"
-						},
-						{
-							"score":0.785053611,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
-						},
-						{
-							"score":0.780213296,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.779390514,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.775074899,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.775052726,
-							"vectorId":"am-current.bWVtb3J5X2UyMDI3YmNhLTUxNGYtNDM1NS1hMjcyLTEyNDAxNDg0MmUyNA"
-						},
-						{
-							"score":0.771365285,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.768502414,
-							"vectorId":"am-current.bWVtb3J5XzZjZTBmOGQ5LTFkMzItNDVkNC05ZjA4LWQyYzEyOGQ3M2ExNg"
-						},
-						{
-							"score":0.765030205,
-							"vectorId":"am-current.bWVtb3J5XzU3NjY5OWRmLTBlNzQtNDdhYS1iN2FiLTliY2FkYzRkMmVkYg"
-						},
-						{
-							"score":0.764951527,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.788570046
 						}
-					],
-					"queryText":"Color caches teal"
+					]
 				},
 				{
-					"hits":[
+					"queryText":"databases should remain cylindrical",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.840538621,
-							"vectorId":"am-current.bWVtb3J5XzA3NmYxNDAwLTQzYmQtNDQ1Ny05Y2ZmLWY4ZTdiMjVmNWRmZQ"
+							"datasetId":"e2ed-b-database-cylinder",
+							"score":0.840538621
 						},
 						{
-							"score":0.789152741,
-							"vectorId":"am-current.bWVtb3J5X2QzOWFiYTJkLTdlMDQtNDg0Ni1iOTA5LTRjNjFkZjY0Y2NlOA"
+							"datasetId":"noise-chartbook-2-client-node-shape",
+							"score":0.789152741
 						},
 						{
-							"score":0.789046407,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
+							"datasetId":"noise-user-2-client-node-shape",
+							"score":0.789046407
 						},
 						{
-							"score":0.787377179,
-							"vectorId":"am-current.bWVtb3J5XzAyZDVhOTAzLTk2YmUtNDA4Ny1hZjE4LTU4Y2M1YTA3ZGNiZA"
-						},
-						{
-							"score":0.780973613,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.780796289,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
-						},
-						{
-							"score":0.780301154,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.778118074,
-							"vectorId":"am-current.bWVtb3J5XzY2Njg1NDEwLTYyZjItNDMxYy05MGE1LTgzNjI5NzZmNzIwMA"
-						},
-						{
-							"score":0.774460316,
-							"vectorId":"am-current.bWVtb3J5XzU3NjY5OWRmLTBlNzQtNDdhYS1iN2FiLTliY2FkYzRkMmVkYg"
-						},
-						{
-							"score":0.77432996,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
-						},
-						{
-							"score":0.77418232,
-							"vectorId":"am-current.bWVtb3J5X2I2NWM5MDUxLTlmMTAtNDI3MS1iNTM1LWU2MDAwYmU5MjY0ZA"
-						},
-						{
-							"score":0.774167895,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.774091423,
-							"vectorId":"am-current.bWVtb3J5XzdlMDE0MmI5LWUwOTYtNDlmZS04Njk5LWEzYTE1NjlkYWE3Nw"
-						},
-						{
-							"score":0.772577,
-							"vectorId":"am-current.bWVtb3J5XzZjZTBmOGQ5LTFkMzItNDVkNC05ZjA4LWQyYzEyOGQ3M2ExNg"
-						},
-						{
-							"score":0.765559137,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
-						},
-						{
-							"score":0.765548646,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
+							"datasetId":"e2ed-b-lane-horizontal",
+							"score":0.787377179
 						}
-					],
-					"queryText":"databases should remain cylindrical"
+					]
 				},
 				{
-					"hits":[
+					"queryText":"Color caches teal; databases should remain cylindrical.",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.830061734,
-							"vectorId":"am-current.bWVtb3J5XzRlM2FhMDUyLTk1MmMtNGIwYy04N2I0LWI2MzZkNDNkZDkwNA"
+							"datasetId":"e2ed-b-cache-teal",
+							"score":0.830061734
 						},
 						{
-							"score":0.823087811,
-							"vectorId":"am-current.bWVtb3J5XzA3NmYxNDAwLTQzYmQtNDQ1Ny05Y2ZmLWY4ZTdiMjVmNWRmZQ"
+							"datasetId":"e2ed-b-database-cylinder",
+							"score":0.823087811
 						},
 						{
-							"score":0.799993932,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
+							"datasetId":"e2ed-u-storage-stripes",
+							"score":0.799993932
 						},
 						{
-							"score":0.790689707,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.789028585,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
-						},
-						{
-							"score":0.7865569,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.78645134,
-							"vectorId":"am-current.bWVtb3J5XzAzOWJkZTY0LWY5YjEtNDRlYS05ZWJiLWQ4Y2Q3MDEyNTVmOQ"
-						},
-						{
-							"score":0.7863006,
-							"vectorId":"am-current.bWVtb3J5X2UyMDI3YmNhLTUxNGYtNDM1NS1hMjcyLTEyNDAxNDg0MmUyNA"
-						},
-						{
-							"score":0.786294222,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.784225762,
-							"vectorId":"am-current.bWVtb3J5Xzc4NGQwNjQ3LWY4YjQtNDUxMi1hOWQ2LTkwMzg5NDE1OWM3OQ"
-						},
-						{
-							"score":0.784146369,
-							"vectorId":"am-current.bWVtb3J5X2U0ZmVkZDUzLWE1ODgtNDlmNC05YjhhLWZhNjMyNjIyYzA3Nw"
-						},
-						{
-							"score":0.782124937,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.781915784,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
-						},
-						{
-							"score":0.779316,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.779046953,
-							"vectorId":"am-current.bWVtb3J5XzU3NjY5OWRmLTBlNzQtNDdhYS1iN2FiLTliY2FkYzRkMmVkYg"
-						},
-						{
-							"score":0.778976321,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
+							"datasetId":"e2ed-u-api-navy",
+							"score":0.790689707
 						}
-					],
-					"queryText":"Color caches teal; databases should remain cylindrical."
+					]
 				}
 			]
 		},
@@ -955,73 +485,26 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"Keep the ownership badge above each service.",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.855016768,
-							"vectorId":"am-current.bWVtb3J5X2ZiMzIyZmZhLTEyZDUtNGRjNi1hNjAxLTAyZThkNDgzYmQzMg"
+							"datasetId":"e2ed-u-owner-top",
+							"score":0.855016768
 						},
 						{
-							"score":0.773290396,
-							"vectorId":"am-current.bWVtb3J5XzZlYmRmYTkyLTQwZmEtNDU3Zi1iYTcyLTM5Njg3NDM5Yzk2ZA"
+							"datasetId":"e2ed-u-title-labels",
+							"score":0.773290396
 						},
 						{
-							"score":0.768848896,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.768848896
 						},
 						{
-							"score":0.75999,
-							"vectorId":"am-current.bWVtb3J5XzY2Njg1NDEwLTYyZjItNDMxYy05MGE1LTgzNjI5NzZmNzIwMA"
-						},
-						{
-							"score":0.75874579,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
-						},
-						{
-							"score":0.757786214,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.754794121,
-							"vectorId":"am-current.bWVtb3J5XzMyMTI5ZjJmLWFiN2QtNDUwOC05OWIyLTY5NWU2NjQ2OThjYQ"
-						},
-						{
-							"score":0.750224113,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.749159217,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.748890758,
-							"vectorId":"am-current.bWVtb3J5XzY0Yzg1Y2NmLTFhNzUtNDFiZS1hYTBlLTUzZmQ3Y2MwM2JkNw"
-						},
-						{
-							"score":0.748387158,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
-						},
-						{
-							"score":0.746187,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.745254099,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.738047779,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.733210266,
-							"vectorId":"am-current.bWVtb3J5X2I2NWM5MDUxLTlmMTAtNDI3MS1iNTM1LWU2MDAwYmU5MjY0ZA"
-						},
-						{
-							"score":0.733192921,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
+							"datasetId":"e2ed-u-hide-ids",
+							"score":0.75999
 						}
-					],
-					"queryText":"Keep the ownership badge above each service."
+					]
 				}
 			]
 		},
@@ -1032,7 +515,7 @@
 			],
 			"id":"e2ed-single-coordination",
 			"planner":{
-				"latencyMillis":2193,
+				"latencyMillis":1882,
 				"queries":[
 					
 				],
@@ -1064,73 +547,26 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"Give storage nodes a blue and green striped pattern.",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.8834306,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
+							"datasetId":"e2ed-u-storage-stripes",
+							"score":0.8834306
 						},
 						{
-							"score":0.784025311,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
+							"datasetId":"noise-user-4-gateway-border-pattern",
+							"score":0.784025311
 						},
 						{
-							"score":0.781620383,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
+							"datasetId":"e2ed-u-alert-amber",
+							"score":0.781620383
 						},
 						{
-							"score":0.778972924,
-							"vectorId":"am-current.bWVtb3J5X2ZiMzIyZmZhLTEyZDUtNGRjNi1hNjAxLTAyZThkNDgzYmQzMg"
-						},
-						{
-							"score":0.778514862,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.776673734,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.76424706,
-							"vectorId":"am-current.bWVtb3J5X2U0ZmVkZDUzLWE1ODgtNDlmNC05YjhhLWZhNjMyNjIyYzA3Nw"
-						},
-						{
-							"score":0.761735201,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.761530519,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.760621667,
-							"vectorId":"am-current.bWVtb3J5X2I2NWM5MDUxLTlmMTAtNDI3MS1iNTM1LWU2MDAwYmU5MjY0ZA"
-						},
-						{
-							"score":0.759052217,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.753400862,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
-						},
-						{
-							"score":0.753241718,
-							"vectorId":"am-current.bWVtb3J5XzY0Yzg1Y2NmLTFhNzUtNDFiZS1hYTBlLTUzZmQ3Y2MwM2JkNw"
-						},
-						{
-							"score":0.745975256,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
-						},
-						{
-							"score":0.735185742,
-							"vectorId":"am-current.bWVtb3J5XzMyMTI5ZjJmLWFiN2QtNDUwOC05OWIyLTY5NWU2NjQ2OThjYQ"
-						},
-						{
-							"score":0.731645763,
-							"vectorId":"am-current.bWVtb3J5XzZlYmRmYTkyLTQwZmEtNDU3Zi1iYTcyLTM5Njg3NDM5Yzk2ZA"
+							"datasetId":"e2ed-u-owner-top",
+							"score":0.778972924
 						}
-					],
-					"queryText":"Give storage nodes a blue and green striped pattern."
+					]
 				}
 			]
 		},
@@ -1177,73 +613,26 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"Use the current chartbook alert-node color.",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.880718827,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
+							"datasetId":"e2ed-b-alert-crimson",
+							"score":0.880718827
 						},
 						{
-							"score":0.844206512,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
+							"datasetId":"e2ed-u-alert-amber",
+							"score":0.844206512
 						},
 						{
-							"score":0.79935354,
-							"vectorId":"am-current.bWVtb3J5Xzc4NGQwNjQ3LWY4YjQtNDUxMi1hOWQ2LTkwMzg5NDE1OWM3OQ"
+							"datasetId":"noise-chartbook-6-event-node-color",
+							"score":0.79935354
 						},
 						{
-							"score":0.79916805,
-							"vectorId":"am-current.bWVtb3J5X2U0ZmVkZDUzLWE1ODgtNDlmNC05YjhhLWZhNjMyNjIyYzA3Nw"
-						},
-						{
-							"score":0.796656191,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.793424666,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.793286145,
-							"vectorId":"am-current.bWVtb3J5XzAzOWJkZTY0LWY5YjEtNDRlYS05ZWJiLWQ4Y2Q3MDEyNTVmOQ"
-						},
-						{
-							"score":0.791489899,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.79109782,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.791047275,
-							"vectorId":"am-current.bWVtb3J5X2UyMDI3YmNhLTUxNGYtNDM1NS1hMjcyLTEyNDAxNDg0MmUyNA"
-						},
-						{
-							"score":0.789499462,
-							"vectorId":"am-current.bWVtb3J5XzRlM2FhMDUyLTk1MmMtNGIwYy04N2I0LWI2MzZkNDNkZDkwNA"
-						},
-						{
-							"score":0.781792283,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.781751,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
-						},
-						{
-							"score":0.775195539,
-							"vectorId":"am-current.bWVtb3J5XzA3NmYxNDAwLTQzYmQtNDQ1Ny05Y2ZmLWY4ZTdiMjVmNWRmZQ"
-						},
-						{
-							"score":0.774014652,
-							"vectorId":"am-current.bWVtb3J5XzZjZTBmOGQ5LTFkMzItNDVkNC05ZjA4LWQyYzEyOGQ3M2ExNg"
-						},
-						{
-							"score":0.772808075,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
+							"datasetId":"noise-user-6-event-node-color",
+							"score":0.79916805
 						}
-					],
-					"queryText":"Use the current chartbook alert-node color."
+					]
 				}
 			]
 		},
@@ -1290,73 +679,26 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"Export this diagram as SVG once.",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.787448943,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
+							"datasetId":"noise-chartbook-11-footer-visibility",
+							"score":0.787448943
 						},
 						{
-							"score":0.787423909,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.787423909
 						},
 						{
-							"score":0.781928301,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
+							"datasetId":"e2ed-u-retry-dashed",
+							"score":0.781928301
 						},
 						{
-							"score":0.772972107,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.772934,
-							"vectorId":"am-current.bWVtb3J5X2QzOWFiYTJkLTdlMDQtNDg0Ni1iOTA5LTRjNjFkZjY0Y2NlOA"
-						},
-						{
-							"score":0.772060573,
-							"vectorId":"am-current.bWVtb3J5XzA3NmYxNDAwLTQzYmQtNDQ1Ny05Y2ZmLWY4ZTdiMjVmNWRmZQ"
-						},
-						{
-							"score":0.771506071,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
-						},
-						{
-							"score":0.769309521,
-							"vectorId":"am-current.bWVtb3J5XzZjZTBmOGQ5LTFkMzItNDVkNC05ZjA4LWQyYzEyOGQ3M2ExNg"
-						},
-						{
-							"score":0.762137413,
-							"vectorId":"am-current.bWVtb3J5X2Y5MTIwMzgzLTQ2ZTYtNDU1ZC1iNjhjLWNhOWRlZWY0NzI4NA"
-						},
-						{
-							"score":0.762116134,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
-						},
-						{
-							"score":0.761616528,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
-						},
-						{
-							"score":0.760326505,
-							"vectorId":"am-current.bWVtb3J5X2RjYWZhYzNiLWNmMDYtNDc2ZS05MzJmLTMwYjRjZjQwZmMwMw"
-						},
-						{
-							"score":0.760268,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.758807242,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
-						},
-						{
-							"score":0.755430877,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.755427,
-							"vectorId":"am-current.bWVtb3J5X2UyMDI3YmNhLTUxNGYtNDM1NS1hMjcyLTEyNDAxNDg0MmUyNA"
+							"datasetId":"noise-user-2-client-node-shape",
+							"score":0.772972107
 						}
-					],
-					"queryText":"Export this diagram as SVG once."
+					]
 				}
 			]
 		},
@@ -1399,73 +741,26 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"Which long-term memories do you currently have?",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.795379221,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
+							"datasetId":"noise-user-11-footer-visibility",
+							"score":0.795379221
 						},
 						{
-							"score":0.794498682,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
+							"datasetId":"noise-user-1-queue-node-color",
+							"score":0.794498682
 						},
 						{
-							"score":0.78393364,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
+							"datasetId":"e2ed-u-alert-amber",
+							"score":0.78393364
 						},
 						{
-							"score":0.783207953,
-							"vectorId":"am-current.bWVtb3J5X2U0ZmVkZDUzLWE1ODgtNDlmNC05YjhhLWZhNjMyNjIyYzA3Nw"
-						},
-						{
-							"score":0.783004344,
-							"vectorId":"am-current.bWVtb3J5X2RkMGEyMjhhLWI0NzQtNGI0NS1hMWI2LTEwOTgwZTdhODAxZA"
-						},
-						{
-							"score":0.781013966,
-							"vectorId":"am-current.bWVtb3J5X2U2OGU2ZjA0LTUyYjEtNGE5MC1iY2IzLTE0YTc4ZGI4ZGQzNw"
-						},
-						{
-							"score":0.780682325,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.77705,
-							"vectorId":"am-current.bWVtb3J5X2I2NWM5MDUxLTlmMTAtNDI3MS1iNTM1LWU2MDAwYmU5MjY0ZA"
-						},
-						{
-							"score":0.775590837,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
-						},
-						{
-							"score":0.774943113,
-							"vectorId":"am-current.bWVtb3J5XzMyMTI5ZjJmLWFiN2QtNDUwOC05OWIyLTY5NWU2NjQ2OThjYQ"
-						},
-						{
-							"score":0.774670422,
-							"vectorId":"am-current.bWVtb3J5X2ZiMzIyZmZhLTEyZDUtNGRjNi1hNjAxLTAyZThkNDgzYmQzMg"
-						},
-						{
-							"score":0.771358132,
-							"vectorId":"am-current.bWVtb3J5XzY2Njg1NDEwLTYyZjItNDMxYy05MGE1LTgzNjI5NzZmNzIwMA"
-						},
-						{
-							"score":0.77011317,
-							"vectorId":"am-current.bWVtb3J5XzE1YjEwYWRiLWFiZjEtNGUzMS05MjZlLWIwODc5MWY0ODAzNw"
-						},
-						{
-							"score":0.767944276,
-							"vectorId":"am-current.bWVtb3J5XzdiNGNiNjE3LTU5MjgtNDZlOS05Y2FkLWQzYWEwMGU2NTI0Zg"
-						},
-						{
-							"score":0.766098917,
-							"vectorId":"am-current.bWVtb3J5XzZlYmRmYTkyLTQwZmEtNDU3Zi1iYTcyLTM5Njg3NDM5Yzk2ZA"
-						},
-						{
-							"score":0.765610635,
-							"vectorId":"am-current.bWVtb3J5XzUwNDkxNDJiLTIxMjQtNDhhMC05MWY3LWFiZDlmODQ1N2I3MA"
+							"datasetId":"noise-user-6-event-node-color",
+							"score":0.783207953
 						}
-					],
-					"queryText":"Which long-term memories do you currently have?"
+					]
 				}
 			]
 		},
@@ -1512,73 +807,26 @@
 			],
 			"vectorSearches":[
 				{
-					"hits":[
+					"queryText":"What is the current production database version?",
+					"rawHitCount":16,
+					"topHits":[
 						{
-							"score":0.766281486,
-							"vectorId":"am-current.bWVtb3J5XzA3NmYxNDAwLTQzYmQtNDQ1Ny05Y2ZmLWY4ZTdiMjVmNWRmZQ"
+							"datasetId":"e2ed-b-database-cylinder",
+							"score":0.766281486
 						},
 						{
-							"score":0.744592547,
-							"vectorId":"am-current.bWVtb3J5XzhlMmYzMmIxLTg5ZGMtNGVhMy04Zjg3LWY3YjIzNjk2OWRhNg"
+							"datasetId":"e2ed-b-alert-crimson",
+							"score":0.744592547
 						},
 						{
-							"score":0.740576506,
-							"vectorId":"am-current.bWVtb3J5XzNhNzg1NGNmLTg1NTItNDA0YS05ZmU0LTYyOGY5MzY2ZDM3YQ"
+							"datasetId":"e2ed-u-alert-amber",
+							"score":0.740576506
 						},
 						{
-							"score":0.740319,
-							"vectorId":"am-current.bWVtb3J5X2ZiMzIyZmZhLTEyZDUtNGRjNi1hNjAxLTAyZThkNDgzYmQzMg"
-						},
-						{
-							"score":0.736971736,
-							"vectorId":"am-current.bWVtb3J5X2YwNGE1OTExLWQxODUtNGU0Yy1hOTNmLTk5ZmNkYTYxOWVmZA"
-						},
-						{
-							"score":0.736870229,
-							"vectorId":"am-current.bWVtb3J5XzAzOWJkZTY0LWY5YjEtNDRlYS05ZWJiLWQ4Y2Q3MDEyNTVmOQ"
-						},
-						{
-							"score":0.736370265,
-							"vectorId":"am-current.bWVtb3J5X2IxNzEzZGU4LTViM2MtNDg5Yi1iMDQ1LTBlYzBkOWUxZGE3MQ"
-						},
-						{
-							"score":0.735494316,
-							"vectorId":"am-current.bWVtb3J5X2U0YmYzZmQxLTE5NjMtNDk1Zi04N2FkLWFhOGQ0N2Y3YTRkYg"
-						},
-						{
-							"score":0.735349655,
-							"vectorId":"am-current.bWVtb3J5XzlmNWE2ODU5LTNkMGMtNGQ2YS1hNmJkLTZlZjRlZjk4MTEwYg"
-						},
-						{
-							"score":0.734914064,
-							"vectorId":"am-current.bWVtb3J5XzU3NjY5OWRmLTBlNzQtNDdhYS1iN2FiLTliY2FkYzRkMmVkYg"
-						},
-						{
-							"score":0.734765708,
-							"vectorId":"am-current.bWVtb3J5XzRlNDkzMDE1LWNmZjgtNDI5NC05N2ZhLWJiZTQ0YTY2ODM5MQ"
-						},
-						{
-							"score":0.733300447,
-							"vectorId":"am-current.bWVtb3J5XzY0Yzg1Y2NmLTFhNzUtNDFiZS1hYTBlLTUzZmQ3Y2MwM2JkNw"
-						},
-						{
-							"score":0.733239114,
-							"vectorId":"am-current.bWVtb3J5XzQ3YjFjZjgxLTVlNGUtNDg1OC1iNDJmLTg4ZmZjNzdjZDFmYg"
-						},
-						{
-							"score":0.732811749,
-							"vectorId":"am-current.bWVtb3J5X2EzNWY0MmNmLWJkMzUtNGMzMy05M2ExLTRmZDVhMGM4ZTYxNA"
-						},
-						{
-							"score":0.73263377,
-							"vectorId":"am-current.bWVtb3J5X2Y5MTIwMzgzLTQ2ZTYtNDU1ZC1iNjhjLWNhOWRlZWY0NzI4NA"
-						},
-						{
-							"score":0.732459247,
-							"vectorId":"am-current.bWVtb3J5XzZkZDVjN2I3LWM2ZTctNGYzNS1hZDkwLWRkM2UzYTJkOWY1Yw"
+							"datasetId":"e2ed-u-owner-top",
+							"score":0.740319
 						}
-					],
-					"queryText":"What is the current production database version?"
+					]
 				}
 			]
 		}
