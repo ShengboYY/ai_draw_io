@@ -1,9 +1,9 @@
 package org.zipp.ai.infrastructure.adapter.vector;
 
-import org.zipp.ai.application.memory.AutoMemoryConsolidationQuery;
 import org.zipp.ai.application.memory.AutoMemoryScope;
 import org.zipp.ai.application.memory.AutoMemoryVector;
 import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
 import org.zipp.ai.application.memory.AutoMemoryVectorStorePort;
 
 import javax.crypto.Mac;
@@ -26,9 +26,6 @@ public final class PineconeAutoMemoryVectorStoreAdapter implements AutoMemoryVec
             "memory_candidate_kind",
             "memory_candidate_state",
             "memory_projection_revision");
-    private static final List<String> ELIGIBLE_STATES = List.of(
-            "OBSERVED", "ACTIVE", "DISABLED", "CONFLICTING");
-
     private final PineconeVectorClient client;
     private final String namespace;
     private final SecretKeySpec partitionKey;
@@ -84,7 +81,7 @@ public final class PineconeAutoMemoryVectorStoreAdapter implements AutoMemoryVec
     }
 
     @Override
-    public List<String> search(AutoMemoryConsolidationQuery query, int topK) {
+    public List<String> search(AutoMemoryVectorSearchQuery query, int topK) {
         Objects.requireNonNull(query, "query");
         if (topK < 1 || topK > 32) {
             throw new IllegalArgumentException("topK must be between 1 and 32");
@@ -101,8 +98,13 @@ public final class PineconeAutoMemoryVectorStoreAdapter implements AutoMemoryVec
         Map<String, Object> filter = Map.of("$and", List.of(
                 Map.of("memory_owner_partition", Map.of("$eq", ownerPartition(ownerKey))),
                 Map.of("memory_scope_partition", Map.of("$in", scopePartitions)),
-                Map.of("memory_candidate_state", Map.of("$in", ELIGIBLE_STATES))));
+                Map.of("memory_candidate_kind", Map.of("$in", names(query.kinds()))),
+                Map.of("memory_candidate_state", Map.of("$in", names(query.states())))));
         return client.query(namespace, queryVector, topK, filter);
+    }
+
+    private static List<String> names(Set<? extends Enum<?>> values) {
+        return values.stream().map(Enum::name).sorted().toList();
     }
 
     private Map<String, Object> metadata(AutoMemoryVectorDocument document) {

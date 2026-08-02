@@ -27,6 +27,8 @@ import org.zipp.ai.application.memory.MemoryScopeType;
 import org.zipp.ai.application.memory.SanitizedAutoMemoryObservation;
 import org.zipp.ai.application.turn.ModelInputBinding;
 import org.zipp.ai.application.turn.TurnKey;
+import org.zipp.ai.application.turn.context.AutoMemoryContextHydrationPort;
+import org.zipp.ai.application.turn.context.AutoMemoryContextQuery;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -50,7 +52,7 @@ import java.util.UUID;
 public class MySqlAutoMemoryAdapter
         implements AutoMemoryObservationStorePort, AutoMemoryQueryPort,
         AutoMemoryManagementStorePort, AutoMemoryMaintenancePort,
-        AutoMemoryVectorCandidateHydrationPort {
+        AutoMemoryVectorCandidateHydrationPort, AutoMemoryContextHydrationPort {
 
     private static final String VERIFY_CHARTBOOK = """
             SELECT COUNT(*)
@@ -187,6 +189,15 @@ public class MySqlAutoMemoryAdapter
             FROM memory_item
             WHERE memory_id IN (%s) AND owner_key = ?
               AND status IN ('OBSERVED', 'ACTIVE', 'DISABLED')
+              AND (%s)
+            """;
+
+    private static final String SELECT_ACTIVE_CONTEXT_ITEMS = """
+            SELECT memory_id, owner_key, scope_type, scope_key, memory_type,
+                   semantic_key, title, canonical_text, status, confidence,
+                   evidence_count, is_explicit, version, created_at, updated_at
+            FROM memory_item
+            WHERE memory_id IN (%s) AND owner_key = ? AND status = 'ACTIVE'
               AND (%s)
             """;
 
@@ -575,6 +586,80 @@ public class MySqlAutoMemoryAdapter
             hydrated.add(AutoMemoryExtractionCandidate.from(memory));
         }
         return List.copyOf(hydrated);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AutoMemory> hydrateActiveVectorMatches(
+            AutoMemoryContextQuery query,
+            List<String> rankedVectorIds
+    ) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(rankedVectorIds, "rankedVectorIds");
+        if (rankedVectorIds.size() > 32) {
+            throw new IllegalArgumentException("too many Memory context vector candidates");
+        }
+        LinkedHashSet<String> requestedIds = new LinkedHashSet<>();
+        for (String vectorId : rankedVectorIds) {
+            AutoMemoryVectorDocument.currentMemoryIdFromVectorId(vectorId)
+                    .ifPresent(requestedIds::add);
+        }
+        Map<String, AutoMemory> active = activeContextItems(query, requestedIds);
+        List<AutoMemory> ranked = new ArrayList<>();
+        Set<String> selected = new LinkedHashSet<>();
+        for (String vectorId : rankedVectorIds) {
+            AutoMemoryVectorDocument.currentMemoryIdFromVectorId(vectorId).ifPresent(memoryId -> {
+                AutoMemory memory = active.get(memoryId);
+                if (memory != null && selected.add(memoryId)
+                        && AutoMemoryVectorDocument.current(memory, 1).vectorId().equals(vectorId)) {
+                    ranked.add(memory);
+                }
+            });
+        }
+        return List.copyOf(ranked);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AutoMemory> loadActive(
+            AutoMemoryContextQuery query,
+            List<String> memoryIds
+    ) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(memoryIds, "memoryIds");
+        if (memoryIds.size() > 16) {
+            throw new IllegalArgumentException("too many pinned Memory context items");
+        }
+        LinkedHashSet<String> requestedIds = new LinkedHashSet<>(memoryIds);
+        Map<String, AutoMemory> active = activeContextItems(query, requestedIds);
+        return memoryIds.stream().map(active::get).filter(Objects::nonNull).toList();
+    }
+
+    private Map<String, AutoMemory> activeContextItems(
+            AutoMemoryContextQuery query,
+            Set<String> requestedIds
+    ) {
+        if (requestedIds.isEmpty()) {
+            return Map.of();
+        }
+        List<AutoMemoryScope> scopes = query.authorizedScopes();
+        List<Object> arguments = new ArrayList<>(requestedIds);
+        arguments.add(query.turn().ownerKey());
+        for (AutoMemoryScope scope : scopes) {
+            arguments.add(scope.type().name());
+            arguments.add(scope.scopeKey());
+        }
+        String scopePredicate = String.join(
+                " OR ", java.util.Collections.nCopies(
+                        scopes.size(), "(scope_type = ? AND scope_key = ?)"));
+        List<AutoMemory> rows = jdbc.query(
+                SELECT_ACTIVE_CONTEXT_ITEMS.formatted(
+                        placeholders(requestedIds.size()), scopePredicate),
+                this::mapMemory,
+                arguments.toArray());
+        Map<String, AutoMemory> result = new HashMap<>();
+        rows.forEach(memory -> result.put(memory.memoryId(), memory));
+        return Map.copyOf(result);
     }
 
     @Override

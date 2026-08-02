@@ -74,6 +74,8 @@ class ChatPlainGenerationAdapterTest {
         assertTrue(chat.lastText.contains("keep labels short"));
         assertTrue(chat.lastText.contains("AUTO_MEMORY_DATA"));
         assertTrue(chat.lastText.contains("use short labels"));
+        assertTrue(chat.lastText.indexOf("userMemory=use short labels")
+                < chat.lastText.indexOf("chartbookMemory=use blue nodes"));
         assertFalse(chat.lastText.contains("SOURCE_AVAILABILITY"));
         assertFalse(chat.lastText.contains("SOURCE_BODY"));
         assertFalse(chat.lastText.contains("private-spec.pdf"));
@@ -157,8 +159,11 @@ class ChatPlainGenerationAdapterTest {
                         new AvailableContext<>(new ChartbookProfileContext(
                                 "keep labels short", "login flow", "team diagram", List.of("API"), "blue"),
                                 "profile"),
-                        new AvailableContext<>(new AutoMemoryContext(
-                                List.of("use short labels"), List.of()), "memory"),
+                        new AvailableContext<>(new AutoMemoryContext(List.of(
+                                new AutoMemoryContext.Entry(
+                                        AutoMemoryContext.Scope.USER, "use short labels"),
+                                new AutoMemoryContext.Entry(
+                                        AutoMemoryContext.Scope.CHARTBOOK, "use blue nodes"))), "memory"),
                         new ContextDiagnostics(List.of())),
                 readSet(),
                 new PlainDrawPlan(action, "draw a login flow"),

@@ -20,6 +20,8 @@ import org.zipp.ai.application.memory.AutoMemoryObservationService;
 import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 import org.zipp.ai.application.memory.ScopedAutoMemoryConsolidationCandidateRetriever;
+import org.zipp.ai.application.turn.context.AutoMemoryContextHydrationPort;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelector;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -27,6 +29,24 @@ import java.time.Duration;
 /** Composes Auto Memory independently from the legacy material-catalog feature boundary. */
 @Configuration(proxyBeanMethods = false)
 public class AutoMemoryApplicationCompositionConfig {
+
+    @Bean
+    @ConditionalOnExpression(
+            "${app.memory.auto-enabled:false} && "
+                    + "(!${app.memory.vector.projection-enabled:false} "
+                    + "|| !${app.memory.context.semantic-enabled:false})")
+    @ConditionalOnMissingBean(AutoMemoryContextSelector.class)
+    public AutoMemoryContextSelector autoMemoryContextSelector(
+            AutoMemoryQueryPort memories,
+            AutoMemoryContextHydrationPort hydration,
+            @Value("${app.memory.context.max-entries:12}") int maxEntries,
+            @Value("${app.memory.context.max-characters:6000}") int maxCharacters
+    ) {
+        return new AutoMemoryContextSelector(
+                memories,
+                hydration,
+                new AutoMemoryContextSelector.Budget(maxEntries, maxCharacters));
+    }
 
     @Bean
     @ConditionalOnMissingBean(AutoMemoryExtractionWorkPort.class)

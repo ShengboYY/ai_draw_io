@@ -575,7 +575,32 @@ V1.5 不等待不足的生产样本，但也不把 V1.4-E 的合成结果解释�
 
 V1.4 的真实业务分布验证没有被标记为完成，只是从 V1.5 代码实现的前置条件改为后续生产门禁。
 
-## 18. 开发日志
+## 18. V1.7 请求相关的 Memory Context 选择
+
+V1.7 暂时跳过完整 V1.6 质量观测，不增加新的 Memory 层、模型调用或数据库表，只收敛主绘图
+Prompt 的 ACTIVE Memory 选择边界：
+
+1. `AutoMemoryContextSelector` 统一接收当前 Turn 文本、owner 和可选 Chartbook。默认按既有 MySQL
+   `is_explicit → confidence → updated_at → memory_id` 顺序，每个授权 scope 有界读取 16 条；不再
+   通过 Turn domain SQL 无界聚合全部 ACTIVE Memory 后依赖未定义的数组顺序取前 8 条。
+2. `AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED=true` 只有和 vector projection 同时开启时才复用现有
+   Pinecone。查询在 provider `topK` 前限定 `CURRENT + ACTIVE`、owner 以及 USER/当前 CHARTBOOK，
+   返回 ID 仍必须经 MySQL 重新校验；向量失败时使用同一 SQL baseline，不影响 Turn 可用性。
+3. 向量相关候选优先，SQL 去重补位。只有相同 Memory type + `semanticKey` 时，当前 CHARTBOOK
+   覆盖 USER 全局值；不同决策维度继续保留相关度顺序。最终每 scope 最多 8 条、总计默认最多
+   12 条和 6,000 个 Prompt 字符，超预算条目跳过但不删除权威 Memory。
+4. `AutoMemoryContext` 保存真实选择顺序，Prompt renderer 和 Semantic Router 使用同一投影。
+   Context read-set 升级为 schema v2，在既有 JSON 中记录选中 `memoryId + version` 并纳入摘要；
+   materialize 只回查这批身份，向量不重复执行，未选中 Memory 的并发变化也不会让本 Turn 漂移。
+   schema v1 read-set 仍可解码，不需要 DDL 迁移。
+5. semantic 开关默认关闭；即使不开向量，确定性排序、跨 scope 同键覆盖、总预算和精确 pin 仍然
+   生效。V1.7 不新增 usage 写入、学习排序、DeepSeek 调用或内容日志；`last_recalled_at` 等反馈在
+   真实数据证明需要后再用独立统计边界设计，不能污染 `memory_item.version`。
+
+本地 MySQL 集成验证覆盖 CURRENT/ACTIVE 命中、challenger 拒绝、owner 隔离和 DISABLED 失效；
+完整后端测试共执行 2,031 项，0 failure、0 error，21 项按既有 live/integration 开关跳过。
+
+## 19. 开发日志
 
 ### 2026-07-31
 
@@ -693,6 +718,13 @@ V1.4 的真实业务分布验证没有被标记为完成，只是从 V1.5 代码
   Turn 验收：SQL 最近窗口刻意排除目标时，向量候选仍被 DeepSeek 精确复用，未生成重复 Memory。
 - [x] 使用不可连接的本地 Pinecone endpoint 验证运行时降级：extraction 正常完成、同一 Item
   Evidence 累加，向量投影独立报错；随后删除全部合成向量和隔离数据库，并恢复本地安全开关。
+- [x] 跳过 V1.6，完成 V1.7 主 Turn Memory Context 选择：确定性 SQL baseline、可选 ACTIVE/CURRENT
+  语义召回、MySQL 权威回查、Chartbook 同键覆盖、总条目/字符预算和向量失败回退。
+- [x] Context read-set 升级为向后兼容的 schema v2，持久化选中 Memory ID/version；重试只回查
+  已 pin 的集合，不重新执行向量查询，也不因未选中 Memory 变化而漂移。
+- [x] V1.7 定向选择、预算、Prompt 顺序、Pinecone filter、read-set codec 和 Spring 组合测试通过；
+  本地 MySQL 6 个集成场景全部通过，完整后端 `mvn test` 共执行 2,031 项，0 failure、0 error，
+  21 项按既有 live/integration 开关跳过。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
@@ -702,6 +734,7 @@ V1.4-E 的投影、权威回查、真实 Pinecone cohort、随机 shadow 和报�
 代码和隔离环境端到端验收均已完成，向量召回与 SQL 故障回退通过，但三个相关开关仍保持默认及
 本地关闭，普通 Worker 继续只使用 MySQL。下一步是随本地真实使用积累非合成样本并比较错误归并，
 不因本次受控通过而接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
-不执行生产变更。严格显式
+不执行生产变更。V1.6 完整质量观测按用户决定暂时跳过；V1.7 已完成 SQL 默认选择与可选 semantic
+Context 代码，semantic 开关仍默认及本地关闭，未使用合成结果替代真实注入质量证据。严格显式
 句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
 阻塞 Pro 上线。

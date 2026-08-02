@@ -18,6 +18,8 @@ import org.zipp.ai.application.memory.CanaryAutoMemoryConsolidationCandidateRetr
 import org.zipp.ai.application.memory.ShadowAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.config.AutoMemoryVectorConfig;
 import org.zipp.ai.config.AutoMemoryVectorProjectionJob;
+import org.zipp.ai.application.turn.context.AutoMemoryContextHydrationPort;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelector;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -90,6 +92,17 @@ class AutoMemoryVectorConfigTest {
                         .isInstanceOf(CanaryAutoMemoryConsolidationCandidateRetriever.class));
     }
 
+    @Test
+    void semanticContextOptInUsesTheSharedVectorStore() {
+        contextRunner.withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.vector.projection-enabled=true",
+                        "app.memory.context.semantic-enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(AutoMemoryContextSelector.class)
+                        .hasSingleBean(AutoMemoryVectorStorePort.class));
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class PortConfiguration {
         @Bean
@@ -105,6 +118,11 @@ class AutoMemoryVectorConfigTest {
         @Bean
         AutoMemoryVectorCandidateHydrationPort vectorHydration() {
             return mock(AutoMemoryVectorCandidateHydrationPort.class);
+        }
+
+        @Bean
+        AutoMemoryContextHydrationPort memoryContextHydration() {
+            return mock(AutoMemoryContextHydrationPort.class);
         }
 
         @Bean

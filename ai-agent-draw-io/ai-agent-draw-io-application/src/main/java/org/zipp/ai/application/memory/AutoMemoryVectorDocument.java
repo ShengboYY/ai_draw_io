@@ -113,6 +113,14 @@ public record AutoMemoryVectorDocument(
         }
     }
 
+    /** Accepts only the CURRENT identity used by generation-context retrieval. */
+    public static Optional<String> currentMemoryIdFromVectorId(String vectorId) {
+        if (vectorId == null || !vectorId.startsWith(CURRENT_PREFIX)) {
+            return Optional.empty();
+        }
+        return memoryIdFromVectorId(vectorId);
+    }
+
     public enum CandidateKind {
         CURRENT,
         CHALLENGER

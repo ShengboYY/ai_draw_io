@@ -11,6 +11,7 @@ import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.context.ContextPinState;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelection;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextReadSetCommitPort;
 import org.zipp.ai.application.turn.context.ContextReadSetLoadOutcome;
@@ -181,7 +182,20 @@ public class MySqlTurnContextCheckpointAdapter implements
                 pin(root.getJSONObject("membership")),
                 pin(root.getJSONObject("profile")),
                 pin(root.getJSONObject("memory")),
+                memorySelection(root),
                 root.getString("digest"));
+    }
+
+    private List<AutoMemoryContextSelection.Reference> memorySelection(JSONObject root) {
+        var values = root.getJSONArray("memorySelection");
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+                .map(value -> (JSONObject) value)
+                .map(value -> new AutoMemoryContextSelection.Reference(
+                        value.getString("memoryId"), value.getLongValue("version")))
+                .toList();
     }
 
     private ContextSlicePin pin(JSONObject json) {

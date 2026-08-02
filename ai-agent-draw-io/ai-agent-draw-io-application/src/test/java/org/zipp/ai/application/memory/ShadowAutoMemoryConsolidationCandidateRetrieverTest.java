@@ -118,7 +118,7 @@ class ShadowAutoMemoryConsolidationCandidateRetrieverTest {
         }
 
         @Override
-        public List<String> search(AutoMemoryConsolidationQuery query, int topK) {
+        public List<String> search(AutoMemoryVectorSearchQuery query, int topK) {
             this.topK = topK;
             if (failure != null) {
                 throw failure;

@@ -27,6 +27,7 @@ import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionLease;
 import org.zipp.ai.application.memory.MemoryObservationKind;
 import org.zipp.ai.application.turn.TurnKey;
+import org.zipp.ai.application.turn.context.AutoMemoryContextQuery;
 import org.zipp.ai.infrastructure.adapter.repository.MySqlAutoMemoryAdapter;
 import org.zipp.ai.infrastructure.adapter.repository.MySqlAutoMemoryVectorProjectionWorkAdapter;
 
@@ -63,6 +64,7 @@ class MySqlAutoMemoryIntegrationTest {
     private final String adapterOwner = "auto-memory-adapter-" + suffix;
     private final String agingOwner = "auto-memory-aging-" + suffix;
     private final String conflictOwner = "auto-memory-conflict-" + suffix;
+    private final String contextOwner = "auto-memory-context-" + suffix;
     private final String otherOwner = "auto-memory-other-" + suffix;
     private final String adapterChartbook = "auto-memory-adapter-book-" + suffix;
     private final String activeLegacyMemory = "legacy-active-" + suffix;
@@ -129,11 +131,11 @@ class MySqlAutoMemoryIntegrationTest {
                 DELETE w
                 FROM memory_vector_projection_work w
                 JOIN memory_item m ON m.memory_id = w.memory_id
-                WHERE m.owner_key IN (?, ?, ?, ?)
-                """, legacyOwner, adapterOwner, agingOwner, conflictOwner);
+                WHERE m.owner_key IN (?, ?, ?, ?, ?)
+                """, legacyOwner, adapterOwner, agingOwner, conflictOwner, contextOwner);
         // Evidence is deleted by the Item foreign key; released schema remains for inspection.
-        jdbc.update("DELETE FROM memory_item WHERE owner_key IN (?, ?, ?, ?)",
-                legacyOwner, adapterOwner, agingOwner, conflictOwner);
+        jdbc.update("DELETE FROM memory_item WHERE owner_key IN (?, ?, ?, ?, ?)",
+                legacyOwner, adapterOwner, agingOwner, conflictOwner, contextOwner);
         jdbc.update("DELETE FROM chartbook_memory WHERE owner_key IN (?, ?)",
                 legacyOwner, adapterOwner);
         jdbc.update("DELETE FROM chartbook_memory_candidate WHERE owner_key IN (?, ?)",
@@ -326,6 +328,45 @@ class MySqlAutoMemoryIntegrationTest {
                         "turn-5",
                         MemoryObservationKind.EXPLICIT))));
         assertEquals("AUTO_MEMORY_SCOPE_NOT_FOUND", rejected.code());
+    }
+
+    @Test
+    void generationContextHydrationAcceptsOnlyActiveCurrentVectorsWithinScope() {
+        MySqlAutoMemoryAdapter adapter = new MySqlAutoMemoryAdapter(jdbc);
+        AutoMemoryScope scope = AutoMemoryScope.user(contextOwner);
+        AutoMemory active = assertInstanceOf(
+                AutoMemoryObservationOutcome.Applied.class,
+                transaction(() -> service(adapter).observe(observation(
+                        scope, "context-labels", "Prefer concise context labels",
+                        "context-conversation", "context-turn", MemoryObservationKind.EXPLICIT))))
+                .memory();
+        AutoMemoryContextQuery query = new AutoMemoryContextQuery(
+                new TurnKey(contextOwner, "context-query-conversation", "context-query-turn"),
+                null,
+                "Add a concise label");
+        String currentVectorId = AutoMemoryVectorDocument.current(active, 1).vectorId();
+        String challengerVectorId = AutoMemoryVectorDocument.challenger(
+                active.memoryId(), active.scope(), active.title(), "Prefer detailed labels", 1)
+                .vectorId();
+
+        assertEquals(List.of(active.memoryId()),
+                adapter.hydrateActiveVectorMatches(
+                                query, List.of(challengerVectorId, currentVectorId, "unknown"))
+                        .stream().map(AutoMemory::memoryId).toList());
+        assertEquals(List.of(active.memoryId()),
+                adapter.loadActive(query, List.of(active.memoryId()))
+                        .stream().map(AutoMemory::memoryId).toList());
+        assertTrue(adapter.loadActive(
+                new AutoMemoryContextQuery(
+                        new TurnKey(otherOwner, "context-query-conversation", "context-query-turn"),
+                        null,
+                        "Add a concise label"),
+                List.of(active.memoryId())).isEmpty());
+
+        transaction(() -> adapter.disable(
+                new AutoMemoryFence(scope, active.memoryId(), active.version()), NOW.plusSeconds(1)));
+        assertTrue(adapter.hydrateActiveVectorMatches(query, List.of(currentVectorId)).isEmpty());
+        assertTrue(adapter.loadActive(query, List.of(active.memoryId())).isEmpty());
     }
 
     @Test

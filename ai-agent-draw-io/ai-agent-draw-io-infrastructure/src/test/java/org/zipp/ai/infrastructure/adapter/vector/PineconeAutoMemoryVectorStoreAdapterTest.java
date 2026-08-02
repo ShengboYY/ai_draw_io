@@ -10,6 +10,7 @@ import org.zipp.ai.application.memory.AutoMemoryStatus;
 import org.zipp.ai.application.memory.AutoMemoryType;
 import org.zipp.ai.application.memory.AutoMemoryVector;
 import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
 import org.zipp.ai.application.turn.TurnKey;
 
 import java.net.URI;
@@ -69,6 +70,24 @@ class PineconeAutoMemoryVectorStoreAdapterTest {
         assertFalse(search.body().contains("owner-1"));
         assertFalse(search.body().contains("chartbook-1"));
         assertFalse(search.body().contains("Keep labels concise"));
+    }
+
+    @Test
+    void generationContextSearchExcludesNonActiveAndChallengerVectors() throws Exception {
+        RecordingTransport transport = new RecordingTransport(objectMapper);
+        PineconeAutoMemoryVectorStoreAdapter adapter = adapter(transport);
+
+        adapter.search(AutoMemoryVectorSearchQuery.activeContext(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "chartbook-1",
+                "Use concise labels"), 16);
+
+        String body = transport.requests.get(1).body();
+        assertTrue(body.contains("CURRENT"));
+        assertTrue(body.contains("ACTIVE"));
+        assertFalse(body.contains("CHALLENGER"));
+        assertFalse(body.contains("CONFLICTING"));
+        assertFalse(body.contains("DISABLED"));
     }
 
     @Test

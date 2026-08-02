@@ -2,6 +2,7 @@ package org.zipp.ai.infrastructure.adapter.repository;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,9 @@ import org.zipp.ai.application.turn.context.AvailableContext;
 import org.zipp.ai.application.turn.context.ChartbookMembershipContext;
 import org.zipp.ai.application.turn.context.ChartbookProfileContext;
 import org.zipp.ai.application.turn.context.AutoMemoryContext;
+import org.zipp.ai.application.turn.context.AutoMemoryContextQuery;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelection;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelector;
 import org.zipp.ai.application.turn.context.ContextCandidate;
 import org.zipp.ai.application.turn.context.ContextCandidateLoadOutcome;
 import org.zipp.ai.application.turn.context.ContextDiagnostics;
@@ -53,6 +57,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Transitional MySQL backend for the source-free Context lifecycle.
@@ -104,20 +109,9 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             WHERE d.id = ? AND d.user_id = ? AND d.deleted = 0
             """;
 
-    private static final String AUTO_MEMORY_COLUMNS = """
-            COALESCE((SELECT MAX(m.version) FROM memory_item m
-                       WHERE m.owner_key = d.user_id AND m.status = 'ACTIVE'
-                         AND ((m.scope_type = 'USER' AND m.scope_key = d.user_id)
-                           OR (m.scope_type = 'CHARTBOOK' AND cb.status = 'ACTIVE'
-                             AND m.scope_key = cb.id))), 0) AS auto_memory_version,
-                   COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT(
-                       'scopeType', m.scope_type, 'memoryType', m.memory_type,
-                       'semanticKey', m.semantic_key, 'text', m.canonical_text))
-                       FROM memory_item m
-                       WHERE m.owner_key = d.user_id AND m.status = 'ACTIVE'
-                         AND ((m.scope_type = 'USER' AND m.scope_key = d.user_id)
-                           OR (m.scope_type = 'CHARTBOOK' AND cb.status = 'ACTIVE'
-                             AND m.scope_key = cb.id))), JSON_ARRAY()) AS auto_memory_json
+    /** V1.7 loads bounded Auto Memory through its application port, not an unbounded aggregate. */
+    private static final String SELECTED_AUTO_MEMORY_COLUMNS = """
+            0 AS auto_memory_version, JSON_ARRAY() AS auto_memory_json
             """;
 
     /** Rollback projection used before the Auto Memory migration is enabled. */
@@ -127,7 +121,7 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                          AND m.status = 'ACTIVE'), 0) AS auto_memory_version,
             COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT(
                        'scopeType', 'CHARTBOOK', 'memoryType', 'PROJECT',
-                       'semanticKey', m.decision_key, 'text', m.canonical_text)
+                       'semanticKey', m.decision_key, 'text', m.canonical_text))
                        FROM chartbook_memory m
                        WHERE m.owner_key = cb.owner_key AND m.chartbook_id = cb.id
                          AND m.status = 'ACTIVE'), JSON_ARRAY()) AS auto_memory_json
@@ -135,9 +129,9 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
 
     /** Candidate reads projection columns only; materialization additionally verifies canvas XML. */
     private static final String SELECT_CANDIDATE_DOMAIN =
-            SELECT_DOMAIN_TEMPLATE.formatted("NULL", AUTO_MEMORY_COLUMNS);
+            SELECT_DOMAIN_TEMPLATE.formatted("NULL", SELECTED_AUTO_MEMORY_COLUMNS);
     private static final String SELECT_MATERIALIZED_DOMAIN =
-            SELECT_DOMAIN_TEMPLATE.formatted("c.current_xml", AUTO_MEMORY_COLUMNS);
+            SELECT_DOMAIN_TEMPLATE.formatted("c.current_xml", SELECTED_AUTO_MEMORY_COLUMNS);
     private static final String SELECT_LEGACY_CANDIDATE_DOMAIN =
             SELECT_DOMAIN_TEMPLATE.formatted("NULL", LEGACY_MEMORY_COLUMNS);
     private static final String SELECT_LEGACY_MATERIALIZED_DOMAIN =
@@ -168,25 +162,51 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
     private final JdbcOperations jdbc;
     private final MySqlConversationScopeKeyResolver conversationScopes;
     private final boolean autoMemoryEnabled;
+    private final AutoMemoryContextSelector memoryContexts;
 
     public MySqlTurnContextAdapter(JdbcOperations jdbc) {
-        this(jdbc, null, true);
+        this(jdbc, null, false, (AutoMemoryContextSelector) null);
     }
 
     public MySqlTurnContextAdapter(JdbcOperations jdbc,
                                    MySqlConversationScopeKeyResolver conversationScopes) {
-        this(jdbc, conversationScopes, true);
+        this(jdbc, conversationScopes, false, (AutoMemoryContextSelector) null);
+    }
+
+    public MySqlTurnContextAdapter(
+            JdbcOperations jdbc,
+            AutoMemoryContextSelector memoryContexts
+    ) {
+        this(jdbc, null, true, Objects.requireNonNull(memoryContexts, "memoryContexts"));
     }
 
     @Autowired
     public MySqlTurnContextAdapter(
             JdbcOperations jdbc,
             MySqlConversationScopeKeyResolver conversationScopes,
-            @Value("${app.memory.auto-enabled:false}") boolean autoMemoryEnabled
+            @Value("${app.memory.auto-enabled:false}") boolean autoMemoryEnabled,
+            ObjectProvider<AutoMemoryContextSelector> memoryContextSelectors
+    ) {
+        this(
+                jdbc,
+                conversationScopes,
+                autoMemoryEnabled,
+                autoMemoryEnabled ? memoryContextSelectors.getIfAvailable() : null);
+        if (autoMemoryEnabled && memoryContexts == null) {
+            throw new IllegalStateException("Auto Memory context selector is required");
+        }
+    }
+
+    private MySqlTurnContextAdapter(
+            JdbcOperations jdbc,
+            MySqlConversationScopeKeyResolver conversationScopes,
+            boolean autoMemoryEnabled,
+            AutoMemoryContextSelector memoryContexts
     ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.conversationScopes = conversationScopes;
         this.autoMemoryEnabled = autoMemoryEnabled;
+        this.memoryContexts = memoryContexts;
     }
 
     @Override
@@ -209,8 +229,12 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             if (domain == null) {
                 return new ContextCandidateLoadOutcome.Revoked("DIAGRAM_NOT_AVAILABLE");
             }
+            AutoMemoryContextSelection memorySelection = autoMemoryEnabled
+                    ? memoryContexts.select(memoryQuery(attempt.key(), command, domain))
+                    : null;
             return new ContextCandidateLoadOutcome.Ready(
-                    new ContextCandidate(candidateReadSet(attempt.contextMessageHighWater(), domain)));
+                    new ContextCandidate(candidateReadSet(
+                            attempt.contextMessageHighWater(), domain, memorySelection)));
         } catch (DataAccessException exception) {
             return unavailableCandidate(attempt.key(), TurnFailureCode.TERMINAL_UNAVAILABLE);
         } catch (RuntimeException exception) {
@@ -265,7 +289,9 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                 return new ContextMaterializationOutcome.Retry();
             }
             SliceResolution<AutoMemoryContext> memoryResolution =
-                    materializeMemory(readSet.memory(), domain);
+                    materializeMemory(
+                            readSet.memory(), domain, attempt.key(), command,
+                            readSet.memorySelection());
             if (memoryResolution.retry()) {
                 return new ContextMaterializationOutcome.Retry();
             }
@@ -281,7 +307,7 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                     "CONTEXT_SELECTION_ABSENT"));
             diagnosticCodes.add(domain.hasProfile()
                     ? "CONTEXT_PROFILE_PROJECTED" : "CONTEXT_PROFILE_ABSENT");
-            diagnosticCodes.add(domain.hasMemory()
+            diagnosticCodes.add(readSet.memory().state() == ContextPinState.PINNED
                     ? "CONTEXT_MEMORY_PROJECTED" : "CONTEXT_MEMORY_ABSENT");
             ContextDiagnostics diagnostics = new ContextDiagnostics(diagnosticCodes);
 
@@ -306,7 +332,11 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
         }
     }
 
-    private ContextReadSet candidateReadSet(long messageHighWater, DomainRow domain) {
+    private ContextReadSet candidateReadSet(
+            long messageHighWater,
+            DomainRow domain,
+            AutoMemoryContextSelection selection
+    ) {
         ContextSlicePin summary = domain.hasCanvas()
                 ? ContextSlicePin.pinned(
                         ContextSlice.SUMMARY,
@@ -328,14 +358,35 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                         domain.profileVersionValue(),
                         domain.profileDigest())
                 : ContextSlicePin.absent(ContextSlice.PROFILE, "PROFILE_NOT_AVAILABLE");
-        ContextSlicePin memory = domain.hasMemory()
-                ? ContextSlicePin.pinned(
-                        ContextSlice.MEMORY,
-                        "auto-memory:" + domain.ownerKey() + ":" + nonBlankOr(
-                                domain.chartbookId(), "no-chartbook"),
-                        domain.memoryVersionValue(),
-                        domain.memoryDigest())
-                : ContextSlicePin.absent(ContextSlice.MEMORY, "NO_ACTIVE_AUTO_MEMORY");
+        ContextSlicePin memory;
+        if (autoMemoryEnabled) {
+            memory = selection.empty()
+                    ? ContextSlicePin.absent(ContextSlice.MEMORY, "NO_RELEVANT_AUTO_MEMORY")
+                    : ContextSlicePin.pinned(
+                            ContextSlice.MEMORY,
+                            "auto-memory-selection:" + domain.ownerKey() + ":" + nonBlankOr(
+                                    domain.chartbookId(), "no-chartbook"),
+                            selection.version(),
+                            selection.digest());
+        } else {
+            memory = domain.hasMemory()
+                    ? ContextSlicePin.pinned(
+                            ContextSlice.MEMORY,
+                            "auto-memory:" + domain.ownerKey() + ":" + nonBlankOr(
+                                    domain.chartbookId(), "no-chartbook"),
+                            domain.memoryVersionValue(),
+                            domain.memoryDigest())
+                    : ContextSlicePin.absent(ContextSlice.MEMORY, "NO_ACTIVE_AUTO_MEMORY");
+        }
+        if (autoMemoryEnabled) {
+            return ContextReadSet.createWithMemorySelection(
+                    messageHighWater,
+                    summary,
+                    membership,
+                    profile,
+                    memory,
+                    selection.references());
+        }
         return ContextReadSet.create(
                 1,
                 messageHighWater,
@@ -439,10 +490,29 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
 
     private SliceResolution<AutoMemoryContext> materializeMemory(
             ContextSlicePin pin,
-            DomainRow domain
+            DomainRow domain,
+            TurnKey turn,
+            UserTurnCommand command,
+            List<AutoMemoryContextSelection.Reference> references
     ) {
         if (pin.state() == ContextPinState.REVOKED || pin.state() == ContextPinState.DEGRADED) {
             return SliceResolution.exact(new DegradedContext<>(pin.reference()));
+        }
+        if (autoMemoryEnabled) {
+            if (pin.state() == ContextPinState.ABSENT) {
+                return references.isEmpty()
+                        ? SliceResolution.exact(new AbsentContext<>(pin.reference()))
+                        : SliceResolution.retrying();
+            }
+            Optional<AutoMemoryContextSelection> selected = memoryContexts.materialize(
+                    memoryQuery(turn, command, domain), references);
+            if (selected.isEmpty()
+                    || selected.get().version() != pin.version()
+                    || !selected.get().digest().equals(pin.contentDigest())) {
+                return SliceResolution.retrying();
+            }
+            return SliceResolution.exact(new AvailableContext<>(
+                    selected.get().context(), pin.reference()));
         }
         if (pin.state() == ContextPinState.ABSENT) {
             if (domain.hasMemory()) {
@@ -487,6 +557,17 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
         } catch (RuntimeException exception) {
             return SliceResolution.exact(new DegradedContext<>("MEMORY_MALFORMED"));
         }
+    }
+
+    private AutoMemoryContextQuery memoryQuery(
+            TurnKey turn,
+            UserTurnCommand command,
+            DomainRow domain
+    ) {
+        return new AutoMemoryContextQuery(
+                turn,
+                domain.hasActiveChartbook() ? domain.chartbookId() : null,
+                command.content());
     }
 
     private List<CurrentMessageAttachmentView> materializeAttachments(

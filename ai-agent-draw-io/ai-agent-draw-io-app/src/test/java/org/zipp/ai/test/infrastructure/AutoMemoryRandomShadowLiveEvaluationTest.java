@@ -22,6 +22,7 @@ import org.zipp.ai.application.memory.AutoMemoryVector;
 import org.zipp.ai.application.memory.AutoMemoryVectorCandidateHydrationPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
 import org.zipp.ai.application.memory.AutoMemoryVectorShadowTelemetry;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
 import org.zipp.ai.application.memory.AutoMemoryVectorStorePort;
 import org.zipp.ai.application.memory.MemoryObservationKind;
 import org.zipp.ai.application.memory.MemoryScopeType;
@@ -720,7 +721,7 @@ class AutoMemoryRandomShadowLiveEvaluationTest {
         }
 
         @Override
-        public List<String> search(AutoMemoryConsolidationQuery query, int topK) {
+        public List<String> search(AutoMemoryVectorSearchQuery query, int topK) {
             last = delegate.search(query, topK);
             return last;
         }

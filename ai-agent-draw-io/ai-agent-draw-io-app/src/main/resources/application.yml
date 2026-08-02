@@ -50,6 +50,11 @@ app:
     extractor-agent-id: ${AUTO_MEMORY_EXTRACTOR_AGENT_ID:300030}
     worker-delay-ms: ${AUTO_MEMORY_WORKER_DELAY_MS:5000}
     worker-batch-size: ${AUTO_MEMORY_WORKER_BATCH_SIZE:10}
+    context:
+      # V1.7 semantic selection is opt-in; SQL ordering remains the failure fallback.
+      semantic-enabled: ${AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED:false}
+      max-entries: ${AUTO_MEMORY_CONTEXT_MAX_ENTRIES:12}
+      max-characters: ${AUTO_MEMORY_CONTEXT_MAX_CHARACTERS:6000}
     # V1.2 ages only unconfirmed OBSERVED candidates and remains opt-in after Auto Memory rollout.
     aging-enabled: ${AUTO_MEMORY_AGING_ENABLED:false}
     observed-retention-days: ${AUTO_MEMORY_OBSERVED_RETENTION_DAYS:90}

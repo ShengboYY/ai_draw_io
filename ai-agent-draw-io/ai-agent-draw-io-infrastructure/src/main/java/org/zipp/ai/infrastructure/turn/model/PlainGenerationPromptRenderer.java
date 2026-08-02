@@ -429,8 +429,12 @@ final class PlainGenerationPromptRenderer {
             prompt.append("unavailable\n");
             return;
         }
-        appendLines(prompt, "chartbookMemory", memory.chartbookMemories());
-        appendLines(prompt, "userMemory", memory.userMemories());
+        for (AutoMemoryContext.Entry entry : memory.entries()) {
+            prompt.append(entry.scope() == AutoMemoryContext.Scope.CHARTBOOK
+                            ? "chartbookMemory=" : "userMemory=")
+                    .append(entry.value())
+                    .append('\n');
+        }
     }
 
     private void appendLines(StringBuilder prompt, String label, List<String> values) {

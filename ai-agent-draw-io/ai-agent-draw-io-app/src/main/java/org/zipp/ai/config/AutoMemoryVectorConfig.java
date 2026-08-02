@@ -19,6 +19,8 @@ import org.zipp.ai.application.memory.AutoMemoryVectorStorePort;
 import org.zipp.ai.application.memory.CanaryAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.ScopedAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.ShadowAutoMemoryConsolidationCandidateRetriever;
+import org.zipp.ai.application.turn.context.AutoMemoryContextHydrationPort;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelector;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeAutoMemoryVectorStoreAdapter;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeVectorClient;
 import org.zipp.ai.infrastructure.adapter.telemetry.AutoMemoryVectorShadowMetrics;
@@ -31,6 +33,24 @@ import java.time.Clock;
         name = {"app.memory.auto-enabled", "app.memory.vector.projection-enabled"},
         havingValue = "true")
 public class AutoMemoryVectorConfig {
+
+    @Bean
+    @ConditionalOnProperty(
+            name = "app.memory.context.semantic-enabled", havingValue = "true")
+    @ConditionalOnMissingBean(AutoMemoryContextSelector.class)
+    public AutoMemoryContextSelector semanticAutoMemoryContextSelector(
+            AutoMemoryQueryPort memories,
+            AutoMemoryContextHydrationPort hydration,
+            AutoMemoryVectorStorePort vectors,
+            @Value("${app.memory.context.max-entries:12}") int maxEntries,
+            @Value("${app.memory.context.max-characters:6000}") int maxCharacters
+    ) {
+        return new AutoMemoryContextSelector(
+                memories,
+                hydration,
+                vectors,
+                new AutoMemoryContextSelector.Budget(maxEntries, maxCharacters));
+    }
 
     @Bean
     @ConditionalOnMissingBean(AutoMemoryVectorStorePort.class)

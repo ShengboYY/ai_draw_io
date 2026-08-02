@@ -26,6 +26,8 @@ import org.zipp.ai.config.AutoMemoryApplicationCompositionConfig;
 import org.zipp.ai.config.AutoMemoryExtractionJob;
 import org.zipp.ai.config.AutoMemoryMaintenanceJob;
 import org.zipp.ai.config.AutoMemoryVectorConfig;
+import org.zipp.ai.application.turn.context.AutoMemoryContextHydrationPort;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelector;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -43,6 +45,7 @@ class AutoMemoryApplicationCompositionConfigTest {
                 .doesNotHaveBean(AutoMemoryObservationService.class)
                 .doesNotHaveBean(AutoMemoryManagementService.class)
                 .doesNotHaveBean(AutoMemoryMaintenanceService.class)
+                .doesNotHaveBean(AutoMemoryContextSelector.class)
                 .doesNotHaveBean(AutoMemoryConsolidationCandidateRetriever.class)
                 .doesNotHaveBean(AutoMemoryExtractionWorker.class));
     }
@@ -54,6 +57,7 @@ class AutoMemoryApplicationCompositionConfigTest {
                         .hasSingleBean(AutoMemoryObservationService.class)
                         .hasSingleBean(AutoMemoryManagementService.class)
                         .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .hasSingleBean(AutoMemoryContextSelector.class)
                         .hasSingleBean(AutoMemoryExtractionWorker.class)
                         .hasSingleBean(AutoMemoryExtractionJob.class)
                         .doesNotHaveBean(AutoMemoryMaintenanceService.class));
@@ -89,6 +93,15 @@ class AutoMemoryApplicationCompositionConfigTest {
                 .run(context -> assertThat(context)
                         .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
                         .hasSingleBean(AutoMemoryExtractionWorker.class));
+    }
+
+    @Test
+    void semanticContextFlagWithoutProjectionKeepsTheSqlSelector() {
+        contextRunner.withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.context.semantic-enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(AutoMemoryContextSelector.class));
     }
 
     @Test
@@ -167,6 +180,11 @@ class AutoMemoryApplicationCompositionConfigTest {
         @Bean
         AutoMemoryVectorProjectionWorkPort vectorProjectionWork() {
             return mock(AutoMemoryVectorProjectionWorkPort.class);
+        }
+
+        @Bean
+        AutoMemoryContextHydrationPort memoryContextHydration() {
+            return mock(AutoMemoryContextHydrationPort.class);
         }
 
         @Bean
