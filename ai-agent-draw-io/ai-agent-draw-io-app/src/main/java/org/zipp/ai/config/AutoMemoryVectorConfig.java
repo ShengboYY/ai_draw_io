@@ -48,6 +48,8 @@ public class AutoMemoryVectorConfig {
             @Value("${app.memory.context.minimum-lead:0.02}") double minimumLead,
             @Value("${app.memory.context.maximum-score-drop:0.03}") double maximumScoreDrop,
             @Value("${app.memory.context.facet-minimum-score:0.80}") double facetMinimumScore,
+            @Value("${app.memory.context.reference-facet-minimum-score:0.76}")
+            double referenceFacetMinimumScore,
             @Value("${app.memory.context.facet-minimum-lead:0.01}") double facetMinimumLead,
             @Value("${app.memory.context.max-entries:12}") int maxEntries,
             @Value("${app.memory.context.max-characters:6000}") int maxCharacters
@@ -59,7 +61,7 @@ public class AutoMemoryVectorConfig {
                 recallPlanners.getIfAvailable(() -> AutoMemoryRecallPlanner.NONE),
                 new AutoMemoryContextSelector.SemanticPolicy(
                         minimumScore, minimumLead, maximumScoreDrop,
-                        facetMinimumScore, facetMinimumLead),
+                        facetMinimumScore, referenceFacetMinimumScore, facetMinimumLead),
                 new AutoMemoryContextSelector.Budget(maxEntries, maxCharacters));
     }
 

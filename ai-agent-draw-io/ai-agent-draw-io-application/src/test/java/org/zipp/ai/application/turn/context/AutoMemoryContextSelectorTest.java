@@ -300,6 +300,126 @@ class AutoMemoryContextSelectorTest {
     }
 
     @Test
+    void plannedFacetAcceptsARelevantCrossLanguageHitAboveTheFacetFloor() {
+        AutoMemory labels = memory(
+                "memory-labels", AutoMemoryScope.user("owner-1"),
+                "node-label-brevity", "Keep node labels short", 2);
+        AutoMemory unrelated = memory(
+                "memory-unrelated", AutoMemoryScope.user("owner-1"),
+                "alert-node-color", "Use coral alert nodes", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(labels, unrelated));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                (vectorQuery, topK) -> vectorQuery.userContent().equals("我平时使用的标签风格")
+                        ? List.of(
+                                new AutoMemoryVectorSearchHit(vectorId(labels), 0.787d),
+                                new AutoMemoryVectorSearchHit(vectorId(unrelated), 0.774d))
+                        : List.of(),
+                ignored -> List.of("我平时使用的标签风格", "我平时使用的告警颜色"),
+                new AutoMemoryContextSelector.SemanticPolicy(
+                        0.82d, 0.02d, 0.03d, 0.80d, 0.78d, 0.01d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-labels"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void plannedFacetsAssignDifferentDecisionKeysWhenOneCandidateTopsBoth() {
+        AutoMemory color = memory(
+                "memory-color", AutoMemoryScope.user("owner-1"),
+                "alarm-node-color", "Use coral orange alarm nodes", 2);
+        AutoMemory labels = memory(
+                "memory-labels", AutoMemoryScope.user("owner-1"),
+                "node-label-length", "Keep node labels short", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(color, labels));
+        AutoMemoryVectorSearchPort vectors = (vectorQuery, topK) -> switch (
+                vectorQuery.userContent()) {
+            case "my usual alarm node color" -> List.of(
+                    new AutoMemoryVectorSearchHit(vectorId(color), 0.845d),
+                    new AutoMemoryVectorSearchHit(vectorId(labels), 0.779d));
+            case "my usual alarm label style" -> List.of(
+                    new AutoMemoryVectorSearchHit(vectorId(color), 0.805d),
+                    new AutoMemoryVectorSearchHit(vectorId(labels), 0.768d));
+            default -> List.of();
+        };
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                ignored -> List.of(
+                        "my usual alarm node color", "my usual alarm label style"),
+                new AutoMemoryContextSelector.SemanticPolicy(
+                        0.82d, 0.02d, 0.03d, 0.80d, 0.76d, 0.01d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-color", "memory-labels"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void plannedFacetsPreserveAnExplicitReferenceFromTheOriginalRequest() {
+        AutoMemory color = memory(
+                "memory-color", AutoMemoryScope.user("owner-1"),
+                "alarm-node-color", "Use coral orange alarm nodes", 2);
+        AutoMemory labels = memory(
+                "memory-labels", AutoMemoryScope.user("owner-1"),
+                "node-label-length", "Keep node labels short", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(color, labels));
+        AutoMemoryVectorSearchPort vectors = (vectorQuery, topK) -> switch (
+                vectorQuery.userContent()) {
+            case "alert node color" -> List.of(
+                    new AutoMemoryVectorSearchHit(vectorId(color), 0.846d),
+                    new AutoMemoryVectorSearchHit(vectorId(labels), 0.764d));
+            case "alert node label style" -> List.of(
+                    new AutoMemoryVectorSearchHit(vectorId(color), 0.827d),
+                    new AutoMemoryVectorSearchHit(vectorId(labels), 0.788d));
+            default -> List.of();
+        };
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                ignored -> List.of("alert node color", "alert node label style"),
+                new AutoMemoryContextSelector.SemanticPolicy(
+                        0.82d, 0.02d, 0.03d, 0.80d, 0.76d, 0.01d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+        AutoMemoryContextQuery explicitQuery = new AutoMemoryContextQuery(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "book-1",
+                "沿用我平时的告警节点颜色与标签风格");
+
+        AutoMemoryContextSelection selected = selector.select(explicitQuery);
+
+        assertEquals(List.of("memory-color", "memory-labels"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void plannedOperationalFacetKeepsTheStrictFacetFloor() {
+        AutoMemory position = memory(
+                "memory-position", AutoMemoryScope.user("owner-1"),
+                "sender-position", "Keep senders on the left", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(position));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                (vectorQuery, topK) -> List.of(
+                        new AutoMemoryVectorSearchHit(vectorId(position), 0.79d)),
+                ignored -> List.of("move this node left", "export once"),
+                new AutoMemoryContextSelector.SemanticPolicy(
+                        0.82d, 0.02d, 0.03d, 0.80d, 0.78d, 0.01d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        assertTrue(selector.select(query()).empty());
+    }
+
+    @Test
     void plannedFacetDropsANearTieAcrossDifferentDecisionKeys() {
         AutoMemory first = memory(
                 "memory-first", AutoMemoryScope.user("owner-1"),

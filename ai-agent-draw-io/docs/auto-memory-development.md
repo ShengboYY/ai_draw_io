@@ -125,10 +125,21 @@ explicit current A    ──inference says B──> keep A regardless of count
 
 ## 5. Context 召回
 
-Context 只读取 ACTIVE Memory，并分别构造最多 8 条 Chartbook 与 8 条 User 记忆。查询使用
-`JSON_ARRAYAGG`，再在应用侧规范排序，避免 `GROUP_CONCAT` 长度截断和无序聚合导致 pin
-摘要不稳定。候选读取与 materialization 会复核版本和内容摘要；并发更新时重试，不把新版本
-悄悄代入旧 pin。
+Context 只读取 ACTIVE Memory。SQL baseline 提供确定性默认值和向量故障回退；可选 semantic
+链先由最多 3 个有界 facet 检索 CURRENT 投影，再一次性回到 MySQL 复核 owner、scope、状态、
+版本与正文。普通 facet 使用 `0.80` 下限，原始请求或 facet 明确引用既有记忆时使用 `0.76`；
+每个 facet 最多选择一个 winner，不同 facet 优先消费不同 `DecisionKey`，避免同一颜色 Memory
+占据“颜色”和“标签”两个意图。Chartbook 同键规则仍覆盖 User 规则。
+
+多意图 Planner V4 保留原语言，并为非英语 facet 附加简短英语等价表达，以适配当前
+`multilingual-e5-large` 的跨语言分布；原始请求中的“我平时 / my usual”等显式记忆语义会传递
+给拆分后的 facet，不能因为 Planner 精简措辞而丢失。向量投影只有同时通过 exact fetch 和 ANN
+query 可见性检查后才标记 `COMPLETED`，因此不会把“已写入但尚不可检索”的记录提前暴露给召回。
+
+最终选择分别构造最多 8 条 Chartbook 与 8 条 User 记忆，并受总条目和字符预算约束。SQL 查询
+使用 `JSON_ARRAYAGG`，再在应用侧规范排序，避免 `GROUP_CONCAT` 长度截断和无序聚合导致 pin
+摘要不稳定。候选读取与 materialization 会复核版本和内容摘要；首次执行把 Memory ID/version
+写入 Context read-set，重试只 materialize 已 pin 集合，不重新召回或悄悄代入新版本。
 
 Prompt 将 Chartbook 和 User 两组数据分别标识为不可执行的数据区。Semantic Router 和生成
 模型不能把 Memory 当作工具权限、事实证据或高于本轮指令的命令。
@@ -899,6 +910,27 @@ development-v2 与一次性 holdout 在实现前冻结于提交 `f31ed6e8`，并
 - [x] V1.8.2 最终后端 `mvn clean test` 共执行 2,065 项测试，0 failure、0 error；24 项按既有
   live/integration 开关跳过。holdout 已另行显式运行，本地 `amctx_*` Memory/Chartbook 清理计数
   均为 0，隔离 Pinecone vector 也在评估退出前删除并确认不可见。
+- [x] V1.8.3 修复 Pinecone 的“fetch 可见但 ANN 尚不可检索”窗口：投影 Worker 只有在 exact
+  fetch 与带同一 owner/scope/lifecycle filter 的 query 都能看见目标后才完成，否则保留 work 并
+  按原有退避重试；未增加新表、状态或第二套投影协议。
+- [x] Planner 升级为 V4 双语 facet，并保留独立属性边界；冻结 development 与 holdout 的
+  Planner accuracy、多意图覆盖、单意图 abstention 均为 100%，协议失败为 0。
+- [x] V1.8.4 增加按 `DecisionKey` 的 facet winner 分配，防止同一高分 Memory 占据多个独立意图；
+  普通 facet 继续使用 `0.80`，只有显式引用既有记忆的原始请求或 facet 使用 `0.76`，没有放宽
+  一次性操作和普通绘图请求。
+- [x] 固定实现后的 V2 holdout 达到 candidate recall、target recall、完整正例、Prompt precision
+  和 Prompt parity 100%，无关注入、负例误注入、forbidden、未授权与 disabled 选择均为 0。
+  最后一项“原始显式引用向拆分 facet 传播”修复不再使用 holdout 调参，以精确回归测试和真实 UI
+  盲测验收。
+- [x] 本地真实 UI → Planner → Pinecone → MySQL → Prompt → Draw.io 盲测完成：最终 Turn 为
+  `COMPLETED`，Context read-set 同时 pin 颜色与短标签两条 ACTIVE Memory；持久化画布包含支付库、
+  告警库和通知服务，使用珊瑚色系告警节点及短主标签。视觉审查仅提示无法从单张图独立证明
+  “是否符合历史偏好”，没有发现结构或连线故障。
+- [x] 盲测结束后删除两个隔离 Pinecone vector，清空测试 owner 的 Memory、Turn、Conversation、
+  Diagram 与 Agent trace，并把 demo counter 恢复到测试前的 3；复核计数均为 0。
+- [x] 最终后端 `mvn clean test` 共执行 2,071 项测试，0 failure、0 error、24 项按既有 live/
+  integration 开关跳过；前端相关组件测试 2/2、ESLint 0 error（4 个既有 warning）和生产构建已
+  通过。本阶段未向生产数据库或生产 Pinecone namespace 写入数据。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
@@ -916,8 +948,10 @@ V1.8 已分离多意图查询规划，并保持 semantic 与 multi-intent 两个
 因漏拆未通过；V1.8.1 的 V2 holdout 将多意图覆盖提升到 100%，但一次共享颜色决策过拆使
 abstention 门槛失败。V1.8.2 将 planned facet 改为前四候选、单次 MySQL 权威回查和每 facet 单
 winner，并通过新的冻结 holdout；但一次性局部操作仍可能误注入，且近似并列时选择保守放弃。
-semantic 与 multi-intent 开关因此继续默认关闭，应先随本地真实使用积累非合成样本，分别观察
-相关召回、近似并列 abstention 和局部操作误注入，不因早期受控测试通过而接入生产。目标环境迁移
+V1.8.3/1.8.4 已补齐 ANN readiness、双语 facet、跨 facet 决策维度分配和显式引用语义传递；
+冻结 holdout 与本地真实 UI 端到端均通过，但 semantic 与 multi-intent 开关仍继续默认关闭，应先
+随本地真实使用积累非合成样本，分别观察相关召回、近似并列 abstention 和局部操作误注入，不因
+早期受控测试通过而接入生产。目标环境迁移
 和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
 不执行生产变更。V1.6 完整质量观测按用户决定暂时跳过；V1.7 已完成 SQL 默认选择与可选 semantic
 Context 代码，semantic 开关仍默认及本地关闭，未使用合成结果替代真实注入质量证据。严格显式

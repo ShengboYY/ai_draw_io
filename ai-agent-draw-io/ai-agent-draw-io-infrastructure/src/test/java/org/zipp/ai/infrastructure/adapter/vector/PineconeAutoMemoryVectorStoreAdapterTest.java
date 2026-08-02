@@ -94,6 +94,27 @@ class PineconeAutoMemoryVectorStoreAdapterTest {
     }
 
     @Test
+    void projectionReadinessRequiresFilteredAnnVisibility() {
+        RecordingTransport transport = new RecordingTransport(objectMapper);
+        PineconeAutoMemoryVectorStoreAdapter adapter = adapter(transport);
+        AutoMemoryVectorDocument document = AutoMemoryVectorDocument.current(memory(), 7);
+        AutoMemoryVector vector = new AutoMemoryVector(document, new float[]{1F, 2F, 3F});
+        transport.queryResponse = "{\"matches\":[{\"id\":\""
+                + document.vectorId() + "\",\"score\":1.0}]}";
+
+        assertEquals(java.util.Set.of(document.vectorId()),
+                adapter.searchableVectorIds(List.of(vector)));
+
+        RecordedRequest request = transport.requests.get(0);
+        assertEquals("/query", request.uri().getPath());
+        assertTrue(request.body().contains("\"topK\":100"));
+        assertTrue(request.body().contains("memory_projection_revision"));
+        assertTrue(request.body().contains("DISABLED"));
+        assertFalse(request.body().contains("owner-1"));
+        assertFalse(request.body().contains("Prefer concise labels"));
+    }
+
+    @Test
     void memorySearchRanksProviderMatchesByDescendingScore() {
         RecordingTransport transport = new RecordingTransport(objectMapper);
         transport.queryResponse = "{\"matches\":["

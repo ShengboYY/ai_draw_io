@@ -717,6 +717,11 @@ class AutoMemoryRandomShadowLiveEvaluationTest {
         }
 
         @Override
+        public Set<String> searchableVectorIds(List<AutoMemoryVector> vectors) {
+            return delegate.searchableVectorIds(vectors);
+        }
+
+        @Override
         public void delete(List<String> vectorIds) {
             delegate.delete(vectorIds);
         }

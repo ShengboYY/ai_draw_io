@@ -80,6 +80,12 @@ public final class AutoMemoryVectorProjectionWorker {
                 throw new RetryableRetrievalException(
                         "Memory vector projection is not visible yet", Duration.ofSeconds(10));
             }
+            Set<String> searchable = vectors.searchableVectorIds(desired);
+            if (!searchable.containsAll(desiredVectorIds)) {
+                // Pinecone fetch can become visible before its ANN index accepts the same vector.
+                throw new RetryableRetrievalException(
+                        "Memory vector projection is not searchable yet", Duration.ofSeconds(10));
+            }
         }
 
         List<String> stale = lease.projectedVectorIds().stream()

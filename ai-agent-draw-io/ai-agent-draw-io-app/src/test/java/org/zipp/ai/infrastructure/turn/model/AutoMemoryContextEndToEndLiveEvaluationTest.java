@@ -140,7 +140,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                     recordingVectors,
                     planner,
                     new AutoMemoryContextSelector.SemanticPolicy(
-                            0.82d, 0.02d, 0.03d, 0.80d, 0.01d),
+                            0.82d, 0.02d, 0.03d, 0.80d, 0.76d, 0.01d),
                     new AutoMemoryContextSelector.Budget(12, 6_000));
             AutoMemoryContextSelector sqlSelector = new AutoMemoryContextSelector(
                     fixture.adapter(),
@@ -568,6 +568,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                 "minimumLead", 0.02d,
                 "maximumScoreDrop", 0.03d,
                 "facetMinimumScore", 0.80d,
+                "referenceFacetMinimumScore", 0.76d,
                 "facetMinimumLead", 0.01d));
         report.put("promptBudget", Map.of("maxEntries", 12, "maxCharacters", 6_000));
         report.put("gate", cohort.gate());

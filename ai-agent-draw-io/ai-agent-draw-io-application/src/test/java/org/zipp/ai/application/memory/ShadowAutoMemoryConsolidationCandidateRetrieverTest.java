@@ -116,6 +116,11 @@ class ShadowAutoMemoryConsolidationCandidateRetrieverTest {
         }
 
         @Override
+        public Set<String> searchableVectorIds(List<AutoMemoryVector> vectors) {
+            return Set.of();
+        }
+
+        @Override
         public void delete(List<String> vectorIds) {
         }
 

@@ -1,0 +1,37 @@
+创建工程或计算机论文风格的 FreeDraw 系统架构图，重点展示模块层级、数据流、接口关系以及各部分职责。
+
+图分为两个独立面板：
+
+A. 当前架构
+- 用户经 Cloudflare 和 ALB 访问系统。
+- ALB 将 `/` 路由到 Next.js ECS，将 `/api/v1/*` 路由到 Spring Boot ECS。
+- Next.js 集成 Draw.io，通过 REST / NDJSON 与后端通信。
+- Spring Boot 内部模块按 Trigger / API -> Application -> Domain -> Infrastructure 连接。
+- 同一后端进程承担 Turn Admission、本地执行、流式响应、Canvas Commit、RAG、Visual Review、Telemetry 与 Admin / Evaluation。
+- MySQL 保存权威元数据与最新 Canvas；S3 保存资料对象；Pinecone 保存向量投影。
+- Ingestion Worker 轮询 MySQL 持久化任务并写入 MySQL、S3 和 Pinecone。
+- LLM / VLM 与 SES 是外部服务。
+
+B. 推荐目标架构
+- Web API 只负责 Auth / CRUD、Turn Admission、状态查询与 Resumable SSE。
+- MySQL 保存 Turn Ledger、Append-only Event Log、Outbox、Job Queue、Diagram Metadata 与 Immutable Revision Metadata。
+- Turn Worker 领取持久化 Attempt，执行 Context / RAG -> Agent Runtime -> Canvas Engine -> Atomic Revision Commit。
+- Render / Review Worker 消费 Revision Event，生成规范 PNG，执行 Deterministic Check 与 VLM Review；最多产生一次 Bounded Repair Proposal。
+- Ingestion Worker 独立扩缩容。
+- S3 保存不可变 Canvas XML / PNG / Material Artifact；Pinecone 保存 Retrieval Projection。
+- Redis 仅用于 Spring Session、临时 Pub/Sub 加速和 Distributed Rate Limit；不能成为正确性事实源。
+
+必须保留的标签：
+Next.js + Draw.io、Spring Boot、Turn Admission、Turn Ledger、Turn Worker、Context / RAG、Agent Runtime、Canvas Engine、Immutable Revision、Render / Review Worker、MySQL、S3、Pinecone、LLM / VLM、REST / NDJSON、Resumable SSE。
+
+样式：
+- 白色背景，期刊论文式矢量架构图。
+- 蓝色实线表示同步产品链路。
+- 绿色虚线表示异步或事件链路。
+- 紫色表示 AI / Model Execution。
+- 金色表示 Quality / Review。
+- 灰色表示基础设施和外部系统。
+- 标签简短，中文为主，保留标准英文术语。
+- 左到右阅读，模块边界和箭头方向明确。
+- 不使用装饰性图标、渐变、阴影或大段文字。
+- 不添加任何未经支持的吞吐量、延迟或成本数字。

@@ -78,6 +78,28 @@ public final class PineconeAutoMemoryVectorStoreAdapter implements AutoMemoryVec
     }
 
     @Override
+    public Set<String> searchableVectorIds(List<AutoMemoryVector> vectors) {
+        if (vectors == null || vectors.isEmpty()) {
+            return Set.of();
+        }
+        java.util.HashSet<String> searchable = new java.util.HashSet<>();
+        for (AutoMemoryVector vector : List.copyOf(vectors)) {
+            AutoMemoryVectorDocument document = vector.document();
+            boolean found = client.queryMatches(
+                            namespace,
+                            vector.values(),
+                            100,
+                            exactMetadataFilter(document))
+                    .stream()
+                    .anyMatch(match -> document.vectorId().equals(match.id()));
+            if (found) {
+                searchable.add(document.vectorId());
+            }
+        }
+        return Set.copyOf(searchable);
+    }
+
+    @Override
     public void delete(List<String> vectorIds) {
         client.delete(namespace, vectorIds == null ? List.of() : List.copyOf(vectorIds));
     }
@@ -122,6 +144,16 @@ public final class PineconeAutoMemoryVectorStoreAdapter implements AutoMemoryVec
         metadata.put("memory_candidate_state", document.state().name());
         metadata.put("memory_projection_revision", document.projectionRevision());
         return Map.copyOf(metadata);
+    }
+
+    private Map<String, Object> exactMetadataFilter(AutoMemoryVectorDocument document) {
+        // Readiness uses the same opaque lifecycle metadata that production recall filters on.
+        List<Map<String, Object>> predicates = metadata(document).entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> Map.<String, Object>of(
+                        entry.getKey(), Map.of("$eq", entry.getValue())))
+                .toList();
+        return Map.of("$and", predicates);
     }
 
     private String ownerPartition(String ownerKey) {

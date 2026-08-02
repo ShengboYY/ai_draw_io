@@ -11,6 +11,9 @@ public interface AutoMemoryVectorStorePort extends AutoMemoryVectorSearchPort {
 
     Set<String> existingVectorIds(List<String> vectorIds);
 
+    /** Returns desired vectors that are visible through filtered ANN search, not only fetch. */
+    Set<String> searchableVectorIds(List<AutoMemoryVector> vectors);
+
     void delete(List<String> vectorIds);
 
     /** Compatibility bridge for the existing extraction/consolidation callers. */

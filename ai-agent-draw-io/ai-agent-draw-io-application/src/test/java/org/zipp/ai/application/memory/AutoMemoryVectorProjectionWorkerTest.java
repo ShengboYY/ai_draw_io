@@ -30,6 +30,7 @@ class AutoMemoryVectorProjectionWorkerTest {
                 List.of(current, challenger), Set.of(current.vectorId(), "stale-vector")));
         FakeVectors vectors = new FakeVectors();
         vectors.visible = Set.of(current.vectorId(), challenger.vectorId());
+        vectors.searchable = Set.of(current.vectorId(), challenger.vectorId());
 
         assertTrue(worker(work, vectors).runOnce("worker-1"));
 
@@ -74,12 +75,28 @@ class AutoMemoryVectorProjectionWorkerTest {
     }
 
     @Test
+    void fetchVisibilityDoesNotCompleteBeforeAnnSearchVisibility() {
+        AutoMemoryVectorDocument current = AutoMemoryVectorDocument.current(memory(), 4);
+        FakeWork work = new FakeWork(lease(List.of(current), Set.of()));
+        FakeVectors vectors = new FakeVectors();
+        vectors.visible = Set.of(current.vectorId());
+
+        assertTrue(worker(work, vectors).runOnce("worker-1"));
+
+        assertFalse(work.completed);
+        assertTrue(work.retried);
+        assertEquals(NOW.plusSeconds(10), work.retryAt);
+        assertTrue(vectors.deleted.isEmpty());
+    }
+
+    @Test
     void staleCompletionFenceDoesNotTurnNewerWorkIntoFailure() {
         AutoMemoryVectorDocument current = AutoMemoryVectorDocument.current(memory(), 4);
         FakeWork work = new FakeWork(lease(List.of(current), Set.of()));
         work.completeResult = false;
         FakeVectors vectors = new FakeVectors();
         vectors.visible = Set.of(current.vectorId());
+        vectors.searchable = Set.of(current.vectorId());
 
         assertTrue(worker(work, vectors).runOnce("worker-1"));
 
@@ -192,6 +209,7 @@ class AutoMemoryVectorProjectionWorkerTest {
         private final List<AutoMemoryVector> upserted = new ArrayList<>();
         private List<String> deleted = List.of();
         private Set<String> visible = Set.of();
+        private Set<String> searchable = Set.of();
 
         @Override
         public List<float[]> embedPassages(List<String> texts) {
@@ -207,6 +225,11 @@ class AutoMemoryVectorProjectionWorkerTest {
         @Override
         public Set<String> existingVectorIds(List<String> vectorIds) {
             return visible;
+        }
+
+        @Override
+        public Set<String> searchableVectorIds(List<AutoMemoryVector> vectors) {
+            return searchable;
         }
 
         @Override

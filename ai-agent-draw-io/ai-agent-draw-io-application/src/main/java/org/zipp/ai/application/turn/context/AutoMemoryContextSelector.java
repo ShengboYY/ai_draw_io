@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.regex.Pattern;
 
 /** Selects query-relevant Memory once and rebuilds only that pinned selection on retries. */
 public final class AutoMemoryContextSelector {
@@ -31,6 +32,10 @@ public final class AutoMemoryContextSelector {
     private static final int VECTOR_TOP_K = 16;
     private static final int MAX_PER_SCOPE = 8;
     private static final int MAX_SEMANTIC_COHORT = 4;
+    private static final Pattern EXPLICIT_MEMORY_REFERENCE = Pattern.compile(
+            "\\b(?:my usual|our usual|i usually|i normally|saved preference|remembered preference)\\b"
+                    + "|(?:我平时|我通常|我惯用|我的习惯|我的偏好|已保存(?:的)?偏好|记住(?:的)?偏好|記住(?:的)?偏好)",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
     private final AutoMemoryQueryPort memories;
     private final AutoMemoryContextHydrationPort hydration;
@@ -129,6 +134,8 @@ public final class AutoMemoryContextSelector {
         if (facets.isEmpty()) {
             return originalSemantic(query, 0);
         }
+        boolean explicitMemoryReference = EXPLICIT_MEMORY_REFERENCE
+                .matcher(query.userContent()).find();
         List<FacetCandidates> candidateGroups = new ArrayList<>(facets.size());
         int successfulQueries = 0;
         for (String facet : facets) {
@@ -137,7 +144,9 @@ public final class AutoMemoryContextSelector {
                         vectors.search(
                         AutoMemoryVectorSearchQuery.activeContext(
                                 query.turn(), query.chartbookId(), facet),
-                        VECTOR_TOP_K));
+                        VECTOR_TOP_K),
+                        explicitMemoryReference
+                                || EXPLICIT_MEMORY_REFERENCE.matcher(facet).find());
                 if (!candidates.isEmpty()) {
                     candidateGroups.add(new FacetCandidates(candidates));
                 }
@@ -193,10 +202,13 @@ public final class AutoMemoryContextSelector {
             Map<String, AutoMemory> byMemoryId = new HashMap<>();
             hydrated.forEach(memory -> byMemoryId.put(memory.memoryId(), memory));
             Map<String, AutoMemory> winners = new LinkedHashMap<>();
+            Set<DecisionKey> selectedKeys = new HashSet<>();
             for (FacetCandidates group : candidateGroups) {
-                AutoMemory winner = facetWinner(group, byMemoryId, query.chartbookId());
+                AutoMemory winner = facetWinner(
+                        group, byMemoryId, query.chartbookId(), selectedKeys);
                 if (winner != null) {
                     winners.putIfAbsent(winner.memoryId(), winner);
+                    selectedKeys.add(DecisionKey.from(winner));
                 }
             }
             return SemanticRecall.available(List.copyOf(winners.values()), hydrated);
@@ -209,13 +221,16 @@ public final class AutoMemoryContextSelector {
     private AutoMemory facetWinner(
             FacetCandidates group,
             Map<String, AutoMemory> byMemoryId,
-            String chartbookId
+            String chartbookId,
+            Set<DecisionKey> selectedKeys
     ) {
         List<HydratedCandidate> active = group.hits().stream()
                 .map(hit -> AutoMemoryVectorDocument.currentMemoryIdFromVectorId(hit.vectorId())
                         .map(byMemoryId::get)
                         .map(memory -> new HydratedCandidate(memory, hit.score())))
                 .flatMap(Optional::stream)
+                // Independent facets should consume independent decision dimensions.
+                .filter(candidate -> !selectedKeys.contains(DecisionKey.from(candidate.memory())))
                 .toList();
         if (active.isEmpty()) {
             return null;
@@ -376,6 +391,7 @@ public final class AutoMemoryContextSelector {
             double minimumLead,
             double maximumScoreDrop,
             double facetMinimumScore,
+            double referenceFacetMinimumScore,
             double facetMinimumLead
     ) {
         public SemanticPolicy {
@@ -383,10 +399,12 @@ public final class AutoMemoryContextSelector {
                     || !Double.isFinite(minimumLead)
                     || !Double.isFinite(maximumScoreDrop)
                     || !Double.isFinite(facetMinimumScore)
+                    || !Double.isFinite(referenceFacetMinimumScore)
                     || !Double.isFinite(facetMinimumLead)
                     || minimumLead < 0.0d
                     || maximumScoreDrop < 0.0d
-                    || facetMinimumLead < 0.0d) {
+                    || facetMinimumLead < 0.0d
+                    || referenceFacetMinimumScore > facetMinimumScore) {
                 throw new IllegalArgumentException("invalid semantic acceptance policy");
             }
         }
@@ -395,9 +413,21 @@ public final class AutoMemoryContextSelector {
                 double minimumScore,
                 double minimumLead,
                 double maximumScoreDrop,
+                double facetMinimumScore,
+                double facetMinimumLead
+        ) {
+            this(minimumScore, minimumLead, maximumScoreDrop,
+                    facetMinimumScore, facetMinimumScore, facetMinimumLead);
+        }
+
+        public SemanticPolicy(
+                double minimumScore,
+                double minimumLead,
+                double maximumScoreDrop,
                 double facetMinimumScore
         ) {
-            this(minimumScore, minimumLead, maximumScoreDrop, facetMinimumScore, 0.0d);
+            this(minimumScore, minimumLead, maximumScoreDrop,
+                    facetMinimumScore, facetMinimumScore, 0.0d);
         }
 
         public SemanticPolicy(
@@ -405,7 +435,8 @@ public final class AutoMemoryContextSelector {
                 double minimumLead,
                 double maximumScoreDrop
         ) {
-            this(minimumScore, minimumLead, maximumScoreDrop, minimumScore, 0.0d);
+            this(minimumScore, minimumLead, maximumScoreDrop,
+                    minimumScore, minimumScore, 0.0d);
         }
 
         public SemanticPolicy(double minimumScore, double minimumLead) {
@@ -426,11 +457,14 @@ public final class AutoMemoryContextSelector {
         }
 
         private List<AutoMemoryVectorSearchHit> facetCandidates(
-                List<AutoMemoryVectorSearchHit> ranked
+                List<AutoMemoryVectorSearchHit> ranked,
+                boolean explicitMemoryReference
         ) {
+            double scoreFloor = explicitMemoryReference
+                    ? referenceFacetMinimumScore : facetMinimumScore;
             return ranked.stream()
                     // This is a candidate-only floor; MySQL and one-winner selection run afterwards.
-                    .filter(hit -> hit.score() >= facetMinimumScore)
+                    .filter(hit -> hit.score() >= scoreFloor)
                     .limit(MAX_SEMANTIC_COHORT)
                     .toList();
         }

@@ -211,6 +211,9 @@ class ChatV2ModelAdapterTest {
         assertEquals(1, chat.createSessionCalls);
         assertTrue(chat.lastText.contains(AutoMemoryRecallPlanningProtocol.CONTRACT_VERSION));
         assertTrue(chat.lastText.contains("USER_REQUEST_DATA_JSON"));
+        assertTrue(chat.lastText.contains("several named properties"));
+        assertTrue(chat.lastText.contains("equivalent English retrieval phrase"));
+        assertTrue(chat.lastText.contains("must not be copied into another"));
     }
 
     @Test
