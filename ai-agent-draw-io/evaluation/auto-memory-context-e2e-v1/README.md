@@ -49,3 +49,22 @@ The holdout may run once after the harness and development decisions are committ
 used to alter the planner, vector thresholds, labels or gate and then be rerun. A synthetic pass
 still does not authorize production rollout; semantic and multi-intent flags remain default-off
 until local-real-request evidence is separately reviewed.
+
+## Development result
+
+The frozen development cohort ran once through the complete path on 2026-08-02 and passed its
+pre-registered gate:
+
+| Metric | Result |
+|---|---:|
+| Target recall in final Prompt | 90.9% |
+| Complete positive Case rate | 85.7% |
+| Prompt precision | 100% |
+| Irrelevant / negative injection | 0% / 0% |
+| Forbidden / unauthorized / disabled selection | 0% / 0 / 0 |
+| Selected-to-Prompt parity | 100% |
+| SQL-only target recall | 0% |
+
+The one incomplete Case was the Chinese Chartbook request for horizontal async lanes plus a
+triangular Pager node. The planner produced both correct facets, but the existing vector acceptance
+policy retained only the Pager Memory. No threshold or prompt was changed after this result.
