@@ -1,10 +1,10 @@
 # V1.7.2 Memory Context V3 pre-registration
 
-## Status before the first V3 run
+## Pre-registered status
 
-The V3 holdout has not been queried. Its labels, quality gate and SHA-256 were frozen with the
-development-v2 cohort in commit `22ce4202`, before the V1.7.2 acceptance policy was implemented.
-V1 and V2 were not reused for parameter selection.
+Before the first V3 query, its labels, quality gate and SHA-256 were frozen with the development-v2
+cohort in commit `22ce4202`, before the V1.7.2 acceptance policy was implemented. V1 and V2 were not
+reused for parameter selection.
 
 ## Frozen data
 
@@ -44,3 +44,10 @@ V3 is a one-pass release gate. Regardless of its outcome, its result must not be
 policy and rerun the same holdout. Inputs remain synthetic, the evaluator writes no business/MySQL
 data and calls no DeepSeek model. Pinecone data must use an isolated namespace containing `eval` and
 must be deleted and verified absent in the evaluator's `finally` block.
+
+## First-run outcome
+
+The one permitted V3 run was completed on 2026-08-02 against the frozen policy. It did not pass:
+all gates passed except irrelevant selection rate, which was 30% against the pre-registered 25%
+maximum. The policy was not changed and V3 was not rerun. Full evidence and interpretation are in
+`results/2026-08-02-confidence-gated-multilingual-e5-large.md`.
