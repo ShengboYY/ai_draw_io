@@ -846,7 +846,7 @@ V1.8。
   合并后单次 MySQL 权威回查，以及 Planner/部分向量故障的有界回退；未修改 V1.7.3 阈值。
 - [x] V1.8 development 首次运行 10/10 通过：Case accuracy、多意图覆盖和单意图 abstention
   均为 100%，协议失败为 0；冻结 holdout 尚未运行。
-- [x] V1.8 实现提交前完整后端 `mvn test` 共执行 2,052 项测试，0 failure、0 error；23 项按
+- [x] V1.8 实现提交前完整后端 `mvn test` 共执行 2,053 项测试，0 failure、0 error；23 项按
   既有 live/integration 开关跳过，development live gate 已另行显式运行通过。
 - [x] V1.8 唯一一次 V1 holdout 未通过：Case accuracy 80%、多意图覆盖 66.67%、单意图
   abstention 100%、协议失败 0；失败报告保留且 V1 不重跑。
