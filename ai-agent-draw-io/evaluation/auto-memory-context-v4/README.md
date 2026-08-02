@@ -49,3 +49,10 @@ evaluator uses only synthetic text, performs zero DeepSeek calls and zero MySQL/
 and must use an isolated Pinecone namespace containing `eval`. Every vector ID is deleted and
 verified absent in `finally`. Semantic Memory Context remains disabled regardless of a synthetic
 pass until a separately authorized local-real-data stage is completed.
+
+## First-run outcome
+
+The only permitted V4 run completed on 2026-08-02 and did not pass. Candidate precision and
+abstention passed cleanly, but Recall@3/12, recall lift and positive-case hit rate missed their
+pre-registered gates. The policy was not changed and V4 was not rerun. Full evidence is recorded in
+`results/2026-08-02-relative-cohort-multilingual-e5-large.md`.
