@@ -7,7 +7,7 @@ const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)
 
 test('case studio exposes qualification lifecycle and only publishes an approved case', () => {
   const list = read('../src/app/admin/eval-cases/page.tsx');
-  const studio = read('../src/app/admin/eval-cases/[workingCopyId]/page.tsx');
+  const studio = read('../src/app/admin/eval-cases/details/page.tsx');
   assert.match(list, /adminListEvalCaseWorkingCopies/);
   assert.match(list, /New case/);
   assert.match(list, /visiblePublished/);

@@ -1,6 +1,9 @@
 # AWS 部署说明
 
-这套部署文件面向一个稳妥的生产起步方案：前端 Next.js 和后端 Spring Boot 都跑在 ECS Fargate，数据库使用私有 RDS MySQL，敏感配置放 Secrets Manager，入口由 ALB 统一提供 HTTPS。
+当前生产目标是低成本拆分架构：Next.js 静态导出放在私有 S3 并由 CloudFront
+分发；后端 Spring Boot 保留在 ECS Fargate，通过同任务内的 Cloudflare Tunnel
+sidecar 提供入口；数据库继续使用私有 RDS MySQL。旧的前端 ECS 和 ALB 仅在首次
+切换测试通过前作为回滚路径保留。
 
 ## 文件说明
 
@@ -12,23 +15,30 @@
 - `deploy/aws/env/*.example`: 本地或 ECS 环境变量模板。
 - `deploy/aws/ecs/*.example.json`: ECS Fargate task definition 示例。
 - `deploy/aws/database/`: 经过本地旧生产基线验证的专用 migration image、顺序清单和运行手册。
+- `deploy/aws/static-site/`: 私有 S3、CloudFront、Cloudflare Tunnel 和全自动部署说明。
+- `deploy/aws/iam/github-deployer-policy.json`: 后端、migration 和成本调度所需的最小 GitHub 部署权限。
 - `deploy/aws/docker-compose.prod.example.yml`: 本地生产化 smoke test 示例。
 
 ## 推荐架构
 
 ```text
-Route 53
-  -> ALB HTTPS 443 + ACM certificate + AWS WAF
-      /api/v1/*  -> backend ECS service: 8091
-      /*         -> frontend ECS service: 3000
-backend ECS service
+Cloudflare DNS
+  -> freedrawai.com / www -> CloudFront -> private S3 static export
+  -> api.freedrawai.com -> Cloudflare Tunnel -> backend ECS service: 8091
+backend ECS task
+  -> essential cloudflared sidecar, outbound only
   -> RDS MySQL in private subnets
   -> Secrets Manager for API keys, DB password, encryption key
 CloudWatch
-  -> ECS logs, ALB metrics, alarms
+  -> ECS and Tunnel logs
 ```
 
-优先使用同一个域名，例如 `https://draw.example.com`。前端设置 `NEXT_PUBLIC_API_BASE_URL=/api/v1`，这样 Cookie、CSRF、CORS 都更简单。
+生产前端使用 `https://freedrawai.com`，API 使用
+`https://api.freedrawai.com/api/v1`。后端 CORS 只允许根域名与 `www`，并继续
+使用 Secure session Cookie 和 CSRF token。
+
+> 下方 ALB/ECS 前端章节保留为旧架构回滚参考。新部署和切换步骤以
+> `deploy/aws/static-site/README.md` 为准。
 
 ## 上线前必须确认
 

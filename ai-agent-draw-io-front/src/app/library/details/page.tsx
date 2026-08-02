@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { API_CONFIG } from '@/config/api-config';
 import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
 import { createMaterialClient } from '@/api/material';
@@ -13,10 +13,9 @@ import type { MaterialCapabilities, MaterialCatalogDetails, MaterialPageSet } fr
 
 const idempotencyKey = () => globalThis.crypto.randomUUID();
 
-export default function MaterialDetailsPage() {
-  const params = useParams<{ materialId: string }>();
+function MaterialDetailsContent() {
   const router = useRouter();
-  const materialId = params.materialId;
+  const materialId = useSearchParams().get('materialId') || '';
   const materialClient = useMemo(() => createMaterialClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const capabilitiesClient = useMemo(() => createMaterialCapabilitiesClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const [capabilities, setCapabilities] = useState<MaterialCapabilities | null>(null);
@@ -146,5 +145,13 @@ export default function MaterialDetailsPage() {
         </section>
       </div>}
     </div></main>
+  );
+}
+
+export default function MaterialDetailsPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-stone-50" />}>
+      <MaterialDetailsContent />
+    </Suspense>
   );
 }

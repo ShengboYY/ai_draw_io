@@ -931,6 +931,10 @@ development-v2 与一次性 holdout 在实现前冻结于提交 `f31ed6e8`，并
 - [x] 最终后端 `mvn clean test` 共执行 2,071 项测试，0 failure、0 error、24 项按既有 live/
   integration 开关跳过；前端相关组件测试 2/2、ESLint 0 error（4 个既有 warning）和生产构建已
   通过。本阶段未向生产数据库或生产 Pinecone namespace 写入数据。
+- [x] PR 合并前同步最新 `main`：Auto Memory 页面保留新管理模型，并适配静态导出的
+  `/chartbooks/memory?chartbookId=...` 路由与 `Suspense`；旧 Confirmed Memory Proposal Writer
+  及其临时关闭开关测试继续删除。冲突解决后 Memory 页面测试、ESLint、29 页静态生产构建和
+  2,071 项后端回归再次通过。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地

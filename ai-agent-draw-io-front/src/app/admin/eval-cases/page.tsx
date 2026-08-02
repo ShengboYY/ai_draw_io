@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
+import { evalCaseDetailsHref } from '@/utils/app-routes';
 import type { EvalCaseWorkingCopyDTO, EvaluationTarget, PublishedEvalCaseDTO } from '@/types/api';
 import { AdminShell } from '../admin-shell';
 import { EvaluationWorkspace } from '../evaluation-workspace';
@@ -48,7 +49,7 @@ export default function AdminEvalCasesPage() {
   const submitClone = () => {
     if (!cloneSource || !cloneDraft.caseId.trim() || !cloneDraft.caseVersion.trim()) return;
     agentApi.adminClonePublishedEvalCase(cloneSource.caseId, cloneSource.caseVersion, cloneDraft.caseId.trim(), cloneDraft.caseVersion.trim())
-      .then(({ data }) => router.push(`/admin/eval-cases/${encodeURIComponent(data.id)}`))
+      .then(({ data }) => router.push(evalCaseDetailsHref(data.id)))
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'Clone failed'));
   };
 
@@ -118,7 +119,7 @@ export default function AdminEvalCasesPage() {
           {visibleCases.map((item) => (
             <Link
               key={item.id}
-              href={`/admin/eval-cases/${encodeURIComponent(item.id)}`}
+              href={evalCaseDetailsHref(item.id)}
               className="flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-sm transition hover:border-zinc-400"
             >
               <div className="min-w-0">
