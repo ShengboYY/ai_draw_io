@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "AUTO_MEMORY_CONTEXT_E2E_CASES_V2",
+  "datasetVersion": "auto-memory-context-e2e-v2",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "one-shot-holdout-no-tuning",
+  "qualityGate": {
+    "minimumCandidateRecallAt4": 0.9,
+    "minimumTargetRecall": 0.8,
+    "minimumCompletePositiveCaseRate": 0.75,
+    "minimumPromptPrecision": 0.85,
+    "maximumIrrelevantInjectionRate": 0.15,
+    "maximumNegativeCaseInjectionRate": 0.25,
+    "maximumForbiddenSelectionRate": 0.0,
+    "maximumUnauthorizedSelectionCount": 0,
+    "maximumDisabledSelectionCount": 0,
+    "minimumPromptParityRate": 1.0
+  },
+  "targets": [
+    {"id":"e2eh2-u-ingress-diamond","scope":"USER","semanticKey":"ingress-node-shape","title":"Ingress shape","canonicalText":"Render ingress nodes as diamonds"},
+    {"id":"e2eh2-u-audit-double","scope":"USER","semanticKey":"audit-edge-pattern","title":"Audit edge pattern","canonicalText":"Render audit edges as double lines"},
+    {"id":"e2eh2-b-cron-top","scope":"CHARTBOOK","semanticKey":"cron-lane-position","title":"Cron lane position","canonicalText":"Place cron lanes at the top"},
+    {"id":"e2eh2-b-incident-coral","scope":"CHARTBOOK","semanticKey":"incident-node-color","title":"Incident node color","canonicalText":"Fill incident nodes with coral"},
+    {"id":"e2eh2-b-producer-left","scope":"CHARTBOOK","semanticKey":"producer-node-position","title":"Producer position","canonicalText":"Place producer nodes on the left"},
+    {"id":"e2eh2-b-consumer-right","scope":"CHARTBOOK","semanticKey":"consumer-node-position","title":"Consumer position","canonicalText":"Place consumer nodes on the right"},
+    {"id":"e2eh2-u-tablet-captions","scope":"USER","semanticKey":"tablet-caption-visibility","title":"Tablet caption visibility","canonicalText":"Hide captions on tablet diagrams"},
+    {"id":"e2eh2-u-widescreen-gaps","scope":"USER","semanticKey":"widescreen-node-spacing","title":"Widescreen node spacing","canonicalText":"Increase node gaps on widescreen diagrams"},
+    {"id":"e2eh2-u-storage-checker","scope":"USER","semanticKey":"storage-node-pattern","title":"Storage node pattern","canonicalText":"Use a checker pattern on storage nodes"},
+    {"id":"e2eh2-u-warning-bronze","scope":"USER","semanticKey":"warning-node-color","title":"Global warning color","canonicalText":"Use bronze warning nodes"},
+    {"id":"e2eh2-b-warning-plum","scope":"CHARTBOOK","semanticKey":"warning-node-color","title":"Chartbook warning color","canonicalText":"Use plum warning nodes"}
+  ],
+  "noise": [
+    {"semanticKey":"api-node-color","title":"API color","canonicalText":"Fill API nodes with mint"},
+    {"semanticKey":"worker-node-shape","title":"Worker shape","canonicalText":"Render worker nodes as circles"},
+    {"semanticKey":"legend-border-weight","title":"Legend border weight","canonicalText":"Use thin borders around legends"},
+    {"semanticKey":"database-label-font","title":"Database label font","canonicalText":"Use monospace database labels"},
+    {"semanticKey":"cache-lane-position","title":"Cache lane position","canonicalText":"Place cache lanes above services"},
+    {"semanticKey":"approval-node-color","title":"Approval color","canonicalText":"Fill approval nodes with green"},
+    {"semanticKey":"error-edge-pattern","title":"Error edge pattern","canonicalText":"Render error edges as dashed lines"},
+    {"semanticKey":"client-node-position","title":"Client position","canonicalText":"Place client nodes at the bottom"},
+    {"semanticKey":"note-node-color","title":"Note color","canonicalText":"Fill note nodes with cream"},
+    {"semanticKey":"queue-border-weight","title":"Queue border weight","canonicalText":"Use heavy borders for queue nodes"},
+    {"semanticKey":"owner-badge-color","title":"Owner badge color","canonicalText":"Use magenta owner badges"},
+    {"semanticKey":"footer-font-weight","title":"Footer font weight","canonicalText":"Use light footer text"}
+  ],
+  "cases": [
+    {"id":"e2eh2-multi-user","queryText":"Make ingress nodes diamond-shaped whereas audit paths use double lines.","chartbookContext":false,"expectedRelevantIds":["e2eh2-u-ingress-diamond","e2eh2-u-audit-double"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh2-multi-chartbook","queryText":"当前画册让定时任务泳道位于顶部，另外把事故节点画成珊瑚色。","chartbookContext":true,"expectedRelevantIds":["e2eh2-b-cron-top","e2eh2-b-incident-coral"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh2-delimited-position","queryText":"Producers stay on the left; consumers stay on the right.","chartbookContext":true,"expectedRelevantIds":["e2eh2-b-producer-left","e2eh2-b-consumer-right"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh2-negative-positive","queryText":"Do not show tablet captions, but increase node gaps on widescreen diagrams.","chartbookContext":false,"expectedRelevantIds":["e2eh2-u-tablet-captions","e2eh2-u-widescreen-gaps"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh2-single-pattern","queryText":"Storage nodes should keep their checkerboard pattern.","chartbookContext":false,"expectedRelevantIds":["e2eh2-u-storage-checker"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh2-chartbook-override","queryText":"Use the current chartbook warning-node color.","chartbookContext":true,"expectedRelevantIds":["e2eh2-b-warning-plum"],"forbiddenSelectedIds":["e2eh2-u-warning-bronze"]},
+    {"id":"e2eh2-negative-delimited-operation","queryText":"Resize this box once; move its label upward.","chartbookContext":true,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2eh2-negative-history","queryText":"What did I ask in the immediately previous turn?","chartbookContext":false,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2eh2-negative-source-question","queryText":"Read the attached forecast and tell me next month's revenue.","chartbookContext":true,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2eh2-negative-greeting","queryText":"Hi there, are you ready?","chartbookContext":false,"expectedRelevantIds":[],"forbiddenSelectedIds":[]}
+  ]
+}
