@@ -564,6 +564,14 @@ V1.5 不等待不足的生产样本，但也不把 V1.4-E 的合成结果解释�
    不被 canary 吞掉。该路径不增加 DeepSeek 调用次数，只改变一次既有提取调用看到的候选集合。
 5. `shadow` 与 `canary` 同时设置时由 canary 明确优先，避免创建两个候选读取器；生产启用条件仍需
    本地真实 Turn 样本证明召回收益、错误归并没有恶化，并另行获得发布授权。
+6. 本地端到端验收使用 schema-only 隔离数据库、独立 Pinecone namespace 和纯合成账号。18 条
+   合成 Memory 中，目标被故意放在 SQL 最近 16 条窗口之外；真实 UI Turn 经
+   Turn → DeepSeek V4 Pro → consolidation 后准确复用该目标，Memory 总数保持 18，证明候选来自
+   向量命中后的 MySQL 权威回查，而不是 SQL 时间窗口或新建重复项。
+7. 将 Pinecone endpoint 临时指向不可连接的本地端口后，第二个真实 Turn 的 extraction 仍为
+   `COMPLETED`，同一目标 Evidence 从 1 增至 2、Item 总数不变；投影任务同时保留明确的向量连接
+   错误，证明 SQL fallback 生效而不是向量请求意外成功。验收后 18 个向量 tombstone 全部完成、
+   manifest 归零，隔离数据库已删除，本地 projection/canary 开关恢复为关闭。
 
 V1.4 的真实业务分布验证没有被标记为完成，只是从 V1.5 代码实现的前置条件改为后续生产门禁。
 
@@ -681,14 +689,19 @@ V1.4 的真实业务分布验证没有被标记为完成，只是从 V1.5 代码
 - [x] V1.5 定向 20 项行为和 Spring composition 测试通过，覆盖优先级、去重、总量上限、两类
   向量故障回退、SQL 故障可见性以及开关组合；完整后端 `mvn test` 共执行 2,022 项测试，
   0 failure、0 error，20 项按既有 live/integration 开关跳过。
+- [x] 在 schema-only 隔离 MySQL、独立 Pinecone namespace 和合成账号上完成 V1.5 浏览器端真实
+  Turn 验收：SQL 最近窗口刻意排除目标时，向量候选仍被 DeepSeek 精确复用，未生成重复 Memory。
+- [x] 使用不可连接的本地 Pinecone endpoint 验证运行时降级：extraction 正常完成、同一 Item
+  Evidence 累加，向量投影独立报错；随后删除全部合成向量和隔离数据库，并恢复本地安全开关。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
 Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已验证。feature flag 仍保持
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
 V1.4-E 的投影、权威回查、真实 Pinecone cohort、随机 shadow 和报告均已完成；V1.5 canary
-代码已就绪，但三个相关开关仍保持默认关闭，普通 Worker 继续只使用 MySQL。下一步是在本地实际
-Turn 中显式开启 canary，比较归并质量并积累长期样本，不接入生产。目标环境迁移和
-shadow/canary 仍需按第 7 节另行准备，未经用户授权不执行生产变更。严格显式
+代码和隔离环境端到端验收均已完成，向量召回与 SQL 故障回退通过，但三个相关开关仍保持默认及
+本地关闭，普通 Worker 继续只使用 MySQL。下一步是随本地真实使用积累非合成样本并比较错误归并，
+不因本次受控通过而接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
+不执行生产变更。严格显式
 句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
 阻塞 Pro 上线。
