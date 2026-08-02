@@ -55,12 +55,13 @@ public class AutoMemoryApplicationCompositionConfig {
     @ConditionalOnExpression(
             "${app.memory.auto-enabled:false} && "
                     + "(!${app.memory.vector.projection-enabled:false} "
-                    + "|| !${app.memory.vector.shadow-enabled:false})")
+                    + "|| (!${app.memory.vector.shadow-enabled:false} "
+                    + "&& !${app.memory.vector.canary-enabled:false}))")
     @ConditionalOnMissingBean(AutoMemoryConsolidationCandidateRetriever.class)
     public AutoMemoryConsolidationCandidateRetriever autoMemoryConsolidationCandidateRetriever(
             AutoMemoryQueryPort memories
     ) {
-        // Keep deterministic SQL retrieval until a semantic adapter explicitly replaces this bean.
+        // Keep deterministic SQL retrieval until an enabled vector mode explicitly replaces it.
         return new ScopedAutoMemoryConsolidationCandidateRetriever(memories);
     }
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -15,6 +16,7 @@ import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorker;
 import org.zipp.ai.application.memory.AutoMemoryVectorShadowTelemetry;
 import org.zipp.ai.application.memory.AutoMemoryVectorStorePort;
+import org.zipp.ai.application.memory.CanaryAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.ScopedAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.ShadowAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeAutoMemoryVectorStoreAdapter;
@@ -23,7 +25,7 @@ import org.zipp.ai.infrastructure.adapter.telemetry.AutoMemoryVectorShadowMetric
 
 import java.time.Clock;
 
-/** Opt-in Memory vector projection and shadow retrieval; neither can change SQL candidates. */
+/** Opt-in Memory vector projection with shadow and local canary retrieval modes. */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(
         name = {"app.memory.auto-enabled", "app.memory.vector.projection-enabled"},
@@ -77,7 +79,9 @@ public class AutoMemoryVectorConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "app.memory.vector.shadow-enabled", havingValue = "true")
+    @ConditionalOnExpression(
+            "${app.memory.vector.shadow-enabled:false} "
+                    + "&& !${app.memory.vector.canary-enabled:false}")
     @ConditionalOnMissingBean(AutoMemoryConsolidationCandidateRetriever.class)
     public AutoMemoryConsolidationCandidateRetriever shadowAutoMemoryCandidateRetriever(
             AutoMemoryQueryPort memories,
@@ -90,5 +94,19 @@ public class AutoMemoryVectorConfig {
                 vectors,
                 hydration,
                 telemetry);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "app.memory.vector.canary-enabled", havingValue = "true")
+    @ConditionalOnMissingBean(AutoMemoryConsolidationCandidateRetriever.class)
+    public AutoMemoryConsolidationCandidateRetriever canaryAutoMemoryCandidateRetriever(
+            AutoMemoryQueryPort memories,
+            AutoMemoryVectorStorePort vectors,
+            AutoMemoryVectorCandidateHydrationPort hydration
+    ) {
+        return new CanaryAutoMemoryConsolidationCandidateRetriever(
+                new ScopedAutoMemoryConsolidationCandidateRetriever(memories),
+                vectors,
+                hydration);
     }
 }

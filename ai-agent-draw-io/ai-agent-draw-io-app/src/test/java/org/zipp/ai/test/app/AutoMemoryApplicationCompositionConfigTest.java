@@ -20,6 +20,7 @@ import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorCandidateHydrationPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
+import org.zipp.ai.application.memory.CanaryAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.ShadowAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.config.AutoMemoryApplicationCompositionConfig;
 import org.zipp.ai.config.AutoMemoryExtractionJob;
@@ -81,6 +82,16 @@ class AutoMemoryApplicationCompositionConfigTest {
     }
 
     @Test
+    void canaryFlagWithoutProjectionKeepsTheSqlRetriever() {
+        contextRunner.withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.vector.canary-enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .hasSingleBean(AutoMemoryExtractionWorker.class));
+    }
+
+    @Test
     void projectionAndShadowReplaceOnlyTheSqlCandidateReader() {
         contextRunner.withUserConfiguration(AutoMemoryVectorConfig.class)
                 .withPropertyValues(
@@ -96,6 +107,24 @@ class AutoMemoryApplicationCompositionConfigTest {
                         .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
                         .getBean(AutoMemoryConsolidationCandidateRetriever.class)
                         .isInstanceOf(ShadowAutoMemoryConsolidationCandidateRetriever.class));
+    }
+
+    @Test
+    void projectionAndCanaryReplaceOnlyTheSqlCandidateReader() {
+        contextRunner.withUserConfiguration(AutoMemoryVectorConfig.class)
+                .withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.vector.projection-enabled=true",
+                        "app.memory.vector.canary-enabled=true",
+                        "app.memory.vector.pinecone.api-key=test-key",
+                        "app.memory.vector.pinecone.index-host=https://memory-index.example",
+                        "app.memory.vector.pinecone.embedding-model=multilingual-e5-large",
+                        "app.memory.vector.pinecone.dimension=3",
+                        "app.memory.vector.pinecone.partition-secret=test-secret")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .getBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .isInstanceOf(CanaryAutoMemoryConsolidationCandidateRetriever.class));
     }
 
     @Test

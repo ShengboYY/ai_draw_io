@@ -56,9 +56,10 @@ app:
     aging-delay-ms: ${AUTO_MEMORY_AGING_DELAY_MS:3600000}
     aging-batch-size: ${AUTO_MEMORY_AGING_BATCH_SIZE:100}
     vector:
-      # Requires the 20260816 outbox migration; shadow mode never replaces SQL candidates.
+      # Requires the 20260816 outbox migration; canary changes candidates and is local-only in V1.5.
       projection-enabled: ${AUTO_MEMORY_VECTOR_PROJECTION_ENABLED:false}
       shadow-enabled: ${AUTO_MEMORY_VECTOR_SHADOW_ENABLED:false}
+      canary-enabled: ${AUTO_MEMORY_VECTOR_CANARY_ENABLED:false}
       worker-delay-ms: ${AUTO_MEMORY_VECTOR_WORKER_DELAY_MS:5000}
       worker-batch-size: ${AUTO_MEMORY_VECTOR_WORKER_BATCH_SIZE:10}
       pinecone:

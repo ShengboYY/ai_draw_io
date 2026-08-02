@@ -14,6 +14,7 @@ import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorker;
 import org.zipp.ai.application.memory.AutoMemoryVectorShadowTelemetry;
 import org.zipp.ai.application.memory.AutoMemoryVectorStorePort;
+import org.zipp.ai.application.memory.CanaryAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.ShadowAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.config.AutoMemoryVectorConfig;
 import org.zipp.ai.config.AutoMemoryVectorProjectionJob;
@@ -62,6 +63,31 @@ class AutoMemoryVectorConfigTest {
                         .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
                         .getBean(AutoMemoryConsolidationCandidateRetriever.class)
                         .isInstanceOf(ShadowAutoMemoryConsolidationCandidateRetriever.class));
+    }
+
+    @Test
+    void canaryOptInAddsVectorFirstSqlFallbackRetriever() {
+        contextRunner.withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.vector.projection-enabled=true",
+                        "app.memory.vector.canary-enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .getBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .isInstanceOf(CanaryAutoMemoryConsolidationCandidateRetriever.class));
+    }
+
+    @Test
+    void canaryTakesPrecedenceWhenBothRetrievalFlagsAreSet() {
+        contextRunner.withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.vector.projection-enabled=true",
+                        "app.memory.vector.shadow-enabled=true",
+                        "app.memory.vector.canary-enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .getBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .isInstanceOf(CanaryAutoMemoryConsolidationCandidateRetriever.class));
     }
 
     @TestConfiguration(proxyBeanMethods = false)

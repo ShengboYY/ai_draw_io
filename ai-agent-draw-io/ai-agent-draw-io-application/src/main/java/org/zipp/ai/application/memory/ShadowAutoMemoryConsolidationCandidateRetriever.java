@@ -7,8 +7,7 @@ import java.util.Objects;
 public final class ShadowAutoMemoryConsolidationCandidateRetriever
         implements AutoMemoryConsolidationCandidateRetriever {
     private final AutoMemoryConsolidationCandidateRetriever sql;
-    private final AutoMemoryVectorStorePort vectors;
-    private final AutoMemoryVectorCandidateHydrationPort hydration;
+    private final HydratedAutoMemoryVectorCandidateRetriever semantic;
     private final AutoMemoryVectorShadowTelemetry telemetry;
 
     public ShadowAutoMemoryConsolidationCandidateRetriever(
@@ -18,8 +17,7 @@ public final class ShadowAutoMemoryConsolidationCandidateRetriever
             AutoMemoryVectorShadowTelemetry telemetry
     ) {
         this.sql = Objects.requireNonNull(sql, "sql");
-        this.vectors = Objects.requireNonNull(vectors, "vectors");
-        this.hydration = Objects.requireNonNull(hydration, "hydration");
+        this.semantic = new HydratedAutoMemoryVectorCandidateRetriever(vectors, hydration);
         this.telemetry = Objects.requireNonNull(telemetry, "telemetry");
     }
 
@@ -27,18 +25,17 @@ public final class ShadowAutoMemoryConsolidationCandidateRetriever
     public List<AutoMemoryExtractionCandidate> retrieve(AutoMemoryConsolidationQuery query) {
         List<AutoMemoryExtractionCandidate> authoritative = sql.retrieve(query);
         try {
-            List<String> vectorIds = vectors.search(
+            HydratedAutoMemoryVectorCandidateRetriever.Result vectorResult = semantic.retrieve(
                     query,
                     Math.min(
                             AutoMemoryExtractionInput.MAX_EXISTING_CANDIDATES,
                             query.authorizedScopes().size() * query.limitPerScope()));
-            List<AutoMemoryExtractionCandidate> hydrated = hydration.hydrate(query, vectorIds);
-            long overlap = hydrated.stream().filter(authoritative::contains).count();
+            long overlap = vectorResult.candidates().stream().filter(authoritative::contains).count();
             recordSafely(new AutoMemoryVectorShadowTelemetry.Sample(
                     true,
                     authoritative.size(),
-                    vectorIds.size(),
-                    hydrated.size(),
+                    vectorResult.vectorHitCount(),
+                    vectorResult.candidates().size(),
                     Math.toIntExact(overlap)));
         } catch (RuntimeException ignored) {
             recordSafely(new AutoMemoryVectorShadowTelemetry.Sample(

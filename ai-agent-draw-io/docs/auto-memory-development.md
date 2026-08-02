@@ -10,8 +10,9 @@
 
 Canvas State、Chartbook Profile、RAG 继续作为独立上下文源，不并入 Memory。运行时不再存在
 Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-E 已验证默认关闭的
-Memory 向量影子检索、MySQL 权威回查和可复现随机 shadow，但不会改变 Worker 实际使用的
-SQL 候选。
+Memory 向量影子检索、MySQL 权威回查和可复现随机 shadow。V1.5 增加默认关闭、仅供本地验证的
+canary 模式；普通运行仍使用 SQL 候选，只有显式开启 canary 时才允许回查后的向量候选进入
+Worker。
 
 ## 2. 边界与优先级
 
@@ -543,10 +544,30 @@ seed `20260802` 的 32 个 Turn 结果：SQL 真值召回 `0%`（由上述压力
 
 - `evaluation/auto-memory-retrieval-v2/results/2026-08-02-random-shadow-seed-20260802.json`
 
-这仍是有真值的受控压力分布，不能冒充真实用户流量。下一步才是本地实际 Turn 的长期采样；在
-有足够样本前，向量候选仍不进入 DeepSeek Prompt。
+这仍是有真值的受控压力分布，不能冒充真实用户流量。本地实际 Turn 的长期采样仍然缺失，因此
+不能据此批准生产流量；V1.5 只允许开发环境显式开启 canary 来继续积累证据。
 
-## 17. 开发日志
+## 17. V1.5 本地向量 canary
+
+V1.5 不等待不足的生产样本，但也不把 V1.4-E 的合成结果解释成生产发布证据。实现保持一个很小的
+可逆边界：
+
+1. 默认仍为 SQL-only。只有 `AUTO_MEMORY_ENABLED=true`、
+   `AUTO_MEMORY_VECTOR_PROJECTION_ENABLED=true` 和
+   `AUTO_MEMORY_VECTOR_CANARY_ENABLED=true` 同时成立时，canary 才替换默认候选读取器；新开关
+   默认为 `false`，本阶段不修改生产配置。
+2. 每轮仍先读取 SQL 权威候选，再从 Pinecone 取最多 16 个 ID，并经过既有 MySQL owner、scope
+   和 lifecycle 回查。向量 metadata 或返回顺序不能绕过权威校验。
+3. 有效向量候选优先进入列表，SQL 去重后补满，全局仍最多 32 条。固定给向量一半候选预算，既能
+   验证 SQL 时间窗口外的语义召回，也保留 SQL 基线，不提前引入未经数据证明的调参系统。
+4. Pinecone 搜索或 MySQL 回查出现运行时异常时，原样返回本轮 SQL 候选；SQL 本身失败仍正常暴露，
+   不被 canary 吞掉。该路径不增加 DeepSeek 调用次数，只改变一次既有提取调用看到的候选集合。
+5. `shadow` 与 `canary` 同时设置时由 canary 明确优先，避免创建两个候选读取器；生产启用条件仍需
+   本地真实 Turn 样本证明召回收益、错误归并没有恶化，并另行获得发布授权。
+
+V1.4 的真实业务分布验证没有被标记为完成，只是从 V1.5 代码实现的前置条件改为后续生产门禁。
+
+## 18. 开发日志
 
 ### 2026-07-31
 
@@ -653,13 +674,21 @@ seed `20260802` 的 32 个 Turn 结果：SQL 真值召回 `0%`（由上述压力
   100%，跨 owner/scope 命中为 0，结束后确认 MySQL 和 Pinecone fixture 已清理。
 - [x] V1.4-E 完整后端 `mvn clean test`/增量复核共执行 2,014 项测试，0 failure、0 error；20 项
   按 live/integration 开关跳过。随机 shadow 已另行显式运行并保存报告。
+- [x] 完成 V1.5 本地 canary：向量命中沿用 MySQL 权威回查，最多占 16 个候选位，优先合并后由
+  SQL 去重补满至 32；搜索或回查失败时原样退回 SQL，不增加 DeepSeek 调用。
+- [x] 增加默认关闭的 `AUTO_MEMORY_VECTOR_CANARY_ENABLED`；未开启 projection 时仍为 SQL，
+  shadow/canary 同时开启时由 canary 明确优先。本阶段没有修改生产配置。
+- [x] V1.5 定向 20 项行为和 Spring composition 测试通过，覆盖优先级、去重、总量上限、两类
+  向量故障回退、SQL 故障可见性以及开关组合；完整后端 `mvn test` 共执行 2,022 项测试，
+  0 failure、0 error，20 项按既有 live/integration 开关跳过。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
 Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已验证。feature flag 仍保持
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
-V1.4-E 的投影、权威回查、真实 Pinecone cohort、随机 shadow 和报告均已完成，两个向量开关
-保持关闭，Worker 仍只使用 MySQL；下一步是第 16 节所述的本地实际 Turn 长期样本，不接入生产。
-目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权不执行生产变更。严格显式
+V1.4-E 的投影、权威回查、真实 Pinecone cohort、随机 shadow 和报告均已完成；V1.5 canary
+代码已就绪，但三个相关开关仍保持默认关闭，普通 Worker 继续只使用 MySQL。下一步是在本地实际
+Turn 中显式开启 canary，比较归并质量并积累长期样本，不接入生产。目标环境迁移和
+shadow/canary 仍需按第 7 节另行准备，未经用户授权不执行生产变更。严格显式
 句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
 阻塞 Pro 上线。
