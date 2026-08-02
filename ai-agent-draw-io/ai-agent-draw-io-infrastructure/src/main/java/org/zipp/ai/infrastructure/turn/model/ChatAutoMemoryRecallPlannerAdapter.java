@@ -5,11 +5,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.context.AutoMemoryContextQuery;
+import org.zipp.ai.application.turn.context.AutoMemoryRecallClauseFallback;
 import org.zipp.ai.application.turn.context.AutoMemoryRecallPlanner;
 import org.zipp.ai.application.turn.context.AutoMemoryRecallPlanningEligibilityPolicy;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 
 /** Calls the planner only for requests with a plausible multi-intent signal. */
 @Component
@@ -20,6 +22,7 @@ import java.util.Objects;
 public final class ChatAutoMemoryRecallPlannerAdapter implements AutoMemoryRecallPlanner {
     private final ToolFreeChatModelInvoker model;
     private final AutoMemoryRecallPlanningEligibilityPolicy eligibility;
+    private final AutoMemoryRecallClauseFallback fallback;
 
     @Autowired
     public ChatAutoMemoryRecallPlannerAdapter(
@@ -34,8 +37,17 @@ public final class ChatAutoMemoryRecallPlannerAdapter implements AutoMemoryRecal
             ToolFreeChatModelInvoker model,
             AutoMemoryRecallPlanningEligibilityPolicy eligibility
     ) {
+        this(model, eligibility, new AutoMemoryRecallClauseFallback());
+    }
+
+    ChatAutoMemoryRecallPlannerAdapter(
+            ToolFreeChatModelInvoker model,
+            AutoMemoryRecallPlanningEligibilityPolicy eligibility,
+            AutoMemoryRecallClauseFallback fallback
+    ) {
         this.model = Objects.requireNonNull(model, "model");
         this.eligibility = Objects.requireNonNull(eligibility, "eligibility");
+        this.fallback = Objects.requireNonNull(fallback, "fallback");
     }
 
     @Override
@@ -44,8 +56,20 @@ public final class ChatAutoMemoryRecallPlannerAdapter implements AutoMemoryRecal
         if (!eligibility.shouldPlan(query.userContent())) {
             return List.of();
         }
-        String output = model.invoke(
-                query.planningInputBinding(), AutoMemoryRecallPlanningProtocol.render(query));
-        return AutoMemoryRecallPlanningProtocol.parse(output);
+        try {
+            String output = model.invoke(
+                    query.planningInputBinding(), AutoMemoryRecallPlanningProtocol.render(query));
+            List<String> planned = AutoMemoryRecallPlanningProtocol.parse(output);
+            return planned.isEmpty() ? fallback.facets(query.userContent()) : planned;
+        } catch (RuntimeException failure) {
+            if (failure instanceof CancellationException) {
+                throw failure;
+            }
+            List<String> recovered = fallback.facets(query.userContent());
+            if (!recovered.isEmpty()) {
+                return recovered;
+            }
+            throw failure;
+        }
     }
 }

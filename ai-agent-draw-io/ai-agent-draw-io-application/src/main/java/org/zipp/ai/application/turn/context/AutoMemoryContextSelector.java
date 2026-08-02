@@ -3,6 +3,7 @@ package org.zipp.ai.application.turn.context;
 import org.zipp.ai.application.memory.AutoMemory;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 import org.zipp.ai.application.memory.AutoMemoryScope;
+import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchHit;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 
 /** Selects query-relevant Memory once and rebuilds only that pinned selection on retries. */
 public final class AutoMemoryContextSelector {
@@ -81,7 +83,7 @@ public final class AutoMemoryContextSelector {
         if (semantic.failed()) {
             return selection(selectBounded(baseline, baseline, query.chartbookId()));
         }
-        List<AutoMemory> overrideSources = merge(semantic.memories(), baseline);
+        List<AutoMemory> overrideSources = merge(semantic.overrideSources(), baseline);
         return selection(selectBounded(
                 semantic.memories(), overrideSources, query.chartbookId()));
     }
@@ -123,53 +125,145 @@ public final class AutoMemoryContextSelector {
     }
 
     private SemanticRecall semantic(AutoMemoryContextQuery query) {
-        Set<String> vectorIds = new LinkedHashSet<>();
+        List<String> facets = plannedFacets(query);
+        if (facets.isEmpty()) {
+            return originalSemantic(query, 0);
+        }
+        List<FacetCandidates> candidateGroups = new ArrayList<>(facets.size());
         int successfulQueries = 0;
-        for (String recallText : recallTexts(query)) {
+        for (String facet : facets) {
             try {
-                List<AutoMemoryVectorSearchHit> accepted = semanticPolicy.accept(vectors.search(
+                List<AutoMemoryVectorSearchHit> candidates = semanticPolicy.facetCandidates(
+                        vectors.search(
                         AutoMemoryVectorSearchQuery.activeContext(
-                                query.turn(), query.chartbookId(), recallText),
+                                query.turn(), query.chartbookId(), facet),
                         VECTOR_TOP_K));
-                accepted.stream().map(AutoMemoryVectorSearchHit::vectorId).forEach(vectorIds::add);
+                if (!candidates.isEmpty()) {
+                    candidateGroups.add(new FacetCandidates(candidates));
+                }
                 successfulQueries++;
             } catch (RuntimeException ignored) {
                 // One failed facet must not discard independently successful semantic facets.
             }
         }
-        if (successfulQueries == 0) {
-            return new SemanticRecall(true, List.of());
+        if (candidateGroups.isEmpty()) {
+            // The untouched request remains a strict fallback, not another facet candidate source.
+            return originalSemantic(query, successfulQueries);
+        }
+        return hydrateFacets(query, candidateGroups);
+    }
+
+    private SemanticRecall originalSemantic(
+            AutoMemoryContextQuery query,
+            int precedingSuccessfulQueries
+    ) {
+        List<AutoMemoryVectorSearchHit> accepted;
+        try {
+            accepted = semanticPolicy.accept(vectors.search(
+                    AutoMemoryVectorSearchQuery.activeContext(
+                            query.turn(), query.chartbookId(), query.userContent()),
+                    VECTOR_TOP_K));
+        } catch (RuntimeException ignored) {
+            return precedingSuccessfulQueries == 0
+                    ? SemanticRecall.failure()
+                    : SemanticRecall.empty();
         }
         try {
-            return new SemanticRecall(false, hydration.hydrateActiveVectorMatches(
-                    query, List.copyOf(vectorIds)));
+            List<AutoMemory> hydrated = hydration.hydrateActiveVectorMatches(
+                    query,
+                    accepted.stream().map(AutoMemoryVectorSearchHit::vectorId).toList());
+            return SemanticRecall.available(hydrated, hydrated);
         } catch (RuntimeException ignored) {
             // MySQL authority failure cannot be replaced by unverified vector identities.
-            return new SemanticRecall(true, List.of());
+            return SemanticRecall.failure();
         }
     }
 
-    private List<String> recallTexts(AutoMemoryContextQuery query) {
+    private SemanticRecall hydrateFacets(
+            AutoMemoryContextQuery query,
+            List<FacetCandidates> candidateGroups
+    ) {
+        Set<String> vectorIds = new LinkedHashSet<>();
+        candidateGroups.forEach(group -> group.hits().stream()
+                .map(AutoMemoryVectorSearchHit::vectorId)
+                .forEach(vectorIds::add));
+        try {
+            List<AutoMemory> hydrated = hydration.hydrateActiveVectorMatches(
+                    query, List.copyOf(vectorIds));
+            Map<String, AutoMemory> byMemoryId = new HashMap<>();
+            hydrated.forEach(memory -> byMemoryId.put(memory.memoryId(), memory));
+            Map<String, AutoMemory> winners = new LinkedHashMap<>();
+            for (FacetCandidates group : candidateGroups) {
+                AutoMemory winner = facetWinner(group, byMemoryId, query.chartbookId());
+                if (winner != null) {
+                    winners.putIfAbsent(winner.memoryId(), winner);
+                }
+            }
+            return SemanticRecall.available(List.copyOf(winners.values()), hydrated);
+        } catch (RuntimeException ignored) {
+            // Candidate text and state must come from the MySQL authority.
+            return SemanticRecall.failure();
+        }
+    }
+
+    private AutoMemory facetWinner(
+            FacetCandidates group,
+            Map<String, AutoMemory> byMemoryId,
+            String chartbookId
+    ) {
+        List<HydratedCandidate> active = group.hits().stream()
+                .map(hit -> AutoMemoryVectorDocument.currentMemoryIdFromVectorId(hit.vectorId())
+                        .map(byMemoryId::get)
+                        .map(memory -> new HydratedCandidate(memory, hit.score())))
+                .flatMap(Optional::stream)
+                .toList();
+        if (active.isEmpty()) {
+            return null;
+        }
+        HydratedCandidate first = active.get(0);
+        DecisionKey key = DecisionKey.from(first.memory());
+        Optional<HydratedCandidate> chartbookOverride = active.stream()
+                .filter(candidate -> first.memory().scope().type() == MemoryScopeType.USER
+                        && chartbookId != null
+                        && candidate.memory().scope().type() == MemoryScopeType.CHARTBOOK
+                        && chartbookId.equals(candidate.memory().scope().scopeKey())
+                        && key.equals(DecisionKey.from(candidate.memory())))
+                .findFirst();
+        if (chartbookOverride.isPresent()) {
+            return chartbookOverride.get().memory();
+        }
+        Optional<HydratedCandidate> competitor = active.stream().skip(1)
+                .filter(candidate -> !key.equals(DecisionKey.from(candidate.memory())))
+                .findFirst();
+        if (competitor.isPresent()
+                && !semanticPolicy.acceptsFacetLead(
+                        first.score(), competitor.get().score())) {
+            return null;
+        }
+        return first.memory();
+    }
+
+    private List<String> plannedFacets(AutoMemoryContextQuery query) {
         List<String> planned;
         try {
             planned = recallPlanner.plan(query);
-        } catch (RuntimeException ignored) {
-            planned = List.of();
+        } catch (RuntimeException failure) {
+            if (failure instanceof CancellationException) {
+                throw failure;
+            }
+            return List.of();
         }
         if (planned == null || planned.size() > AutoMemoryRecallPlanner.MAX_SUBQUERIES) {
-            return List.of(query.userContent());
+            return List.of();
         }
         LinkedHashMap<String, String> unique = new LinkedHashMap<>();
         for (String value : planned) {
             if (value == null || value.isBlank() || value.length() > 500) {
-                return List.of(query.userContent());
+                return List.of();
             }
             String trimmed = value.trim();
             unique.putIfAbsent(trimmed.toLowerCase(java.util.Locale.ROOT), trimmed);
         }
-        // Precise facets run first; the untouched request remains the semantic fallback.
-        unique.putIfAbsent(query.userContent().toLowerCase(java.util.Locale.ROOT),
-                query.userContent());
         return List.copyOf(unique.values());
     }
 
@@ -280,16 +374,38 @@ public final class AutoMemoryContextSelector {
     public record SemanticPolicy(
             double minimumScore,
             double minimumLead,
-            double maximumScoreDrop
+            double maximumScoreDrop,
+            double facetMinimumScore,
+            double facetMinimumLead
     ) {
         public SemanticPolicy {
             if (!Double.isFinite(minimumScore)
                     || !Double.isFinite(minimumLead)
                     || !Double.isFinite(maximumScoreDrop)
+                    || !Double.isFinite(facetMinimumScore)
+                    || !Double.isFinite(facetMinimumLead)
                     || minimumLead < 0.0d
-                    || maximumScoreDrop < 0.0d) {
+                    || maximumScoreDrop < 0.0d
+                    || facetMinimumLead < 0.0d) {
                 throw new IllegalArgumentException("invalid semantic acceptance policy");
             }
+        }
+
+        public SemanticPolicy(
+                double minimumScore,
+                double minimumLead,
+                double maximumScoreDrop,
+                double facetMinimumScore
+        ) {
+            this(minimumScore, minimumLead, maximumScoreDrop, facetMinimumScore, 0.0d);
+        }
+
+        public SemanticPolicy(
+                double minimumScore,
+                double minimumLead,
+                double maximumScoreDrop
+        ) {
+            this(minimumScore, minimumLead, maximumScoreDrop, minimumScore, 0.0d);
         }
 
         public SemanticPolicy(double minimumScore, double minimumLead) {
@@ -307,6 +423,20 @@ public final class AutoMemoryContextSelector {
                 return List.of();
             }
             return includeCandidates(ranked);
+        }
+
+        private List<AutoMemoryVectorSearchHit> facetCandidates(
+                List<AutoMemoryVectorSearchHit> ranked
+        ) {
+            return ranked.stream()
+                    // This is a candidate-only floor; MySQL and one-winner selection run afterwards.
+                    .filter(hit -> hit.score() >= facetMinimumScore)
+                    .limit(MAX_SEMANTIC_COHORT)
+                    .toList();
+        }
+
+        private boolean acceptsFacetLead(double firstScore, double competitorScore) {
+            return firstScore - competitorScore >= facetMinimumLead;
         }
 
         private boolean acceptsQuery(List<AutoMemoryVectorSearchHit> ranked) {
@@ -335,10 +465,39 @@ public final class AutoMemoryContextSelector {
         }
     }
 
-    private record SemanticRecall(boolean failed, List<AutoMemory> memories) {
+    private record SemanticRecall(
+            boolean failed,
+            List<AutoMemory> memories,
+            List<AutoMemory> overrideSources
+    ) {
         private SemanticRecall {
             memories = List.copyOf(memories);
+            overrideSources = List.copyOf(overrideSources);
         }
+
+        private static SemanticRecall failure() {
+            return new SemanticRecall(true, List.of(), List.of());
+        }
+
+        private static SemanticRecall empty() {
+            return new SemanticRecall(false, List.of(), List.of());
+        }
+
+        private static SemanticRecall available(
+                List<AutoMemory> memories,
+                List<AutoMemory> overrideSources
+        ) {
+            return new SemanticRecall(false, memories, overrideSources);
+        }
+    }
+
+    private record FacetCandidates(List<AutoMemoryVectorSearchHit> hits) {
+        private FacetCandidates {
+            hits = List.copyOf(hits);
+        }
+    }
+
+    private record HydratedCandidate(AutoMemory memory, double score) {
     }
 
     private record DecisionKey(String type, String semanticKey) {

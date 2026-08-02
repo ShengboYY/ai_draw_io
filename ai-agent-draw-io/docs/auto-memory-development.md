@@ -685,6 +685,32 @@ V1 holdout 已退役且不会重跑。V1.8.1 的 development-v2 与未见 V2 hol
 V2 不会重跑，V1.8 到此停止继续围绕小型合成集调 Prompt。跨语言的单目标低排名问题仍不属于
 V1.8。
 
+### V1.8.2 facet-aware 候选召回
+
+完整 Planner → Pinecone → MySQL → Prompt 的 V1 holdout 表明，多意图目标可能已经进入向量前几名，
+但原有查询级准入会整组拒绝，或把同一请求的其他意图挤出最终 Prompt。V1.8.2 没有继续下调全局
+`0.82`，而是把 planned facet 明确建模为候选阶段：
+
+1. Planner 正常返回 2～3 个 facet 时分别搜索；Planner 返回空或协议/供应商失败时，只有原请求存在
+   分号、全角分号或换行，才保守拆成 2～3 段。普通连接词不做硬切分，取消信号也不会被 fallback
+   吞掉。
+2. 每个 facet 最多保留 4 个 `score >= 0.80` 的候选 ID；所有 ID 合并后只做一次 MySQL 权威回查，
+   未授权、禁用、终态或失效 vector 不能进入最终选择。
+3. 每个 facet 最多贡献一个 winner。MySQL 仍有效且属于不同 `semanticKey` 的前两名若领先差小于
+   `0.01`，该 facet 放弃注入；相同决策维度的当前 Chartbook Memory 仍覆盖 USER Memory。
+4. 只有所有 facet 都没有候选时，原始请求才使用既有严格 `0.82 / 0.02 / 0.03` 路径；没有新增
+   DeepSeek rerank、数据库字段或平行排序服务。semantic 与 multi-intent 开关继续默认关闭。
+
+development-v2 与一次性 holdout 在实现前冻结于提交 `f31ed6e8`，并新增候选 Recall@4 指标，以区分
+“向量没有找回”和“候选找回后筛选错误”。锁定实现的 development-v2 达到候选 Recall@4 100%、
+最终目标 Recall 80%、完整正例 Case 83.33%、Prompt Precision 88.89%、无关注入 11.11%、负例误
+注入 25%、Prompt parity 100%；未授权、禁用和 forbidden 选择均为 0。`0.01` 保持为通用保守边界，
+没有根据两条近似并列分数继续微调小数。完整报告位于：
+
+- `evaluation/auto-memory-context-e2e-v2/development-report.json`
+
+实现与 development 证据提交锁定后，V2 holdout 只运行一次；无论结果如何都不调参或重跑。
+
 ## 19. 开发日志
 
 ### 2026-07-31
@@ -856,6 +882,12 @@ V1.8。
   首次 10/10 通过，三项质量指标均为 100%、协议失败为 0，随后固定实现再运行 V2 holdout。
 - [x] V1.8.1 唯一一次 V2 holdout 达到 Case accuracy 90%、多意图覆盖 100%、单意图 abstention
   75%、协议失败 0；因一条共享颜色决策被过拆而未通过，保留失败证据且不继续调参重跑。
+- [x] 在 V1.8.2 实现前冻结新的 development/holdout 与 SHA，增加候选 Recall@4，避免把候选召回
+  和最终 Prompt 选择混成一个指标。
+- [x] 完成 facet 候选池、单次 MySQL 权威回查、每 facet 单 winner、不同决策近似并列拒绝和强分隔符
+  planner fallback；未增加模型调用、持久化字段或第二个排序器。
+- [x] V1.8.2 development-v2 通过冻结门槛：candidate Recall@4 100%、最终 Recall 80%、Prompt
+  Precision 88.89%、无关注入 11.11%，权限/生命周期泄漏 0，Prompt parity 100%。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地

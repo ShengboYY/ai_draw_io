@@ -18,9 +18,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutoMemoryContextSelectorTest {
@@ -221,7 +223,7 @@ class AutoMemoryContextSelectorTest {
     }
 
     @Test
-    void plannedIntentsAreGatedIndependentlyAndMergedBeforeTheOriginalQuery() {
+    void plannedIntentsAreGatedIndependentlyWithoutBroadOriginalPadding() {
         AutoMemory labels = memory(
                 "memory-labels", AutoMemoryScope.user("owner-1"),
                 "label-style", "Italicize database labels", 2);
@@ -252,9 +254,167 @@ class AutoMemoryContextSelectorTest {
 
         assertEquals(List.of("memory-labels", "memory-endpoints"), selected.references()
                 .stream().map(AutoMemoryContextSelection.Reference::memoryId).toList());
-        assertEquals(List.of(
-                "database label style", "public endpoint badge style", query().userContent()),
-                searches);
+        assertEquals(List.of("database label style", "public endpoint badge style"), searches);
+    }
+
+    @Test
+    void plannedFacetsHydrateCandidatePoolsOnceAndSelectOneWinnerEach() {
+        AutoMemory lane = memory(
+                "memory-lane", AutoMemoryScope.chartbook("owner-1", "book-1"),
+                "lane-position", "Place worker lanes at the bottom", 2);
+        AutoMemory laneNoise = memory(
+                "memory-lane-noise", AutoMemoryScope.user("owner-1"),
+                "queue-position", "Place queues at the bottom", 2);
+        AutoMemory incident = memory(
+                "memory-incident", AutoMemoryScope.chartbook("owner-1", "book-1"),
+                "incident-color", "Use orange incident nodes", 2);
+        AutoMemory colorNoise = memory(
+                "memory-color-noise", AutoMemoryScope.chartbook("owner-1", "book-1"),
+                "warning-color", "Use maroon warning nodes", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(
+                lane, laneNoise, incident, colorNoise));
+        AutoMemoryVectorSearchPort vectors = (vectorQuery, topK) -> switch (
+                vectorQuery.userContent()) {
+            case "worker lanes at the bottom" -> List.of(
+                    new AutoMemoryVectorSearchHit(vectorId(lane), 0.816d),
+                    new AutoMemoryVectorSearchHit(vectorId(laneNoise), 0.805d));
+            case "orange incident nodes" -> List.of(
+                    new AutoMemoryVectorSearchHit(vectorId(incident), 0.837d),
+                    new AutoMemoryVectorSearchHit(vectorId(colorNoise), 0.825d));
+            default -> List.of();
+        };
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                ignored -> List.of("worker lanes at the bottom", "orange incident nodes"),
+                new AutoMemoryContextSelector.SemanticPolicy(
+                        0.82d, 0.02d, 0.03d, 0.80d, 0.01d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-lane", "memory-incident"), selected.references()
+                .stream().map(AutoMemoryContextSelection.Reference::memoryId).toList());
+        assertEquals(1, authority.hydrationCalls);
+    }
+
+    @Test
+    void plannedFacetDropsANearTieAcrossDifferentDecisionKeys() {
+        AutoMemory first = memory(
+                "memory-first", AutoMemoryScope.user("owner-1"),
+                "notification-color", "Use indigo notification nodes", 2);
+        AutoMemory second = memory(
+                "memory-second", AutoMemoryScope.user("owner-1"),
+                "outage-color", "Use violet outage nodes", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(first, second));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                (vectorQuery, topK) -> List.of(
+                        new AutoMemoryVectorSearchHit(vectorId(first), 0.826d),
+                        new AutoMemoryVectorSearchHit(vectorId(second), 0.818d)),
+                ignored -> List.of("first facet", "second facet"),
+                new AutoMemoryContextSelector.SemanticPolicy(
+                        0.82d, 0.02d, 0.03d, 0.80d, 0.01d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        assertTrue(selector.select(query()).empty());
+    }
+
+    @Test
+    void plannedFacetFallsThroughAnInvalidVectorIdentityInsideItsBoundedPool() {
+        AutoMemory relevant = memory(
+                "memory-relevant", AutoMemoryScope.user("owner-1"),
+                "labels", "Use concise labels", 2);
+        AutoMemory absent = memory(
+                "memory-absent", AutoMemoryScope.user("owner-1"),
+                "other-labels", "Use verbose labels", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(relevant));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                (vectorQuery, topK) -> List.of(
+                        new AutoMemoryVectorSearchHit(vectorId(absent), 0.84d),
+                        new AutoMemoryVectorSearchHit(vectorId(relevant), 0.83d)),
+                ignored -> List.of("first facet", "second facet"),
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d, 0.80d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-relevant"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void plannedFacetPrefersTheCurrentChartbookForTheSameDecisionKey() {
+        AutoMemory global = memory(
+                "memory-global", AutoMemoryScope.user("owner-1"),
+                "warning-color", "Use yellow warnings", 2);
+        AutoMemory chartbook = memory(
+                "memory-chartbook", AutoMemoryScope.chartbook("owner-1", "book-1"),
+                "warning-color", "Use plum warnings", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(global, chartbook));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                (vectorQuery, topK) -> List.of(
+                        new AutoMemoryVectorSearchHit(vectorId(global), 0.90d),
+                        new AutoMemoryVectorSearchHit(vectorId(chartbook), 0.88d)),
+                ignored -> List.of("warning color", "warning color for this book"),
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d, 0.80d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-chartbook"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void emptyFacetPoolsUseTheOriginalStrictQueryAsFallback() {
+        AutoMemory relevant = memory(
+                "memory-relevant", AutoMemoryScope.user("owner-1"),
+                "labels", "Use concise labels", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(relevant));
+        List<String> searches = new ArrayList<>();
+        AutoMemoryVectorSearchPort vectors = (vectorQuery, topK) -> {
+            searches.add(vectorQuery.userContent());
+            if (vectorQuery.userContent().equals(query().userContent())) {
+                return List.of(new AutoMemoryVectorSearchHit(vectorId(relevant), 0.90d));
+            }
+            return List.of(new AutoMemoryVectorSearchHit(vectorId(relevant), 0.79d));
+        };
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                ignored -> List.of("first facet", "second facet"),
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d, 0.80d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-relevant"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+        assertEquals(List.of("first facet", "second facet", query().userContent()), searches);
+    }
+
+    @Test
+    void plannerCancellationIsNotConvertedIntoOriginalQueryFallback() {
+        FakeAuthority authority = new FakeAuthority(List.of());
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                (vectorQuery, topK) -> List.of(),
+                ignored -> {
+                    throw new CancellationException("cancelled");
+                },
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        assertThrows(CancellationException.class, () -> selector.select(query()));
     }
 
     @Test
@@ -421,6 +581,7 @@ class AutoMemoryContextSelectorTest {
             implements AutoMemoryQueryPort, AutoMemoryContextHydrationPort {
         private final Map<String, AutoMemory> memories = new HashMap<>();
         private final List<String> order = new ArrayList<>();
+        private int hydrationCalls;
 
         private FakeAuthority(List<AutoMemory> initial) {
             initial.forEach(memory -> {
@@ -452,6 +613,7 @@ class AutoMemoryContextSelectorTest {
                 AutoMemoryContextQuery query,
                 List<String> rankedVectorIds
         ) {
+            hydrationCalls++;
             List<AutoMemory> result = new ArrayList<>();
             for (String vectorId : rankedVectorIds) {
                 AutoMemoryVectorDocument.currentMemoryIdFromVectorId(vectorId)

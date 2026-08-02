@@ -230,6 +230,58 @@ class ChatV2ModelAdapterTest {
     }
 
     @Test
+    void autoMemoryRecallPlannerRecoversEmptyPlanFromExplicitClauses() {
+        RecordingChat chat = new RecordingChat("{\"queries\":[]}");
+        ChatAutoMemoryRecallPlannerAdapter adapter = new ChatAutoMemoryRecallPlannerAdapter(
+                new ToolFreeChatModelInvoker(chat, "300031", "test-memory-planner"),
+                new AutoMemoryRecallPlanningEligibilityPolicy());
+        AutoMemoryContextQuery query = new AutoMemoryContextQuery(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                null,
+                "Keep worker labels compact; show warning nodes in amber",
+                binding(ModelInputBinding.digestOf("memory-recall-plan")));
+
+        assertEquals(
+                List.of("Keep worker labels compact", "show warning nodes in amber"),
+                adapter.plan(query));
+        assertEquals(1, chat.createSessionCalls);
+    }
+
+    @Test
+    void autoMemoryRecallPlannerRecoversModelFailureFromExplicitClauses() {
+        RecordingChat chat = new RecordingChat("{}");
+        chat.failure = new IllegalStateException("provider unavailable");
+        ChatAutoMemoryRecallPlannerAdapter adapter = new ChatAutoMemoryRecallPlannerAdapter(
+                new ToolFreeChatModelInvoker(chat, "300031", "test-memory-planner"),
+                new AutoMemoryRecallPlanningEligibilityPolicy());
+        AutoMemoryContextQuery query = new AutoMemoryContextQuery(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                null,
+                "Keep worker labels compact；show warning nodes in amber",
+                binding(ModelInputBinding.digestOf("memory-recall-plan")));
+
+        assertEquals(
+                List.of("Keep worker labels compact", "show warning nodes in amber"),
+                adapter.plan(query));
+    }
+
+    @Test
+    void autoMemoryRecallPlannerDoesNotRecoverCancellation() {
+        RecordingChat chat = new RecordingChat("{}");
+        chat.failure = new CancellationException("cancelled");
+        ChatAutoMemoryRecallPlannerAdapter adapter = new ChatAutoMemoryRecallPlannerAdapter(
+                new ToolFreeChatModelInvoker(chat, "300031", "test-memory-planner"),
+                new AutoMemoryRecallPlanningEligibilityPolicy());
+        AutoMemoryContextQuery query = new AutoMemoryContextQuery(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                null,
+                "Keep worker labels compact; show warning nodes in amber",
+                binding(ModelInputBinding.digestOf("memory-recall-plan")));
+
+        assertThrows(CancellationException.class, () -> adapter.plan(query));
+    }
+
+    @Test
     void autoMemoryRecallPlannerRejectsAOneQueryPseudoSplit() {
         RecordingChat chat = new RecordingChat("{\"queries\":[\"only one query\"]}");
         ChatAutoMemoryRecallPlannerAdapter adapter = new ChatAutoMemoryRecallPlannerAdapter(

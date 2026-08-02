@@ -59,6 +59,10 @@ app:
       minimum-score: ${AUTO_MEMORY_CONTEXT_MINIMUM_SCORE:0.82}
       minimum-lead: ${AUTO_MEMORY_CONTEXT_MINIMUM_LEAD:0.02}
       maximum-score-drop: ${AUTO_MEMORY_CONTEXT_MAXIMUM_SCORE_DROP:0.03}
+      # V1.8.2 candidate-only floor; final planned selection remains one authority-checked winner/facet.
+      facet-minimum-score: ${AUTO_MEMORY_CONTEXT_FACET_MINIMUM_SCORE:0.80}
+      # Different decisions that remain nearly tied are not injected.
+      facet-minimum-lead: ${AUTO_MEMORY_CONTEXT_FACET_MINIMUM_LEAD:0.01}
       max-entries: ${AUTO_MEMORY_CONTEXT_MAX_ENTRIES:12}
       max-characters: ${AUTO_MEMORY_CONTEXT_MAX_CHARACTERS:6000}
     # V1.2 ages only unconfirmed OBSERVED candidates and remains opt-in after Auto Memory rollout.

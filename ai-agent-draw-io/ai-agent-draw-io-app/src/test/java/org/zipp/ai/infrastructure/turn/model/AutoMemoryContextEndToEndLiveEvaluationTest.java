@@ -40,6 +40,7 @@ import org.zipp.ai.application.turn.context.AutoMemoryContext;
 import org.zipp.ai.application.turn.context.AutoMemoryContextQuery;
 import org.zipp.ai.application.turn.context.AutoMemoryContextSelection;
 import org.zipp.ai.application.turn.context.AutoMemoryContextSelector;
+import org.zipp.ai.application.turn.context.AutoMemoryRecallClauseFallback;
 import org.zipp.ai.application.turn.context.AutoMemoryRecallPlanner;
 import org.zipp.ai.application.turn.context.AutoMemoryRecallPlanningEligibilityPolicy;
 import org.zipp.ai.application.turn.context.AvailableContext;
@@ -89,6 +90,10 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
             "7fd96c2abd033cb094857705e7eb26dde9e7406bababe167f1b6e63476065f57";
     private static final String HOLDOUT_SHA256 =
             "5cc47ed2a1331a51ccacb5e055e622f3e187544b39beb168661395a053271a8f";
+    private static final String DEVELOPMENT_V2_SHA256 =
+            "d3da68283e401122b7abad62eab81d80e476f632ad1ec1e12bf3ba4e24066702";
+    private static final String HOLDOUT_V2_SHA256 =
+            "e46fecf27bb2efdfce806e8f90c1614156441bfe7b5bad364c27fa9dcbc5f915";
     private static final int MAX_TOKENS = 2_048;
     private static final Instant OLD = Instant.parse("2025-01-01T00:00:00Z");
     private static final Instant RECENT = Instant.parse("2026-08-02T00:00:00Z");
@@ -134,7 +139,8 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                     fixture.adapter(),
                     recordingVectors,
                     planner,
-                    new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d, 0.03d),
+                    new AutoMemoryContextSelector.SemanticPolicy(
+                            0.82d, 0.02d, 0.03d, 0.80d, 0.01d),
                     new AutoMemoryContextSelector.Budget(12, 6_000));
             AutoMemoryContextSelector sqlSelector = new AutoMemoryContextSelector(
                     fixture.adapter(),
@@ -170,6 +176,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
             DeepSeekPlanner planner
     ) {
         int expectedTotal = 0;
+        int candidateHitsAt4 = 0;
         int targetHits = 0;
         int selectedTotal = 0;
         int completePositive = 0;
@@ -205,7 +212,11 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
             List<String> sqlSelectedIds = selectedDatasetIds(sqlSelection, fixture);
             Set<String> expected = Set.copyOf(testCase.expectedRelevantIds());
             Set<String> forbidden = Set.copyOf(testCase.forbiddenSelectedIds());
+            Set<String> candidatesAt4 = candidateDatasetIdsAt4(
+                    recordingVectors.calls(), fixture);
             long hits = selectedIds.stream().filter(expected::contains).count();
+            long caseCandidateHitsAt4 = candidatesAt4.stream()
+                    .filter(expected::contains).count();
             long sqlHits = sqlSelectedIds.stream().filter(expected::contains).count();
             long caseForbidden = selectedIds.stream().filter(forbidden::contains).count();
             long caseUnauthorized = selection.references().stream()
@@ -223,6 +234,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
             boolean parity = promptLines.equals(expectedLines);
 
             expectedTotal += expected.size();
+            candidateHitsAt4 += (int) caseCandidateHitsAt4;
             targetHits += (int) hits;
             sqlTargetHits += (int) sqlHits;
             selectedTotal += selection.references().size();
@@ -259,6 +271,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                     testCase.queryText(),
                     testCase.chartbookContext(),
                     testCase.expectedRelevantIds(),
+                    List.copyOf(candidatesAt4),
                     selectedIds,
                     sqlSelectedIds,
                     promptLines,
@@ -270,6 +283,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
         }
 
         Metrics metrics = new Metrics(
+                ratio(candidateHitsAt4, expectedTotal),
                 ratio(targetHits, expectedTotal),
                 ratio(completePositive, positiveCases),
                 selectedTotal == 0 ? 1.0d : ratio(targetHits, selectedTotal),
@@ -281,7 +295,8 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                 ratio(promptParity, cohort.cases().size()),
                 ratio(sqlTargetHits, expectedTotal));
         Gate gate = cohort.gate();
-        boolean passed = metrics.targetRecall() >= gate.minimumTargetRecall()
+        boolean passed = metrics.candidateRecallAt4() >= gate.minimumCandidateRecallAt4()
+                && metrics.targetRecall() >= gate.minimumTargetRecall()
                 && metrics.completePositiveCaseRate() >= gate.minimumCompletePositiveCaseRate()
                 && metrics.promptPrecision() >= gate.minimumPromptPrecision()
                 && metrics.irrelevantInjectionRate() <= gate.maximumIrrelevantInjectionRate()
@@ -508,6 +523,24 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                 }).toList())).toList();
     }
 
+    private Set<String> candidateDatasetIdsAt4(
+            List<VectorSearchCall> calls,
+            Fixture fixture
+    ) {
+        Set<String> result = new LinkedHashSet<>();
+        for (VectorSearchCall call : calls) {
+            call.hits().stream().limit(4).forEach(hit -> {
+                String memoryId = AutoMemoryVectorDocument.currentMemoryIdFromVectorId(
+                        hit.vectorId()).orElse("");
+                String datasetId = fixture.datasetIdByMemoryId().get(memoryId);
+                if (datasetId != null) {
+                    result.add(datasetId);
+                }
+            });
+        }
+        return result;
+    }
+
     private void writeReport(
             Path path,
             Cohort cohort,
@@ -533,7 +566,9 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
         report.put("semanticPolicy", Map.of(
                 "minimumScore", 0.82d,
                 "minimumLead", 0.02d,
-                "maximumScoreDrop", 0.03d));
+                "maximumScoreDrop", 0.03d,
+                "facetMinimumScore", 0.80d,
+                "facetMinimumLead", 0.01d));
         report.put("promptBudget", Map.of("maxEntries", 12, "maxCharacters", 6_000));
         report.put("gate", cohort.gate());
         report.put("metrics", evaluation.metrics());
@@ -712,6 +747,8 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
         return new Cohort(
                 root.getString("datasetVersion"),
                 new Gate(
+                        gate.containsKey("minimumCandidateRecallAt4")
+                                ? gate.getDoubleValue("minimumCandidateRecallAt4") : 0.0d,
                         gate.getDoubleValue("minimumTargetRecall"),
                         gate.getDoubleValue("minimumCompletePositiveCaseRate"),
                         gate.getDoubleValue("minimumPromptPrecision"),
@@ -736,6 +773,14 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
             case "holdout-v1" -> new Profile(
                     "auto-memory-context-e2e-v1/holdout.json",
                     HOLDOUT_SHA256,
+                    true);
+            case "development-v2" -> new Profile(
+                    "auto-memory-context-e2e-development-v2/cohort.json",
+                    DEVELOPMENT_V2_SHA256,
+                    false);
+            case "holdout-v2" -> new Profile(
+                    "auto-memory-context-e2e-v2/holdout.json",
+                    HOLDOUT_V2_SHA256,
                     true);
             default -> throw new IllegalArgumentException("unknown Memory context E2E dataset");
         };
@@ -827,6 +872,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
     }
 
     private record Gate(
+            double minimumCandidateRecallAt4,
             double minimumTargetRecall,
             double minimumCompletePositiveCaseRate,
             double minimumPromptPrecision,
@@ -897,6 +943,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
             String queryText,
             boolean chartbookContext,
             List<String> expectedRelevantIds,
+            List<String> candidateIdsAt4,
             List<String> selectedIds,
             List<String> sqlSelectedIds,
             List<String> promptMemoryLines,
@@ -909,6 +956,7 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
     }
 
     private record Metrics(
+            double candidateRecallAt4,
             double targetRecall,
             double completePositiveCaseRate,
             double promptPrecision,
@@ -959,6 +1007,8 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                 .build();
         private final AutoMemoryRecallPlanningEligibilityPolicy eligibility =
                 new AutoMemoryRecallPlanningEligibilityPolicy();
+        private final AutoMemoryRecallClauseFallback fallback =
+                new AutoMemoryRecallClauseFallback();
         private final URI endpoint = URI.create(withoutTrailingSlash(environment(
                 "AUTO_MEMORY_BASE_URL", "https://api.deepseek.com")) + "/"
                 + withoutLeadingSlash(environment(
@@ -1010,12 +1060,28 @@ class AutoMemoryContextEndToEndLiveEvaluationTest {
                 String output = body.getJSONArray("choices").getJSONObject(0)
                         .getJSONObject("message").getString("content");
                 List<String> queries = AutoMemoryRecallPlanningProtocol.parse(output);
-                runs.put(caseId, new PlannerRun("SUCCEEDED", queries, latency, null));
-                return queries;
+                List<String> recovered = queries.isEmpty()
+                        ? fallback.facets(query.userContent()) : List.of();
+                List<String> result = recovered.isEmpty() ? queries : recovered;
+                runs.put(caseId, new PlannerRun(
+                        recovered.isEmpty() ? "SUCCEEDED" : "RECOVERED",
+                        result,
+                        latency,
+                        null));
+                return result;
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("planner interrupted", interrupted);
             } catch (RuntimeException failure) {
+                List<String> recovered = fallback.facets(query.userContent());
+                if (!recovered.isEmpty()) {
+                    runs.put(caseId, new PlannerRun(
+                            "RECOVERED",
+                            recovered,
+                            Duration.ofNanos(System.nanoTime() - started).toMillis(),
+                            failure.getClass().getSimpleName()));
+                    return recovered;
+                }
                 runs.putIfAbsent(caseId, new PlannerRun(
                         "FAILED",
                         List.of(),
