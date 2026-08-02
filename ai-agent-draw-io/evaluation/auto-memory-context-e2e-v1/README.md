@@ -68,3 +68,41 @@ pre-registered gate:
 The one incomplete Case was the Chinese Chartbook request for horizontal async lanes plus a
 triangular Pager node. The planner produced both correct facets, but the existing vector acceptance
 policy retained only the Pager Memory. No threshold or prompt was changed after this result.
+
+## One-shot holdout result
+
+The untouched holdout ran exactly once on 2026-08-02. It failed the recall gates, so this result must
+not be used to authorize production rollout. Report SHA-256:
+`391c447190b2c6627ff2f650c6a1eca9be9b106c34bd7ce356ecf186da2d7592`.
+
+| Metric | Required | Result |
+|---|---:|---:|
+| Target recall in final Prompt | >= 80% | **70%** |
+| Complete positive Case rate | >= 75% | **66.7%** |
+| Prompt precision | >= 80% | 87.5% |
+| Irrelevant Prompt injection | <= 20% | 12.5% |
+| Negative Case injection | <= 25% | 0% |
+| Forbidden / unauthorized / disabled selection | 0 | 0 / 0 / 0 |
+| Selected-to-Prompt parity | 100% | 100% |
+| SQL-only target recall | diagnostic | 0% |
+
+Three of ten target Memories were missed:
+
+- The planner correctly split the Chinese worker-position and incident-color request, but the worker
+  target scored `0.8162`, below the fixed `0.82` floor.
+- The planner returned no facets for `Sources stay left; sinks stay right`; the untouched query put
+  both targets first, but at `0.8091` and `0.8039`, below the floor.
+- The incident-color facet also admitted an unrelated warning-color Memory in the same near-score
+  cohort, producing the only irrelevant final-Prompt entry.
+
+The next iteration should be evaluated on a new development/holdout version. It should address
+planner abstention on strong clause boundaries and candidate disambiguation together; simply lowering
+the vector floor would also admit the observed near-tie noise and is not supported by this result.
+The semantic and multi-intent flags remain default-off.
+
+## Verification and cleanup
+
+- The normal offline reactor suite passed after the evaluation: 2,054 tests, zero failures, zero
+  errors, and 24 opt-in skips (including this live evaluation).
+- The isolated Pinecone vectors were deleted and absence was verified by the harness.
+- A read-only local MySQL check found zero `amctx_%` Memory or Chartbook fixture rows.
