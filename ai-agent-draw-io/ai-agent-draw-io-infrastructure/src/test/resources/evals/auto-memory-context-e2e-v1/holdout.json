@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "AUTO_MEMORY_CONTEXT_E2E_CASES_V1",
+  "datasetVersion": "auto-memory-context-e2e-v1",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "frozen-holdout-not-for-tuning",
+  "qualityGate": {
+    "minimumTargetRecall": 0.8,
+    "minimumCompletePositiveCaseRate": 0.75,
+    "minimumPromptPrecision": 0.8,
+    "maximumIrrelevantInjectionRate": 0.2,
+    "maximumNegativeCaseInjectionRate": 0.25,
+    "maximumForbiddenSelectionRate": 0.0,
+    "maximumUnauthorizedSelectionCount": 0,
+    "maximumDisabledSelectionCount": 0,
+    "minimumPromptParityRate": 1.0
+  },
+  "targets": [
+    {"id":"e2eh-u-ingress-circle","scope":"USER","semanticKey":"ingress-node-shape","title":"Ingress shape","canonicalText":"Render ingress nodes as circles"},
+    {"id":"e2eh-u-audit-dotted","scope":"USER","semanticKey":"audit-edge-style","title":"Audit edge style","canonicalText":"Render audit edges as dotted lines"},
+    {"id":"e2eh-b-worker-bottom","scope":"CHARTBOOK","semanticKey":"worker-lane-position","title":"Worker lane position","canonicalText":"Place worker lanes at the bottom"},
+    {"id":"e2eh-b-incident-orange","scope":"CHARTBOOK","semanticKey":"incident-node-color","title":"Incident node color","canonicalText":"Fill incident nodes with orange"},
+    {"id":"e2eh-u-mobile-tooltip","scope":"USER","semanticKey":"mobile-tooltip-visibility","title":"Mobile tooltip visibility","canonicalText":"Hide tooltips on mobile views"},
+    {"id":"e2eh-u-desktop-spacing","scope":"USER","semanticKey":"desktop-node-spacing","title":"Desktop node spacing","canonicalText":"Increase node spacing on desktop views"},
+    {"id":"e2eh-b-source-left","scope":"CHARTBOOK","semanticKey":"source-node-position","title":"Source position","canonicalText":"Place source nodes on the left"},
+    {"id":"e2eh-b-sink-right","scope":"CHARTBOOK","semanticKey":"sink-node-position","title":"Sink position","canonicalText":"Place sink nodes on the right"},
+    {"id":"e2eh-u-gateway-solid","scope":"USER","semanticKey":"gateway-border-style","title":"Gateway border style","canonicalText":"Use solid rather than double borders for gateways"},
+    {"id":"e2eh-u-warning-yellow","scope":"USER","semanticKey":"warning-node-color","title":"Global warning color","canonicalText":"Use yellow warning nodes"},
+    {"id":"e2eh-b-warning-maroon","scope":"CHARTBOOK","semanticKey":"warning-node-color","title":"Chartbook warning color","canonicalText":"Use maroon warning nodes"}
+  ],
+  "noise": [
+    {"semanticKey":"api-fill-color","title":"API fill color","canonicalText":"Fill API nodes with light blue"},
+    {"semanticKey":"broker-node-shape","title":"Broker shape","canonicalText":"Render broker nodes as hexagons"},
+    {"semanticKey":"legend-border-style","title":"Legend border","canonicalText":"Use thin borders around legends"},
+    {"semanticKey":"database-label-font","title":"Database label font","canonicalText":"Use monospace labels for databases"},
+    {"semanticKey":"cache-node-position","title":"Cache position","canonicalText":"Place caches below services"},
+    {"semanticKey":"approval-edge-color","title":"Approval edge color","canonicalText":"Use green approval edges"},
+    {"semanticKey":"error-label-case","title":"Error label case","canonicalText":"Use uppercase error labels"},
+    {"semanticKey":"client-lane-position","title":"Client lane position","canonicalText":"Place client lanes at the top"},
+    {"semanticKey":"note-node-color","title":"Note color","canonicalText":"Fill note nodes with cream"},
+    {"semanticKey":"queue-border-style","title":"Queue border","canonicalText":"Use dashed borders for queues"},
+    {"semanticKey":"owner-badge-color","title":"Owner badge color","canonicalText":"Use purple owner badges"},
+    {"semanticKey":"footer-font-style","title":"Footer font style","canonicalText":"Italicize footer text"}
+  ],
+  "cases": [
+    {"id":"e2eh-multi-user","queryText":"Make ingress points circular whereas audit paths should be dotted.","chartbookContext":false,"expectedRelevantIds":["e2eh-u-ingress-circle","e2eh-u-audit-dotted"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh-multi-chartbook","queryText":"把工作线程泳道放到底部，另外让事故节点显示为橙色。","chartbookContext":true,"expectedRelevantIds":["e2eh-b-worker-bottom","e2eh-b-incident-orange"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh-negative-positive","queryText":"Never show mobile tooltips and give desktop diagrams more spacing.","chartbookContext":false,"expectedRelevantIds":["e2eh-u-mobile-tooltip","e2eh-u-desktop-spacing"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh-multi-position","queryText":"Sources stay left; sinks stay right in this chartbook.","chartbookContext":true,"expectedRelevantIds":["e2eh-b-source-left","e2eh-b-sink-right"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh-single-contrast","queryText":"For gateways, prefer a solid border instead of a double border.","chartbookContext":false,"expectedRelevantIds":["e2eh-u-gateway-solid"],"forbiddenSelectedIds":[]},
+    {"id":"e2eh-chartbook-override","queryText":"Apply this chartbook's warning-node color.","chartbookContext":true,"expectedRelevantIds":["e2eh-b-warning-maroon"],"forbiddenSelectedIds":["e2eh-u-warning-yellow"]},
+    {"id":"e2eh-negative-once","queryText":"Move this one node slightly to the right.","chartbookContext":false,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2eh-negative-history","queryText":"Summarize what we discussed in the previous turn.","chartbookContext":true,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2eh-negative-source","queryText":"According to the uploaded report, what was last quarter's revenue?","chartbookContext":true,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2eh-negative-greeting","queryText":"Hello, are you available?","chartbookContext":false,"expectedRelevantIds":[],"forbiddenSelectedIds":[]}
+  ]
+}
