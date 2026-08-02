@@ -8,10 +8,19 @@ public interface AutoMemoryVectorShadowTelemetry {
 
     void record(Sample sample);
 
-    record Sample(boolean succeeded, int sqlCandidateCount, int vectorHitCount) {
+    record Sample(
+            boolean succeeded,
+            int sqlCandidateCount,
+            int vectorHitCount,
+            int hydratedCandidateCount,
+            int overlapCount
+    ) {
         public Sample {
-            if (sqlCandidateCount < 0 || vectorHitCount < 0) {
-                throw new IllegalArgumentException("shadow counts must not be negative");
+            if (sqlCandidateCount < 0 || vectorHitCount < 0
+                    || hydratedCandidateCount < 0 || overlapCount < 0
+                    || hydratedCandidateCount > vectorHitCount
+                    || overlapCount > Math.min(sqlCandidateCount, hydratedCandidateCount)) {
+                throw new IllegalArgumentException("shadow counts are inconsistent");
             }
         }
     }

@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.memory.AutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
+import org.zipp.ai.application.memory.AutoMemoryVectorCandidateHydrationPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorker;
 import org.zipp.ai.application.memory.AutoMemoryVectorShadowTelemetry;
@@ -81,11 +82,13 @@ public class AutoMemoryVectorConfig {
     public AutoMemoryConsolidationCandidateRetriever shadowAutoMemoryCandidateRetriever(
             AutoMemoryQueryPort memories,
             AutoMemoryVectorStorePort vectors,
+            AutoMemoryVectorCandidateHydrationPort hydration,
             AutoMemoryVectorShadowTelemetry telemetry
     ) {
         return new ShadowAutoMemoryConsolidationCandidateRetriever(
                 new ScopedAutoMemoryConsolidationCandidateRetriever(memories),
                 vectors,
+                hydration,
                 telemetry);
     }
 }

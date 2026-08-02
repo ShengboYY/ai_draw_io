@@ -18,6 +18,7 @@ import org.zipp.ai.application.memory.AutoMemoryMaintenanceService;
 import org.zipp.ai.application.memory.AutoMemoryObservationService;
 import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
+import org.zipp.ai.application.memory.AutoMemoryVectorCandidateHydrationPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
 import org.zipp.ai.application.memory.ShadowAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.config.AutoMemoryApplicationCompositionConfig;
@@ -127,6 +128,11 @@ class AutoMemoryApplicationCompositionConfigTest {
         @Bean
         AutoMemoryQueryPort memoryQuery() {
             return mock(AutoMemoryQueryPort.class);
+        }
+
+        @Bean
+        AutoMemoryVectorCandidateHydrationPort vectorHydration() {
+            return mock(AutoMemoryVectorCandidateHydrationPort.class);
         }
 
         @Bean

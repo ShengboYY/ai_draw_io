@@ -9,8 +9,8 @@
 3. **User Auto Memory**：同一用户跨 Chartbook 有效的稳定偏好与反馈。
 
 Canvas State、Chartbook Profile、RAG 继续作为独立上下文源，不并入 Memory。运行时不再存在
-Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-B 已增加默认关闭的
-Memory 专用向量投影与影子检索，但不会改变 Worker 实际使用的 SQL 候选。
+Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-C 已补齐默认关闭的
+Memory 向量影子检索与 MySQL 权威回查，但不会改变 Worker 实际使用的 SQL 候选。
 
 ## 2. 边界与优先级
 
@@ -474,12 +474,31 @@ V1.4-B 实现投影和观测闭环，但不改变记忆归并结果：
 5. `AUTO_MEMORY_VECTOR_PROJECTION_ENABLED` 与 `AUTO_MEMORY_VECTOR_SHADOW_ENABLED` 默认均为
    `false`。仅开启 shadow 而未开启 projection 时仍使用普通 SQL 路径，避免半配置状态改变行为。
 
-下一步 V1.4-C 不是继续扩展投影框架，而是补齐“向量 ID → MySQL 权威候选”的批量回查与离线
-对照报告，用第 9 节的冻结 cohort 衡量相关召回、`DISABLED` 召回和隔离。只有真实 shadow 数据
-稳定通过门槛后，才考虑让语义结果参与 Worker 候选；即使切换，MySQL 仍负责 lifecycle、授权、
-Evidence 累计和冲突晋升。
+V1.4-C 在这一投影边界上补齐权威回查和可比较的 shadow 指标，见下一节。
 
-## 14. 开发日志
+## 14. V1.4-C MySQL 权威回查与 shadow 对照
+
+V1.4-C 只完成语义命中的安全闭环，不让向量候选参与 DeepSeek 输入：
+
+1. Pinecone 返回的 ID 一律视为不可信输入，只接受本投影合同生成的 CURRENT 或 CHALLENGER
+   格式；格式、Base64、Memory ID 或 challenger 摘要不合法时直接丢弃。
+2. 合法 ID 只用于一次有界的 MySQL 批量回查。查询重新校验 owner、当前 USER/CHARTBOOK scope
+   以及 Item 的 `OBSERVED/ACTIVE/DISABLED` 状态；向量 metadata 不能替代授权和 lifecycle。
+3. CHALLENGER 只有在对应 `CONFLICTING` Evidence 仍未解决时才有效，并折叠为其父 Item 的当前
+   候选。这样 Prompt 只看到稳定的 semantic key 和 MySQL 当前值，不会把冲突文本误当成权威；
+   challenger 晋升或被取代后，旧向量 ID 即使尚未清理也会回查失败。
+4. 回查保持向量排序，按 Memory 去重并重新执行每 scope 上限。shadow 仍无条件返回原 SQL
+   候选，只增加原始命中数、有效回查数及与 SQL 重合数三个无内容指标。
+5. 测试集中在会改变安全或正确性的边界：不可信向量 ID 拒绝、SQL 结果不受 shadow 成败影响，
+   以及真实 MySQL 的 owner/scope、`DISABLED` 和 challenger 生命周期。没有增加模拟余弦相似度或重复
+   happy-path 测试，因为它们不能证明真实 embedding 与 Pinecone 的召回质量。
+
+下一步是在独立 Memory namespace 上运行第 12 节冻结 cohort 和一段真实 shadow 流量，对照相关
+召回、`DISABLED` 召回、无效回查率及 SQL 重合率并保存报告。只有真实数据稳定通过门槛后，才
+单独设计让语义候选参与 Worker 的切换；即使切换，MySQL 仍负责授权、lifecycle、Evidence 和
+冲突晋升。
+
+## 15. 开发日志
 
 ### 2026-07-31
 
@@ -565,13 +584,22 @@ Evidence 累计和冲突晋升。
   幂等、revision 推进、旧 lease 拒绝/重排、状态保护、owner/scope 隔离及测试数据清理。
 - [x] V1.4-B 完整后端 `mvn test` 共执行 2,010 项测试，0 failure、0 error；18 项按既有
   live/integration 开关跳过，本地 MySQL 集成已另行显式运行通过，未调用真实 Pinecone。
+- [x] 完成 V1.4-C 向量 ID → MySQL 权威回查：严格解析自有 ID，批量重验 owner/scope/lifecycle，
+  unresolved challenger 折叠回父 Item，并保持向量排序、Memory 去重和每 scope 上限。
+- [x] shadow 新增有效回查数与 SQL 重合数指标；Pinecone、回查或指标链路失败都不替换或删除
+  SQL 候选，也不记录 Memory 文本和向量 ID。
+- [x] 定向 16 项测试和本地 MySQL 8.4 的 5 个集成场景通过；集成场景覆盖 `DISABLED` 回查、
+  owner 隔离、未解决 challenger 命中、晋升后旧 challenger 失效和当前值命中。
+- [x] V1.4-C 完整后端 `mvn test` 共执行 2,012 项测试，0 failure、0 error；18 项按既有
+  live/integration 开关跳过。本阶段没有用模拟向量代替真实召回质量结论，也未连接生产环境。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
 Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已验证。feature flag 仍保持
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
-V1.4-B 的投影和 shadow 代码及本地数据库验证已完成，两个向量开关保持关闭，Worker 仍只使用
-MySQL；下一步是第 13 节所述的权威回查和离线/shadow 对照，不接入生产。
+V1.4-C 的投影、权威回查和 shadow 对照代码及本地数据库验证已完成，两个向量开关保持关闭，
+Worker 仍只使用 MySQL；下一步是第 14 节所述的真实 Pinecone cohort/shadow 质量报告，不接入
+生产。
 目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权不执行生产变更。严格显式
 句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
 阻塞 Pro 上线。

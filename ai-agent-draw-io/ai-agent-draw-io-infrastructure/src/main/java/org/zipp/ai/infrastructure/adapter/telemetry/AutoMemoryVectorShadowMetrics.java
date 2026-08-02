@@ -13,6 +13,8 @@ public final class AutoMemoryVectorShadowMetrics implements AutoMemoryVectorShad
     private final Counter failed;
     private final DistributionSummary sqlCandidates;
     private final DistributionSummary vectorHits;
+    private final DistributionSummary hydratedCandidates;
+    private final DistributionSummary overlapCandidates;
 
     public AutoMemoryVectorShadowMetrics(MeterRegistry registry) {
         Objects.requireNonNull(registry, "registry");
@@ -20,6 +22,8 @@ public final class AutoMemoryVectorShadowMetrics implements AutoMemoryVectorShad
         failed = registry.counter("auto_memory_vector_shadow_total", "outcome", "failure");
         sqlCandidates = registry.summary("auto_memory_vector_shadow_sql_candidates");
         vectorHits = registry.summary("auto_memory_vector_shadow_hits");
+        hydratedCandidates = registry.summary("auto_memory_vector_shadow_hydrated_candidates");
+        overlapCandidates = registry.summary("auto_memory_vector_shadow_overlap_candidates");
     }
 
     @Override
@@ -28,5 +32,7 @@ public final class AutoMemoryVectorShadowMetrics implements AutoMemoryVectorShad
         (sample.succeeded() ? succeeded : failed).increment();
         sqlCandidates.record(sample.sqlCandidateCount());
         vectorHits.record(sample.vectorHitCount());
+        hydratedCandidates.record(sample.hydratedCandidateCount());
+        overlapCandidates.record(sample.overlapCount());
     }
 }

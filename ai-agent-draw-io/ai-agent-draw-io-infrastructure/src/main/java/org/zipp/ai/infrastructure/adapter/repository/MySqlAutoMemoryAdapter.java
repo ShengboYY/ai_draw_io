@@ -7,6 +7,9 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.memory.AutoMemory;
 import org.zipp.ai.application.memory.AutoMemoryActivationPolicy;
+import org.zipp.ai.application.memory.AutoMemoryConsolidationQuery;
+import org.zipp.ai.application.memory.AutoMemoryExtractionCandidate;
+import org.zipp.ai.application.memory.AutoMemoryExtractionInput;
 import org.zipp.ai.application.memory.AutoMemoryFence;
 import org.zipp.ai.application.memory.AutoMemoryManagementOutcome;
 import org.zipp.ai.application.memory.AutoMemoryManagementStorePort;
@@ -17,6 +20,8 @@ import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 import org.zipp.ai.application.memory.AutoMemoryScope;
 import org.zipp.ai.application.memory.AutoMemoryStatus;
 import org.zipp.ai.application.memory.AutoMemoryType;
+import org.zipp.ai.application.memory.AutoMemoryVectorCandidateHydrationPort;
+import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
 import org.zipp.ai.application.memory.MemoryScopeType;
 import org.zipp.ai.application.memory.SanitizedAutoMemoryObservation;
@@ -27,9 +32,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -39,7 +49,8 @@ import java.util.UUID;
 @Repository
 public class MySqlAutoMemoryAdapter
         implements AutoMemoryObservationStorePort, AutoMemoryQueryPort,
-        AutoMemoryManagementStorePort, AutoMemoryMaintenancePort {
+        AutoMemoryManagementStorePort, AutoMemoryMaintenancePort,
+        AutoMemoryVectorCandidateHydrationPort {
 
     private static final String VERIFY_CHARTBOOK = """
             SELECT COUNT(*)
@@ -167,6 +178,24 @@ public class MySqlAutoMemoryAdapter
                      END,
                      updated_at DESC, memory_id
             LIMIT ?
+            """;
+
+    private static final String SELECT_VECTOR_AUTHORITY_ITEMS = """
+            SELECT memory_id, owner_key, scope_type, scope_key, memory_type,
+                   semantic_key, title, canonical_text, status, confidence,
+                   evidence_count, is_explicit, version, created_at, updated_at
+            FROM memory_item
+            WHERE memory_id IN (%s) AND owner_key = ?
+              AND status IN ('OBSERVED', 'ACTIVE', 'DISABLED')
+              AND (%s)
+            """;
+
+    private static final String SELECT_VECTOR_AUTHORITY_CHALLENGERS = """
+            SELECT memory_id, observed_text
+            FROM memory_evidence
+            WHERE memory_id IN (%s) AND owner_key = ?
+              AND disposition = 'CONFLICTING'
+            GROUP BY memory_id, observed_text
             """;
 
     private static final String SELECT_MANAGED = """
@@ -463,6 +492,92 @@ public class MySqlAutoMemoryAdapter
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<AutoMemoryExtractionCandidate> hydrate(
+            AutoMemoryConsolidationQuery query,
+            List<String> rankedVectorIds
+    ) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(rankedVectorIds, "rankedVectorIds");
+        if (rankedVectorIds.size() > AutoMemoryExtractionInput.MAX_EXISTING_CANDIDATES) {
+            throw new IllegalArgumentException("too many Memory vector candidates");
+        }
+        LinkedHashSet<String> requestedMemoryIds = new LinkedHashSet<>();
+        for (String vectorId : rankedVectorIds) {
+            AutoMemoryVectorDocument.memoryIdFromVectorId(vectorId)
+                    .ifPresent(requestedMemoryIds::add);
+        }
+        if (requestedMemoryIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<AutoMemoryScope> scopes = query.authorizedScopes();
+        List<Object> itemArguments = new ArrayList<>(requestedMemoryIds);
+        itemArguments.add(query.turn().ownerKey());
+        for (AutoMemoryScope scope : scopes) {
+            itemArguments.add(scope.type().name());
+            itemArguments.add(scope.scopeKey());
+        }
+        String scopePredicate = String.join(
+                " OR ", java.util.Collections.nCopies(
+                        scopes.size(), "(scope_type = ? AND scope_key = ?)"));
+        List<AutoMemory> memories = jdbc.query(
+                SELECT_VECTOR_AUTHORITY_ITEMS.formatted(
+                        placeholders(requestedMemoryIds.size()), scopePredicate),
+                this::mapMemory,
+                itemArguments.toArray());
+        if (memories.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, AutoMemory> validVectors = new HashMap<>();
+        Map<String, AutoMemory> memoriesById = new HashMap<>();
+        for (AutoMemory memory : memories) {
+            memoriesById.put(memory.memoryId(), memory);
+            validVectors.put(
+                    AutoMemoryVectorDocument.current(memory, 1).vectorId(), memory);
+        }
+        List<Object> challengerArguments = new ArrayList<>(memoriesById.keySet());
+        challengerArguments.add(query.turn().ownerKey());
+        String challengerSql = SELECT_VECTOR_AUTHORITY_CHALLENGERS.formatted(
+                placeholders(memoriesById.size()));
+        jdbc.query(
+                challengerSql,
+                resultSet -> {
+                    AutoMemory memory = memoriesById.get(resultSet.getString("memory_id"));
+                    if (memory != null) {
+                        validVectors.put(
+                                AutoMemoryVectorDocument.challenger(
+                                        memory.memoryId(),
+                                        memory.scope(),
+                                        memory.title(),
+                                        resultSet.getString("observed_text"),
+                                        1).vectorId(),
+                                memory);
+                    }
+                },
+                challengerArguments.toArray());
+
+        Set<String> selectedMemoryIds = new LinkedHashSet<>();
+        Map<AutoMemoryScope, Integer> selectedPerScope = new HashMap<>();
+        List<AutoMemoryExtractionCandidate> hydrated = new ArrayList<>();
+        for (String vectorId : rankedVectorIds) {
+            AutoMemory memory = validVectors.get(vectorId);
+            if (memory == null || selectedMemoryIds.contains(memory.memoryId())) {
+                continue;
+            }
+            int scopeCount = selectedPerScope.getOrDefault(memory.scope(), 0);
+            if (scopeCount >= query.limitPerScope()) {
+                continue;
+            }
+            selectedMemoryIds.add(memory.memoryId());
+            selectedPerScope.put(memory.scope(), scopeCount + 1);
+            hydrated.add(AutoMemoryExtractionCandidate.from(memory));
+        }
+        return List.copyOf(hydrated);
+    }
+
+    @Override
     public List<AutoMemory> list(
             AutoMemoryScope scope,
             boolean includeObserved,
@@ -740,6 +855,13 @@ public class MySqlAutoMemoryAdapter
 
     private static String normalize(String value) {
         return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private static String placeholders(int count) {
+        if (count < 1 || count > AutoMemoryExtractionInput.MAX_EXISTING_CANDIDATES) {
+            throw new IllegalArgumentException("placeholder count is outside Memory bounds");
+        }
+        return String.join(", ", java.util.Collections.nCopies(count, "?"));
     }
 
     private static Instant instant(Timestamp value) {

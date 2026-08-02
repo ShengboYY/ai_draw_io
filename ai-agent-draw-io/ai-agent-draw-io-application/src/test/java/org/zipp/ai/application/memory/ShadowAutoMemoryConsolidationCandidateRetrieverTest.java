@@ -25,21 +25,35 @@ class ShadowAutoMemoryConsolidationCandidateRetrieverTest {
                     "Node labels",
                     "Prefer concise labels",
                     AutoMemoryStatus.ACTIVE);
+    private static final AutoMemoryExtractionCandidate VECTOR_ONLY_CANDIDATE =
+            new AutoMemoryExtractionCandidate(
+                    MemoryScopeType.USER,
+                    AutoMemoryType.PREFERENCE,
+                    "connector-routing",
+                    "Connector routing",
+                    "Prefer orthogonal connectors",
+                    AutoMemoryStatus.ACTIVE);
 
     @Test
     void recordsOpaqueHitsButReturnsSqlCandidates() {
         List<AutoMemoryVectorShadowTelemetry.Sample> samples = new ArrayList<>();
         FakeVectors vectors = new FakeVectors();
-        vectors.hits = List.of("opaque-vector-1");
+        vectors.hits = List.of("opaque-vector-1", "opaque-vector-2");
         ShadowAutoMemoryConsolidationCandidateRetriever retriever =
                 new ShadowAutoMemoryConsolidationCandidateRetriever(
-                        query -> List.of(SQL_CANDIDATE), vectors, samples::add);
+                        query -> List.of(SQL_CANDIDATE),
+                        vectors,
+                        (query, vectorIds) -> List.of(SQL_CANDIDATE, VECTOR_ONLY_CANDIDATE),
+                        samples::add);
 
         assertEquals(List.of(SQL_CANDIDATE), retriever.retrieve(QUERY));
 
         assertEquals(1, samples.size());
         assertTrue(samples.get(0).succeeded());
-        assertEquals(1, samples.get(0).vectorHitCount());
+        assertEquals(1, samples.get(0).sqlCandidateCount());
+        assertEquals(2, samples.get(0).vectorHitCount());
+        assertEquals(2, samples.get(0).hydratedCandidateCount());
+        assertEquals(1, samples.get(0).overlapCount());
         assertEquals(32, vectors.topK);
     }
 
@@ -50,12 +64,34 @@ class ShadowAutoMemoryConsolidationCandidateRetrieverTest {
         vectors.failure = new IllegalStateException("provider unavailable");
         ShadowAutoMemoryConsolidationCandidateRetriever retriever =
                 new ShadowAutoMemoryConsolidationCandidateRetriever(
-                        query -> List.of(SQL_CANDIDATE), vectors, samples::add);
+                        query -> List.of(SQL_CANDIDATE),
+                        vectors,
+                        (query, vectorIds) -> {
+                            throw new AssertionError("hydration must not run after search failure");
+                        },
+                        samples::add);
 
         assertEquals(List.of(SQL_CANDIDATE), retriever.retrieve(QUERY));
 
         assertFalse(samples.get(0).succeeded());
         assertEquals(0, samples.get(0).vectorHitCount());
+        assertEquals(0, samples.get(0).hydratedCandidateCount());
+        assertEquals(0, samples.get(0).overlapCount());
+    }
+
+    @Test
+    void telemetryFailureCannotBreakSqlCandidateRetrieval() {
+        FakeVectors vectors = new FakeVectors();
+        ShadowAutoMemoryConsolidationCandidateRetriever retriever =
+                new ShadowAutoMemoryConsolidationCandidateRetriever(
+                        query -> List.of(SQL_CANDIDATE),
+                        vectors,
+                        (query, vectorIds) -> List.of(),
+                        sample -> {
+                            throw new IllegalStateException("metrics unavailable");
+                        });
+
+        assertEquals(List.of(SQL_CANDIDATE), retriever.retrieve(QUERY));
     }
 
     private static final class FakeVectors implements AutoMemoryVectorStorePort {

@@ -6,6 +6,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
 /** Transient, content-bearing source for one rebuildable Memory vector. */
 public record AutoMemoryVectorDocument(
@@ -18,6 +20,11 @@ public record AutoMemoryVectorDocument(
         String canonicalText,
         long projectionRevision
 ) {
+    private static final String CURRENT_PREFIX = "am-current.";
+    private static final String CHALLENGER_PREFIX = "am-challenger.";
+    private static final Pattern MEMORY_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
+    private static final Pattern DIGEST = Pattern.compile("[0-9a-f]{32}");
+
     public AutoMemoryVectorDocument {
         vectorId = required(vectorId, "vectorId");
         memoryId = required(memoryId, "memoryId");
@@ -40,7 +47,7 @@ public record AutoMemoryVectorDocument(
             throw new IllegalArgumentException("deleted Memory cannot be projected");
         }
         return new AutoMemoryVectorDocument(
-                "am-current." + encoded(memory.memoryId()),
+                CURRENT_PREFIX + encoded(memory.memoryId()),
                 memory.memoryId(),
                 memory.scope(),
                 CandidateKind.CURRENT,
@@ -60,7 +67,7 @@ public record AutoMemoryVectorDocument(
         String normalizedMemoryId = required(memoryId, "memoryId");
         String normalizedText = required(canonicalText, "canonicalText");
         return new AutoMemoryVectorDocument(
-                "am-challenger." + encoded(normalizedMemoryId) + "." + digest(normalizedText),
+                CHALLENGER_PREFIX + encoded(normalizedMemoryId) + "." + digest(normalizedText),
                 normalizedMemoryId,
                 scope,
                 CandidateKind.CHALLENGER,
@@ -73,6 +80,37 @@ public record AutoMemoryVectorDocument(
     /** Content is sent only to the embedding endpoint, never to Pinecone vector metadata. */
     public String retrievalText() {
         return title + "\n" + canonicalText;
+    }
+
+    /** Decodes only identities emitted by this projection contract; provider input is untrusted. */
+    public static Optional<String> memoryIdFromVectorId(String vectorId) {
+        if (vectorId == null || vectorId.isBlank() || vectorId.length() > 160) {
+            return Optional.empty();
+        }
+        String encodedMemoryId;
+        if (vectorId.startsWith(CURRENT_PREFIX)) {
+            encodedMemoryId = vectorId.substring(CURRENT_PREFIX.length());
+            if (encodedMemoryId.contains(".")) {
+                return Optional.empty();
+            }
+        } else if (vectorId.startsWith(CHALLENGER_PREFIX)) {
+            String suffix = vectorId.substring(CHALLENGER_PREFIX.length());
+            int separator = suffix.lastIndexOf('.');
+            if (separator < 1 || !DIGEST.matcher(suffix.substring(separator + 1)).matches()) {
+                return Optional.empty();
+            }
+            encodedMemoryId = suffix.substring(0, separator);
+        } else {
+            return Optional.empty();
+        }
+        try {
+            String memoryId = new String(
+                    Base64.getUrlDecoder().decode(encodedMemoryId), StandardCharsets.UTF_8);
+            return MEMORY_ID.matcher(memoryId).matches() && encoded(memoryId).equals(encodedMemoryId)
+                    ? Optional.of(memoryId) : Optional.empty();
+        } catch (IllegalArgumentException malformedBase64) {
+            return Optional.empty();
+        }
     }
 
     public enum CandidateKind {

@@ -13,9 +13,9 @@ class AutoMemoryVectorShadowMetricsTest {
         AutoMemoryVectorShadowMetrics metrics = new AutoMemoryVectorShadowMetrics(registry);
 
         metrics.record(new AutoMemoryVectorShadowTelemetry.Sample(
-                true, 12, 2));
+                true, 12, 3, 2, 1));
         metrics.record(new AutoMemoryVectorShadowTelemetry.Sample(
-                false, 8, 0));
+                false, 8, 0, 0, 0));
 
         assertEquals(1.0d, registry.get("auto_memory_vector_shadow_total")
                 .tag("outcome", "success").counter().count());
@@ -23,7 +23,11 @@ class AutoMemoryVectorShadowMetricsTest {
                 .tag("outcome", "failure").counter().count());
         assertEquals(20.0d, registry.get("auto_memory_vector_shadow_sql_candidates")
                 .summary().totalAmount());
-        assertEquals(2.0d, registry.get("auto_memory_vector_shadow_hits")
+        assertEquals(3.0d, registry.get("auto_memory_vector_shadow_hits")
+                .summary().totalAmount());
+        assertEquals(2.0d, registry.get("auto_memory_vector_shadow_hydrated_candidates")
+                .summary().totalAmount());
+        assertEquals(1.0d, registry.get("auto_memory_vector_shadow_overlap_candidates")
                 .summary().totalAmount());
     }
 }

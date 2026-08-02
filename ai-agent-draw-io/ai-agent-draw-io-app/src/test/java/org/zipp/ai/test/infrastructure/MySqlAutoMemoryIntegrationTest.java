@@ -13,6 +13,8 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.zipp.ai.application.memory.AutoMemory;
+import org.zipp.ai.application.memory.AutoMemoryConsolidationQuery;
+import org.zipp.ai.application.memory.AutoMemoryExtractionCandidate;
 import org.zipp.ai.application.memory.AutoMemoryFence;
 import org.zipp.ai.application.memory.AutoMemoryManagementOutcome;
 import org.zipp.ai.application.memory.AutoMemoryObservationCommand;
@@ -273,6 +275,16 @@ class MySqlAutoMemoryIntegrationTest {
         assertEquals(
                 AutoMemoryStatus.DISABLED,
                 adapter.findConsolidationCandidates(scope, 10).get(0).status());
+        List<AutoMemoryExtractionCandidate> hydratedDisabled = adapter.hydrate(
+                new AutoMemoryConsolidationQuery(
+                        new TurnKey(adapterOwner, "hydration-conversation", "hydration-turn"),
+                        null,
+                        "Keep labels concise",
+                        16),
+                List.of(AutoMemoryVectorDocument.current(
+                        disabled.memory(), disabled.memory().version()).vectorId()));
+        assertEquals(1, hydratedDisabled.size());
+        assertEquals(AutoMemoryStatus.DISABLED, hydratedDisabled.get(0).status());
         assertEquals(3, count("""
                 SELECT desired_revision
                 FROM memory_vector_projection_work
@@ -340,6 +352,28 @@ class MySqlAutoMemoryIntegrationTest {
                         "conflict-turn-3", MemoryObservationKind.INFERRED))));
         assertEquals("Prefer concise labels", adapter.recallActive(scope, 10).get(0).canonicalText());
 
+        String challengerVectorId = AutoMemoryVectorDocument.challenger(
+                active.memoryId(), active.scope(), active.title(),
+                "Prefer detailed labels", active.version()).vectorId();
+        AutoMemoryConsolidationQuery hydrationQuery = new AutoMemoryConsolidationQuery(
+                new TurnKey(conflictOwner, "hydration-conversation", "hydration-turn"),
+                null,
+                "Keep labels detailed",
+                16);
+        List<AutoMemoryExtractionCandidate> hydrated = adapter.hydrate(
+                hydrationQuery, List.of(challengerVectorId, "provider-owned-id"));
+        assertEquals(1, hydrated.size());
+        // A challenger hit identifies the parent semantic key; only MySQL current text is exposed.
+        assertEquals("label-density", hydrated.get(0).semanticKey());
+        assertEquals("Prefer concise labels", hydrated.get(0).canonicalText());
+        assertTrue(adapter.hydrate(
+                new AutoMemoryConsolidationQuery(
+                        new TurnKey(otherOwner, "hydration-conversation", "hydration-turn"),
+                        null,
+                        "Keep labels detailed",
+                        16),
+                List.of(challengerVectorId)).isEmpty());
+
         AutoMemory promoted = assertInstanceOf(
                 AutoMemoryObservationOutcome.Applied.class,
                 transaction(() -> service.observe(observation(
@@ -359,6 +393,14 @@ class MySqlAutoMemoryIntegrationTest {
                 WHERE memory_id = ? AND disposition = 'SUPERSEDED'
                   AND observed_text = 'Prefer concise labels'
                 """, promoted.memoryId()));
+        // Once promoted, the old challenger ID is stale; the authoritative current ID remains valid.
+        assertTrue(adapter.hydrate(hydrationQuery, List.of(challengerVectorId)).isEmpty());
+        List<AutoMemoryExtractionCandidate> hydratedCurrent = adapter.hydrate(
+                hydrationQuery,
+                List.of(AutoMemoryVectorDocument.current(
+                        promoted, promoted.version()).vectorId()));
+        assertEquals(1, hydratedCurrent.size());
+        assertEquals("Prefer detailed labels", hydratedCurrent.get(0).canonicalText());
 
         AutoMemory explicit = assertInstanceOf(
                 AutoMemoryObservationOutcome.Applied.class,

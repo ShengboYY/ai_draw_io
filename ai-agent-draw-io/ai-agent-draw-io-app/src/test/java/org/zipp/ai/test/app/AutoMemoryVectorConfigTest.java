@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.zipp.ai.application.memory.AutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
+import org.zipp.ai.application.memory.AutoMemoryVectorCandidateHydrationPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorker;
 import org.zipp.ai.application.memory.AutoMemoryVectorShadowTelemetry;
@@ -73,6 +74,11 @@ class AutoMemoryVectorConfigTest {
         @Bean
         AutoMemoryQueryPort memoryQuery() {
             return mock(AutoMemoryQueryPort.class);
+        }
+
+        @Bean
+        AutoMemoryVectorCandidateHydrationPort vectorHydration() {
+            return mock(AutoMemoryVectorCandidateHydrationPort.class);
         }
 
         @Bean

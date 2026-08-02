@@ -41,6 +41,25 @@ class AutoMemoryVectorDocumentTest {
                 memory.title(), memory.canonicalText(), 3));
     }
 
+    @Test
+    void decodesOnlyOwnedVectorIdentityShapes() {
+        AutoMemory memory = memory("Prefer concise labels");
+        String currentId = AutoMemoryVectorDocument.current(memory, 1).vectorId();
+        String challengerId = AutoMemoryVectorDocument.challenger(
+                memory.memoryId(), memory.scope(), memory.title(),
+                "Prefer detailed labels", 1).vectorId();
+
+        assertEquals(memory.memoryId(),
+                AutoMemoryVectorDocument.memoryIdFromVectorId(currentId).orElseThrow());
+        assertEquals(memory.memoryId(),
+                AutoMemoryVectorDocument.memoryIdFromVectorId(challengerId).orElseThrow());
+        // Pinecone IDs are provider input: reject near-matches instead of trusting their shape.
+        assertFalse(AutoMemoryVectorDocument.memoryIdFromVectorId(currentId + ".extra").isPresent());
+        assertFalse(AutoMemoryVectorDocument.memoryIdFromVectorId(
+                challengerId.substring(0, challengerId.length() - 1) + "Z").isPresent());
+        assertFalse(AutoMemoryVectorDocument.memoryIdFromVectorId("provider-owned-id").isPresent());
+    }
+
     private static AutoMemory memory(String canonicalText) {
         Instant now = Instant.parse("2026-08-02T00:00:00Z");
         return new AutoMemory(
