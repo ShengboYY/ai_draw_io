@@ -109,11 +109,10 @@ public final class AutoMemoryContextSelector {
 
     private SemanticRecall semantic(AutoMemoryContextQuery query) {
         try {
-            List<String> vectorIds = vectors.search(
+            List<String> vectorIds = semanticPolicy.accept(vectors.search(
                             AutoMemoryVectorSearchQuery.activeContext(
                                     query.turn(), query.chartbookId(), query.userContent()),
-                            VECTOR_TOP_K).stream()
-                    .filter(hit -> hit.score() >= semanticPolicy.minimumScore())
+                            VECTOR_TOP_K)).stream()
                     .map(AutoMemoryVectorSearchHit::vectorId)
                     .toList();
             return new SemanticRecall(
@@ -229,11 +228,36 @@ public final class AutoMemoryContextSelector {
         }
     }
 
-    public record SemanticPolicy(double minimumScore) {
+    public record SemanticPolicy(double minimumScore, double minimumLead) {
         public SemanticPolicy {
-            if (!Double.isFinite(minimumScore)) {
-                throw new IllegalArgumentException("minimum semantic score must be finite");
+            if (!Double.isFinite(minimumScore)
+                    || !Double.isFinite(minimumLead)
+                    || minimumLead < 0.0d) {
+                throw new IllegalArgumentException("invalid semantic acceptance policy");
             }
+        }
+
+        public SemanticPolicy(double minimumScore) {
+            this(minimumScore, 0.0d);
+        }
+
+        private List<AutoMemoryVectorSearchHit> accept(
+                List<AutoMemoryVectorSearchHit> ranked
+        ) {
+            if (ranked.isEmpty() || ranked.get(0).score() < minimumScore) {
+                return List.of();
+            }
+            // A close runner-up is safe only when it independently clears the relevance floor.
+            boolean secondIsStrong = ranked.size() > 1
+                    && ranked.get(1).score() >= minimumScore;
+            boolean firstHasClearLead = ranked.size() == 1
+                    || ranked.get(0).score() - ranked.get(1).score() >= minimumLead;
+            if (!secondIsStrong && !firstHasClearLead) {
+                return List.of();
+            }
+            return ranked.stream()
+                    .filter(hit -> hit.score() >= minimumScore)
+                    .toList();
         }
     }
 

@@ -116,6 +116,59 @@ class AutoMemoryContextSelectorTest {
     }
 
     @Test
+    void uncertainTopHitIsRejectedInsteadOfInjected() {
+        AutoMemory top = memory(
+                "memory-top", AutoMemoryScope.user("owner-1"),
+                "api-border", "Use navy API borders", 2);
+        AutoMemory runnerUp = memory(
+                "memory-runner-up", AutoMemoryScope.user("owner-1"),
+                "queue-color", "Use pale blue queues", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(top, runnerUp));
+        FakeVectors vectors = FakeVectors.scored(List.of(
+                new AutoMemoryVectorSearchHit(vectorId(top), 0.828d),
+                new AutoMemoryVectorSearchHit(vectorId(runnerUp), 0.814d)));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertTrue(selected.references().isEmpty());
+    }
+
+    @Test
+    void closeHitsAreRetainedWhenBothIndependentlyClearTheScoreFloor() {
+        AutoMemory first = memory(
+                "memory-first", AutoMemoryScope.user("owner-1"),
+                "queue-color", "Use pale blue queues", 2);
+        AutoMemory second = memory(
+                "memory-second", AutoMemoryScope.user("owner-1"),
+                "cache-color", "Use teal caches", 2);
+        AutoMemory weak = memory(
+                "memory-weak", AutoMemoryScope.user("owner-1"),
+                "canvas-color", "Use a white canvas", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(first, second, weak));
+        FakeVectors vectors = FakeVectors.scored(List.of(
+                new AutoMemoryVectorSearchHit(vectorId(first), 0.827d),
+                new AutoMemoryVectorSearchHit(vectorId(second), 0.821d),
+                new AutoMemoryVectorSearchHit(vectorId(weak), 0.810d)));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                new AutoMemoryContextSelector.SemanticPolicy(0.82d, 0.02d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-first", "memory-second"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
     void totalCharacterBudgetSkipsEntriesThatDoNotFit() {
         AutoMemory first = memory(
                 "memory-first", AutoMemoryScope.user("owner-1"),

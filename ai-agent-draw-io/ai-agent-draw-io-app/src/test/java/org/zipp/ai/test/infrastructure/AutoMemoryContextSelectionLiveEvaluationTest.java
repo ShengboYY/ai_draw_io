@@ -52,6 +52,10 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             "fd6ed4486e5bbc881f28753682672c96e305fa0c6806b8c418ecf9540f7051bc";
     private static final String V2_HOLDOUT_SHA256 =
             "1d3b28b99f28209f3f63bdcc329825f48add7b69e17b38b9adf00efe78516ce6";
+    private static final String DEVELOPMENT_V2_SHA256 =
+            "48f55a6830993e7474da10f11b461dae7d8e64fe3ee8efa5f3d409f107185eb5";
+    private static final String V3_HOLDOUT_SHA256 =
+            "e19cb9a885132e1bdcb3ee41c1cf3c5409154f6b00df866a9ce3d838dcb0bd64";
     private static final String OWNER = "auto-memory-v17-eval-owner";
     private static final String CHARTBOOK = "auto-memory-v17-eval-book";
     private static final Instant OLD = Instant.parse("2025-01-01T00:00:00Z");
@@ -101,12 +105,15 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     new RecordingVectorSearchPort(vectors);
             double minimumScore = doubleEnvironment(
                     "AUTO_MEMORY_CONTEXT_EVALUATION_MINIMUM_SCORE", 0.0d);
+            double minimumLead = doubleEnvironment(
+                    "AUTO_MEMORY_CONTEXT_EVALUATION_MINIMUM_LEAD", 0.0d);
             Evaluation semantic = evaluate(
                     new AutoMemoryContextSelector(
                             repository,
                             repository,
                             recordingVectors,
-                            new AutoMemoryContextSelector.SemanticPolicy(minimumScore),
+                            new AutoMemoryContextSelector.SemanticPolicy(
+                                    minimumScore, minimumLead),
                             budget),
                     cohort.cases(),
                     repository,
@@ -114,7 +121,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             EvaluationReport result = compare(cohort, sql, semantic);
             Path report = reportPath(cohort.datasetVersion());
             writeReport(
-                    mapper, report, cohort, profile, pinecone, minimumScore, result);
+                    mapper, report, cohort, profile, pinecone,
+                    minimumScore, minimumLead, result);
 
             assertTrue(!profile.enforceGate() || result.passed(),
                     () -> "V1.7 context evaluation failed: sql="
@@ -180,6 +188,9 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
         int forbidden = 0;
         int forbiddenOpportunities = 0;
         int unauthorized = 0;
+        int positiveCases = 0;
+        int negativeCases = 0;
+        int selectedNegativeCases = 0;
         double reciprocalRanks = 0.0d;
         for (CaseResult result : cases) {
             expected += result.expectedRelevantIds().size();
@@ -193,20 +204,29 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             forbidden += result.forbiddenHits();
             forbiddenOpportunities += result.forbiddenSelectedIds().size();
             unauthorized += result.unauthorizedSelectionCount();
-            if (result.firstRelevantRank() >= 0) {
-                reciprocalRanks += 1.0d / (result.firstRelevantRank() + 1);
+            if (result.expectedRelevantIds().isEmpty()) {
+                negativeCases++;
+                if (!result.selectedIds().isEmpty()) {
+                    selectedNegativeCases++;
+                }
+            } else {
+                positiveCases++;
+                if (result.firstRelevantRank() >= 0) {
+                    reciprocalRanks += 1.0d / (result.firstRelevantRank() + 1);
+                }
             }
         }
         return new Metrics(
                 ratio(hitAt1, expected),
                 ratio(hitAt3, expected),
                 ratio(hitAt12, expected),
-                ratio(reciprocalRanks, cases.size()),
+                ratio(reciprocalRanks, positiveCases),
                 ratio(relevantAt3, selectedAt3),
                 ratio(selected - selectedRelevant, selected),
                 ratio(selected, cases.size()),
                 ratio(forbidden, forbiddenOpportunities),
-                unauthorized);
+                unauthorized,
+                ratio(selectedNegativeCases, negativeCases));
     }
 
     private int hits(CaseResult result, int limit) {
@@ -230,7 +250,9 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                 && semantic.metrics().unauthorizedSelectionCount()
                 <= gate.maximumUnauthorizedSelectionCount()
                 && semantic.metrics().irrelevantSelectionRate()
-                <= gate.maximumIrrelevantSelectionRate();
+                <= gate.maximumIrrelevantSelectionRate()
+                && semantic.metrics().negativeCaseSelectionRate()
+                <= gate.maximumNegativeCaseSelectionRate();
         List<Comparison> comparisons = new ArrayList<>();
         for (int index = 0; index < cohort.cases().size(); index++) {
             CaseSpec testCase = cohort.cases().get(index);
@@ -304,13 +326,21 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
         cohort.memories().forEach(memory -> assertTrue(ids.add(memory.id()),
                 "holdout Memory IDs must be unique"));
         cohort.cases().forEach(testCase -> {
-            assertTrue(!testCase.expectedRelevantIds().isEmpty(),
-                    "every holdout case needs a relevance label");
+            assertTrue(testCase.expectedRelevantIds() != null,
+                    "every case needs an explicit relevance label, including an empty one");
             assertTrue(ids.containsAll(testCase.expectedRelevantIds()),
                     "relevance labels must reference the frozen Memory bank");
             assertTrue(ids.containsAll(testCase.forbiddenSelectedIds()),
                     "forbidden labels must reference the frozen Memory bank");
         });
+        if (profile.requiresNegativeCases()) {
+            long positiveCases = cohort.cases().stream()
+                    .filter(testCase -> !testCase.expectedRelevantIds().isEmpty())
+                    .count();
+            long negativeCases = cohort.cases().size() - positiveCases;
+            assertTrue(positiveCases >= 4 && negativeCases >= 4,
+                    "V1.7.2 evaluation needs both positive and negative cases");
+        }
     }
 
     private PineconeSession connectPinecone(ObjectMapper mapper) {
@@ -396,6 +426,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             EvaluationProfile profile,
             PineconeSession pinecone,
             double minimumScore,
+            double minimumLead,
             EvaluationReport result
     ) throws Exception {
         Map<String, Object> report = new LinkedHashMap<>();
@@ -412,6 +443,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
         report.put("embeddingModel", pinecone.model());
         report.put("embeddingDimension", pinecone.dimension());
         report.put("minimumSemanticScore", minimumScore);
+        report.put("minimumSemanticLead", minimumLead);
         report.put("caseCount", cohort.cases().size());
         report.put("memoryCount", cohort.memories().size());
         report.put("qualityGate", cohort.qualityGate());
@@ -452,21 +484,40 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     "development-tuning-allowed",
                     "auto-memory-context-development-v1/cohort.json",
                     DEVELOPMENT_SHA256,
+                    false,
                     false);
+            case "development-v2" -> new EvaluationProfile(
+                    "AUTO_MEMORY_CONTEXT_DEVELOPMENT_V2",
+                    "auto-memory-context-development-v2",
+                    "development-tuning-allowed",
+                    "auto-memory-context-development-v2/cohort.json",
+                    DEVELOPMENT_V2_SHA256,
+                    false,
+                    true);
+            case "holdout-v3" -> new EvaluationProfile(
+                    "AUTO_MEMORY_CONTEXT_HOLDOUT_V3",
+                    "auto-memory-context-v3",
+                    "frozen-holdout-not-for-tuning",
+                    "auto-memory-context-v3/holdout.json",
+                    V3_HOLDOUT_SHA256,
+                    true,
+                    true);
             case "holdout-v2" -> new EvaluationProfile(
                     "AUTO_MEMORY_CONTEXT_HOLDOUT_V2",
                     "auto-memory-context-v2",
                     "frozen-holdout-not-for-tuning",
                     "auto-memory-context-v2/holdout.json",
                     V2_HOLDOUT_SHA256,
-                    true);
+                    true,
+                    false);
             case "holdout-v1" -> new EvaluationProfile(
                     "AUTO_MEMORY_CONTEXT_HOLDOUT_V1",
                     "auto-memory-context-v1",
                     "frozen-holdout-not-for-tuning",
                     "auto-memory-context-v1/holdout.json",
                     V1_HOLDOUT_SHA256,
-                    true);
+                    true,
+                    false);
             default -> throw new IllegalArgumentException(
                     "unknown Auto Memory context evaluation dataset");
         };
@@ -523,7 +574,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             double minimumRecallAt3LiftOverSql,
             double maximumForbiddenSelectionRate,
             int maximumUnauthorizedSelectionCount,
-            double maximumIrrelevantSelectionRate
+            double maximumIrrelevantSelectionRate,
+            double maximumNegativeCaseSelectionRate
     ) {
     }
 
@@ -570,7 +622,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             double irrelevantSelectionRate,
             double meanSelectedCount,
             double forbiddenSelectionRate,
-            int unauthorizedSelectionCount
+            int unauthorizedSelectionCount,
+            double negativeCaseSelectionRate
     ) {
     }
 
@@ -613,7 +666,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             String usagePolicy,
             String relativePath,
             String sha256,
-            boolean enforceGate
+            boolean enforceGate,
+            boolean requiresNegativeCases
     ) {
     }
 

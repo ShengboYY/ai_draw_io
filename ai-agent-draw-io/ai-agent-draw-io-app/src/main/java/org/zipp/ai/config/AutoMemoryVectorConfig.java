@@ -42,7 +42,8 @@ public class AutoMemoryVectorConfig {
             AutoMemoryQueryPort memories,
             AutoMemoryContextHydrationPort hydration,
             AutoMemoryVectorStorePort vectors,
-            @Value("${app.memory.context.minimum-score:0.827}") double minimumScore,
+            @Value("${app.memory.context.minimum-score:0.82}") double minimumScore,
+            @Value("${app.memory.context.minimum-lead:0.02}") double minimumLead,
             @Value("${app.memory.context.max-entries:12}") int maxEntries,
             @Value("${app.memory.context.max-characters:6000}") int maxCharacters
     ) {
@@ -50,7 +51,7 @@ public class AutoMemoryVectorConfig {
                 memories,
                 hydration,
                 vectors,
-                new AutoMemoryContextSelector.SemanticPolicy(minimumScore),
+                new AutoMemoryContextSelector.SemanticPolicy(minimumScore, minimumLead),
                 new AutoMemoryContextSelector.Budget(maxEntries, maxCharacters));
     }
 
