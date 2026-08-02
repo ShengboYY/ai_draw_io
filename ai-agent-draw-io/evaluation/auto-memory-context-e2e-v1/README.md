@@ -23,9 +23,13 @@ isolated Pinecone eval namespace, then deletes and verifies all vectors and data
 - Untouched holdout: `auto-memory-context-e2e-v1/holdout.json`
 - Both contain multi-intent, single-intent, negative, USER/CHARTBOOK override, disabled duplicate,
   unauthorized duplicate and more active noise than the per-scope SQL window.
-- Development SHA-256: `b8eb9c7165de456ae3e02b7c89a0ae5961308f822719202948731dab9badaab0`
-- Holdout SHA-256: `dc455c682561af2f9c8b7d29cb7f2447c6ee929d725c440840d5149265063996`
-- These values are recorded in the freeze commit before the evaluation harness is implemented.
+- Development SHA-256: `7fd96c2abd033cb094857705e7eb26dde9e7406bababe167f1b6e63476065f57`
+- Holdout SHA-256: `5cc47ed2a1331a51ccacb5e055e622f3e187544b39beb168661395a053271a8f`
+- These values are recorded before the first result-producing evaluation run.
+
+The initial freeze used `style` in several semantic keys. The production sanitizer rejected those
+fixtures before any model or vector call, so the keys were renamed to domain properties such as
+`pattern`, `weight`, and `emphasis`; both hashes above were re-frozen before a result-producing run.
 
 ## Holdout gate
 

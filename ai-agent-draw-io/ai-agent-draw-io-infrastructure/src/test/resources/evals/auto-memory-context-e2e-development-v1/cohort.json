@@ -16,7 +16,7 @@
   },
   "targets": [
     {"id":"e2ed-u-api-navy","scope":"USER","semanticKey":"api-border-color","title":"API border color","canonicalText":"Use navy borders for API nodes"},
-    {"id":"e2ed-u-retry-dashed","scope":"USER","semanticKey":"retry-edge-style","title":"Retry edge style","canonicalText":"Render retry edges as dashed lines"},
+    {"id":"e2ed-u-retry-dashed","scope":"USER","semanticKey":"retry-edge-pattern","title":"Retry edge pattern","canonicalText":"Render retry edges as dashed lines"},
     {"id":"e2ed-b-lane-horizontal","scope":"CHARTBOOK","semanticKey":"async-lane-direction","title":"Async lane direction","canonicalText":"Arrange asynchronous processing lanes horizontally"},
     {"id":"e2ed-b-pager-triangle","scope":"CHARTBOOK","semanticKey":"pager-node-shape","title":"Pager node shape","canonicalText":"Render Pager nodes as triangles"},
     {"id":"e2ed-u-hide-ids","scope":"USER","semanticKey":"internal-id-visibility","title":"Internal ID visibility","canonicalText":"Never show internal identifiers"},
@@ -33,7 +33,7 @@
     {"semanticKey":"queue-node-color","title":"Queue color","canonicalText":"Fill queue nodes with lavender"},
     {"semanticKey":"client-node-shape","title":"Client shape","canonicalText":"Render client nodes as rounded rectangles"},
     {"semanticKey":"note-font-size","title":"Note font size","canonicalText":"Use small text for annotation notes"},
-    {"semanticKey":"gateway-border-style","title":"Gateway border","canonicalText":"Use double borders for gateway nodes"},
+    {"semanticKey":"gateway-border-pattern","title":"Gateway border","canonicalText":"Use double borders for gateway nodes"},
     {"semanticKey":"approval-node-position","title":"Approval position","canonicalText":"Place approval nodes at the bottom"},
     {"semanticKey":"event-node-color","title":"Event color","canonicalText":"Fill event nodes with pale yellow"},
     {"semanticKey":"connector-label-case","title":"Connector label case","canonicalText":"Use lowercase connector labels"},

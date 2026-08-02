@@ -16,30 +16,30 @@
   },
   "targets": [
     {"id":"e2eh-u-ingress-circle","scope":"USER","semanticKey":"ingress-node-shape","title":"Ingress shape","canonicalText":"Render ingress nodes as circles"},
-    {"id":"e2eh-u-audit-dotted","scope":"USER","semanticKey":"audit-edge-style","title":"Audit edge style","canonicalText":"Render audit edges as dotted lines"},
+    {"id":"e2eh-u-audit-dotted","scope":"USER","semanticKey":"audit-edge-pattern","title":"Audit edge pattern","canonicalText":"Render audit edges as dotted lines"},
     {"id":"e2eh-b-worker-bottom","scope":"CHARTBOOK","semanticKey":"worker-lane-position","title":"Worker lane position","canonicalText":"Place worker lanes at the bottom"},
     {"id":"e2eh-b-incident-orange","scope":"CHARTBOOK","semanticKey":"incident-node-color","title":"Incident node color","canonicalText":"Fill incident nodes with orange"},
     {"id":"e2eh-u-mobile-tooltip","scope":"USER","semanticKey":"mobile-tooltip-visibility","title":"Mobile tooltip visibility","canonicalText":"Hide tooltips on mobile views"},
     {"id":"e2eh-u-desktop-spacing","scope":"USER","semanticKey":"desktop-node-spacing","title":"Desktop node spacing","canonicalText":"Increase node spacing on desktop views"},
     {"id":"e2eh-b-source-left","scope":"CHARTBOOK","semanticKey":"source-node-position","title":"Source position","canonicalText":"Place source nodes on the left"},
     {"id":"e2eh-b-sink-right","scope":"CHARTBOOK","semanticKey":"sink-node-position","title":"Sink position","canonicalText":"Place sink nodes on the right"},
-    {"id":"e2eh-u-gateway-solid","scope":"USER","semanticKey":"gateway-border-style","title":"Gateway border style","canonicalText":"Use solid rather than double borders for gateways"},
+    {"id":"e2eh-u-gateway-solid","scope":"USER","semanticKey":"gateway-border-pattern","title":"Gateway border pattern","canonicalText":"Use solid rather than double borders for gateways"},
     {"id":"e2eh-u-warning-yellow","scope":"USER","semanticKey":"warning-node-color","title":"Global warning color","canonicalText":"Use yellow warning nodes"},
     {"id":"e2eh-b-warning-maroon","scope":"CHARTBOOK","semanticKey":"warning-node-color","title":"Chartbook warning color","canonicalText":"Use maroon warning nodes"}
   ],
   "noise": [
     {"semanticKey":"api-fill-color","title":"API fill color","canonicalText":"Fill API nodes with light blue"},
     {"semanticKey":"broker-node-shape","title":"Broker shape","canonicalText":"Render broker nodes as hexagons"},
-    {"semanticKey":"legend-border-style","title":"Legend border","canonicalText":"Use thin borders around legends"},
+    {"semanticKey":"legend-border-weight","title":"Legend border","canonicalText":"Use thin borders around legends"},
     {"semanticKey":"database-label-font","title":"Database label font","canonicalText":"Use monospace labels for databases"},
     {"semanticKey":"cache-node-position","title":"Cache position","canonicalText":"Place caches below services"},
     {"semanticKey":"approval-edge-color","title":"Approval edge color","canonicalText":"Use green approval edges"},
     {"semanticKey":"error-label-case","title":"Error label case","canonicalText":"Use uppercase error labels"},
     {"semanticKey":"client-lane-position","title":"Client lane position","canonicalText":"Place client lanes at the top"},
     {"semanticKey":"note-node-color","title":"Note color","canonicalText":"Fill note nodes with cream"},
-    {"semanticKey":"queue-border-style","title":"Queue border","canonicalText":"Use dashed borders for queues"},
+    {"semanticKey":"queue-border-pattern","title":"Queue border","canonicalText":"Use dashed borders for queues"},
     {"semanticKey":"owner-badge-color","title":"Owner badge color","canonicalText":"Use purple owner badges"},
-    {"semanticKey":"footer-font-style","title":"Footer font style","canonicalText":"Italicize footer text"}
+    {"semanticKey":"footer-font-emphasis","title":"Footer font emphasis","canonicalText":"Italicize footer text"}
   ],
   "cases": [
     {"id":"e2eh-multi-user","queryText":"Make ingress points circular whereas audit paths should be dotted.","chartbookContext":false,"expectedRelevantIds":["e2eh-u-ingress-circle","e2eh-u-audit-dotted"],"forbiddenSelectedIds":[]},
