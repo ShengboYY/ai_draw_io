@@ -1,5 +1,8 @@
 package org.zipp.ai.test.app;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -15,9 +18,12 @@ import org.zipp.ai.application.memory.AutoMemoryMaintenanceService;
 import org.zipp.ai.application.memory.AutoMemoryObservationService;
 import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
+import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
+import org.zipp.ai.application.memory.ShadowAutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.config.AutoMemoryApplicationCompositionConfig;
 import org.zipp.ai.config.AutoMemoryExtractionJob;
 import org.zipp.ai.config.AutoMemoryMaintenanceJob;
+import org.zipp.ai.config.AutoMemoryVectorConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -64,6 +70,34 @@ class AutoMemoryApplicationCompositionConfigTest {
     }
 
     @Test
+    void shadowFlagWithoutProjectionKeepsTheSqlRetriever() {
+        contextRunner.withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.vector.shadow-enabled=true")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .hasSingleBean(AutoMemoryExtractionWorker.class));
+    }
+
+    @Test
+    void projectionAndShadowReplaceOnlyTheSqlCandidateReader() {
+        contextRunner.withUserConfiguration(AutoMemoryVectorConfig.class)
+                .withPropertyValues(
+                        "app.memory.auto-enabled=true",
+                        "app.memory.vector.projection-enabled=true",
+                        "app.memory.vector.shadow-enabled=true",
+                        "app.memory.vector.pinecone.api-key=test-key",
+                        "app.memory.vector.pinecone.index-host=https://memory-index.example",
+                        "app.memory.vector.pinecone.embedding-model=multilingual-e5-large",
+                        "app.memory.vector.pinecone.dimension=3",
+                        "app.memory.vector.pinecone.partition-secret=test-secret")
+                .run(context -> assertThat(context)
+                        .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .getBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .isInstanceOf(ShadowAutoMemoryConsolidationCandidateRetriever.class));
+    }
+
+    @Test
     void agingRequiresBothAutoMemoryAndItsIndependentOptIn() {
         contextRunner.withPropertyValues(
                         "app.memory.auto-enabled=true",
@@ -93,6 +127,21 @@ class AutoMemoryApplicationCompositionConfigTest {
         @Bean
         AutoMemoryQueryPort memoryQuery() {
             return mock(AutoMemoryQueryPort.class);
+        }
+
+        @Bean
+        AutoMemoryVectorProjectionWorkPort vectorProjectionWork() {
+            return mock(AutoMemoryVectorProjectionWorkPort.class);
+        }
+
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
         }
 
         @Bean

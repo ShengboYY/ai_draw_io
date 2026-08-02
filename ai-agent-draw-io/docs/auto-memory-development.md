@@ -9,8 +9,8 @@
 3. **User Auto Memory**：同一用户跨 Chartbook 有效的稳定偏好与反馈。
 
 Canvas State、Chartbook Profile、RAG 继续作为独立上下文源，不并入 Memory。运行时不再存在
-Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-A 仅为语义候选检索建立
-可替换边界和质量门槛，运行时尚未启用向量数据库。
+Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-B 已增加默认关闭的
+Memory 专用向量投影与影子检索，但不会改变 Worker 实际使用的 SQL 候选。
 
 ## 2. 边界与优先级
 
@@ -155,6 +155,9 @@ OBSERVED、DISABLED、置信度、显式来源和证据数。用户可以编辑�
 - `docs/sql/migrations/2026-08-15-add-auto-memory-aging-index.sql`
 - `deploy/aws/database/release-20260815.manifest`
 - `deploy/aws/database/Dockerfile.20260815`
+- `docs/sql/migrations/2026-08-16-create-auto-memory-vector-outbox.sql`
+- `deploy/aws/database/release-20260816.manifest`
+- `deploy/aws/database/Dockerfile.20260816`
 
 迁移创建统一三张表，并把旧 `chartbook_memory` 中 ACTIVE/DISABLED 内容迁入
 CHARTBOOK/PROJECT Memory。旧表暂不删除，因为 MySQL DDL 不完全事务化，保留它们可用于数据
@@ -168,6 +171,8 @@ CHARTBOOK/PROJECT Memory。旧表暂不删除，因为 MySQL DDL 不完全事务
 4. 开启 `AUTO_MEMORY_ENABLED=true`，先观察 work backlog、重试率、拒绝率和激活质量。
 5. 稳定后再安排独立的破坏性迁移删除旧表；不要与本次切换合并。
 6. 单独执行 `20260815` 索引迁移；确认待清理分布后，才按第 10 节逐步开启候选老化。
+7. 单独执行 `20260816` 投影 outbox 迁移，保持两个向量开关关闭；仅在独立 Memory namespace、
+   分区密钥和 embedding 配置就绪后，先开启 projection，再开启只观测不接管 SQL 的 shadow。
 
 开关关闭时不创建新工作、不调用提取模型、不暴露新管理 Controller，Context 回到旧
 `chartbook_memory` 只读投影。完整产品回滚还需同步回滚前端，因为旧候选 API 不再由新后端
@@ -179,10 +184,10 @@ Memory Item 是结构化、带明确作用域和生命周期的数据。MySQL �
 合并、用户禁用和乐观锁；向量库只允许成为可删除、可重建的候选检索投影，不能决定激活、冲突
 晋升或删除，也不能绕过 owner/scope 过滤。
 
-V1.4-A 运行时仍使用现有 MySQL 有界查询。它先把候选读取从 Worker 中抽成可替换端口，并冻结
-语义检索评测合同；没有创建向量 schema、写入投影或调用 embedding。现有 Material RAG 的
-Pinecone transport 可以在后续复用，但 Material 专用 metadata、generation 和 projection 不能
-直接当作 Memory 索引模型。
+V1.4-B 仍让 Worker 使用现有 MySQL 有界查询。向量库只接收可重建的 CURRENT Item 与未解决
+CONFLICTING Evidence；owner/scope 通过 HMAC 分区，metadata 不保存 title、canonical text、
+Turn 或原始对话。内容只在生成 embedding 时发送给配置的推理端点。现有 Material RAG 仅复用
+Pinecone transport，Memory 使用独立 namespace、metadata allowlist、投影模型和 durable outbox。
 
 ## 9. 验证策略
 
@@ -448,12 +453,33 @@ V1.4-A 只建立下一阶段真正需要、且当前可以验证的最小边界�
 3. 冻结 8 个纯合成 retrieval case，门槛为相关候选 `Recall@K >= 95%`、`DISABLED Recall@K = 100%`、
    未授权候选率 `0%`、终态候选率 `0%`。隔离和生命周期是硬门禁，不能拿相关度作权衡。
 
-本阶段没有定义未使用的通用向量抽象，也没有把 Material RAG 投影强行复用到 Memory。下一步
-V1.4-B 再实现 Memory 专用的可重建投影：CURRENT Item 与未解决 CONFLICTING Evidence 分别
-建模，写入前携带严格 owner/scope/lifecycle metadata，并提供 durable retry、版本栅栏和 SQL
-降级。只有真实检索运行达到上述门槛，才接入 Worker；MySQL 合并事务仍保持唯一裁决者。
+本阶段没有定义未使用的通用向量抽象，也没有把 Material RAG 投影强行复用到 Memory。
 
-## 13. 开发日志
+## 13. V1.4-B 可重建投影与影子检索
+
+V1.4-B 实现投影和观测闭环，但不改变记忆归并结果：
+
+1. Item/Evidence 每次有效变化都在同一 MySQL 事务中推进 `memory_vector_projection_work` 的
+   `desired_revision`；重复 Evidence 不产生无意义投影。删除没有外键级联 outbox，使 tombstone
+   仍能删除已经发布的向量。
+2. Worker 对一个有 lease 的权威快照生成 CURRENT 和去重后的未解决 CONFLICTING 文档，先
+   upsert 并确认可见，再删除旧 manifest 中不再需要的向量。投影期间若权威数据再次变化，完成
+   时的 revision fence 会拒绝旧快照并重新排队；过期 worker 的迟到写入还会触发一次权威快照
+   reconcile，避免旧结果最终覆盖新状态。
+3. Pinecone 查询在 `topK` 前强制匹配 HMAC owner、允许的 USER/当前 CHARTBOOK scope 和候选
+   lifecycle。`DISABLED` 也进入 shadow 检索，用来评估 opt-out 是否能被同义表达正确命中；
+   `SUPERSEDED/DELETED` 不会被投影。
+4. shadow 装饰器始终先取 SQL 权威候选，向量调用成功或失败都原样返回 SQL，仅记录无内容的
+   成功率、SQL 候选数和向量命中数。Pinecone 暂时不可用不会影响 DeepSeek 提取或 Memory 写入。
+5. `AUTO_MEMORY_VECTOR_PROJECTION_ENABLED` 与 `AUTO_MEMORY_VECTOR_SHADOW_ENABLED` 默认均为
+   `false`。仅开启 shadow 而未开启 projection 时仍使用普通 SQL 路径，避免半配置状态改变行为。
+
+下一步 V1.4-C 不是继续扩展投影框架，而是补齐“向量 ID → MySQL 权威候选”的批量回查与离线
+对照报告，用第 9 节的冻结 cohort 衡量相关召回、`DISABLED` 召回和隔离。只有真实 shadow 数据
+稳定通过门槛后，才考虑让语义结果参与 Worker 候选；即使切换，MySQL 仍负责 lifecycle、授权、
+Evidence 累计和冲突晋升。
+
+## 14. 开发日志
 
 ### 2026-07-31
 
@@ -529,12 +555,23 @@ V1.4-B 再实现 Memory 专用的可重建投影：CURRENT Item 与未解决 CON
   当前没有创建向量投影、调用 embedding 或改变 DeepSeek Prompt。
 - [x] V1.4-A 完整后端 `mvn test` 共执行 1,989 项测试，0 failure、0 error；18 项按既有
   live/integration 开关跳过，本阶段没有需要联网运行的新测试。
+- [x] 完成 V1.4-B Memory 专用投影：CURRENT/CONFLICTING 分开建模，增加 durable outbox、lease、
+  desired revision fence、可见性确认、退避重试、旧向量清理和删除 tombstone。
+- [x] Pinecone 只保存 HMAC owner/scope 分区和 lifecycle metadata；内容仅进入 embedding 请求，
+  Material 与 Memory 继续使用各自的 metadata 合同和 namespace。
+- [x] 增加默认关闭的 projection/shadow 组合；shadow 成功或失败均保持 SQL 候选不变，并只记录
+  无内容指标。新增 `20260816` 顺序迁移和数据库发布包。
+- [x] 在本地 MySQL 8.4 执行正式 `20260816` SQL，5 个集成场景验证 legacy 回填、Evidence
+  幂等、revision 推进、旧 lease 拒绝/重排、状态保护、owner/scope 隔离及测试数据清理。
+- [x] V1.4-B 完整后端 `mvn test` 共执行 2,010 项测试，0 failure、0 error；18 项按既有
+  live/integration 开关跳过，本地 MySQL 集成已另行显式运行通过，未调用真实 Pinecone。
 
-当前实现边界：迁移已在一次性 MySQL 8.4 和本地持久化 MySQL 验证，但尚未在目标环境数据库
+当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
 Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已验证。feature flag 仍保持
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
-V1.4-A 仅完成可替换检索边界与离线合同，运行时仍使用 MySQL；下一步是第 12 节所述的 Memory
-专用投影与影子评估，不接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经
-用户授权不执行生产变更。严格显式句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；
-V4 Flash 的成本/延迟对照也不阻塞 Pro 上线。
+V1.4-B 的投影和 shadow 代码及本地数据库验证已完成，两个向量开关保持关闭，Worker 仍只使用
+MySQL；下一步是第 13 节所述的权威回查和离线/shadow 对照，不接入生产。
+目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权不执行生产变更。严格显式
+句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的成本/延迟对照也不
+阻塞 Pro 上线。

@@ -2,6 +2,7 @@ package org.zipp.ai.config;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -51,7 +52,10 @@ public class AutoMemoryApplicationCompositionConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "app.memory.auto-enabled", havingValue = "true")
+    @ConditionalOnExpression(
+            "${app.memory.auto-enabled:false} && "
+                    + "(!${app.memory.vector.projection-enabled:false} "
+                    + "|| !${app.memory.vector.shadow-enabled:false})")
     @ConditionalOnMissingBean(AutoMemoryConsolidationCandidateRetriever.class)
     public AutoMemoryConsolidationCandidateRetriever autoMemoryConsolidationCandidateRetriever(
             AutoMemoryQueryPort memories

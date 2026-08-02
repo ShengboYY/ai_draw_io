@@ -13,6 +13,7 @@ This directory packages reviewed, ordered migration releases added after the suc
 - `Dockerfile.20260813` / `release-20260813.manifest`: the durable source-preparation release after `20260801`. It creates request source snapshots and the Direct visual preparation hand-off used by source-aware takeover recovery.
 - `Dockerfile.20260814` / `release-20260814.manifest`: the unified Auto Memory release after `20260813`. It creates tenant-fenced USER/CHARTBOOK Memory and bounded evidence storage, then migrates materialized v1 Chartbook Memory without deleting the legacy tables.
 - `Dockerfile.20260815` / `release-20260815.manifest`: the conservative Auto Memory aging release after `20260814`. It adds the covering index used by opt-in, bounded cleanup of stale unconfirmed observations; it does not change ACTIVE Memory.
+- `Dockerfile.20260816` / `release-20260816.manifest`: the Auto Memory vector projection outbox release after `20260815`. It queues rebuildable projection work without making the vector store authoritative or enabling projection.
 
 ## Safety properties
 
@@ -80,11 +81,17 @@ A successful `20260815` run must report:
 Migration release 20260815 is complete: 1 recorded, 1 applied in this run.
 ```
 
+A successful `20260816` run must report:
+
+```text
+Migration release 20260816 is complete: 1 recorded, 1 applied in this run.
+```
+
 Run the same image a second time against that database. It must verify the packaged checksums and report `0 applied in this run`.
 
 ## Production sequence
 
-1. Select exactly one release and verify its precondition: `20260717` requires the 2026-07-05 schema baseline; `20260722` requires all 30 `20260717` history rows and checksums; `20260729` requires all five `20260722` history rows and checksums; `20260730` requires all three `20260729` history rows and checksums; `20260801` requires the `20260731` history row and checksum; `20260813` requires both `20260801` history rows and checksums; `20260814` requires all four `20260813` history rows and checksums; `20260815` requires the single `20260814` history row and checksum. The selected runner enforces its predecessor gate before DDL.
+1. Select exactly one release and verify its precondition: `20260717` requires the 2026-07-05 schema baseline; `20260722` requires all 30 `20260717` history rows and checksums; `20260729` requires all five `20260722` history rows and checksums; `20260730` requires all three `20260729` history rows and checksums; `20260801` requires the `20260731` history row and checksum; `20260813` requires both `20260801` history rows and checksums; `20260814` requires all four `20260813` history rows and checksums; `20260815` requires the single `20260814` history row and checksum; `20260816` requires the single `20260815` history row and checksum. The selected runner enforces its predecessor gate before DDL.
 2. Confirm RDS automated backups and point-in-time recovery are available.
 3. Create a manual RDS snapshot and wait until its status is `available`.
 4. Run the selected release image once as an ECS Fargate one-off task in the same VPC as RDS.

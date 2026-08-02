@@ -55,6 +55,19 @@ app:
     observed-retention-days: ${AUTO_MEMORY_OBSERVED_RETENTION_DAYS:90}
     aging-delay-ms: ${AUTO_MEMORY_AGING_DELAY_MS:3600000}
     aging-batch-size: ${AUTO_MEMORY_AGING_BATCH_SIZE:100}
+    vector:
+      # Requires the 20260816 outbox migration; shadow mode never replaces SQL candidates.
+      projection-enabled: ${AUTO_MEMORY_VECTOR_PROJECTION_ENABLED:false}
+      shadow-enabled: ${AUTO_MEMORY_VECTOR_SHADOW_ENABLED:false}
+      worker-delay-ms: ${AUTO_MEMORY_VECTOR_WORKER_DELAY_MS:5000}
+      worker-batch-size: ${AUTO_MEMORY_VECTOR_WORKER_BATCH_SIZE:10}
+      pinecone:
+        api-key: ${AUTO_MEMORY_VECTOR_PINECONE_API_KEY:${PINECONE_API_KEY:}}
+        index-host: ${AUTO_MEMORY_VECTOR_PINECONE_INDEX_HOST:${PINECONE_INDEX_HOST:}}
+        namespace: ${AUTO_MEMORY_VECTOR_PINECONE_NAMESPACE:auto-memory-v1}
+        embedding-model: ${AUTO_MEMORY_VECTOR_EMBEDDING_MODEL:${PINECONE_EMBEDDING_MODEL:multilingual-e5-large}}
+        dimension: ${AUTO_MEMORY_VECTOR_DIMENSION:${PINECONE_DIMENSION:1024}}
+        partition-secret: ${AUTO_MEMORY_VECTOR_PARTITION_SECRET:${PINECONE_TENANT_HMAC_SECRET:}}
   material-catalog:
     # Enable only after the WP1 foundation and WP4-A idempotency migration are applied.
     enabled: ${MATERIAL_CATALOG_ENABLED:false}

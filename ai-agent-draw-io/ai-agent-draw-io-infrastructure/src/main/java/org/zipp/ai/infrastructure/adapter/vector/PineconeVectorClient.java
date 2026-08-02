@@ -28,7 +28,7 @@ public final class PineconeVectorClient {
 
     private static final String API_VERSION = "2025-10";
     private static final URI INFERENCE_URI = URI.create("https://api.pinecone.io/embed");
-    private static final Set<String> METADATA_ALLOWLIST = Set.of(
+    private static final Set<String> MATERIAL_METADATA_ALLOWLIST = Set.of(
             "tenant_key", "material_id", "version_id", "revision_id", "retrieval_chunk_id",
             "chunk_type", "modality", "page_no", "language", "index_generation_id");
     private static final Set<String> FILTER_OPERATORS = Set.of(
@@ -40,14 +40,30 @@ public final class PineconeVectorClient {
     private final int dimension;
     private final PineconeHttpTransport transport;
     private final ObjectMapper objectMapper;
+    private final Set<String> metadataAllowlist;
 
     public PineconeVectorClient(String apiKey, String indexHost, String embeddingModel,
                                 int dimension, ObjectMapper objectMapper) {
-        this(apiKey, indexHost, embeddingModel, dimension, new JdkPineconeHttpTransport(), objectMapper);
+        this(apiKey, indexHost, embeddingModel, dimension, new JdkPineconeHttpTransport(),
+                objectMapper, MATERIAL_METADATA_ALLOWLIST);
+    }
+
+    public PineconeVectorClient(String apiKey, String indexHost, String embeddingModel,
+                                int dimension, ObjectMapper objectMapper,
+                                Set<String> metadataAllowlist) {
+        this(apiKey, indexHost, embeddingModel, dimension, new JdkPineconeHttpTransport(),
+                objectMapper, metadataAllowlist);
     }
 
     PineconeVectorClient(String apiKey, String indexHost, String embeddingModel, int dimension,
                          PineconeHttpTransport transport, ObjectMapper objectMapper) {
+        this(apiKey, indexHost, embeddingModel, dimension, transport, objectMapper,
+                MATERIAL_METADATA_ALLOWLIST);
+    }
+
+    PineconeVectorClient(String apiKey, String indexHost, String embeddingModel, int dimension,
+                         PineconeHttpTransport transport, ObjectMapper objectMapper,
+                         Set<String> metadataAllowlist) {
         if (apiKey == null || apiKey.isBlank()) throw new IllegalArgumentException("Pinecone API key is required");
         if (indexHost == null || indexHost.isBlank()) throw new IllegalArgumentException("Pinecone index host is required");
         this.apiKey = apiKey;
@@ -57,6 +73,12 @@ public final class PineconeVectorClient {
         this.dimension = dimension;
         this.transport = transport;
         this.objectMapper = objectMapper;
+        if (metadataAllowlist == null || metadataAllowlist.isEmpty()
+                || metadataAllowlist.stream().anyMatch(
+                field -> field == null || field.isBlank())) {
+            throw new IllegalArgumentException("Pinecone metadata allowlist is required");
+        }
+        this.metadataAllowlist = Set.copyOf(metadataAllowlist);
     }
 
     public float[] embedOne(String text, String inputType) {
@@ -256,7 +278,7 @@ public final class PineconeVectorClient {
 
     private void validateMetadata(Map<String, Object> metadata) {
         for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-            if (!METADATA_ALLOWLIST.contains(entry.getKey())) {
+            if (!metadataAllowlist.contains(entry.getKey())) {
                 throw new IllegalArgumentException("Pinecone metadata field is not allowed: " + entry.getKey());
             }
             Object value = entry.getValue();
@@ -280,7 +302,7 @@ public final class PineconeVectorClient {
                 }
                 continue;
             }
-            if (!METADATA_ALLOWLIST.contains(entry.getKey())) {
+            if (!metadataAllowlist.contains(entry.getKey())) {
                 throw new IllegalArgumentException("Pinecone filter field is not allowed: " + entry.getKey());
             }
             Object predicate = entry.getValue();

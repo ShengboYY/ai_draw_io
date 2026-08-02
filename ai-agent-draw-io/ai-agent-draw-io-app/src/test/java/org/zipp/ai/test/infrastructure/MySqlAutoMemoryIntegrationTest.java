@@ -1,5 +1,6 @@
 package org.zipp.ai.test.infrastructure;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -20,15 +21,19 @@ import org.zipp.ai.application.memory.AutoMemoryObservationService;
 import org.zipp.ai.application.memory.AutoMemoryScope;
 import org.zipp.ai.application.memory.AutoMemoryStatus;
 import org.zipp.ai.application.memory.AutoMemoryType;
+import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
+import org.zipp.ai.application.memory.AutoMemoryVectorProjectionLease;
 import org.zipp.ai.application.memory.MemoryObservationKind;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.infrastructure.adapter.repository.MySqlAutoMemoryAdapter;
+import org.zipp.ai.infrastructure.adapter.repository.MySqlAutoMemoryVectorProjectionWorkAdapter;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -106,6 +111,10 @@ class MySqlAutoMemoryIntegrationTest {
                     dataSource,
                     "docs/sql/migrations/2026-08-15-add-auto-memory-aging-index.sql");
         }
+        // CREATE/INSERT IGNORE makes the vector outbox migration safe for reused local fixtures.
+        executeSql(
+                dataSource,
+                "docs/sql/migrations/2026-08-16-create-auto-memory-vector-outbox.sql");
         schemaReady = true;
     }
 
@@ -114,6 +123,12 @@ class MySqlAutoMemoryIntegrationTest {
         if (!schemaReady || jdbc == null) {
             return;
         }
+        jdbc.update("""
+                DELETE w
+                FROM memory_vector_projection_work w
+                JOIN memory_item m ON m.memory_id = w.memory_id
+                WHERE m.owner_key IN (?, ?, ?, ?)
+                """, legacyOwner, adapterOwner, agingOwner, conflictOwner);
         // Evidence is deleted by the Item foreign key; released schema remains for inspection.
         jdbc.update("DELETE FROM memory_item WHERE owner_key IN (?, ?, ?, ?)",
                 legacyOwner, adapterOwner, agingOwner, conflictOwner);
@@ -139,6 +154,12 @@ class MySqlAutoMemoryIntegrationTest {
                 "SELECT status FROM memory_item WHERE memory_id = ?", activeLegacyMemory));
         assertEquals("DISABLED", text(
                 "SELECT status FROM memory_item WHERE memory_id = ?", disabledLegacyMemory));
+        assertEquals(2, count("""
+                SELECT COUNT(*)
+                FROM memory_vector_projection_work w
+                JOIN memory_item m ON m.memory_id = w.memory_id
+                WHERE m.owner_key = ?
+                """, legacyOwner));
 
         executeSql(
                 dataSource,
@@ -156,9 +177,13 @@ class MySqlAutoMemoryIntegrationTest {
 
     @Test
     void inferredEvidenceActivatesOnceAndUserDisableBlocksAutomaticReactivation() {
-        MySqlAutoMemoryAdapter adapter = new MySqlAutoMemoryAdapter(jdbc);
+        MySqlAutoMemoryVectorProjectionWorkAdapter vectorWork =
+                new MySqlAutoMemoryVectorProjectionWorkAdapter(jdbc, new ObjectMapper());
+        MySqlAutoMemoryAdapter adapter = new MySqlAutoMemoryAdapter(jdbc, vectorWork);
         AutoMemoryObservationService service = service(adapter);
         AutoMemoryScope scope = AutoMemoryScope.user(adapterOwner);
+        Instant projectionNow = Instant.now();
+        String projectionWorker = "integration-worker-" + suffix;
 
         AutoMemoryObservationOutcome.Applied first = assertInstanceOf(
                 AutoMemoryObservationOutcome.Applied.class,
@@ -167,6 +192,24 @@ class MySqlAutoMemoryIntegrationTest {
                         MemoryObservationKind.INFERRED))));
         assertEquals(AutoMemoryStatus.OBSERVED, first.memory().status());
         assertEquals(1, first.memory().evidenceCount());
+        assertEquals(1, count("""
+                SELECT desired_revision
+                FROM memory_vector_projection_work
+                WHERE memory_id = ?
+                """, first.memory().memoryId()));
+        // A reused developer schema can contain unrelated backfill work; prioritize only this
+        // random fixture without mutating or claiming another owner's queue item.
+        jdbc.update("""
+                UPDATE memory_vector_projection_work
+                SET available_at = ?
+                WHERE memory_id = ?
+                """, Timestamp.from(Instant.EPOCH), first.memory().memoryId());
+        AutoMemoryVectorProjectionLease firstLease = transaction(() -> vectorWork.claim(
+                        projectionWorker, projectionNow, Duration.ofMinutes(2)))
+                .orElseThrow();
+        assertEquals(1, firstLease.desiredRevision());
+        assertEquals(AutoMemoryVectorDocument.CandidateState.OBSERVED,
+                firstLease.documents().get(0).state());
         assertEquals(
                 List.of("label-density"),
                 adapter.findConsolidationCandidates(scope, 10).stream()
@@ -182,6 +225,11 @@ class MySqlAutoMemoryIntegrationTest {
                         MemoryObservationKind.INFERRED))));
         assertFalse(duplicate.evidenceAdded());
         assertEquals(1, duplicate.memory().evidenceCount());
+        assertEquals(1, count("""
+                SELECT desired_revision
+                FROM memory_vector_projection_work
+                WHERE memory_id = ?
+                """, first.memory().memoryId()));
 
         AutoMemoryObservationOutcome.Applied second = assertInstanceOf(
                 AutoMemoryObservationOutcome.Applied.class,
@@ -190,6 +238,26 @@ class MySqlAutoMemoryIntegrationTest {
                         MemoryObservationKind.INFERRED))));
         assertEquals(AutoMemoryStatus.ACTIVE, second.memory().status());
         assertEquals(2, second.memory().evidenceCount());
+        assertEquals(2, count("""
+                SELECT desired_revision
+                FROM memory_vector_projection_work
+                WHERE memory_id = ?
+                """, second.memory().memoryId()));
+        assertFalse(transaction(() -> vectorWork.complete(
+                firstLease, projectionNow.plusSeconds(1))));
+        jdbc.update("""
+                UPDATE memory_vector_projection_work
+                SET available_at = ?
+                WHERE memory_id = ?
+                """, Timestamp.from(Instant.EPOCH), second.memory().memoryId());
+        AutoMemoryVectorProjectionLease secondLease = transaction(() -> vectorWork.claim(
+                        projectionWorker, projectionNow.plusSeconds(2), Duration.ofMinutes(2)))
+                .orElseThrow();
+        assertEquals(2, secondLease.desiredRevision());
+        assertEquals(AutoMemoryVectorDocument.CandidateState.ACTIVE,
+                secondLease.documents().get(0).state());
+        assertTrue(transaction(() -> vectorWork.complete(
+                secondLease, projectionNow.plusSeconds(3))));
 
         List<AutoMemory> active = adapter.recallActive(scope, 10);
         assertEquals(1, active.size());
@@ -205,6 +273,11 @@ class MySqlAutoMemoryIntegrationTest {
         assertEquals(
                 AutoMemoryStatus.DISABLED,
                 adapter.findConsolidationCandidates(scope, 10).get(0).status());
+        assertEquals(3, count("""
+                SELECT desired_revision
+                FROM memory_vector_projection_work
+                WHERE memory_id = ?
+                """, second.memory().memoryId()));
 
         AutoMemoryObservationOutcome.Suppressed suppressed = assertInstanceOf(
                 AutoMemoryObservationOutcome.Suppressed.class,

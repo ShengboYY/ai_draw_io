@@ -1,5 +1,7 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 import org.zipp.ai.application.memory.AutoMemoryScope;
 import org.zipp.ai.application.memory.AutoMemoryStatus;
 import org.zipp.ai.application.memory.AutoMemoryType;
+import org.zipp.ai.application.memory.AutoMemoryVectorProjectionWorkPort;
 import org.zipp.ai.application.memory.MemoryScopeType;
 import org.zipp.ai.application.memory.SanitizedAutoMemoryObservation;
 import org.zipp.ai.application.turn.ModelInputBinding;
@@ -229,10 +232,44 @@ public class MySqlAutoMemoryAdapter
             LIMIT ?
             """;
 
+    private static final String SELECT_STALE_OBSERVED_FOR_UPDATE = """
+            SELECT memory_id
+            FROM memory_item
+            WHERE status = 'OBSERVED' AND is_explicit = 0 AND updated_at < ?
+            ORDER BY updated_at, memory_id
+            LIMIT ?
+            FOR UPDATE
+            """;
+
+    private static final String DELETE_STALE_OBSERVED_BY_ID = """
+            DELETE FROM memory_item
+            WHERE memory_id = ? AND status = 'OBSERVED'
+              AND is_explicit = 0 AND updated_at < ?
+            """;
+
     private final JdbcOperations jdbc;
+    private final AutoMemoryVectorProjectionWorkPort vectorProjectionWork;
 
     public MySqlAutoMemoryAdapter(JdbcOperations jdbc) {
+        this(jdbc, AutoMemoryVectorProjectionWorkPort.NOOP);
+    }
+
+    @Autowired
+    public MySqlAutoMemoryAdapter(
+            JdbcOperations jdbc,
+            ObjectProvider<AutoMemoryVectorProjectionWorkPort> vectorProjectionWork
+    ) {
+        this(jdbc, vectorProjectionWork.getIfAvailable(
+                () -> AutoMemoryVectorProjectionWorkPort.NOOP));
+    }
+
+    public MySqlAutoMemoryAdapter(
+            JdbcOperations jdbc,
+            AutoMemoryVectorProjectionWorkPort vectorProjectionWork
+    ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.vectorProjectionWork = Objects.requireNonNull(
+                vectorProjectionWork, "vectorProjectionWork");
     }
 
     @Override
@@ -281,6 +318,7 @@ public class MySqlAutoMemoryAdapter
         // changes ON DUPLICATE KEY UPDATE's affected-row count.
         if (current.memoryId().equals(memoryId)) {
             insertEvidence(current.memoryId(), observation, "SUPPORTING");
+            vectorProjectionWork.enqueue(current.memoryId());
             return new AutoMemoryObservationOutcome.Applied(
                     current, true, current.status() == AutoMemoryStatus.ACTIVE);
         }
@@ -299,6 +337,9 @@ public class MySqlAutoMemoryAdapter
                 // conflicting evidence until the user edits or replaces it explicitly.
                 if (!activationPolicy.shouldPromoteInferredChallenger(
                         current.explicit(), conflictCount)) {
+                    if (evidenceAdded > 0) {
+                        vectorProjectionWork.enqueue(current.memoryId());
+                    }
                     return new AutoMemoryObservationOutcome.Conflict(current);
                 }
                 // Promote only one independently reinforced challenger generation. Older support
@@ -332,6 +373,7 @@ public class MySqlAutoMemoryAdapter
                     throw new IllegalStateException("AUTO_MEMORY_CHALLENGER_NOT_APPLIED");
                 }
                 AutoMemory replaced = findForUpdate(observation);
+                vectorProjectionWork.enqueue(current.memoryId());
                 return new AutoMemoryObservationOutcome.Applied(
                         replaced,
                         evidenceAdded > 0,
@@ -354,6 +396,7 @@ public class MySqlAutoMemoryAdapter
                     Timestamp.from(observation.observedAt()),
                     current.memoryId());
             AutoMemory replaced = findForUpdate(observation);
+            vectorProjectionWork.enqueue(current.memoryId());
             return new AutoMemoryObservationOutcome.Applied(
                     replaced, true, current.status() != AutoMemoryStatus.ACTIVE);
         }
@@ -381,6 +424,7 @@ public class MySqlAutoMemoryAdapter
                 Timestamp.from(observation.observedAt()),
                 Timestamp.from(observation.observedAt()),
                 current.memoryId());
+        vectorProjectionWork.enqueue(current.memoryId());
         return new AutoMemoryObservationOutcome.Applied(
                 findForUpdate(observation), true, activated);
     }
@@ -436,14 +480,34 @@ public class MySqlAutoMemoryAdapter
     }
 
     @Override
+    @Transactional
     public int purgeStaleObserved(Instant cutoffExclusive, int limit) {
         Objects.requireNonNull(cutoffExclusive, "cutoffExclusive");
         if (limit < 1 || limit > 1_000) {
             throw new IllegalArgumentException("limit must be between 1 and 1000");
         }
-        // The status and explicit guards are repeated in the atomic DELETE so a concurrent
-        // activation or user edit cannot be removed by a stale maintenance read.
-        return jdbc.update(PURGE_STALE_OBSERVED, Timestamp.from(cutoffExclusive), limit);
+        if (!vectorProjectionWork.enabled()) {
+            // The status and explicit guards are repeated in the atomic DELETE so a concurrent
+            // activation or user edit cannot be removed by a stale maintenance read.
+            return jdbc.update(PURGE_STALE_OBSERVED, Timestamp.from(cutoffExclusive), limit);
+        }
+        List<String> candidates = jdbc.queryForList(
+                SELECT_STALE_OBSERVED_FOR_UPDATE,
+                String.class,
+                Timestamp.from(cutoffExclusive),
+                limit);
+        int deleted = 0;
+        for (String memoryId : candidates) {
+            int removed = jdbc.update(
+                    DELETE_STALE_OBSERVED_BY_ID,
+                    memoryId,
+                    Timestamp.from(cutoffExclusive));
+            if (removed == 1) {
+                vectorProjectionWork.enqueue(memoryId);
+                deleted++;
+            }
+        }
+        return deleted;
     }
 
     @Override
@@ -492,6 +556,7 @@ public class MySqlAutoMemoryAdapter
         if (updated != 1) {
             throw new IllegalStateException("AUTO_MEMORY_MANAGEMENT_FENCE_NOT_APPLIED");
         }
+        vectorProjectionWork.enqueue(current.memoryId());
         return new AutoMemoryManagementOutcome.Updated(managedForUpdate(new AutoMemoryFence(
                 fence.scope(), fence.memoryId(), fence.expectedVersion() + 1)));
     }
@@ -524,9 +589,11 @@ public class MySqlAutoMemoryAdapter
                 fence.scope().type().name(),
                 fence.scope().scopeKey(),
                 fence.expectedVersion());
-        return deleted == 1
-                ? new AutoMemoryManagementOutcome.Deleted(fence.memoryId())
-                : new AutoMemoryManagementOutcome.Rejected("AUTO_MEMORY_VERSION_CONFLICT");
+        if (deleted != 1) {
+            return new AutoMemoryManagementOutcome.Rejected("AUTO_MEMORY_VERSION_CONFLICT");
+        }
+        vectorProjectionWork.enqueue(fence.memoryId());
+        return new AutoMemoryManagementOutcome.Deleted(fence.memoryId());
     }
 
     private boolean scopeExists(AutoMemoryScope scope) {
@@ -589,6 +656,7 @@ public class MySqlAutoMemoryAdapter
         if (updated != 1) {
             throw new IllegalStateException("AUTO_MEMORY_MANAGEMENT_FENCE_NOT_APPLIED");
         }
+        vectorProjectionWork.enqueue(current.memoryId());
         return new AutoMemoryManagementOutcome.Updated(managedForUpdate(new AutoMemoryFence(
                 fence.scope(), fence.memoryId(), fence.expectedVersion() + 1)));
     }
