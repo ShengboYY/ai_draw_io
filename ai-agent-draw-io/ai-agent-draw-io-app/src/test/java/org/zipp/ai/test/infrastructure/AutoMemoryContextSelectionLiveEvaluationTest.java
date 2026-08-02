@@ -12,6 +12,8 @@ import org.zipp.ai.application.memory.AutoMemoryType;
 import org.zipp.ai.application.memory.AutoMemoryVector;
 import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchHit;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchPort;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.context.AutoMemoryContextHydrationPort;
 import org.zipp.ai.application.turn.context.AutoMemoryContextQuery;
@@ -44,22 +46,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         named = "AUTO_MEMORY_CONTEXT_EVALUATION_ENABLED",
         matches = "true")
 class AutoMemoryContextSelectionLiveEvaluationTest {
-    private static final String HOLDOUT_SHA256 =
+    private static final String V1_HOLDOUT_SHA256 =
             "18da2d6db1cf1bc7827c03c6f15260ec0b2e7b8d742cea5edcd2baf2bf10f64a";
+    private static final String DEVELOPMENT_SHA256 =
+            "fd6ed4486e5bbc881f28753682672c96e305fa0c6806b8c418ecf9540f7051bc";
+    private static final String V2_HOLDOUT_SHA256 =
+            "1d3b28b99f28209f3f63bdcc329825f48add7b69e17b38b9adf00efe78516ce6";
     private static final String OWNER = "auto-memory-v17-eval-owner";
     private static final String CHARTBOOK = "auto-memory-v17-eval-book";
     private static final Instant OLD = Instant.parse("2025-01-01T00:00:00Z");
     private static final Instant RECENT = Instant.parse("2026-08-02T00:00:00Z");
 
     @Test
-    void frozenHoldoutComparesSemanticSelectionWithSqlWithoutBusinessWrites() throws Exception {
+    void isolatedCohortComparesSemanticSelectionWithSqlWithoutBusinessWrites() throws Exception {
         ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-        Path holdoutPath = holdoutPath();
-        byte[] holdoutBytes = Files.readAllBytes(holdoutPath);
-        assertEquals(HOLDOUT_SHA256, sha256(holdoutBytes),
-                "the V1.7 holdout is frozen; create a new version instead of tuning it");
-        Cohort cohort = mapper.readValue(holdoutBytes, Cohort.class);
-        validateCohort(cohort);
+        EvaluationProfile profile = evaluationProfile();
+        byte[] cohortBytes = Files.readAllBytes(cohortPath(profile));
+        assertEquals(profile.sha256(), sha256(cohortBytes),
+                "the evaluation dataset changed without a version and hash update");
+        Cohort cohort = mapper.readValue(cohortBytes, Cohort.class);
+        validateCohort(cohort, profile);
 
         EvaluationMemoryRepository repository = new EvaluationMemoryRepository(
                 memories(cohort.memories()));
@@ -89,16 +95,29 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             Evaluation sql = evaluate(
                     new AutoMemoryContextSelector(repository, repository, budget),
                     cohort.cases(),
-                    repository);
+                    repository,
+                    null);
+            RecordingVectorSearchPort recordingVectors =
+                    new RecordingVectorSearchPort(vectors);
+            double minimumScore = doubleEnvironment(
+                    "AUTO_MEMORY_CONTEXT_EVALUATION_MINIMUM_SCORE", 0.0d);
             Evaluation semantic = evaluate(
-                    new AutoMemoryContextSelector(repository, repository, vectors, budget),
+                    new AutoMemoryContextSelector(
+                            repository,
+                            repository,
+                            recordingVectors,
+                            new AutoMemoryContextSelector.SemanticPolicy(minimumScore),
+                            budget),
                     cohort.cases(),
-                    repository);
+                    repository,
+                    recordingVectors);
             EvaluationReport result = compare(cohort, sql, semantic);
-            Path report = reportPath();
-            writeReport(mapper, report, cohort, pinecone, result);
+            Path report = reportPath(cohort.datasetVersion());
+            writeReport(
+                    mapper, report, cohort, profile, pinecone, minimumScore, result);
 
-            assertTrue(result.passed(), () -> "V1.7 context evaluation failed: sql="
+            assertTrue(!profile.enforceGate() || result.passed(),
+                    () -> "V1.7 context evaluation failed: sql="
                     + sql.metrics() + ", semantic=" + semantic.metrics()
                     + "; report=" + report.toAbsolutePath());
         } finally {
@@ -110,11 +129,15 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
     private Evaluation evaluate(
             AutoMemoryContextSelector selector,
             List<CaseSpec> cases,
-            EvaluationMemoryRepository repository
+            EvaluationMemoryRepository repository,
+            RecordingVectorSearchPort recordingVectors
     ) {
         List<CaseResult> results = new ArrayList<>();
         for (CaseSpec testCase : cases) {
             AutoMemoryContextQuery query = query(testCase);
+            if (recordingVectors != null) {
+                recordingVectors.reset();
+            }
             AutoMemoryContextSelection selection = selector.select(query);
             List<String> selected = selection.references().stream()
                     .map(AutoMemoryContextSelection.Reference::memoryId)
@@ -124,6 +147,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     testCase.expectedRelevantIds(),
                     testCase.forbiddenSelectedIds(),
                     selected,
+                    recordingVectors == null ? List.of() : recordingVectors.last(),
                     firstRelevantRank(selected, testCase.expectedRelevantIds()),
                     unauthorizedCount(query, selected, repository)));
         }
@@ -204,7 +228,9 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                 && semantic.metrics().forbiddenSelectionRate()
                 <= gate.maximumForbiddenSelectionRate()
                 && semantic.metrics().unauthorizedSelectionCount()
-                <= gate.maximumUnauthorizedSelectionCount();
+                <= gate.maximumUnauthorizedSelectionCount()
+                && semantic.metrics().irrelevantSelectionRate()
+                <= gate.maximumIrrelevantSelectionRate();
         List<Comparison> comparisons = new ArrayList<>();
         for (int index = 0; index < cohort.cases().size(); index++) {
             CaseSpec testCase = cohort.cases().get(index);
@@ -217,6 +243,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     testCase.forbiddenSelectedIds(),
                     sqlCase.selectedIds(),
                     semanticCase.selectedIds(),
+                    semanticCase.rawHits(),
                     sqlCase.firstRelevantRank() < 0 ? null : sqlCase.firstRelevantRank() + 1,
                     semanticCase.firstRelevantRank() < 0
                             ? null : semanticCase.firstRelevantRank() + 1));
@@ -265,12 +292,14 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
         return -1;
     }
 
-    private void validateCohort(Cohort cohort) {
-        assertEquals("AUTO_MEMORY_CONTEXT_HOLDOUT_V1", cohort.schemaVersion());
+    private void validateCohort(Cohort cohort, EvaluationProfile profile) {
+        assertEquals(profile.schemaVersion(), cohort.schemaVersion());
+        assertEquals(profile.datasetVersion(), cohort.datasetVersion());
         assertEquals("synthetic", cohort.privacyClassification());
-        assertEquals("frozen-holdout-not-for-tuning", cohort.usagePolicy());
-        assertTrue(cohort.cases().size() >= 10, "holdout needs enough independent cases");
-        assertTrue(cohort.memories().size() > 32, "holdout needs more than the SQL window");
+        assertEquals(profile.usagePolicy(), cohort.usagePolicy());
+        assertTrue(cohort.cases().size() >= 8, "evaluation needs enough independent cases");
+        assertTrue(cohort.memories().size() > 32,
+                "evaluation needs more than the SQL window");
         Set<String> ids = new LinkedHashSet<>();
         cohort.memories().forEach(memory -> assertTrue(ids.add(memory.id()),
                 "holdout Memory IDs must be unique"));
@@ -337,7 +366,9 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
                     new TurnKey(OWNER, "memory-context-eval", "index-probe"),
                     null,
                     probe.canonicalText());
-            if (vectors.search(query, 32).contains(vectorId)) {
+            if (vectors.search(query, 32).stream()
+                    .map(AutoMemoryVectorSearchHit::vectorId)
+                    .anyMatch(vectorId::equals)) {
                 return;
             }
             Thread.sleep(500L);
@@ -362,21 +393,25 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             ObjectMapper mapper,
             Path path,
             Cohort cohort,
+            EvaluationProfile profile,
             PineconeSession pinecone,
+            double minimumScore,
             EvaluationReport result
     ) throws Exception {
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("schemaVersion", "AUTO_MEMORY_CONTEXT_EVALUATION_REPORT_V1");
         report.put("generatedAt", Instant.now().toString());
         report.put("datasetVersion", cohort.datasetVersion());
-        report.put("datasetSha256", HOLDOUT_SHA256);
+        report.put("datasetSha256", profile.sha256());
         report.put("privacyClassification", cohort.privacyClassification());
         report.put("usagePolicy", cohort.usagePolicy());
+        report.put("gateEnforced", profile.enforceGate());
         report.put("businessDatabaseWrites", 0);
         report.put("deepSeekCalls", 0);
         report.put("namespaceClass", "isolated-eval");
         report.put("embeddingModel", pinecone.model());
         report.put("embeddingDimension", pinecone.dimension());
+        report.put("minimumSemanticScore", minimumScore);
         report.put("caseCount", cohort.cases().size());
         report.put("memoryCount", cohort.memories().size());
         report.put("qualityGate", cohort.qualityGate());
@@ -389,23 +424,52 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
         mapper.writeValue(path.toFile(), report);
     }
 
-    private Path holdoutPath() {
+    private Path cohortPath(EvaluationProfile profile) {
         String relative = "ai-agent-draw-io-infrastructure/src/test/resources/evals/"
-                + "auto-memory-context-v1/holdout.json";
+                + profile.relativePath();
         for (Path candidate : List.of(Path.of(relative), Path.of("..").resolve(relative))) {
             if (Files.isRegularFile(candidate)) {
                 return candidate.toAbsolutePath().normalize();
             }
         }
-        throw new IllegalStateException("V1.7 context holdout was not found");
+        throw new IllegalStateException("V1.7 context evaluation dataset was not found");
     }
 
-    private Path reportPath() {
+    private Path reportPath(String datasetVersion) {
         String configured = System.getenv("AUTO_MEMORY_CONTEXT_EVALUATION_REPORT");
         if (configured != null && !configured.isBlank()) {
             return Path.of(configured).toAbsolutePath().normalize();
         }
-        return Path.of("target", "auto-memory-retrieval", "context-v1-report.json");
+        return Path.of("target", "auto-memory-retrieval", datasetVersion + "-report.json");
+    }
+
+    private EvaluationProfile evaluationProfile() {
+        return switch (environment(
+                "AUTO_MEMORY_CONTEXT_EVALUATION_DATASET", "holdout-v1")) {
+            case "development-v1" -> new EvaluationProfile(
+                    "AUTO_MEMORY_CONTEXT_DEVELOPMENT_V1",
+                    "auto-memory-context-development-v1",
+                    "development-tuning-allowed",
+                    "auto-memory-context-development-v1/cohort.json",
+                    DEVELOPMENT_SHA256,
+                    false);
+            case "holdout-v2" -> new EvaluationProfile(
+                    "AUTO_MEMORY_CONTEXT_HOLDOUT_V2",
+                    "auto-memory-context-v2",
+                    "frozen-holdout-not-for-tuning",
+                    "auto-memory-context-v2/holdout.json",
+                    V2_HOLDOUT_SHA256,
+                    true);
+            case "holdout-v1" -> new EvaluationProfile(
+                    "AUTO_MEMORY_CONTEXT_HOLDOUT_V1",
+                    "auto-memory-context-v1",
+                    "frozen-holdout-not-for-tuning",
+                    "auto-memory-context-v1/holdout.json",
+                    V1_HOLDOUT_SHA256,
+                    true);
+            default -> throw new IllegalArgumentException(
+                    "unknown Auto Memory context evaluation dataset");
+        };
     }
 
     private String requiredEnvironment(String... names) {
@@ -421,6 +485,14 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
     private String environment(String name, String fallback) {
         String value = System.getenv(name);
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private double doubleEnvironment(String name, double fallback) {
+        double value = Double.parseDouble(environment(name, Double.toString(fallback)));
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite");
+        }
+        return value;
     }
 
     private static String sha256(byte[] value) throws Exception {
@@ -450,7 +522,8 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             double minimumSemanticMrr,
             double minimumRecallAt3LiftOverSql,
             double maximumForbiddenSelectionRate,
-            int maximumUnauthorizedSelectionCount
+            int maximumUnauthorizedSelectionCount,
+            double maximumIrrelevantSelectionRate
     ) {
     }
 
@@ -478,6 +551,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             List<String> expectedRelevantIds,
             List<String> forbiddenSelectedIds,
             List<String> selectedIds,
+            List<RankedHit> rawHits,
             int firstRelevantRank,
             int unauthorizedSelectionCount
     ) {
@@ -510,6 +584,7 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             List<String> forbiddenSelectedIds,
             List<String> sqlSelectedIds,
             List<String> semanticSelectedIds,
+            List<RankedHit> semanticRawHits,
             Integer sqlFirstRelevantRank,
             Integer semanticFirstRelevantRank
     ) {
@@ -530,6 +605,52 @@ class AutoMemoryContextSelectionLiveEvaluationTest {
             String model,
             int dimension
     ) {
+    }
+
+    private record EvaluationProfile(
+            String schemaVersion,
+            String datasetVersion,
+            String usagePolicy,
+            String relativePath,
+            String sha256,
+            boolean enforceGate
+    ) {
+    }
+
+    private record RankedHit(String memoryId, double score) {
+    }
+
+    /** Captures transient scores for the report without changing selector behavior. */
+    private static final class RecordingVectorSearchPort implements AutoMemoryVectorSearchPort {
+        private final AutoMemoryVectorSearchPort delegate;
+        private List<RankedHit> last = List.of();
+
+        private RecordingVectorSearchPort(AutoMemoryVectorSearchPort delegate) {
+            this.delegate = Objects.requireNonNull(delegate, "delegate");
+        }
+
+        @Override
+        public List<AutoMemoryVectorSearchHit> search(
+                AutoMemoryVectorSearchQuery query,
+                int topK
+        ) {
+            List<AutoMemoryVectorSearchHit> hits = delegate.search(query, topK);
+            last = hits.stream()
+                    .map(hit -> new RankedHit(
+                            AutoMemoryVectorDocument.currentMemoryIdFromVectorId(hit.vectorId())
+                                    .orElse("UNKNOWN_VECTOR"),
+                            hit.score()))
+                    .toList();
+            return hits;
+        }
+
+        private void reset() {
+            last = List.of();
+        }
+
+        private List<RankedHit> last() {
+            return last;
+        }
     }
 
     /** Read-only authority used only by the synthetic holdout. */

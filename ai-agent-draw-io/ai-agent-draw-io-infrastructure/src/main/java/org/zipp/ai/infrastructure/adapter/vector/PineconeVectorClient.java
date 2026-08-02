@@ -142,6 +142,17 @@ public final class PineconeVectorClient {
     }
 
     public List<String> query(String namespace, float[] vector, int topK, Map<String, Object> filter) {
+        return queryMatches(namespace, vector, topK, filter).stream()
+                .map(PineconeVectorMatch::id)
+                .toList();
+    }
+
+    public List<PineconeVectorMatch> queryMatches(
+            String namespace,
+            float[] vector,
+            int topK,
+            Map<String, Object> filter
+    ) {
         validateVector(vector);
         if (topK < 1 || topK > 100) throw new IllegalArgumentException("topK must be between 1 and 100");
         validateFilter(filter == null ? Map.of() : filter);
@@ -154,9 +165,11 @@ public final class PineconeVectorClient {
         for (float value : vector) values.add(value);
         if (filter != null && !filter.isEmpty()) body.set("filter", objectMapper.valueToTree(filter));
         JsonNode response = exchange(indexUri("/query"), body);
-        List<String> ids = new ArrayList<>();
-        response.path("matches").forEach(match -> ids.add(match.path("id").asText()));
-        return ids;
+        List<PineconeVectorMatch> matches = new ArrayList<>();
+        response.path("matches").forEach(match -> matches.add(new PineconeVectorMatch(
+                match.path("id").asText(),
+                match.path("score").asDouble(Double.NaN))));
+        return List.copyOf(matches);
     }
 
     public void delete(String namespace, List<String> ids) {

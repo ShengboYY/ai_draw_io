@@ -25,7 +25,7 @@ class CanaryAutoMemoryConsolidationCandidateRetrieverTest {
         sqlCandidates.add(vectorCandidates.get(0));
         sqlCandidates.addAll(candidates("sql", 19));
         FakeVectors vectors = new FakeVectors();
-        vectors.hits = ids(16);
+        vectors.hits = hits(16);
         CanaryAutoMemoryConsolidationCandidateRetriever retriever =
                 new CanaryAutoMemoryConsolidationCandidateRetriever(
                         query -> sqlCandidates,
@@ -60,7 +60,7 @@ class CanaryAutoMemoryConsolidationCandidateRetrieverTest {
     void hydrationFailureReturnsTheOriginalSqlResult() {
         List<AutoMemoryExtractionCandidate> sqlCandidates = candidates("sql", 2);
         FakeVectors vectors = new FakeVectors();
-        vectors.hits = ids(2);
+        vectors.hits = hits(2);
         CanaryAutoMemoryConsolidationCandidateRetriever retriever =
                 new CanaryAutoMemoryConsolidationCandidateRetriever(
                         query -> sqlCandidates,
@@ -101,16 +101,16 @@ class CanaryAutoMemoryConsolidationCandidateRetrieverTest {
         return List.copyOf(candidates);
     }
 
-    private static List<String> ids(int count) {
-        List<String> ids = new ArrayList<>(count);
+    private static List<AutoMemoryVectorSearchHit> hits(int count) {
+        List<AutoMemoryVectorSearchHit> hits = new ArrayList<>(count);
         for (int index = 0; index < count; index++) {
-            ids.add("opaque-vector-" + index);
+            hits.add(new AutoMemoryVectorSearchHit("opaque-vector-" + index, 0.9d));
         }
-        return List.copyOf(ids);
+        return List.copyOf(hits);
     }
 
     private static final class FakeVectors implements AutoMemoryVectorStorePort {
-        private List<String> hits = List.of();
+        private List<AutoMemoryVectorSearchHit> hits = List.of();
         private RuntimeException failure;
         private int topK;
         private int searchCount;
@@ -134,7 +134,10 @@ class CanaryAutoMemoryConsolidationCandidateRetrieverTest {
         }
 
         @Override
-        public List<String> search(AutoMemoryVectorSearchQuery query, int topK) {
+        public List<AutoMemoryVectorSearchHit> search(
+                AutoMemoryVectorSearchQuery query,
+                int topK
+        ) {
             this.searchCount++;
             this.topK = topK;
             if (failure != null) {

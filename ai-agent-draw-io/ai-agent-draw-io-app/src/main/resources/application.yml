@@ -53,6 +53,7 @@ app:
     context:
       # V1.7 semantic selection is opt-in; SQL ordering remains the failure fallback.
       semantic-enabled: ${AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED:false}
+      minimum-score: ${AUTO_MEMORY_CONTEXT_MINIMUM_SCORE:0.827}
       max-entries: ${AUTO_MEMORY_CONTEXT_MAX_ENTRIES:12}
       max-characters: ${AUTO_MEMORY_CONTEXT_MAX_CHARACTERS:6000}
     # V1.2 ages only unconfirmed OBSERVED candidates and remains opt-in after Auto Memory rollout.

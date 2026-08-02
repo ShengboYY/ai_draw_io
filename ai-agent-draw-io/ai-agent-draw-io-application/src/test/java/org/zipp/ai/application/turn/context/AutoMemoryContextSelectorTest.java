@@ -7,6 +7,7 @@ import org.zipp.ai.application.memory.AutoMemoryScope;
 import org.zipp.ai.application.memory.AutoMemoryStatus;
 import org.zipp.ai.application.memory.AutoMemoryType;
 import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchHit;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchPort;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
 import org.zipp.ai.application.turn.TurnKey;
@@ -77,6 +78,44 @@ class AutoMemoryContextSelectorTest {
     }
 
     @Test
+    void successfulSemanticRecallFiltersWeakHitsWithoutSqlPadding() {
+        AutoMemory relevant = memory(
+                "memory-relevant", AutoMemoryScope.user("owner-1"),
+                "labels", "Use concise labels", 2);
+        AutoMemory weak = memory(
+                "memory-weak", AutoMemoryScope.user("owner-1"),
+                "theme", "Use a blue theme", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(relevant, weak));
+        FakeVectors vectors = FakeVectors.scored(List.of(
+                new AutoMemoryVectorSearchHit(vectorId(relevant), 0.82d),
+                new AutoMemoryVectorSearchHit(vectorId(weak), 0.41d)));
+        AutoMemoryContextSelector selector = new AutoMemoryContextSelector(
+                authority,
+                authority,
+                vectors,
+                new AutoMemoryContextSelector.SemanticPolicy(0.70d),
+                new AutoMemoryContextSelector.Budget(4, 6_000));
+
+        AutoMemoryContextSelection selected = selector.select(query());
+
+        assertEquals(List.of("memory-relevant"), selected.references().stream()
+                .map(AutoMemoryContextSelection.Reference::memoryId).toList());
+    }
+
+    @Test
+    void successfulSemanticRecallMaySelectNoMemory() {
+        AutoMemory baseline = memory(
+                "memory-baseline", AutoMemoryScope.user("owner-1"),
+                "theme", "Use a blue theme", 2);
+        FakeAuthority authority = new FakeAuthority(List.of(baseline));
+
+        AutoMemoryContextSelection selected = selector(
+                authority, new FakeVectors(List.of()), 4, 6_000).select(query());
+
+        assertTrue(selected.references().isEmpty());
+    }
+
+    @Test
     void totalCharacterBudgetSkipsEntriesThatDoNotFit() {
         AutoMemory first = memory(
                 "memory-first", AutoMemoryScope.user("owner-1"),
@@ -120,7 +159,12 @@ class AutoMemoryContextSelectorTest {
                 new AutoMemoryContextSelector.Budget(maxEntries, maxCharacters);
         return vectors == null
                 ? new AutoMemoryContextSelector(authority, authority, budget)
-                : new AutoMemoryContextSelector(authority, authority, vectors, budget);
+                : new AutoMemoryContextSelector(
+                        authority,
+                        authority,
+                        vectors,
+                        new AutoMemoryContextSelector.SemanticPolicy(0.0d),
+                        budget);
     }
 
     private static AutoMemoryContextQuery query() {
@@ -211,13 +255,27 @@ class AutoMemoryContextSelectorTest {
     }
 
     private static final class FakeVectors implements AutoMemoryVectorSearchPort {
-        private final List<String> hits;
+        private final List<AutoMemoryVectorSearchHit> hits;
         private final RuntimeException failure;
         private AutoMemoryVectorSearchQuery query;
 
         private FakeVectors(List<String> hits) {
-            this.hits = List.copyOf(hits);
+            this.hits = hits.stream()
+                    .map(id -> new AutoMemoryVectorSearchHit(id, 1.0d))
+                    .toList();
             this.failure = null;
+        }
+
+        private FakeVectors(
+                List<AutoMemoryVectorSearchHit> hits,
+                RuntimeException failure
+        ) {
+            this.hits = List.copyOf(hits);
+            this.failure = failure;
+        }
+
+        private static FakeVectors scored(List<AutoMemoryVectorSearchHit> hits) {
+            return new FakeVectors(hits, null);
         }
 
         private FakeVectors(RuntimeException failure) {
@@ -226,7 +284,10 @@ class AutoMemoryContextSelectorTest {
         }
 
         @Override
-        public List<String> search(AutoMemoryVectorSearchQuery query, int topK) {
+        public List<AutoMemoryVectorSearchHit> search(
+                AutoMemoryVectorSearchQuery query,
+                int topK
+        ) {
             this.query = query;
             if (failure != null) {
                 throw failure;

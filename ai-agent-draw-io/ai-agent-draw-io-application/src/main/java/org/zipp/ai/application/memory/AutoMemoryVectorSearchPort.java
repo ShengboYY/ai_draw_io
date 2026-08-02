@@ -4,5 +4,5 @@ import java.util.List;
 
 /** Query-only side of the rebuildable Memory vector store. */
 public interface AutoMemoryVectorSearchPort {
-    List<String> search(AutoMemoryVectorSearchQuery query, int topK);
+    List<AutoMemoryVectorSearchHit> search(AutoMemoryVectorSearchQuery query, int topK);
 }

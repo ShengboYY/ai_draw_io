@@ -38,7 +38,9 @@ class ShadowAutoMemoryConsolidationCandidateRetrieverTest {
     void recordsOpaqueHitsButReturnsSqlCandidates() {
         List<AutoMemoryVectorShadowTelemetry.Sample> samples = new ArrayList<>();
         FakeVectors vectors = new FakeVectors();
-        vectors.hits = List.of("opaque-vector-1", "opaque-vector-2");
+        vectors.hits = List.of(
+                new AutoMemoryVectorSearchHit("opaque-vector-1", 0.9d),
+                new AutoMemoryVectorSearchHit("opaque-vector-2", 0.8d));
         ShadowAutoMemoryConsolidationCandidateRetriever retriever =
                 new ShadowAutoMemoryConsolidationCandidateRetriever(
                         query -> List.of(SQL_CANDIDATE),
@@ -95,7 +97,7 @@ class ShadowAutoMemoryConsolidationCandidateRetrieverTest {
     }
 
     private static final class FakeVectors implements AutoMemoryVectorStorePort {
-        private List<String> hits = List.of();
+        private List<AutoMemoryVectorSearchHit> hits = List.of();
         private RuntimeException failure;
         private int topK;
 
@@ -118,7 +120,10 @@ class ShadowAutoMemoryConsolidationCandidateRetrieverTest {
         }
 
         @Override
-        public List<String> search(AutoMemoryVectorSearchQuery query, int topK) {
+        public List<AutoMemoryVectorSearchHit> search(
+                AutoMemoryVectorSearchQuery query,
+                int topK
+        ) {
             this.topK = topK;
             if (failure != null) {
                 throw failure;

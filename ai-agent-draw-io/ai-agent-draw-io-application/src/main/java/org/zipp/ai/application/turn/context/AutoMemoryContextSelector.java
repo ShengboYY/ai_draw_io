@@ -4,6 +4,7 @@ import org.zipp.ai.application.memory.AutoMemory;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
 import org.zipp.ai.application.memory.AutoMemoryScope;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchPort;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchHit;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
 import org.zipp.ai.application.memory.MemoryScopeType;
 
@@ -30,6 +31,7 @@ public final class AutoMemoryContextSelector {
     private final AutoMemoryQueryPort memories;
     private final AutoMemoryContextHydrationPort hydration;
     private final AutoMemoryVectorSearchPort vectors;
+    private final SemanticPolicy semanticPolicy;
     private final Budget budget;
 
     public AutoMemoryContextSelector(
@@ -37,27 +39,36 @@ public final class AutoMemoryContextSelector {
             AutoMemoryContextHydrationPort hydration,
             Budget budget
     ) {
-        this(memories, hydration, null, budget);
+        this(memories, hydration, null, new SemanticPolicy(0.0d), budget);
     }
 
     public AutoMemoryContextSelector(
             AutoMemoryQueryPort memories,
             AutoMemoryContextHydrationPort hydration,
             AutoMemoryVectorSearchPort vectors,
+            SemanticPolicy semanticPolicy,
             Budget budget
     ) {
         this.memories = Objects.requireNonNull(memories, "memories");
         this.hydration = Objects.requireNonNull(hydration, "hydration");
         this.vectors = vectors;
+        this.semanticPolicy = Objects.requireNonNull(semanticPolicy, "semanticPolicy");
         this.budget = Objects.requireNonNull(budget, "budget");
     }
 
     public AutoMemoryContextSelection select(AutoMemoryContextQuery query) {
         Objects.requireNonNull(query, "query");
         List<AutoMemory> baseline = baseline(query);
-        List<AutoMemory> ranked = semanticOrEmpty(query);
-        ranked = merge(ranked, baseline);
-        return selection(selectBounded(ranked, query.chartbookId()));
+        if (vectors == null) {
+            return selection(selectBounded(baseline, baseline, query.chartbookId()));
+        }
+        SemanticRecall semantic = semantic(query);
+        if (semantic.failed()) {
+            return selection(selectBounded(baseline, baseline, query.chartbookId()));
+        }
+        List<AutoMemory> overrideSources = merge(semantic.memories(), baseline);
+        return selection(selectBounded(
+                semantic.memories(), overrideSources, query.chartbookId()));
     }
 
     public Optional<AutoMemoryContextSelection> materialize(
@@ -96,19 +107,21 @@ public final class AutoMemoryContextSelector {
         return List.copyOf(result);
     }
 
-    private List<AutoMemory> semanticOrEmpty(AutoMemoryContextQuery query) {
-        if (vectors == null) {
-            return List.of();
-        }
+    private SemanticRecall semantic(AutoMemoryContextQuery query) {
         try {
             List<String> vectorIds = vectors.search(
-                    AutoMemoryVectorSearchQuery.activeContext(
-                            query.turn(), query.chartbookId(), query.userContent()),
-                    VECTOR_TOP_K);
-            return List.copyOf(hydration.hydrateActiveVectorMatches(query, vectorIds));
+                            AutoMemoryVectorSearchQuery.activeContext(
+                                    query.turn(), query.chartbookId(), query.userContent()),
+                            VECTOR_TOP_K).stream()
+                    .filter(hit -> hit.score() >= semanticPolicy.minimumScore())
+                    .map(AutoMemoryVectorSearchHit::vectorId)
+                    .toList();
+            return new SemanticRecall(
+                    false,
+                    hydration.hydrateActiveVectorMatches(query, vectorIds));
         } catch (RuntimeException ignored) {
             // Generation remains available through the deterministic MySQL baseline.
-            return List.of();
+            return new SemanticRecall(true, List.of());
         }
     }
 
@@ -122,10 +135,14 @@ public final class AutoMemoryContextSelector {
         return List.copyOf(unique.values());
     }
 
-    private List<AutoMemory> selectBounded(List<AutoMemory> ranked, String chartbookId) {
+    private List<AutoMemory> selectBounded(
+            List<AutoMemory> ranked,
+            List<AutoMemory> overrideSources,
+            String chartbookId
+    ) {
         Set<DecisionKey> chartbookOverrides = new HashSet<>();
         if (chartbookId != null) {
-            ranked.stream()
+            overrideSources.stream()
                     .filter(memory -> memory.scope().type() == MemoryScopeType.CHARTBOOK
                             && chartbookId.equals(memory.scope().scopeKey()))
                     .map(DecisionKey::from)
@@ -209,6 +226,20 @@ public final class AutoMemoryContextSelector {
                     || maxCharacters < 256 || maxCharacters > 24_000) {
                 throw new IllegalArgumentException("invalid Auto Memory context budget");
             }
+        }
+    }
+
+    public record SemanticPolicy(double minimumScore) {
+        public SemanticPolicy {
+            if (!Double.isFinite(minimumScore)) {
+                throw new IllegalArgumentException("minimum semantic score must be finite");
+            }
+        }
+    }
+
+    private record SemanticRecall(boolean failed, List<AutoMemory> memories) {
+        private SemanticRecall {
+            memories = List.copyOf(memories);
         }
     }
 

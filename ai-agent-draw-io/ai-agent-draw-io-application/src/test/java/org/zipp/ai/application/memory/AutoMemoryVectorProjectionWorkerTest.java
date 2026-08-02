@@ -215,7 +215,10 @@ class AutoMemoryVectorProjectionWorkerTest {
         }
 
         @Override
-        public List<String> search(AutoMemoryVectorSearchQuery query, int topK) {
+        public List<AutoMemoryVectorSearchHit> search(
+                AutoMemoryVectorSearchQuery query,
+                int topK
+        ) {
             return List.of();
         }
     }

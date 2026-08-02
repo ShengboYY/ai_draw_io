@@ -18,7 +18,9 @@ final class HydratedAutoMemoryVectorCandidateRetriever {
 
     Result retrieve(AutoMemoryConsolidationQuery query, int topK) {
         List<String> vectorIds = vectors.search(
-                AutoMemoryVectorSearchQuery.consolidation(query), topK);
+                AutoMemoryVectorSearchQuery.consolidation(query), topK).stream()
+                .map(AutoMemoryVectorSearchHit::vectorId)
+                .toList();
         return new Result(vectorIds.size(), hydration.hydrate(query, vectorIds));
     }
 

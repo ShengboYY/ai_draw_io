@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.adapter.vector;
 import org.zipp.ai.application.memory.AutoMemoryScope;
 import org.zipp.ai.application.memory.AutoMemoryVector;
 import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchHit;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
 import org.zipp.ai.application.memory.AutoMemoryVectorStorePort;
 
@@ -10,6 +11,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -81,7 +83,7 @@ public final class PineconeAutoMemoryVectorStoreAdapter implements AutoMemoryVec
     }
 
     @Override
-    public List<String> search(AutoMemoryVectorSearchQuery query, int topK) {
+    public List<AutoMemoryVectorSearchHit> search(AutoMemoryVectorSearchQuery query, int topK) {
         Objects.requireNonNull(query, "query");
         if (topK < 1 || topK > 32) {
             throw new IllegalArgumentException("topK must be between 1 and 32");
@@ -100,7 +102,11 @@ public final class PineconeAutoMemoryVectorStoreAdapter implements AutoMemoryVec
                 Map.of("memory_scope_partition", Map.of("$in", scopePartitions)),
                 Map.of("memory_candidate_kind", Map.of("$in", names(query.kinds()))),
                 Map.of("memory_candidate_state", Map.of("$in", names(query.states())))));
-        return client.query(namespace, queryVector, topK, filter);
+        return client.queryMatches(namespace, queryVector, topK, filter).stream()
+                // Provider output is untrusted; application ranking follows the returned score.
+                .sorted(Comparator.comparingDouble(PineconeVectorMatch::score).reversed())
+                .map(match -> new AutoMemoryVectorSearchHit(match.id(), match.score()))
+                .toList();
     }
 
     private static List<String> names(Set<? extends Enum<?>> values) {

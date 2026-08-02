@@ -15,7 +15,9 @@ public interface AutoMemoryVectorStorePort extends AutoMemoryVectorSearchPort {
 
     /** Compatibility bridge for the existing extraction/consolidation callers. */
     default List<String> search(AutoMemoryConsolidationQuery query, int topK) {
-        return search(AutoMemoryVectorSearchQuery.consolidation(query), topK);
+        return search(AutoMemoryVectorSearchQuery.consolidation(query), topK).stream()
+                .map(AutoMemoryVectorSearchHit::vectorId)
+                .toList();
     }
 
 }

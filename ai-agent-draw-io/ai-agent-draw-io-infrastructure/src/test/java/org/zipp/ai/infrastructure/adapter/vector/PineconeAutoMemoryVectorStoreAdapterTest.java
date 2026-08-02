@@ -11,6 +11,7 @@ import org.zipp.ai.application.memory.AutoMemoryType;
 import org.zipp.ai.application.memory.AutoMemoryVector;
 import org.zipp.ai.application.memory.AutoMemoryVectorDocument;
 import org.zipp.ai.application.memory.AutoMemoryVectorSearchQuery;
+import org.zipp.ai.application.memory.AutoMemoryVectorSearchHit;
 import org.zipp.ai.application.turn.TurnKey;
 
 import java.net.URI;
@@ -77,17 +78,38 @@ class PineconeAutoMemoryVectorStoreAdapterTest {
         RecordingTransport transport = new RecordingTransport(objectMapper);
         PineconeAutoMemoryVectorStoreAdapter adapter = adapter(transport);
 
-        adapter.search(AutoMemoryVectorSearchQuery.activeContext(
+        List<AutoMemoryVectorSearchHit> hits = adapter.search(
+                AutoMemoryVectorSearchQuery.activeContext(
                 new TurnKey("owner-1", "conversation-1", "turn-1"),
                 "chartbook-1",
                 "Use concise labels"), 16);
 
+        assertEquals(List.of(new AutoMemoryVectorSearchHit("opaque-vector-1", 0.91d)), hits);
         String body = transport.requests.get(1).body();
         assertTrue(body.contains("CURRENT"));
         assertTrue(body.contains("ACTIVE"));
         assertFalse(body.contains("CHALLENGER"));
         assertFalse(body.contains("CONFLICTING"));
         assertFalse(body.contains("DISABLED"));
+    }
+
+    @Test
+    void memorySearchRanksProviderMatchesByDescendingScore() {
+        RecordingTransport transport = new RecordingTransport(objectMapper);
+        transport.queryResponse = "{\"matches\":["
+                + "{\"id\":\"low\",\"score\":0.71},"
+                + "{\"id\":\"high\",\"score\":0.92}]}";
+        PineconeAutoMemoryVectorStoreAdapter adapter = adapter(transport);
+
+        List<AutoMemoryVectorSearchHit> hits = adapter.search(
+                AutoMemoryVectorSearchQuery.activeContext(
+                        new TurnKey("owner-1", "conversation-1", "turn-1"),
+                        null,
+                        "Use concise labels"),
+                16);
+
+        assertEquals(List.of("high", "low"),
+                hits.stream().map(AutoMemoryVectorSearchHit::vectorId).toList());
     }
 
     @Test
@@ -141,6 +163,8 @@ class PineconeAutoMemoryVectorStoreAdapterTest {
     private static final class RecordingTransport implements PineconeHttpTransport {
         private final ObjectMapper objectMapper;
         private final List<RecordedRequest> requests = new ArrayList<>();
+        private String queryResponse =
+                "{\"matches\":[{\"id\":\"opaque-vector-1\",\"score\":0.91}]}";
 
         private RecordingTransport(ObjectMapper objectMapper) {
             this.objectMapper = objectMapper;
@@ -165,8 +189,7 @@ class PineconeAutoMemoryVectorStoreAdapterTest {
                         "data", data)));
             }
             if (uri.getPath().equals("/query")) {
-                return new PineconeHttpResponse(
-                        200, "{\"matches\":[{\"id\":\"opaque-vector-1\"}]}");
+                return new PineconeHttpResponse(200, queryResponse);
             }
             return new PineconeHttpResponse(200, "{}");
         }
