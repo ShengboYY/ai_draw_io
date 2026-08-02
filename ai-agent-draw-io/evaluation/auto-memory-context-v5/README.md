@@ -76,3 +76,18 @@ Development-v2 ran once with `AUTO_MEMORY_RECALL_PLANNING_V2` and passed all ten
 accuracy, multi-intent coverage and single-intent abstention were 100%, with 0% protocol failures.
 No further prompt or eligibility changes were made. The V2 holdout remains untouched until this
 revision is committed.
+
+## V2 holdout outcome
+
+The only V2 holdout run reached 90% exact case accuracy, 100% multi-intent coverage, 75%
+single-intent abstention and 0% protocol failures. It therefore did not pass the pre-registered
+abstention gate. The sole miss split `Use black but not gray borders for every service` into a
+positive black-border query and a negative gray-border query even though the fixture labels that as
+one shared border-color decision.
+
+V2 is retired and will not be rerun. The result supports the bounded multi-query mechanism and
+shows that the revised planner removed the observed under-splitting, but it does not approve
+semantic Memory Context for release. V1.8 stops here to avoid repeatedly tuning a model prompt
+against small synthetic cohorts. Both semantic and multi-intent feature flags remain default-off;
+a future stage needs new end-to-end vector evidence or local real requests, not another edit to
+these labels or thresholds.
