@@ -586,9 +586,10 @@ Prompt 的 ACTIVE Memory 选择边界：
 2. `AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED=true` 只有和 vector projection 同时开启时才复用现有
    Pinecone。查询在 provider `topK` 前限定 `CURRENT + ACTIVE`、owner 以及 USER/当前 CHARTBOOK，
    返回 ID 仍必须经 MySQL 重新校验；向量失败时使用同一 SQL baseline，不影响 Turn 可用性。
-3. 向量相关候选优先，SQL 去重补位。只有相同 Memory type + `semanticKey` 时，当前 CHARTBOOK
-   覆盖 USER 全局值；不同决策维度继续保留相关度顺序。最终每 scope 最多 8 条、总计默认最多
-   12 条和 6,000 个 Prompt 字符，超预算条目跳过但不删除权威 Memory。
+3. 未开启 semantic 时继续使用 SQL；向量技术失败也回退 SQL。semantic 成功时按 provider score
+   显式降序，只保留达到 `AUTO_MEMORY_CONTEXT_MINIMUM_SCORE` 的结果，允许选择 0 条且不再用 SQL
+   补满。只有相同 Memory type + `semanticKey` 时，当前 CHARTBOOK 覆盖 USER 全局值；最终每 scope
+   最多 8 条、总计默认最多 12 条和 6,000 个 Prompt 字符。
 4. `AutoMemoryContext` 保存真实选择顺序，Prompt renderer 和 Semantic Router 使用同一投影。
    Context read-set 升级为 schema v2，在既有 JSON 中记录选中 `memoryId + version` 并纳入摘要；
    materialize 只回查这批身份，向量不重复执行，未选中 Memory 的并发变化也不会让本 Turn 漂移。
@@ -599,6 +600,16 @@ Prompt 的 ACTIVE Memory 选择边界：
 
 本地 MySQL 集成验证覆盖 CURRENT/ACTIVE 命中、challenger 拒绝、owner 隔离和 DISABLED 失效；
 完整后端测试共执行 2,031 项，0 failure、0 error，21 项按既有 live/integration 开关跳过。
+
+### V1.7.1 score-aware 稀疏选择实验
+
+Pinecone match score 现在作为瞬时排序证据返回但不持久化；Memory adapter 不信任 provider 数组
+顺序，显式按 score 降序。独立 development cohort 用于校准单一 `0.827` cutoff；首次冻结 V2
+holdout 不参与调参。development 达到 8/8 Top 1、MRR 1.0，平均选择 1.875 条；V2 的 8 个目标也
+全部 raw Top 1，但两个目标分数低于 cutoff，最终 Recall@1/3/12 均为 75%、MRR 0.75、无关率
+40%、平均选择 1.25 条。V2 因 Recall@12 未达到预注册 87.5% 门槛而失败，不能降低阈值后重跑。
+semantic 开关继续默认及本地关闭；若继续优化，必须用新 development cohort 设计非绝对拒绝规则，
+再使用未见 V3 holdout 验收。
 
 ## 19. 开发日志
 
@@ -731,6 +742,13 @@ Prompt 的 ACTIVE Memory 选择边界：
   8.33% / 16.67% / 66.67%，MRR 0.1933，无关注入率 93.33%；SQL Recall@12 为 0，语义方向有
   提升但不足以上线。同键 Chartbook 覆盖和 owner/scope 隔离均通过，未修改 holdout、阈值或实现
   来美化结果，完整证据保存在 `evaluation/auto-memory-context-v1/results/`。
+- [x] 在实现 V1.7.1 前冻结互不重叠的 development 与 V2 holdout；Memory 向量端口保留瞬时
+  score，adapter 显式按 score 排序，semantic 成功时执行 cutoff 稀疏选择且不再用 SQL 补位，
+  只有向量技术失败才退回 SQL。新增行为、score 解析和未排序 provider 响应回归测试。
+- [x] development 复核从 Recall@1 12.5%、无关率 90.67%、平均 9.375 条改善为 100%、46.67%、
+  1.875 条；冻结 V2 首次运行达到 Recall@1/3/12 75%、MRR 0.75、无关率 40%、平均 1.25 条，
+  但未通过 Recall@12 87.5% 门槛。未按 V2 下调 `0.827`，全部 eval vector 已确认删除；完整后端
+  2,036 项测试 0 failure、0 error，22 项按既有 live/integration 开关跳过。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
@@ -738,10 +756,10 @@ Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已�
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
 V1.4-E 的投影、权威回查、真实 Pinecone cohort、随机 shadow 和报告均已完成；V1.5 canary
 代码和隔离环境端到端验收均已完成，向量召回与 SQL 故障回退通过，但三个相关开关仍保持默认及
-本地关闭，普通 Worker 继续只使用 MySQL。V1.7 语义 Context 的首次冻结 holdout 未通过质量门槛，
-因此 `AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED` 必须继续默认及本地关闭；该 holdout 不再用于调参。
-下一步应先用独立 development cohort 观察原始向量 rank/score，再决定是否增加 score cutoff 或
-有界 reranker，之后使用全新未见 holdout 复评。与此同时随本地真实使用积累非合成样本并比较错误归并，
+本地关闭，普通 Worker 继续只使用 MySQL。V1.7.1 已验证 score 显式排序和稀疏选择能显著降低
+无关注入，但固定 `0.827` 在冻结 V2 漏掉两个 raw Top-1 正例，未通过 release gate；因此
+`AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED` 必须继续默认及本地关闭，V1/V2 holdout 都不再用于调参。
+若继续优化，应使用新 development cohort 设计自适应拒绝规则，再用未见 V3 验收。与此同时随本地真实使用积累非合成样本并比较错误归并，
 不因早期受控测试通过而接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
 不执行生产变更。V1.6 完整质量观测按用户决定暂时跳过；V1.7 已完成 SQL 默认选择与可选 semantic
 Context 代码，semantic 开关仍默认及本地关闭，未使用合成结果替代真实注入质量证据。严格显式
