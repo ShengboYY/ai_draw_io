@@ -19,7 +19,7 @@ import org.zipp.ai.application.turn.context.AvailableContext;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.context.ChartbookMembershipContext;
 import org.zipp.ai.application.turn.context.ChartbookProfileContext;
-import org.zipp.ai.application.turn.context.ConfirmedMemoryContext;
+import org.zipp.ai.application.turn.context.AutoMemoryContext;
 import org.zipp.ai.application.turn.context.ContextDiagnostics;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextSlice;
@@ -72,8 +72,10 @@ class ChatPlainGenerationAdapterTest {
         assertTrue(chat.lastText.contains("CURRENT_MESSAGE_ATTACHMENTS: OMITTED_BY_SOURCE_FREE_CONTRACT"));
         assertTrue(chat.lastText.contains("CHARTBOOK_PROFILE_DATA"));
         assertTrue(chat.lastText.contains("keep labels short"));
-        assertTrue(chat.lastText.contains("CONFIRMED_MEMORY_DATA"));
+        assertTrue(chat.lastText.contains("AUTO_MEMORY_DATA"));
         assertTrue(chat.lastText.contains("use short labels"));
+        assertTrue(chat.lastText.indexOf("userMemory=use short labels")
+                < chat.lastText.indexOf("chartbookMemory=use blue nodes"));
         assertFalse(chat.lastText.contains("SOURCE_AVAILABILITY"));
         assertFalse(chat.lastText.contains("SOURCE_BODY"));
         assertFalse(chat.lastText.contains("private-spec.pdf"));
@@ -157,8 +159,11 @@ class ChatPlainGenerationAdapterTest {
                         new AvailableContext<>(new ChartbookProfileContext(
                                 "keep labels short", "login flow", "team diagram", List.of("API"), "blue"),
                                 "profile"),
-                        new AvailableContext<>(new ConfirmedMemoryContext(List.of("use short labels")),
-                                "memory"),
+                        new AvailableContext<>(new AutoMemoryContext(List.of(
+                                new AutoMemoryContext.Entry(
+                                        AutoMemoryContext.Scope.USER, "use short labels"),
+                                new AutoMemoryContext.Entry(
+                                        AutoMemoryContext.Scope.CHARTBOOK, "use blue nodes"))), "memory"),
                         new ContextDiagnostics(List.of())),
                 readSet(),
                 new PlainDrawPlan(action, "draw a login flow"),

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "AUTO_MEMORY_CONTEXT_E2E_CASES_V2",
+  "datasetVersion": "auto-memory-context-e2e-development-v2",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "development-tuning-allowed",
+  "qualityGate": {
+    "minimumCandidateRecallAt4": 0.9,
+    "minimumTargetRecall": 0.8,
+    "minimumCompletePositiveCaseRate": 0.75,
+    "minimumPromptPrecision": 0.85,
+    "maximumIrrelevantInjectionRate": 0.15,
+    "maximumNegativeCaseInjectionRate": 0.25,
+    "maximumForbiddenSelectionRate": 0.0,
+    "maximumUnauthorizedSelectionCount": 0,
+    "maximumDisabledSelectionCount": 0,
+    "minimumPromptParityRate": 1.0
+  },
+  "targets": [
+    {"id":"e2ed2-u-webhook-hexagon","scope":"USER","semanticKey":"webhook-node-shape","title":"Webhook shape","canonicalText":"Render webhook nodes as hexagons"},
+    {"id":"e2ed2-u-gateway-thick","scope":"USER","semanticKey":"gateway-border-weight","title":"Gateway border weight","canonicalText":"Use thick borders for gateway nodes"},
+    {"id":"e2ed2-b-batch-bottom","scope":"CHARTBOOK","semanticKey":"batch-lane-position","title":"Batch lane position","canonicalText":"Place batch processing lanes at the bottom"},
+    {"id":"e2ed2-b-outage-violet","scope":"CHARTBOOK","semanticKey":"outage-node-color","title":"Outage node color","canonicalText":"Fill outage nodes with violet"},
+    {"id":"e2ed2-b-sender-left","scope":"CHARTBOOK","semanticKey":"sender-node-position","title":"Sender position","canonicalText":"Place sender nodes on the left"},
+    {"id":"e2ed2-b-receiver-right","scope":"CHARTBOOK","semanticKey":"receiver-node-position","title":"Receiver position","canonicalText":"Place receiver nodes on the right"},
+    {"id":"e2ed2-u-mobile-annotations","scope":"USER","semanticKey":"mobile-annotation-visibility","title":"Mobile annotation visibility","canonicalText":"Hide annotations on mobile diagrams"},
+    {"id":"e2ed2-u-desktop-grid","scope":"USER","semanticKey":"desktop-grid-spacing","title":"Desktop grid spacing","canonicalText":"Use generous grid spacing on desktop diagrams"},
+    {"id":"e2ed2-u-storage-hatching","scope":"USER","semanticKey":"storage-node-pattern","title":"Storage node pattern","canonicalText":"Use diagonal hatching on storage nodes"},
+    {"id":"e2ed2-u-notification-gold","scope":"USER","semanticKey":"notification-node-color","title":"Global notification color","canonicalText":"Use gold notification nodes"},
+    {"id":"e2ed2-b-notification-indigo","scope":"CHARTBOOK","semanticKey":"notification-node-color","title":"Chartbook notification color","canonicalText":"Use indigo notification nodes"}
+  ],
+  "noise": [
+    {"semanticKey":"broker-node-shape","title":"Broker shape","canonicalText":"Render broker nodes as squares"},
+    {"semanticKey":"legend-node-position","title":"Legend position","canonicalText":"Place legends in the upper left"},
+    {"semanticKey":"database-node-color","title":"Database color","canonicalText":"Fill database nodes with gray"},
+    {"semanticKey":"cache-node-shape","title":"Cache shape","canonicalText":"Render cache nodes as diamonds"},
+    {"semanticKey":"approval-edge-pattern","title":"Approval edge pattern","canonicalText":"Render approval edges as dotted lines"},
+    {"semanticKey":"error-label-case","title":"Error label case","canonicalText":"Use lowercase error labels"},
+    {"semanticKey":"client-lane-position","title":"Client lane position","canonicalText":"Place client lanes below services"},
+    {"semanticKey":"note-node-color","title":"Note color","canonicalText":"Fill note nodes with beige"},
+    {"semanticKey":"queue-border-weight","title":"Queue border weight","canonicalText":"Use thick borders for queue nodes"},
+    {"semanticKey":"owner-badge-color","title":"Owner badge color","canonicalText":"Use cyan owner badges"},
+    {"semanticKey":"footer-font-weight","title":"Footer font weight","canonicalText":"Use bold footer text"},
+    {"semanticKey":"timeout-edge-color","title":"Timeout edge color","canonicalText":"Use purple timeout edges"}
+  ],
+  "cases": [
+    {"id":"e2ed2-multi-user","queryText":"Keep webhook nodes hexagonal while gateway borders stay thick.","chartbookContext":false,"expectedRelevantIds":["e2ed2-u-webhook-hexagon","e2ed2-u-gateway-thick"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed2-multi-chartbook","queryText":"当前画册把批处理泳道放在底部，同时将故障节点显示成紫色。","chartbookContext":true,"expectedRelevantIds":["e2ed2-b-batch-bottom","e2ed2-b-outage-violet"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed2-delimited-position","queryText":"Senders remain left; receivers remain right in this chartbook.","chartbookContext":true,"expectedRelevantIds":["e2ed2-b-sender-left","e2ed2-b-receiver-right"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed2-negative-positive","queryText":"Never show mobile annotations, and give desktop diagrams generous grid spacing.","chartbookContext":false,"expectedRelevantIds":["e2ed2-u-mobile-annotations","e2ed2-u-desktop-grid"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed2-single-pattern","queryText":"Keep the diagonal hatching on storage nodes.","chartbookContext":false,"expectedRelevantIds":["e2ed2-u-storage-hatching"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed2-chartbook-override","queryText":"Apply this chartbook's notification-node color.","chartbookContext":true,"expectedRelevantIds":["e2ed2-b-notification-indigo"],"forbiddenSelectedIds":["e2ed2-u-notification-gold"]},
+    {"id":"e2ed2-negative-delimited-operation","queryText":"Move this node left; export the diagram once.","chartbookContext":true,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2ed2-negative-memory-query","queryText":"List the memories saved from our earlier sessions.","chartbookContext":false,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2ed2-negative-source-question","queryText":"What figure appears in the uploaded quarterly report?","chartbookContext":true,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2ed2-negative-greeting","queryText":"Good morning, can you help me?","chartbookContext":false,"expectedRelevantIds":[],"forbiddenSelectedIds":[]}
+  ]
+}

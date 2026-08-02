@@ -3,6 +3,11 @@ package org.zipp.ai.infrastructure.adapter.repository;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
+import org.zipp.ai.application.memory.AutoMemory;
+import org.zipp.ai.application.memory.AutoMemoryQueryPort;
+import org.zipp.ai.application.memory.AutoMemoryScope;
+import org.zipp.ai.application.memory.AutoMemoryStatus;
+import org.zipp.ai.application.memory.AutoMemoryType;
 import org.zipp.ai.application.turn.AttemptLease;
 import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
@@ -20,7 +25,10 @@ import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.context.ConversationContext;
 import org.zipp.ai.application.turn.context.ConversationAttachmentView;
-import org.zipp.ai.application.turn.context.ConfirmedMemoryContext;
+import org.zipp.ai.application.turn.context.AutoMemoryContext;
+import org.zipp.ai.application.turn.context.AutoMemoryContextHydrationPort;
+import org.zipp.ai.application.turn.context.AutoMemoryContextQuery;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelector;
 import org.zipp.ai.application.turn.context.DegradedContext;
 
 import java.lang.reflect.InvocationHandler;
@@ -125,7 +133,7 @@ class MySqlTurnContextAdapterTest {
     }
 
     @Test
-    void confirmedMemoryIsPinnedAndProjectedAsContextOnlyData() {
+    void scopedAutoMemoryIsPinnedAndProjectedAsContextOnlyData() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);
         Map<String, Object> domain = domainRow(2L, "canvas-hash", "<xml>");
@@ -134,23 +142,33 @@ class MySqlTurnContextAdapterTest {
         domain.put("chartbook_owner_key", "owner-1");
         domain.put("chartbook_status", "ACTIVE");
         domain.put("chartbook_updated_at", Timestamp.from(UPDATED_AT));
-        domain.put("chartbook_memory_version", 1L);
-        domain.put("chartbook_memory_json",
-                "[{\"decisionKey\":\"labels\",\"text\":\"Prefer short labels\"}]");
+        AutoMemory chartbookMemory = memory(
+                "memory-chartbook", AutoMemoryScope.chartbook("owner-1", "book-1"),
+                "labels", "Prefer short labels", 1);
+        AutoMemory userMemory = memory(
+                "memory-user", AutoMemoryScope.user("owner-1"),
+                "language", "Prefer English labels", 2);
 
         MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
-                jdbc(executionRow(attempt), domain, List.of()));
+                jdbc(executionRow(attempt), domain, List.of()),
+                selector(List.of(chartbookMemory, userMemory)));
         ContextReadSet readSet = assertInstanceOf(
                 ContextCandidateLoadOutcome.Ready.class,
                 adapter.loadCandidate(attempt, command)).value().readSet();
 
-        assertEquals("chartbook-memory:book-1", readSet.memory().reference());
+        assertEquals(2, readSet.schemaVersion());
+        assertEquals("auto-memory-selection:owner-1:book-1", readSet.memory().reference());
+        assertEquals(List.of("memory-chartbook", "memory-user"), readSet.memorySelection()
+                .stream().map(reference -> reference.memoryId()).toList());
         ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
                 ContextMaterializationOutcome.Ready.class,
                 adapter.materialize(attempt, command, readSet));
-        AvailableContext<ConfirmedMemoryContext> memory = assertInstanceOf(
+        AvailableContext<AutoMemoryContext> memory = assertInstanceOf(
                 AvailableContext.class, materialized.value().memory());
-        assertEquals(List.of("labels: Prefer short labels"), memory.value().decisions());
+        assertEquals(List.of("PREFERENCE/labels: Prefer short labels"),
+                memory.value().chartbookMemories());
+        assertEquals(List.of("PREFERENCE/language: Prefer English labels"),
+                memory.value().userMemories());
     }
 
     @Test
@@ -164,9 +182,10 @@ class MySqlTurnContextAdapterTest {
         initial.put("chartbook_profile_default_style_json", "{}");
         initial.put("chartbook_profile_stable_constraints_json", "[]");
         initial.put("chartbook_profile_state", "CONFIGURED");
-        initial.put("chartbook_memory_version", 1L);
-        initial.put("chartbook_memory_json",
-                "[{\"decisionKey\":\"labels\",\"text\":\"Prefer short labels\"}]");
+        initial.put("auto_memory_version", 1L);
+        initial.put("auto_memory_json",
+                "[{\"scopeType\":\"CHARTBOOK\",\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"labels\",\"text\":\"Prefer short labels\"}]");
 
         ContextReadSet readSet = assertInstanceOf(
                 ContextCandidateLoadOutcome.Ready.class,
@@ -183,7 +202,7 @@ class MySqlTurnContextAdapterTest {
                         .materialize(attempt, command, readSet));
 
         Map<String, Object> changedMemory = new HashMap<>(initial);
-        changedMemory.put("chartbook_memory_version", 2L);
+        changedMemory.put("auto_memory_version", 2L);
         assertInstanceOf(
                 ContextMaterializationOutcome.Retry.class,
                 new MySqlTurnContextAdapter(jdbc(
@@ -201,10 +220,12 @@ class MySqlTurnContextAdapterTest {
         domain.put("chartbook_profile_default_style_json", "{}");
         domain.put("chartbook_profile_stable_constraints_json", "[]");
         domain.put("chartbook_profile_state", "CONFIGURED");
-        domain.put("chartbook_memory_version", 1L);
-        domain.put("chartbook_memory_json",
-                "[{\"decisionKey\":\"labels\",\"text\":\"short\"},"
-                        + "{\"decisionKey\":\"labels\",\"text\":\"long\"}]");
+        domain.put("auto_memory_version", 1L);
+        domain.put("auto_memory_json",
+                "[{\"scopeType\":\"CHARTBOOK\",\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"labels\",\"text\":\"short\"},"
+                        + "{\"scopeType\":\"CHARTBOOK\",\"memoryType\":\"PREFERENCE\","
+                        + "\"semanticKey\":\"labels\",\"text\":\"long\"}]");
 
         MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
                 jdbc(executionRow(attempt), domain, List.of()));
@@ -227,9 +248,8 @@ class MySqlTurnContextAdapterTest {
         Map<String, Object> domain = activeChartbookDomain();
         domain.put("chartbook_owner_key", "owner-2");
         domain.put("chartbook_profile_version", 3L);
-        domain.put("chartbook_memory_version", 1L);
-        domain.put("chartbook_memory_json",
-                "[{\"decisionKey\":\"labels\",\"text\":\"private\"}]");
+        domain.put("auto_memory_version", 0L);
+        domain.put("auto_memory_json", "[]");
 
         MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
                 jdbc(executionRow(attempt), domain, List.of()));
@@ -242,7 +262,7 @@ class MySqlTurnContextAdapterTest {
 
         assertEquals("NO_ACTIVE_CHARTBOOK", readSet.membership().reference());
         assertEquals("PROFILE_NOT_AVAILABLE", readSet.profile().reference());
-        assertEquals("NO_CONFIRMED_MEMORY", readSet.memory().reference());
+        assertEquals("NO_ACTIVE_AUTO_MEMORY", readSet.memory().reference());
         assertInstanceOf(AbsentContext.class, materialized.value().chartbook());
         assertInstanceOf(AbsentContext.class, materialized.value().memory());
     }
@@ -378,6 +398,66 @@ class MySqlTurnContextAdapterTest {
                 new ExecutionPolicySnapshot(1, TurnEngineMode.V2_CANARY, "{}", "policy-hash"));
     }
 
+    private static AutoMemoryContextSelector selector(List<AutoMemory> memories) {
+        TestMemoryAuthority authority = new TestMemoryAuthority(memories);
+        return new AutoMemoryContextSelector(
+                authority,
+                authority,
+                new AutoMemoryContextSelector.Budget(12, 6_000));
+    }
+
+    private static AutoMemory memory(
+            String id,
+            AutoMemoryScope scope,
+            String key,
+            String text,
+            long version
+    ) {
+        return new AutoMemory(
+                id, scope, AutoMemoryType.PREFERENCE, key, key, text,
+                AutoMemoryStatus.ACTIVE, 0.9d, 2, true, version, UPDATED_AT, UPDATED_AT);
+    }
+
+    private static final class TestMemoryAuthority
+            implements AutoMemoryQueryPort, AutoMemoryContextHydrationPort {
+        private final List<AutoMemory> memories;
+
+        private TestMemoryAuthority(List<AutoMemory> memories) {
+            this.memories = List.copyOf(memories);
+        }
+
+        @Override
+        public List<AutoMemory> recallActive(AutoMemoryScope scope, int limit) {
+            return memories.stream()
+                    .filter(memory -> memory.scope().equals(scope))
+                    .limit(limit)
+                    .toList();
+        }
+
+        @Override
+        public List<AutoMemory> findConsolidationCandidates(AutoMemoryScope scope, int limit) {
+            return List.of();
+        }
+
+        @Override
+        public List<AutoMemory> hydrateActiveVectorMatches(
+                AutoMemoryContextQuery query,
+                List<String> rankedVectorIds
+        ) {
+            return List.of();
+        }
+
+        @Override
+        public List<AutoMemory> loadActive(
+                AutoMemoryContextQuery query,
+                List<String> memoryIds
+        ) {
+            Map<String, AutoMemory> byId = new HashMap<>();
+            memories.forEach(memory -> byId.put(memory.memoryId(), memory));
+            return memoryIds.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
+        }
+    }
+
     private static Map<String, Object> executionRow(FencedAttempt attempt) {
         return values(
                 "current_attempt_id", attempt.attemptId(),
@@ -470,6 +550,8 @@ class MySqlTurnContextAdapterTest {
                     return List.of(map(rowMapper, execution));
                 }
                 if (sql.contains("FROM diagram d")) {
+                    // The proxy cannot parse SQL, so guard the nested JSON aggregate delimiter.
+                    assertEquals(count(sql, '('), count(sql, ')'), "domain SQL must be balanced");
                     return List.of(map(rowMapper, domain));
                 }
                 if (sql.contains("FROM diagram_conversation_message")) {
@@ -488,6 +570,10 @@ class MySqlTurnContextAdapterTest {
         };
         return (JdbcOperations) Proxy.newProxyInstance(
                 JdbcOperations.class.getClassLoader(), new Class<?>[]{JdbcOperations.class}, handler);
+    }
+
+    private static long count(String value, char target) {
+        return value.chars().filter(character -> character == target).count();
     }
 
     private static <T> T map(RowMapper<T> mapper, Map<String, Object> values) {

@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "AUTO_MEMORY_RECALL_PLANNING_CASES_V1",
+  "datasetVersion": "auto-memory-recall-planning-development-v2",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "development-tuning-allowed",
+  "qualityGate": {
+    "minimumCaseAccuracy": 0.9,
+    "minimumMultiIntentCoverage": 0.9,
+    "minimumSingleIntentAbstention": 0.9,
+    "maximumProtocolFailureRate": 0.0
+  },
+  "cases": [
+    {
+      "id": "dev2-plan-01",
+      "tags": ["multi", "en", "while", "different-targets"],
+      "userTurn": "Keep API nodes narrow while making worker nodes wide.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["API", "narrow"], ["worker", "wide"]]
+    },
+    {
+      "id": "dev2-plan-02",
+      "tags": ["multi", "en", "negative-positive"],
+      "userTurn": "Do not label cache links, but write queue labels in uppercase.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["cache", "label", "not"], ["queue", "uppercase"]]
+    },
+    {
+      "id": "dev2-plan-03",
+      "tags": ["multi", "zh-cn", "contrast"],
+      "userTurn": "网关节点使用六边形，数据库节点则使用圆柱形。",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["网关", "六边形"], ["数据库", "圆柱"]]
+    },
+    {
+      "id": "dev2-plan-04",
+      "tags": ["multi", "en", "three-intents"],
+      "userTurn": "Center the title; align the legend right; keep notes below the canvas.",
+      "expectedIntentCount": 3,
+      "requiredIntentTerms": [["title", "center"], ["legend", "right"], ["note", "below"]]
+    },
+    {
+      "id": "dev2-plan-05",
+      "tags": ["multi", "en", "whereas"],
+      "userTurn": "Use dashed retry edges whereas timeout edges should be dotted.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["retry", "dashed"], ["timeout", "dotted"]]
+    },
+    {
+      "id": "dev2-plan-06",
+      "tags": ["single", "en", "shared-property"],
+      "userTurn": "Use a red and yellow gradient for alert nodes.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "dev2-plan-07",
+      "tags": ["single", "en", "shared-property"],
+      "userTurn": "Keep both gateways and workers compact.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "dev2-plan-08",
+      "tags": ["single", "en", "temporal-while"],
+      "userTurn": "Use larger labels while the canvas is zoomed out.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "dev2-plan-09",
+      "tags": ["single", "zh-cn", "shared-property"],
+      "userTurn": "入口节点和出口节点都使用深蓝色。",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "dev2-plan-10",
+      "tags": ["multi", "zh-cn", "negative-positive"],
+      "userTurn": "内部服务不要显示版本号，另外把外部服务名称改成大写。",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["内部服务", "版本号", "不要"], ["外部服务", "大写"]]
+    }
+  ]
+}

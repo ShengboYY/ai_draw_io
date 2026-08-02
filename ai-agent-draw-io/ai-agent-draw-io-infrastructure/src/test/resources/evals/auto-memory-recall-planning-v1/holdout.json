@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "AUTO_MEMORY_RECALL_PLANNING_CASES_V1",
+  "datasetVersion": "auto-memory-recall-planning-v1",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "frozen-holdout-not-for-tuning",
+  "qualityGate": {
+    "minimumCaseAccuracy": 0.875,
+    "minimumMultiIntentCoverage": 0.875,
+    "minimumSingleIntentAbstention": 0.875,
+    "maximumProtocolFailureRate": 0.0
+  },
+  "cases": [
+    {
+      "id": "holdout-plan-01",
+      "tags": ["multi", "en", "bare-and"],
+      "userTurn": "Put owner badges above service nodes and render retry paths with dashed lines.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["owner", "badge", "above"], ["retry", "dashed"]]
+    },
+    {
+      "id": "holdout-plan-02",
+      "tags": ["multi", "zh-cn", "simultaneous"],
+      "userTurn": "把审批节点放在顶部，同时让所有超时连线显示为橙色。",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["审批", "顶部"], ["超时", "橙色"]]
+    },
+    {
+      "id": "holdout-plan-03",
+      "tags": ["single", "en", "noun-coordination"],
+      "userTurn": "Use blue and green stripes for storage nodes.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "holdout-plan-04",
+      "tags": ["multi", "en", "three-intents"],
+      "userTurn": "Place clients on the left, color brokers amber, and hide connector labels.",
+      "expectedIntentCount": 3,
+      "requiredIntentTerms": [["client", "left"], ["broker", "amber"], ["connector", "label", "hide"]]
+    },
+    {
+      "id": "holdout-plan-05",
+      "tags": ["multi", "en", "while"],
+      "userTurn": "Use compact text for events while keeping decision diamonds large.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["event", "compact"], ["decision", "diamond", "large"]]
+    },
+    {
+      "id": "holdout-plan-06",
+      "tags": ["single", "en", "compound-object"],
+      "userTurn": "Draw customers and operators inside the same swimlane.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "holdout-plan-07",
+      "tags": ["multi", "zh-cn", "semicolon"],
+      "userTurn": "接口节点使用深蓝色；另外，消息队列节点要带虚线边框。",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["接口", "深蓝"], ["消息队列", "虚线"]]
+    },
+    {
+      "id": "holdout-plan-08",
+      "tags": ["single", "zh-cn", "compound-object"],
+      "userTurn": "把产品和订单服务放进同一个容器。",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "holdout-plan-09",
+      "tags": ["multi", "en", "negative-and-positive"],
+      "userTurn": "Never show internal IDs, and keep every user-facing label in title case.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["internal", "ID", "never"], ["label", "title case"]]
+    },
+    {
+      "id": "holdout-plan-10",
+      "tags": ["single", "en", "conditional"],
+      "userTurn": "When editing an existing diagram, preserve its current layout.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    }
+  ]
+}

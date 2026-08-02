@@ -1,0 +1,489 @@
+{
+  "schemaVersion": "AUTO_MEMORY_CONTEXT_HOLDOUT_V1",
+  "datasetVersion": "auto-memory-context-v1",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "frozen-holdout-not-for-tuning",
+  "qualityGate": {
+    "minimumSemanticRecallAt1": 0.65,
+    "minimumSemanticRecallAt3": 0.85,
+    "minimumSemanticRecallAt12": 0.95,
+    "minimumSemanticMrr": 0.75,
+    "minimumRecallAt3LiftOverSql": 0.50,
+    "maximumForbiddenSelectionRate": 0.0,
+    "maximumUnauthorizedSelectionCount": 0
+  },
+  "memories": [
+    {
+      "id": "m-u-label-density",
+      "scope": "USER",
+      "semanticKey": "node-label-density",
+      "title": "Node label density",
+      "canonicalText": "Prefer concise node labels across all chartbooks",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-u-color-saturation",
+      "scope": "USER",
+      "semanticKey": "color-saturation",
+      "title": "Color saturation",
+      "canonicalText": "Use a restrained low-saturation color palette across diagrams",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-u-edge-routing",
+      "scope": "USER",
+      "semanticKey": "edge-routing",
+      "title": "Edge routing",
+      "canonicalText": "Route connectors orthogonally with horizontal and vertical segments",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-u-decorative-icons",
+      "scope": "USER",
+      "semanticKey": "decorative-icons",
+      "title": "Decorative icons",
+      "canonicalText": "Avoid ornamental icons inside diagram nodes",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-u-font-family",
+      "scope": "USER",
+      "semanticKey": "font-family",
+      "title": "Font family",
+      "canonicalText": "Use the Inter typeface for all diagram text",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-u-node-corners",
+      "scope": "USER",
+      "semanticKey": "node-corners",
+      "title": "Node corner style",
+      "canonicalText": "Draw nodes as rounded rectangles with visibly soft corners",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-b-dependency-style",
+      "scope": "CHARTBOOK",
+      "semanticKey": "dependency-edge-rendering",
+      "title": "Dependency edge rendering",
+      "canonicalText": "Use dashed connectors for service dependencies in this chartbook",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-b-layout-direction",
+      "scope": "CHARTBOOK",
+      "semanticKey": "layout-direction",
+      "title": "Layout direction",
+      "canonicalText": "Arrange the primary flow from top to bottom in this chartbook",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-b-risk-color",
+      "scope": "CHARTBOOK",
+      "semanticKey": "risk-node-color",
+      "title": "Risk node color",
+      "canonicalText": "Highlight high-risk nodes in red in this chartbook",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-b-database-shape",
+      "scope": "CHARTBOOK",
+      "semanticKey": "database-node-shape",
+      "title": "Database node shape",
+      "canonicalText": "Represent database components with cylinder shapes in this chartbook",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-b-team-grouping",
+      "scope": "CHARTBOOK",
+      "semanticKey": "team-grouping",
+      "title": "Team grouping",
+      "canonicalText": "Separate responsible teams into swimlanes in this chartbook",
+      "baselinePriority": "OLD"
+    },
+    {
+      "id": "m-b-label-density",
+      "scope": "CHARTBOOK",
+      "semanticKey": "node-label-density",
+      "title": "Chartbook node label density",
+      "canonicalText": "Include detailed qualifiers in node labels for this chartbook",
+      "baselinePriority": "OLD"
+    },
+
+    {
+      "id": "n-u-label-capitalization",
+      "scope": "USER",
+      "semanticKey": "node-label-capitalization",
+      "title": "Node label capitalization",
+      "canonicalText": "Use sentence case for node labels",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-label-font-size",
+      "scope": "USER",
+      "semanticKey": "node-label-font-size",
+      "title": "Node label font size",
+      "canonicalText": "Use fourteen point text for primary node labels",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-edge-label-placement",
+      "scope": "USER",
+      "semanticKey": "edge-label-placement",
+      "title": "Edge label placement",
+      "canonicalText": "Place edge labels near the middle of connectors",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-arrowhead-size",
+      "scope": "USER",
+      "semanticKey": "arrowhead-size",
+      "title": "Arrowhead size",
+      "canonicalText": "Keep arrowheads small and unobtrusive",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-color-contrast",
+      "scope": "USER",
+      "semanticKey": "color-contrast",
+      "title": "Color contrast",
+      "canonicalText": "Maintain accessible contrast between text and backgrounds",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-background-color",
+      "scope": "USER",
+      "semanticKey": "background-color",
+      "title": "Background color",
+      "canonicalText": "Use a white canvas background",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-icon-size",
+      "scope": "USER",
+      "semanticKey": "icon-size",
+      "title": "Icon size",
+      "canonicalText": "Keep functional icons at a consistent compact size",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-node-spacing",
+      "scope": "USER",
+      "semanticKey": "node-spacing",
+      "title": "Node spacing",
+      "canonicalText": "Leave even spacing between adjacent nodes",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-container-border",
+      "scope": "USER",
+      "semanticKey": "container-border",
+      "title": "Container border",
+      "canonicalText": "Use thin borders around logical containers",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-shadow-depth",
+      "scope": "USER",
+      "semanticKey": "shadow-depth",
+      "title": "Shadow depth",
+      "canonicalText": "Avoid heavy drop shadows on diagram elements",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-grid-visibility",
+      "scope": "USER",
+      "semanticKey": "grid-visibility",
+      "title": "Grid visibility",
+      "canonicalText": "Hide the alignment grid in exported diagrams",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-legend-position",
+      "scope": "USER",
+      "semanticKey": "legend-position",
+      "title": "Legend position",
+      "canonicalText": "Place legends below the main diagram",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-title-alignment",
+      "scope": "USER",
+      "semanticKey": "title-alignment",
+      "title": "Title alignment",
+      "canonicalText": "Center the main diagram title",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-export-format",
+      "scope": "USER",
+      "semanticKey": "export-format",
+      "title": "Export format",
+      "canonicalText": "Prefer SVG when exporting diagrams",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-page-ratio",
+      "scope": "USER",
+      "semanticKey": "page-ratio",
+      "title": "Page ratio",
+      "canonicalText": "Use a widescreen page ratio",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-line-width",
+      "scope": "USER",
+      "semanticKey": "line-width",
+      "title": "Line width",
+      "canonicalText": "Use a consistent two-pixel connector width",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-group-padding",
+      "scope": "USER",
+      "semanticKey": "group-padding",
+      "title": "Group padding",
+      "canonicalText": "Leave generous padding inside groups",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-u-annotation-style",
+      "scope": "USER",
+      "semanticKey": "annotation-style",
+      "title": "Annotation style",
+      "canonicalText": "Use callouts for explanatory annotations",
+      "baselinePriority": "RECENT"
+    },
+
+    {
+      "id": "n-b-boundary-style",
+      "scope": "CHARTBOOK",
+      "semanticKey": "system-boundary-style",
+      "title": "System boundary style",
+      "canonicalText": "Draw system boundaries with solid gray borders in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-service-fill",
+      "scope": "CHARTBOOK",
+      "semanticKey": "service-node-fill",
+      "title": "Service node fill",
+      "canonicalText": "Use pale blue fills for service nodes in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-external-fill",
+      "scope": "CHARTBOOK",
+      "semanticKey": "external-node-fill",
+      "title": "External node fill",
+      "canonicalText": "Use gray fills for external systems in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-edge-labels",
+      "scope": "CHARTBOOK",
+      "semanticKey": "edge-label-content",
+      "title": "Edge label content",
+      "canonicalText": "Label connections with protocol names in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-optional-flow",
+      "scope": "CHARTBOOK",
+      "semanticKey": "optional-flow-style",
+      "title": "Optional flow style",
+      "canonicalText": "Use dotted lines for optional flows in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-sync-flow",
+      "scope": "CHARTBOOK",
+      "semanticKey": "sync-flow-style",
+      "title": "Synchronous flow style",
+      "canonicalText": "Use solid arrows for synchronous calls in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-async-flow",
+      "scope": "CHARTBOOK",
+      "semanticKey": "async-flow-style",
+      "title": "Asynchronous flow style",
+      "canonicalText": "Use open arrowheads for asynchronous events in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-cache-shape",
+      "scope": "CHARTBOOK",
+      "semanticKey": "cache-node-shape",
+      "title": "Cache node shape",
+      "canonicalText": "Represent caches as hexagons in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-queue-shape",
+      "scope": "CHARTBOOK",
+      "semanticKey": "queue-node-shape",
+      "title": "Queue node shape",
+      "canonicalText": "Represent queues as horizontal capsules in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-note-placement",
+      "scope": "CHARTBOOK",
+      "semanticKey": "note-placement",
+      "title": "Note placement",
+      "canonicalText": "Place implementation notes on the right in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-group-title",
+      "scope": "CHARTBOOK",
+      "semanticKey": "group-title-position",
+      "title": "Group title position",
+      "canonicalText": "Put group titles in the upper-left corner in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-lifecycle-state",
+      "scope": "CHARTBOOK",
+      "semanticKey": "lifecycle-state-rendering",
+      "title": "Lifecycle state rendering",
+      "canonicalText": "Show deprecated components with a strike-through in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-environment-border",
+      "scope": "CHARTBOOK",
+      "semanticKey": "environment-border",
+      "title": "Environment border",
+      "canonicalText": "Use green borders for production environments in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-owner-badge",
+      "scope": "CHARTBOOK",
+      "semanticKey": "owner-badge",
+      "title": "Owner badge",
+      "canonicalText": "Show ownership badges beside component names in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-version-label",
+      "scope": "CHARTBOOK",
+      "semanticKey": "version-label",
+      "title": "Version label",
+      "canonicalText": "Display API versions under service names in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-region-grouping",
+      "scope": "CHARTBOOK",
+      "semanticKey": "region-grouping",
+      "title": "Region grouping",
+      "canonicalText": "Group infrastructure by cloud region in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-data-classification",
+      "scope": "CHARTBOOK",
+      "semanticKey": "data-classification",
+      "title": "Data classification",
+      "canonicalText": "Mark sensitive data stores with a lock badge in this chartbook",
+      "baselinePriority": "RECENT"
+    },
+    {
+      "id": "n-b-step-numbering",
+      "scope": "CHARTBOOK",
+      "semanticKey": "step-numbering",
+      "title": "Step numbering",
+      "canonicalText": "Number the main workflow steps in this chartbook",
+      "baselinePriority": "RECENT"
+    }
+  ],
+  "cases": [
+    {
+      "id": "zh-user-concise-labels",
+      "queryText": "节点文字太长看不清，以后所有图都只保留简短名称。",
+      "chartbookContext": false,
+      "expectedRelevantIds": ["m-u-label-density"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "en-user-muted-palette",
+      "queryText": "Use restrained, low-saturation colors in future diagrams.",
+      "chartbookContext": false,
+      "expectedRelevantIds": ["m-u-color-saturation"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "zh-user-orthogonal-routing",
+      "queryText": "连接线尽量走水平和垂直方向，不要斜着穿过节点。",
+      "chartbookContext": false,
+      "expectedRelevantIds": ["m-u-edge-routing"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "en-user-avoid-icons",
+      "queryText": "Do not add ornamental icons to nodes.",
+      "chartbookContext": false,
+      "expectedRelevantIds": ["m-u-decorative-icons"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "zh-user-inter-font",
+      "queryText": "后续所有画图文字统一用 Inter 字体。",
+      "chartbookContext": false,
+      "expectedRelevantIds": ["m-u-font-family"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "en-user-rounded-corners",
+      "queryText": "Keep node corners visibly rounded.",
+      "chartbookContext": false,
+      "expectedRelevantIds": ["m-u-node-corners"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "zh-book-dashed-dependencies",
+      "queryText": "这个画册中，服务依赖关系请用虚线连接。",
+      "chartbookContext": true,
+      "expectedRelevantIds": ["m-b-dependency-style"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "en-book-top-down",
+      "queryText": "For this chartbook, arrange the main flow from top to bottom.",
+      "chartbookContext": true,
+      "expectedRelevantIds": ["m-b-layout-direction"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "zh-book-risk-red",
+      "queryText": "这个画册里的高风险节点需要用红色突出。",
+      "chartbookContext": true,
+      "expectedRelevantIds": ["m-b-risk-color"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "en-book-database-cylinders",
+      "queryText": "Represent databases as cylinders in this chartbook.",
+      "chartbookContext": true,
+      "expectedRelevantIds": ["m-b-database-shape"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "zh-book-team-swimlanes",
+      "queryText": "这个画册按照负责团队划分泳道。",
+      "chartbookContext": true,
+      "expectedRelevantIds": ["m-b-team-grouping"],
+      "forbiddenSelectedIds": []
+    },
+    {
+      "id": "en-book-detailed-label-override",
+      "queryText": "For this chartbook, include detailed qualifiers in node labels.",
+      "chartbookContext": true,
+      "expectedRelevantIds": ["m-b-label-density"],
+      "forbiddenSelectedIds": ["m-u-label-density"]
+    }
+  ]
+}

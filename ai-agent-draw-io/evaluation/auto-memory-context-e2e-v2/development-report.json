@@ -1,0 +1,820 @@
+{
+  "schemaVersion": "AUTO_MEMORY_CONTEXT_E2E_REPORT_V1",
+  "generatedAt": "2026-08-02T09:02:19.172813Z",
+  "datasetVersion": "auto-memory-context-e2e-development-v2",
+  "datasetSha256": "d3da68283e401122b7abad62eab81d80e476f632ad1ec1e12bf3ba4e24066702",
+  "plannerContractVersion": "AUTO_MEMORY_RECALL_PLANNING_V2",
+  "plannerModel": "deepseek-v4-pro",
+  "embeddingModel": "multilingual-e5-large",
+  "embeddingDimension": 1024,
+  "namespaceClass": "isolated-eval",
+  "productionBusinessWrites": 0,
+  "localFixtureMemoryCount": 57,
+  "finalDrawingModelCalls": 0,
+  "semanticPolicy": {
+    "minimumLead": 0.02,
+    "facetMinimumLead": 0.01,
+    "facetMinimumScore": 0.8,
+    "maximumScoreDrop": 0.03,
+    "minimumScore": 0.82
+  },
+  "promptBudget": {
+    "maxEntries": 12,
+    "maxCharacters": 6000
+  },
+  "gate": {
+    "maximumDisabledSelectionCount": 0,
+    "maximumForbiddenSelectionRate": 0.0,
+    "maximumIrrelevantInjectionRate": 0.15,
+    "maximumNegativeCaseInjectionRate": 0.25,
+    "maximumUnauthorizedSelectionCount": 0,
+    "minimumCandidateRecallAt4": 0.9,
+    "minimumCompletePositiveCaseRate": 0.75,
+    "minimumPromptParityRate": 1.0,
+    "minimumPromptPrecision": 0.85,
+    "minimumTargetRecall": 0.8
+  },
+  "metrics": {
+    "candidateRecallAt4": 1.0,
+    "completePositiveCaseRate": 0.8333333333333334,
+    "disabledSelectionCount": 0,
+    "forbiddenSelectionRate": 0.0,
+    "irrelevantInjectionRate": 0.1111111111111111,
+    "negativeCaseInjectionRate": 0.25,
+    "promptParityRate": 1.0,
+    "promptPrecision": 0.8888888888888888,
+    "sqlBaselineTargetRecall": 0.0,
+    "targetRecall": 0.8,
+    "unauthorizedSelectionCount": 0
+  },
+  "passed": true,
+  "runs": [
+    {
+      "candidateIdsAt4": [
+        "e2ed2-u-webhook-hexagon",
+        "e2ed2-u-storage-hatching",
+        "noise-user-0-broker-node-shape",
+        "e2ed2-u-gateway-thick",
+        "noise-user-8-queue-border-weight",
+        "noise-user-2-database-node-color",
+        "noise-user-4-approval-edge-pattern"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [
+        "e2ed2-u-webhook-hexagon",
+        "e2ed2-u-gateway-thick"
+      ],
+      "id": "e2ed2-multi-user",
+      "planner": {
+        "latencyMillis": 4889,
+        "queries": [
+          "Keep webhook nodes hexagonal",
+          "gateway borders stay thick"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [
+        "userMemory=PREFERENCE/webhook-node-shape: Render webhook nodes as hexagons",
+        "userMemory=PREFERENCE/gateway-border-weight: Use thick borders for gateway nodes"
+      ],
+      "promptParity": true,
+      "queryText": "Keep webhook nodes hexagonal while gateway borders stay thick.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2ed2-u-webhook-hexagon",
+        "e2ed2-u-gateway-thick"
+      ],
+      "sqlSelectedIds": [
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight",
+        "noise-user-7-note-node-color",
+        "noise-user-6-client-lane-position",
+        "noise-user-5-error-label-case",
+        "noise-user-4-approval-edge-pattern"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Keep webhook nodes hexagonal",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-u-webhook-hexagon",
+              "score": 0.884373426
+            },
+            {
+              "datasetId": "e2ed2-u-storage-hatching",
+              "score": 0.819211543
+            },
+            {
+              "datasetId": "noise-user-0-broker-node-shape",
+              "score": 0.816852212
+            },
+            {
+              "datasetId": "e2ed2-u-gateway-thick",
+              "score": 0.814667881
+            }
+          ]
+        },
+        {
+          "queryText": "gateway borders stay thick",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-u-gateway-thick",
+              "score": 0.862067699
+            },
+            {
+              "datasetId": "noise-user-8-queue-border-weight",
+              "score": 0.836107314
+            },
+            {
+              "datasetId": "noise-user-2-database-node-color",
+              "score": 0.789827526
+            },
+            {
+              "datasetId": "noise-user-4-approval-edge-pattern",
+              "score": 0.78556937
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2ed2-b-batch-bottom",
+        "noise-chartbook-6-client-lane-position",
+        "noise-user-6-client-lane-position",
+        "noise-user-3-cache-node-shape",
+        "e2ed2-b-notification-indigo",
+        "e2ed2-b-outage-violet",
+        "noise-user-11-timeout-edge-color",
+        "noise-chartbook-11-timeout-edge-color"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [
+        "e2ed2-b-batch-bottom",
+        "e2ed2-b-outage-violet"
+      ],
+      "id": "e2ed2-multi-chartbook",
+      "planner": {
+        "latencyMillis": 7804,
+        "queries": [
+          "当前画册把批处理泳道放在底部",
+          "当前画册将故障节点显示成紫色"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [],
+      "promptParity": true,
+      "queryText": "当前画册把批处理泳道放在底部，同时将故障节点显示成紫色。",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-timeout-edge-color",
+        "noise-chartbook-10-footer-font-weight",
+        "noise-chartbook-9-owner-badge-color",
+        "noise-chartbook-8-queue-border-weight",
+        "noise-chartbook-7-note-node-color",
+        "noise-chartbook-6-client-lane-position",
+        "noise-chartbook-5-error-label-case",
+        "noise-chartbook-4-approval-edge-pattern",
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "当前画册把批处理泳道放在底部",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-b-batch-bottom",
+              "score": 0.82718
+            },
+            {
+              "datasetId": "noise-chartbook-6-client-lane-position",
+              "score": 0.817541182
+            },
+            {
+              "datasetId": "noise-user-6-client-lane-position",
+              "score": 0.817484319
+            },
+            {
+              "datasetId": "noise-user-3-cache-node-shape",
+              "score": 0.803387821
+            }
+          ]
+        },
+        {
+          "queryText": "当前画册将故障节点显示成紫色",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-b-notification-indigo",
+              "score": 0.823978126
+            },
+            {
+              "datasetId": "e2ed2-b-outage-violet",
+              "score": 0.817148507
+            },
+            {
+              "datasetId": "noise-user-11-timeout-edge-color",
+              "score": 0.810101211
+            },
+            {
+              "datasetId": "noise-chartbook-11-timeout-edge-color",
+              "score": 0.809985697
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2ed2-b-sender-left",
+        "e2ed2-b-receiver-right",
+        "noise-user-1-legend-node-position",
+        "noise-chartbook-1-legend-node-position",
+        "e2ed2-b-notification-indigo"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [
+        "e2ed2-b-sender-left",
+        "e2ed2-b-receiver-right"
+      ],
+      "id": "e2ed2-delimited-position",
+      "planner": {
+        "latencyMillis": 1765,
+        "queries": [
+          "Senders remain left",
+          "receivers remain right in this chartbook."
+        ],
+        "status": "RECOVERED"
+      },
+      "promptMemoryLines": [
+        "chartbookMemory=PREFERENCE/sender-node-position: Place sender nodes on the left",
+        "chartbookMemory=PREFERENCE/receiver-node-position: Place receiver nodes on the right"
+      ],
+      "promptParity": true,
+      "queryText": "Senders remain left; receivers remain right in this chartbook.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2ed2-b-sender-left",
+        "e2ed2-b-receiver-right"
+      ],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-timeout-edge-color",
+        "noise-chartbook-10-footer-font-weight",
+        "noise-chartbook-9-owner-badge-color",
+        "noise-chartbook-8-queue-border-weight",
+        "noise-chartbook-7-note-node-color",
+        "noise-chartbook-6-client-lane-position",
+        "noise-chartbook-5-error-label-case",
+        "noise-chartbook-4-approval-edge-pattern",
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Senders remain left",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-b-sender-left",
+              "score": 0.836934924
+            },
+            {
+              "datasetId": "e2ed2-b-receiver-right",
+              "score": 0.809396267
+            },
+            {
+              "datasetId": "noise-user-1-legend-node-position",
+              "score": 0.776909709
+            },
+            {
+              "datasetId": "noise-chartbook-1-legend-node-position",
+              "score": 0.776807189
+            }
+          ]
+        },
+        {
+          "queryText": "receivers remain right in this chartbook.",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-b-receiver-right",
+              "score": 0.808743417
+            },
+            {
+              "datasetId": "e2ed2-b-notification-indigo",
+              "score": 0.774961233
+            },
+            {
+              "datasetId": "noise-chartbook-1-legend-node-position",
+              "score": 0.770755708
+            },
+            {
+              "datasetId": "noise-user-1-legend-node-position",
+              "score": 0.770667195
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2ed2-u-mobile-annotations",
+        "e2ed2-u-notification-gold",
+        "noise-user-5-error-label-case",
+        "noise-user-6-client-lane-position",
+        "e2ed2-u-desktop-grid",
+        "e2ed2-u-gateway-thick",
+        "noise-user-8-queue-border-weight",
+        "e2ed2-u-storage-hatching"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [
+        "e2ed2-u-mobile-annotations",
+        "e2ed2-u-desktop-grid"
+      ],
+      "id": "e2ed2-negative-positive",
+      "planner": {
+        "latencyMillis": 3374,
+        "queries": [
+          "Never show mobile annotations",
+          "Give desktop diagrams generous grid spacing"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [
+        "userMemory=PREFERENCE/mobile-annotation-visibility: Hide annotations on mobile diagrams",
+        "userMemory=PREFERENCE/desktop-grid-spacing: Use generous grid spacing on desktop diagrams"
+      ],
+      "promptParity": true,
+      "queryText": "Never show mobile annotations, and give desktop diagrams generous grid spacing.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2ed2-u-mobile-annotations",
+        "e2ed2-u-desktop-grid"
+      ],
+      "sqlSelectedIds": [
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight",
+        "noise-user-7-note-node-color",
+        "noise-user-6-client-lane-position",
+        "noise-user-5-error-label-case",
+        "noise-user-4-approval-edge-pattern"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Never show mobile annotations",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-u-mobile-annotations",
+              "score": 0.873036444
+            },
+            {
+              "datasetId": "e2ed2-u-notification-gold",
+              "score": 0.78409344
+            },
+            {
+              "datasetId": "noise-user-5-error-label-case",
+              "score": 0.780733943
+            },
+            {
+              "datasetId": "noise-user-6-client-lane-position",
+              "score": 0.771839797
+            }
+          ]
+        },
+        {
+          "queryText": "Give desktop diagrams generous grid spacing",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-u-desktop-grid",
+              "score": 0.905104339
+            },
+            {
+              "datasetId": "e2ed2-u-gateway-thick",
+              "score": 0.796400607
+            },
+            {
+              "datasetId": "noise-user-8-queue-border-weight",
+              "score": 0.79494983
+            },
+            {
+              "datasetId": "e2ed2-u-storage-hatching",
+              "score": 0.789283216
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2ed2-u-storage-hatching",
+        "noise-user-3-cache-node-shape",
+        "noise-user-8-queue-border-weight",
+        "e2ed2-u-gateway-thick"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [
+        "e2ed2-u-storage-hatching"
+      ],
+      "id": "e2ed2-single-pattern",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [
+        "userMemory=PREFERENCE/storage-node-pattern: Use diagonal hatching on storage nodes"
+      ],
+      "promptParity": true,
+      "queryText": "Keep the diagonal hatching on storage nodes.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2ed2-u-storage-hatching"
+      ],
+      "sqlSelectedIds": [
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight",
+        "noise-user-7-note-node-color",
+        "noise-user-6-client-lane-position",
+        "noise-user-5-error-label-case",
+        "noise-user-4-approval-edge-pattern"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Keep the diagonal hatching on storage nodes.",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-u-storage-hatching",
+              "score": 0.878101289
+            },
+            {
+              "datasetId": "noise-user-3-cache-node-shape",
+              "score": 0.800674856
+            },
+            {
+              "datasetId": "noise-user-8-queue-border-weight",
+              "score": 0.795945764
+            },
+            {
+              "datasetId": "e2ed2-u-gateway-thick",
+              "score": 0.792823911
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2ed2-b-notification-indigo",
+        "e2ed2-u-notification-gold",
+        "noise-chartbook-7-note-node-color",
+        "noise-user-7-note-node-color"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [
+        "e2ed2-b-notification-indigo"
+      ],
+      "id": "e2ed2-chartbook-override",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [
+        "chartbookMemory=PREFERENCE/notification-node-color: Use indigo notification nodes"
+      ],
+      "promptParity": true,
+      "queryText": "Apply this chartbook's notification-node color.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2ed2-b-notification-indigo"
+      ],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-timeout-edge-color",
+        "noise-chartbook-10-footer-font-weight",
+        "noise-chartbook-9-owner-badge-color",
+        "noise-chartbook-8-queue-border-weight",
+        "noise-chartbook-7-note-node-color",
+        "noise-chartbook-6-client-lane-position",
+        "noise-chartbook-5-error-label-case",
+        "noise-chartbook-4-approval-edge-pattern",
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Apply this chartbook's notification-node color.",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-b-notification-indigo",
+              "score": 0.870286524
+            },
+            {
+              "datasetId": "e2ed2-u-notification-gold",
+              "score": 0.823665738
+            },
+            {
+              "datasetId": "noise-chartbook-7-note-node-color",
+              "score": 0.805029273
+            },
+            {
+              "datasetId": "noise-user-7-note-node-color",
+              "score": 0.805011094
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2ed2-b-sender-left",
+        "e2ed2-b-receiver-right",
+        "noise-chartbook-8-queue-border-weight",
+        "e2ed2-u-storage-hatching",
+        "e2ed2-u-mobile-annotations",
+        "e2ed2-u-desktop-grid",
+        "noise-chartbook-4-approval-edge-pattern",
+        "noise-user-4-approval-edge-pattern"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [],
+      "id": "e2ed2-negative-delimited-operation",
+      "planner": {
+        "latencyMillis": 4649,
+        "queries": [
+          "Move this node left",
+          "export the diagram once"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [
+        "chartbookMemory=PREFERENCE/sender-node-position: Place sender nodes on the left"
+      ],
+      "promptParity": true,
+      "queryText": "Move this node left; export the diagram once.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2ed2-b-sender-left"
+      ],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-timeout-edge-color",
+        "noise-chartbook-10-footer-font-weight",
+        "noise-chartbook-9-owner-badge-color",
+        "noise-chartbook-8-queue-border-weight",
+        "noise-chartbook-7-note-node-color",
+        "noise-chartbook-6-client-lane-position",
+        "noise-chartbook-5-error-label-case",
+        "noise-chartbook-4-approval-edge-pattern",
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Move this node left",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-b-sender-left",
+              "score": 0.847783089
+            },
+            {
+              "datasetId": "e2ed2-b-receiver-right",
+              "score": 0.817489505
+            },
+            {
+              "datasetId": "noise-chartbook-8-queue-border-weight",
+              "score": 0.78058517
+            },
+            {
+              "datasetId": "e2ed2-u-storage-hatching",
+              "score": 0.780501306
+            }
+          ]
+        },
+        {
+          "queryText": "export the diagram once",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2ed2-u-mobile-annotations",
+              "score": 0.794629216
+            },
+            {
+              "datasetId": "e2ed2-u-desktop-grid",
+              "score": 0.793915331
+            },
+            {
+              "datasetId": "noise-chartbook-4-approval-edge-pattern",
+              "score": 0.785634756
+            },
+            {
+              "datasetId": "noise-user-4-approval-edge-pattern",
+              "score": 0.785620332
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "noise-user-3-cache-node-shape",
+        "noise-user-1-legend-node-position",
+        "noise-user-9-owner-badge-color",
+        "noise-user-4-approval-edge-pattern"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [],
+      "id": "e2ed2-negative-memory-query",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [],
+      "promptParity": true,
+      "queryText": "List the memories saved from our earlier sessions.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [],
+      "sqlSelectedIds": [
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight",
+        "noise-user-7-note-node-color",
+        "noise-user-6-client-lane-position",
+        "noise-user-5-error-label-case",
+        "noise-user-4-approval-edge-pattern"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "List the memories saved from our earlier sessions.",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "noise-user-3-cache-node-shape",
+              "score": 0.758715332
+            },
+            {
+              "datasetId": "noise-user-1-legend-node-position",
+              "score": 0.756603
+            },
+            {
+              "datasetId": "noise-user-9-owner-badge-color",
+              "score": 0.751717448
+            },
+            {
+              "datasetId": "noise-user-4-approval-edge-pattern",
+              "score": 0.750755191
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "noise-chartbook-10-footer-font-weight",
+        "noise-user-10-footer-font-weight",
+        "noise-user-0-broker-node-shape",
+        "noise-chartbook-0-broker-node-shape"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [],
+      "id": "e2ed2-negative-source-question",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [],
+      "promptParity": true,
+      "queryText": "What figure appears in the uploaded quarterly report?",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-timeout-edge-color",
+        "noise-chartbook-10-footer-font-weight",
+        "noise-chartbook-9-owner-badge-color",
+        "noise-chartbook-8-queue-border-weight",
+        "noise-chartbook-7-note-node-color",
+        "noise-chartbook-6-client-lane-position",
+        "noise-chartbook-5-error-label-case",
+        "noise-chartbook-4-approval-edge-pattern",
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "What figure appears in the uploaded quarterly report?",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "noise-chartbook-10-footer-font-weight",
+              "score": 0.756864905
+            },
+            {
+              "datasetId": "noise-user-10-footer-font-weight",
+              "score": 0.756770432
+            },
+            {
+              "datasetId": "noise-user-0-broker-node-shape",
+              "score": 0.751808465
+            },
+            {
+              "datasetId": "noise-chartbook-0-broker-node-shape",
+              "score": 0.751715064
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "noise-user-10-footer-font-weight",
+        "e2ed2-u-notification-gold",
+        "noise-user-4-approval-edge-pattern",
+        "e2ed2-u-mobile-annotations"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [],
+      "id": "e2ed2-negative-greeting",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [],
+      "promptParity": true,
+      "queryText": "Good morning, can you help me?",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [],
+      "sqlSelectedIds": [
+        "noise-user-11-timeout-edge-color",
+        "noise-user-10-footer-font-weight",
+        "noise-user-9-owner-badge-color",
+        "noise-user-8-queue-border-weight",
+        "noise-user-7-note-node-color",
+        "noise-user-6-client-lane-position",
+        "noise-user-5-error-label-case",
+        "noise-user-4-approval-edge-pattern"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Good morning, can you help me?",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "noise-user-10-footer-font-weight",
+              "score": 0.770676732
+            },
+            {
+              "datasetId": "e2ed2-u-notification-gold",
+              "score": 0.767711878
+            },
+            {
+              "datasetId": "noise-user-4-approval-edge-pattern",
+              "score": 0.766359866
+            },
+            {
+              "datasetId": "e2ed2-u-mobile-annotations",
+              "score": 0.76589036
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

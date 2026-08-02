@@ -24,7 +24,7 @@ public record RouterContextView(
         List<String> profileGlossary,
         String profileDefaultStyle,
         List<String> profileStableConstraints,
-        List<String> confirmedMemoryDecisions
+        List<String> autoMemoryEntries
 ) {
 
     /** Compatibility constructor for the first application-only classification slice. */
@@ -55,12 +55,12 @@ public record RouterContextView(
             String profileSummary,
             List<String> profileGlossary,
             String profileDefaultStyle,
-            List<String> confirmedMemoryDecisions
+            List<String> autoMemoryEntries
     ) {
         this(canvasAvailable, 0, 0, selectionAvailable, recentMessageCount, profileAvailable, memoryAvailable,
                 canvasSummary, recentTurns, conversationSummary, chartbookMembership, profileInstructions,
                 profileGoal, profileSummary, profileGlossary, profileDefaultStyle, List.of(),
-                confirmedMemoryDecisions);
+                autoMemoryEntries);
     }
 
     public RouterContextView {
@@ -77,7 +77,7 @@ public record RouterContextView(
         profileGlossary = boundedList(profileGlossary, 64, 1_000);
         profileDefaultStyle = bounded(profileDefaultStyle, 12_000);
         profileStableConstraints = boundedList(profileStableConstraints, 32, 512);
-        confirmedMemoryDecisions = boundedList(confirmedMemoryDecisions, 8, 1_500);
+        autoMemoryEntries = boundedList(autoMemoryEntries, 16, 1_500);
         if (recentMessageCount < recentTurns.size()) {
             throw new IllegalArgumentException("recentMessageCount cannot be below visible recent turns");
         }

@@ -1,5 +1,6 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
+import com.alibaba.fastjson.JSON;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
@@ -8,6 +9,7 @@ import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnKey;
+import org.zipp.ai.application.turn.context.AutoMemoryContextSelection;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextReadSetLoadOutcome;
 import org.zipp.ai.application.turn.context.ContextSlice;
@@ -24,9 +26,33 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MySqlTurnContextCheckpointAdapterTest {
+
+    @Test
+    void schemaV2RoundTripsThePinnedMemorySelection() {
+        ContextReadSet expected = ContextReadSet.createWithMemorySelection(
+                2,
+                ContextSlicePin.absent(ContextSlice.SUMMARY, "SUMMARY_NOT_AVAILABLE"),
+                ContextSlicePin.absent(ContextSlice.MEMBERSHIP, "MEMBERSHIP_NOT_AVAILABLE"),
+                ContextSlicePin.absent(ContextSlice.PROFILE, "PROFILE_NOT_AVAILABLE"),
+                ContextSlicePin.pinned(ContextSlice.MEMORY, "memory-selection", 3, "a".repeat(64)),
+                List.of(new AutoMemoryContextSelection.Reference("memory-1", 3)));
+        Map<String, Object> row = validExecutionRow();
+        row.put("context_read_set_schema_version", 2);
+        row.put("context_read_set_json", JSON.toJSONString(expected));
+        row.put("context_read_set_digest", expected.digest());
+
+        ContextReadSetLoadOutcome.Found found = assertInstanceOf(
+                ContextReadSetLoadOutcome.Found.class,
+                new MySqlTurnContextCheckpointAdapter(new JdbcStub(row).proxy())
+                        .loadPinned(attempt()));
+
+        assertEquals(expected, found.value());
+        assertEquals("memory-1", found.value().memorySelection().get(0).memoryId());
+    }
 
     @Test
     void expiredAttemptCannotLoadOrPinAContextReadSet() {
@@ -74,6 +100,13 @@ class MySqlTurnContextCheckpointAdapterTest {
                 "lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:00:30Z")),
                 "database_now", Timestamp.from(Instant.parse("2026-07-26T00:00:31Z")),
                 "status", "RUNNING");
+    }
+
+    private static Map<String, Object> validExecutionRow() {
+        Map<String, Object> row = expiredExecutionRow();
+        row.put("lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:01:00Z")));
+        row.put("database_now", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")));
+        return row;
     }
 
     private static Map<String, Object> values(Object... pairs) {

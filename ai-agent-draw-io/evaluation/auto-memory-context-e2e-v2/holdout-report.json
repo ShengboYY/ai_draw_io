@@ -1,0 +1,823 @@
+{
+  "schemaVersion": "AUTO_MEMORY_CONTEXT_E2E_REPORT_V1",
+  "generatedAt": "2026-08-02T09:06:55.171305Z",
+  "datasetVersion": "auto-memory-context-e2e-v2",
+  "datasetSha256": "e46fecf27bb2efdfce806e8f90c1614156441bfe7b5bad364c27fa9dcbc5f915",
+  "plannerContractVersion": "AUTO_MEMORY_RECALL_PLANNING_V2",
+  "plannerModel": "deepseek-v4-pro",
+  "embeddingModel": "multilingual-e5-large",
+  "embeddingDimension": 1024,
+  "namespaceClass": "isolated-eval",
+  "productionBusinessWrites": 0,
+  "localFixtureMemoryCount": 57,
+  "finalDrawingModelCalls": 0,
+  "semanticPolicy": {
+    "facetMinimumScore": 0.8,
+    "maximumScoreDrop": 0.03,
+    "minimumScore": 0.82,
+    "minimumLead": 0.02,
+    "facetMinimumLead": 0.01
+  },
+  "promptBudget": {
+    "maxCharacters": 6000,
+    "maxEntries": 12
+  },
+  "gate": {
+    "maximumDisabledSelectionCount": 0,
+    "maximumForbiddenSelectionRate": 0.0,
+    "maximumIrrelevantInjectionRate": 0.15,
+    "maximumNegativeCaseInjectionRate": 0.25,
+    "maximumUnauthorizedSelectionCount": 0,
+    "minimumCandidateRecallAt4": 0.9,
+    "minimumCompletePositiveCaseRate": 0.75,
+    "minimumPromptParityRate": 1.0,
+    "minimumPromptPrecision": 0.85,
+    "minimumTargetRecall": 0.8
+  },
+  "metrics": {
+    "candidateRecallAt4": 1.0,
+    "completePositiveCaseRate": 0.8333333333333334,
+    "disabledSelectionCount": 0,
+    "forbiddenSelectionRate": 0.0,
+    "irrelevantInjectionRate": 0.1,
+    "negativeCaseInjectionRate": 0.25,
+    "promptParityRate": 1.0,
+    "promptPrecision": 0.9,
+    "sqlBaselineTargetRecall": 0.0,
+    "targetRecall": 0.9,
+    "unauthorizedSelectionCount": 0
+  },
+  "passed": true,
+  "runs": [
+    {
+      "candidateIdsAt4": [
+        "e2eh2-u-ingress-diamond",
+        "noise-user-1-worker-node-shape",
+        "noise-user-0-api-node-color",
+        "e2eh2-u-widescreen-gaps",
+        "e2eh2-u-audit-double",
+        "noise-user-6-error-edge-pattern",
+        "noise-user-3-database-label-font"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [
+        "e2eh2-u-ingress-diamond",
+        "e2eh2-u-audit-double"
+      ],
+      "id": "e2eh2-multi-user",
+      "planner": {
+        "latencyMillis": 2629,
+        "queries": [
+          "Make ingress nodes diamond-shaped",
+          "Make audit paths use double lines"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [
+        "userMemory=PREFERENCE/ingress-node-shape: Render ingress nodes as diamonds",
+        "userMemory=PREFERENCE/audit-edge-pattern: Render audit edges as double lines"
+      ],
+      "promptParity": true,
+      "queryText": "Make ingress nodes diamond-shaped whereas audit paths use double lines.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2eh2-u-ingress-diamond",
+        "e2eh2-u-audit-double"
+      ],
+      "sqlSelectedIds": [
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color",
+        "noise-user-7-client-node-position",
+        "noise-user-6-error-edge-pattern",
+        "noise-user-5-approval-node-color",
+        "noise-user-4-cache-lane-position"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Make ingress nodes diamond-shaped",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-u-ingress-diamond",
+              "score": 0.886300385
+            },
+            {
+              "datasetId": "noise-user-1-worker-node-shape",
+              "score": 0.805742681
+            },
+            {
+              "datasetId": "noise-user-0-api-node-color",
+              "score": 0.802161455
+            },
+            {
+              "datasetId": "e2eh2-u-widescreen-gaps",
+              "score": 0.792353213
+            }
+          ]
+        },
+        {
+          "queryText": "Make audit paths use double lines",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-u-audit-double",
+              "score": 0.870778084
+            },
+            {
+              "datasetId": "noise-user-6-error-edge-pattern",
+              "score": 0.796106279
+            },
+            {
+              "datasetId": "e2eh2-u-ingress-diamond",
+              "score": 0.783239
+            },
+            {
+              "datasetId": "noise-user-3-database-label-font",
+              "score": 0.781230688
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2eh2-b-cron-top",
+        "noise-user-4-cache-lane-position",
+        "noise-chartbook-4-cache-lane-position",
+        "noise-user-7-client-node-position",
+        "e2eh2-b-incident-coral",
+        "e2eh2-b-warning-plum",
+        "e2eh2-u-warning-bronze",
+        "noise-user-10-owner-badge-color"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [
+        "e2eh2-b-cron-top",
+        "e2eh2-b-incident-coral"
+      ],
+      "id": "e2eh2-multi-chartbook",
+      "planner": {
+        "latencyMillis": 9024,
+        "queries": [
+          "当前画册让定时任务泳道位于顶部",
+          "当前画册把事故节点画成珊瑚色"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [
+        "chartbookMemory=PREFERENCE/cron-lane-position: Place cron lanes at the top"
+      ],
+      "promptParity": true,
+      "queryText": "当前画册让定时任务泳道位于顶部，另外把事故节点画成珊瑚色。",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2eh2-b-cron-top"
+      ],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-footer-font-weight",
+        "noise-chartbook-10-owner-badge-color",
+        "noise-chartbook-9-queue-border-weight",
+        "noise-chartbook-8-note-node-color",
+        "noise-chartbook-7-client-node-position",
+        "noise-chartbook-6-error-edge-pattern",
+        "noise-chartbook-5-approval-node-color",
+        "noise-chartbook-4-cache-lane-position",
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "当前画册让定时任务泳道位于顶部",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-b-cron-top",
+              "score": 0.825220883
+            },
+            {
+              "datasetId": "noise-user-4-cache-lane-position",
+              "score": 0.807849348
+            },
+            {
+              "datasetId": "noise-chartbook-4-cache-lane-position",
+              "score": 0.807610333
+            },
+            {
+              "datasetId": "noise-user-7-client-node-position",
+              "score": 0.798770308
+            }
+          ]
+        },
+        {
+          "queryText": "当前画册把事故节点画成珊瑚色",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-b-incident-coral",
+              "score": 0.836579084
+            },
+            {
+              "datasetId": "e2eh2-b-warning-plum",
+              "score": 0.83466512
+            },
+            {
+              "datasetId": "e2eh2-u-warning-bronze",
+              "score": 0.821872413
+            },
+            {
+              "datasetId": "noise-user-10-owner-badge-color",
+              "score": 0.805306852
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2eh2-b-producer-left",
+        "e2eh2-b-consumer-right",
+        "noise-user-7-client-node-position",
+        "noise-chartbook-7-client-node-position"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [
+        "e2eh2-b-producer-left",
+        "e2eh2-b-consumer-right"
+      ],
+      "id": "e2eh2-delimited-position",
+      "planner": {
+        "latencyMillis": 7853,
+        "queries": [
+          "Producers stay on the left",
+          "consumers stay on the right"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [
+        "chartbookMemory=PREFERENCE/producer-node-position: Place producer nodes on the left",
+        "chartbookMemory=PREFERENCE/consumer-node-position: Place consumer nodes on the right"
+      ],
+      "promptParity": true,
+      "queryText": "Producers stay on the left; consumers stay on the right.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2eh2-b-producer-left",
+        "e2eh2-b-consumer-right"
+      ],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-footer-font-weight",
+        "noise-chartbook-10-owner-badge-color",
+        "noise-chartbook-9-queue-border-weight",
+        "noise-chartbook-8-note-node-color",
+        "noise-chartbook-7-client-node-position",
+        "noise-chartbook-6-error-edge-pattern",
+        "noise-chartbook-5-approval-node-color",
+        "noise-chartbook-4-cache-lane-position",
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Producers stay on the left",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-b-producer-left",
+              "score": 0.846398652
+            },
+            {
+              "datasetId": "e2eh2-b-consumer-right",
+              "score": 0.806493878
+            },
+            {
+              "datasetId": "noise-user-7-client-node-position",
+              "score": 0.760289609
+            },
+            {
+              "datasetId": "noise-chartbook-7-client-node-position",
+              "score": 0.760251105
+            }
+          ]
+        },
+        {
+          "queryText": "consumers stay on the right",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-b-consumer-right",
+              "score": 0.85744071
+            },
+            {
+              "datasetId": "e2eh2-b-producer-left",
+              "score": 0.797042847
+            },
+            {
+              "datasetId": "noise-user-7-client-node-position",
+              "score": 0.779151797
+            },
+            {
+              "datasetId": "noise-chartbook-7-client-node-position",
+              "score": 0.779148459
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2eh2-u-tablet-captions",
+        "noise-user-11-footer-font-weight",
+        "noise-user-3-database-label-font",
+        "noise-user-2-legend-border-weight",
+        "e2eh2-u-widescreen-gaps",
+        "noise-user-9-queue-border-weight",
+        "e2eh2-u-ingress-diamond",
+        "noise-user-1-worker-node-shape"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [
+        "e2eh2-u-tablet-captions",
+        "e2eh2-u-widescreen-gaps"
+      ],
+      "id": "e2eh2-negative-positive",
+      "planner": {
+        "latencyMillis": 5543,
+        "queries": [
+          "Do not show tablet captions",
+          "Increase node gaps on widescreen diagrams"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [
+        "userMemory=PREFERENCE/tablet-caption-visibility: Hide captions on tablet diagrams",
+        "userMemory=PREFERENCE/widescreen-node-spacing: Increase node gaps on widescreen diagrams"
+      ],
+      "promptParity": true,
+      "queryText": "Do not show tablet captions, but increase node gaps on widescreen diagrams.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2eh2-u-tablet-captions",
+        "e2eh2-u-widescreen-gaps"
+      ],
+      "sqlSelectedIds": [
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color",
+        "noise-user-7-client-node-position",
+        "noise-user-6-error-edge-pattern",
+        "noise-user-5-approval-node-color",
+        "noise-user-4-cache-lane-position"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Do not show tablet captions",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-u-tablet-captions",
+              "score": 0.866505265
+            },
+            {
+              "datasetId": "noise-user-11-footer-font-weight",
+              "score": 0.790922642
+            },
+            {
+              "datasetId": "noise-user-3-database-label-font",
+              "score": 0.784671426
+            },
+            {
+              "datasetId": "noise-user-2-legend-border-weight",
+              "score": 0.784542799
+            }
+          ]
+        },
+        {
+          "queryText": "Increase node gaps on widescreen diagrams",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-u-widescreen-gaps",
+              "score": 0.904103756
+            },
+            {
+              "datasetId": "noise-user-9-queue-border-weight",
+              "score": 0.803158641
+            },
+            {
+              "datasetId": "e2eh2-u-ingress-diamond",
+              "score": 0.802373707
+            },
+            {
+              "datasetId": "noise-user-1-worker-node-shape",
+              "score": 0.798300147
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2eh2-u-storage-checker",
+        "noise-user-9-queue-border-weight",
+        "e2eh2-u-ingress-diamond",
+        "noise-user-1-worker-node-shape"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [
+        "e2eh2-u-storage-checker"
+      ],
+      "id": "e2eh2-single-pattern",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [
+        "userMemory=PREFERENCE/storage-node-pattern: Use a checker pattern on storage nodes"
+      ],
+      "promptParity": true,
+      "queryText": "Storage nodes should keep their checkerboard pattern.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2eh2-u-storage-checker"
+      ],
+      "sqlSelectedIds": [
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color",
+        "noise-user-7-client-node-position",
+        "noise-user-6-error-edge-pattern",
+        "noise-user-5-approval-node-color",
+        "noise-user-4-cache-lane-position"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Storage nodes should keep their checkerboard pattern.",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-u-storage-checker",
+              "score": 0.82995075
+            },
+            {
+              "datasetId": "noise-user-9-queue-border-weight",
+              "score": 0.765171587
+            },
+            {
+              "datasetId": "e2eh2-u-ingress-diamond",
+              "score": 0.754722595
+            },
+            {
+              "datasetId": "noise-user-1-worker-node-shape",
+              "score": 0.754589
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2eh2-b-warning-plum",
+        "e2eh2-u-warning-bronze",
+        "e2eh2-b-incident-coral",
+        "noise-chartbook-8-note-node-color"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [
+        "e2eh2-b-warning-plum"
+      ],
+      "id": "e2eh2-chartbook-override",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [
+        "chartbookMemory=PREFERENCE/warning-node-color: Use plum warning nodes"
+      ],
+      "promptParity": true,
+      "queryText": "Use the current chartbook warning-node color.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2eh2-b-warning-plum"
+      ],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-footer-font-weight",
+        "noise-chartbook-10-owner-badge-color",
+        "noise-chartbook-9-queue-border-weight",
+        "noise-chartbook-8-note-node-color",
+        "noise-chartbook-7-client-node-position",
+        "noise-chartbook-6-error-edge-pattern",
+        "noise-chartbook-5-approval-node-color",
+        "noise-chartbook-4-cache-lane-position",
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Use the current chartbook warning-node color.",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-b-warning-plum",
+              "score": 0.877063096
+            },
+            {
+              "datasetId": "e2eh2-u-warning-bronze",
+              "score": 0.843134
+            },
+            {
+              "datasetId": "e2eh2-b-incident-coral",
+              "score": 0.815101385
+            },
+            {
+              "datasetId": "noise-chartbook-8-note-node-color",
+              "score": 0.797867358
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2eh2-u-widescreen-gaps",
+        "noise-chartbook-3-database-label-font",
+        "noise-user-3-database-label-font",
+        "noise-user-11-footer-font-weight",
+        "e2eh2-b-cron-top",
+        "noise-chartbook-4-cache-lane-position",
+        "noise-user-4-cache-lane-position",
+        "e2eh2-b-consumer-right"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [],
+      "id": "e2eh2-negative-delimited-operation",
+      "planner": {
+        "latencyMillis": 3721,
+        "queries": [
+          "Resize this box once",
+          "move its label upward"
+        ],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [
+        "chartbookMemory=PREFERENCE/cron-lane-position: Place cron lanes at the top"
+      ],
+      "promptParity": true,
+      "queryText": "Resize this box once; move its label upward.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [
+        "e2eh2-b-cron-top"
+      ],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-footer-font-weight",
+        "noise-chartbook-10-owner-badge-color",
+        "noise-chartbook-9-queue-border-weight",
+        "noise-chartbook-8-note-node-color",
+        "noise-chartbook-7-client-node-position",
+        "noise-chartbook-6-error-edge-pattern",
+        "noise-chartbook-5-approval-node-color",
+        "noise-chartbook-4-cache-lane-position",
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Resize this box once",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-u-widescreen-gaps",
+              "score": 0.773180068
+            },
+            {
+              "datasetId": "noise-chartbook-3-database-label-font",
+              "score": 0.76666218
+            },
+            {
+              "datasetId": "noise-user-3-database-label-font",
+              "score": 0.766430736
+            },
+            {
+              "datasetId": "noise-user-11-footer-font-weight",
+              "score": 0.764565706
+            }
+          ]
+        },
+        {
+          "queryText": "move its label upward",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-b-cron-top",
+              "score": 0.810600102
+            },
+            {
+              "datasetId": "noise-chartbook-4-cache-lane-position",
+              "score": 0.799146593
+            },
+            {
+              "datasetId": "noise-user-4-cache-lane-position",
+              "score": 0.799140751
+            },
+            {
+              "datasetId": "e2eh2-b-consumer-right",
+              "score": 0.795893669
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "noise-user-4-cache-lane-position",
+        "noise-user-7-client-node-position",
+        "e2eh2-u-audit-double",
+        "e2eh2-u-ingress-diamond"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [],
+      "id": "e2eh2-negative-history",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [],
+      "promptParity": true,
+      "queryText": "What did I ask in the immediately previous turn?",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [],
+      "sqlSelectedIds": [
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color",
+        "noise-user-7-client-node-position",
+        "noise-user-6-error-edge-pattern",
+        "noise-user-5-approval-node-color",
+        "noise-user-4-cache-lane-position"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "What did I ask in the immediately previous turn?",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "noise-user-4-cache-lane-position",
+              "score": 0.763356447
+            },
+            {
+              "datasetId": "noise-user-7-client-node-position",
+              "score": 0.760611653
+            },
+            {
+              "datasetId": "e2eh2-u-audit-double",
+              "score": 0.756208181
+            },
+            {
+              "datasetId": "e2eh2-u-ingress-diamond",
+              "score": 0.756088436
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "e2eh2-b-warning-plum",
+        "noise-user-11-footer-font-weight",
+        "noise-chartbook-11-footer-font-weight",
+        "e2eh2-u-audit-double"
+      ],
+      "chartbookContext": true,
+      "expectedRelevantIds": [],
+      "id": "e2eh2-negative-source-question",
+      "planner": {
+        "latencyMillis": 5019,
+        "queries": [],
+        "status": "SUCCEEDED"
+      },
+      "promptMemoryLines": [],
+      "promptParity": true,
+      "queryText": "Read the attached forecast and tell me next month's revenue.",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [],
+      "sqlSelectedIds": [
+        "noise-chartbook-11-footer-font-weight",
+        "noise-chartbook-10-owner-badge-color",
+        "noise-chartbook-9-queue-border-weight",
+        "noise-chartbook-8-note-node-color",
+        "noise-chartbook-7-client-node-position",
+        "noise-chartbook-6-error-edge-pattern",
+        "noise-chartbook-5-approval-node-color",
+        "noise-chartbook-4-cache-lane-position",
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Read the attached forecast and tell me next month's revenue.",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "e2eh2-b-warning-plum",
+              "score": 0.781627536
+            },
+            {
+              "datasetId": "noise-user-11-footer-font-weight",
+              "score": 0.778407156
+            },
+            {
+              "datasetId": "noise-chartbook-11-footer-font-weight",
+              "score": 0.778318703
+            },
+            {
+              "datasetId": "e2eh2-u-audit-double",
+              "score": 0.771777
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "candidateIdsAt4": [
+        "noise-user-10-owner-badge-color",
+        "noise-user-0-api-node-color",
+        "e2eh2-u-ingress-diamond",
+        "noise-user-4-cache-lane-position"
+      ],
+      "chartbookContext": false,
+      "expectedRelevantIds": [],
+      "id": "e2eh2-negative-greeting",
+      "planner": {
+        "latencyMillis": 0,
+        "queries": [],
+        "status": "SKIPPED"
+      },
+      "promptMemoryLines": [],
+      "promptParity": true,
+      "queryText": "Hi there, are you ready?",
+      "rawDisabledVectorHits": [],
+      "rawUnauthorizedVectorHits": [],
+      "selectedIds": [],
+      "sqlSelectedIds": [
+        "noise-user-11-footer-font-weight",
+        "noise-user-10-owner-badge-color",
+        "noise-user-9-queue-border-weight",
+        "noise-user-8-note-node-color",
+        "noise-user-7-client-node-position",
+        "noise-user-6-error-edge-pattern",
+        "noise-user-5-approval-node-color",
+        "noise-user-4-cache-lane-position"
+      ],
+      "vectorSearches": [
+        {
+          "queryText": "Hi there, are you ready?",
+          "rawHitCount": 16,
+          "topHits": [
+            {
+              "datasetId": "noise-user-10-owner-badge-color",
+              "score": 0.759102404
+            },
+            {
+              "datasetId": "noise-user-0-api-node-color",
+              "score": 0.757803738
+            },
+            {
+              "datasetId": "e2eh2-u-ingress-diamond",
+              "score": 0.757429242
+            },
+            {
+              "datasetId": "noise-user-4-cache-lane-position",
+              "score": 0.756977
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

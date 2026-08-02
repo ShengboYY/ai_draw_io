@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "AUTO_MEMORY_RECALL_PLANNING_CASES_V1",
+  "datasetVersion": "auto-memory-recall-planning-v2",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "frozen-holdout-not-for-tuning",
+  "qualityGate": {
+    "minimumCaseAccuracy": 0.9,
+    "minimumMultiIntentCoverage": 0.9,
+    "minimumSingleIntentAbstention": 0.9,
+    "maximumProtocolFailureRate": 0.0
+  },
+  "cases": [
+    {
+      "id": "holdout2-plan-01",
+      "tags": ["multi", "en", "whereas", "different-targets"],
+      "userTurn": "Round user nodes, whereas machine nodes must stay square.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["user", "round"], ["machine", "square"]]
+    },
+    {
+      "id": "holdout2-plan-02",
+      "tags": ["multi", "en", "but", "different-targets"],
+      "userTurn": "Keep failed jobs red but show successful jobs in green.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["failed", "red"], ["successful", "green"]]
+    },
+    {
+      "id": "holdout2-plan-03",
+      "tags": ["multi", "zh-cn", "contrast"],
+      "userTurn": "一方面让输入节点靠左，另一方面让输出节点靠右。",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["输入", "左"], ["输出", "右"]]
+    },
+    {
+      "id": "holdout2-plan-04",
+      "tags": ["multi", "en", "semicolon"],
+      "userTurn": "Move sources to the left; keep sinks on the right.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["source", "left"], ["sink", "right"]]
+    },
+    {
+      "id": "holdout2-plan-05",
+      "tags": ["multi", "en", "three-intents"],
+      "userTurn": "Color APIs navy, make databases cylindrical, and remove labels from caches.",
+      "expectedIntentCount": 3,
+      "requiredIntentTerms": [["API", "navy"], ["database", "cylindrical"], ["cache", "label", "remove"]]
+    },
+    {
+      "id": "holdout2-plan-06",
+      "tags": ["multi", "en", "negative-positive"],
+      "userTurn": "Do not show tooltips on mobile and increase spacing on desktop.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["mobile", "tooltip", "not"], ["desktop", "spacing", "increase"]]
+    },
+    {
+      "id": "holdout2-plan-07",
+      "tags": ["single", "en", "negative-value"],
+      "userTurn": "Use black but not gray borders for every service.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "holdout2-plan-08",
+      "tags": ["single", "en", "shared-property"],
+      "userTurn": "Arrange brokers and queues horizontally.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "holdout2-plan-09",
+      "tags": ["single", "en", "temporal-while"],
+      "userTurn": "While presenting, enlarge the whole diagram.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "holdout2-plan-10",
+      "tags": ["single", "zh-cn", "shared-property"],
+      "userTurn": "警告节点统一使用红色和橙色渐变。",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    }
+  ]
+}

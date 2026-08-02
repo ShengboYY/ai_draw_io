@@ -57,6 +57,16 @@ class ExplicitMemoryDecisionTest {
                 "请记住帮我画流程图", "chartbook-1").isPresent());
     }
 
+    @Test
+    void explicitGlobalScopeRequiresAnAllChartbooksMarker() {
+        assertTrue(ExplicitMemoryDecision.targetsUserScope(
+                "请记住这个决定：所有画册都使用简洁标签"));
+        assertTrue(ExplicitMemoryDecision.targetsUserScope(
+                "Remember this decision: across all chartbooks use concise labels"));
+        assertFalse(ExplicitMemoryDecision.targetsUserScope(
+                "请记住这个决定：当前画册使用简洁标签"));
+    }
+
     private String locale(String content) {
         return ExplicitMemoryDecision.fromUserContent(content, "chartbook-1")
                 .orElseThrow()

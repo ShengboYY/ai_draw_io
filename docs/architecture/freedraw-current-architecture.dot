@@ -1,0 +1,242 @@
+// FreeDraw current production and code-module connection map.
+digraph FreeDrawCurrent {
+  graph [
+    rankdir=TB,
+    splines=polyline,
+    bgcolor="#FFFFFF",
+    pad="0.35",
+    nodesep="0.42",
+    ranksep="0.78",
+    newrank=true,
+    ratio=fill,
+    size="16,10!",
+    fontname="PingFang SC",
+    fontsize=18,
+    labelloc=t,
+    label="FreeDraw 当前系统架构与模块连接"
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    color="#A8B3C2",
+    fillcolor="#F8FAFC",
+    fontcolor="#243247",
+    fontname="PingFang SC",
+    fontsize=11,
+    penwidth=1.2,
+    margin="0.18,0.11"
+  ];
+
+  edge [
+    color="#3775BA",
+    fontcolor="#315D8C",
+    fontname="PingFang SC",
+    fontsize=9,
+    penwidth=1.6,
+    arrowsize=0.72
+  ];
+
+  user [label="用户 / Browser", fillcolor="#EAF2FB", color="#3775BA"];
+  cloudflare [label="Cloudflare\nDNS / Proxy", fillcolor="#F3F4F6"];
+  alb [label="AWS ALB\nHTTPS + Path Routing", fillcolor="#F3F4F6"];
+
+  subgraph cluster_frontend {
+    label="Experience Plane · Frontend ECS";
+    color="#B8CEE7";
+    fillcolor="#F7FBFF";
+    style="rounded,filled";
+    penwidth=1.4;
+    fontname="PingFang SC";
+    fontcolor="#315D8C";
+
+    nextjs [
+      label="Next.js + React\nWorkspace / Chat / Files / Admin",
+      fillcolor="#EAF2FB",
+      color="#3775BA"
+    ];
+    drawio [
+      label="Draw.io Embed\nCanvas / Export / Selection",
+      fillcolor="#EAF2FB",
+      color="#3775BA"
+    ];
+    clientflow [
+      label="Browser Workflow\nStream Projection · Autosave\nPNG Export · Review Orchestration",
+      fillcolor="#FFF8E7",
+      color="#D1A64A"
+    ];
+
+    nextjs -> drawio [label="postMessage"];
+    nextjs -> clientflow [label="UI state"];
+    drawio -> clientflow [label="XML / PNG"];
+    { rank=same; nextjs; drawio; clientflow; }
+  }
+
+  subgraph cluster_backend {
+    label="Online Plane · Spring Boot Backend ECS（单一故障域）";
+    color="#B8CEE7";
+    fillcolor="#FAFCFF";
+    style="rounded,filled";
+    penwidth=1.5;
+    fontname="PingFang SC";
+    fontcolor="#315D8C";
+
+    trigger [
+      label="Trigger / HTTP\nAuth · Chat · Diagram · Material\nAdmin · Evaluation",
+      fillcolor="#EAF2FB",
+      color="#3775BA"
+    ];
+    application [
+      label="Application\nTurn Admission / Lifecycle\nContext · Handler · Commit · Memory",
+      fillcolor="#EEF0FB",
+      color="#7166B5"
+    ];
+    runtime [
+      label="Process-local Execution\nThread Pools · Attempt Runner\nIn-memory Draft · NDJSON Stream",
+      fillcolor="#F2EEFB",
+      color="#7166B5"
+    ];
+    domain [
+      label="Domain\nAgent / Canvas · Material / Retrieval\nCitation · Chartbook · Eval / Telemetry",
+      fillcolor="#F2EEFB",
+      color="#7166B5"
+    ];
+    infrastructure [
+      label="Infrastructure Adapters\nMySQL · LLM/VLM · S3 · Pinecone · Email",
+      fillcolor="#F3F4F6",
+      color="#7A8798"
+    ];
+
+    trigger -> application [label="DTO / Command"];
+    application -> runtime [label="accepted Turn"];
+    runtime -> domain [label="execute"];
+    application -> domain [label="use cases"];
+    domain -> infrastructure [label="Ports"];
+    { rank=same; trigger; application; runtime; domain; infrastructure; }
+  }
+
+  subgraph cluster_worker {
+    label="Async Plane · Ingestion Worker ECS";
+    color="#B9D8C2";
+    fillcolor="#F6FCF7";
+    style="rounded,filled";
+    penwidth=1.4;
+    fontname="PingFang SC";
+    fontcolor="#39734A";
+
+    poller [
+      label="DB Job Poller\nLease · Fence · Retry",
+      fillcolor="#EAF7ED",
+      color="#4E9A62"
+    ];
+    ingest [
+      label="Document Pipeline\nScan · Parse · OCR · Evidence\nChunk · Embedding · Projection",
+      fillcolor="#EAF7ED",
+      color="#4E9A62"
+    ];
+
+    poller -> ingest [
+      label="claimed stage",
+      color="#4E9A62",
+      fontcolor="#39734A",
+      style=dashed
+    ];
+    { rank=same; poller; ingest; }
+  }
+
+  mysql [
+    label="RDS MySQL · 权威数据\nAccount / Turn / Material / Eval\nLatest Canvas XML + Version",
+    shape=cylinder,
+    fillcolor="#F3F4F6",
+    color="#7A8798"
+  ];
+  s3 [
+    label="Amazon S3\nUpload / Material / Page / Crop",
+    shape=cylinder,
+    fillcolor="#F3F4F6",
+    color="#7A8798"
+  ];
+  pinecone [
+    label="Pinecone\nText Vector Projection",
+    shape=cylinder,
+    fillcolor="#F3F4F6",
+    color="#7A8798"
+  ];
+  model [
+    label="LLM / VLM Provider\nRouting · Generation · Review",
+    fillcolor="#F2EEFB",
+    color="#7166B5"
+  ];
+  ses [
+    label="Amazon SES\nVerification / Reset",
+    fillcolor="#F3F4F6",
+    color="#7A8798"
+  ];
+
+  user -> cloudflare [label="HTTPS"];
+  cloudflare -> alb [label="proxy"];
+  alb -> nextjs [label="/"];
+  alb -> trigger [label="/api/v1/*"];
+  nextjs -> trigger [label="REST / NDJSON"];
+  clientflow -> trigger [label="Canvas XML / PNG"];
+  trigger -> clientflow [label="stream events"];
+
+  infrastructure -> mysql [label="SQL / transaction"];
+  infrastructure -> s3 [label="artifact I/O"];
+  infrastructure -> pinecone [label="vector query"];
+  infrastructure -> model [label="model calls"];
+  infrastructure -> ses [label="email"];
+
+  trigger -> mysql [
+    label="upload + job rows",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  mysql -> poller [
+    label="poll / claim",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  ingest -> mysql [
+    label="state / metadata",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  ingest -> s3 [
+    label="artifacts",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  ingest -> pinecone [
+    label="upsert",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+
+  legend_sync [
+    label="实线：同步调用 / 请求主链路",
+    shape=plaintext,
+    fontcolor="#315D8C"
+  ];
+  legend_async [
+    label="绿色虚线：异步任务 / 持久化轮询",
+    shape=plaintext,
+    fontcolor="#39734A"
+  ];
+  legend_risk [
+    label="架构信号：HTTP、长耗时 AI、Draft 与 Stream 仍在同一 Backend 进程",
+    shape=note,
+    fillcolor="#FFF8E7",
+    color="#D1A64A",
+    fontcolor="#755F29"
+  ];
+
+  { rank=same; user; cloudflare; alb; }
+  { rank=same; mysql; s3; pinecone; model; ses; }
+  { rank=same; legend_sync; legend_async; legend_risk; }
+}

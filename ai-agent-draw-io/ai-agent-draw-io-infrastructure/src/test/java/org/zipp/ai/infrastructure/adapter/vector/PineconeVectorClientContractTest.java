@@ -102,6 +102,18 @@ class PineconeVectorClientContractTest {
     }
 
     @Test
+    void shouldExposeFiniteQueryScoresForApplicationRanking() {
+        RecordingTransport transport = new RecordingTransport(objectMapper);
+        PineconeVectorClient client = new PineconeVectorClient(
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
+
+        assertEquals(
+                List.of(new PineconeVectorMatch("rc_chunk1_ig2", 0.91d)),
+                client.queryMatches("drawio-retrieval-v2", new float[1024], 8, Map.of()));
+    }
+
+    @Test
     void shouldFetchOnlyVectorIdentitiesForPublicationReadiness() {
         RecordingTransport transport = new RecordingTransport(objectMapper);
         PineconeVectorClient client = new PineconeVectorClient(

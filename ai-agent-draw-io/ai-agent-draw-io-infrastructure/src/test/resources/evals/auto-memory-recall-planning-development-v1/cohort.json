@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "AUTO_MEMORY_RECALL_PLANNING_CASES_V1",
+  "datasetVersion": "auto-memory-recall-planning-development-v1",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "development-tuning-allowed",
+  "qualityGate": {
+    "minimumCaseAccuracy": 0.9,
+    "minimumMultiIntentCoverage": 0.9,
+    "minimumSingleIntentAbstention": 0.9,
+    "maximumProtocolFailureRate": 0.0
+  },
+  "cases": [
+    {
+      "id": "dev-plan-01",
+      "tags": ["multi", "en", "bare-and"],
+      "userTurn": "Italicize database technology labels and add globe badges to every public endpoint.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["database", "italic"], ["public endpoint", "globe"]]
+    },
+    {
+      "id": "dev-plan-02",
+      "tags": ["multi", "zh-cn", "simultaneous"],
+      "userTurn": "当前画册的异步处理泳道纵向排列，同时把 Pager 节点填充成红色。",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["异步", "纵向"], ["Pager", "红色"]]
+    },
+    {
+      "id": "dev-plan-03",
+      "tags": ["single", "en", "noun-coordination"],
+      "userTurn": "Use a black and white palette for database nodes.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "dev-plan-04",
+      "tags": ["single", "en", "noun-coordination"],
+      "userTurn": "Group web and mobile clients by channel.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "dev-plan-05",
+      "tags": ["single", "en", "negative-list"],
+      "userTurn": "Do not use red or orange for warning nodes.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "dev-plan-06",
+      "tags": ["multi", "en", "three-intents"],
+      "userTurn": "Keep labels lowercase, show queues in purple, and place legends at the bottom.",
+      "expectedIntentCount": 3,
+      "requiredIntentTerms": [["label", "lowercase"], ["queue", "purple"], ["legend", "bottom"]]
+    },
+    {
+      "id": "dev-plan-07",
+      "tags": ["multi", "en", "semicolon"],
+      "userTurn": "Render external actors as circles; keep retry connections dashed.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["external actor", "circle"], ["retry", "dashed"]]
+    },
+    {
+      "id": "dev-plan-08",
+      "tags": ["single", "zh-cn", "noun-coordination"],
+      "userTurn": "数据库以及缓存节点都使用圆角矩形。",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    },
+    {
+      "id": "dev-plan-09",
+      "tags": ["multi", "en", "feedback"],
+      "userTurn": "Keep labels short; also leave more whitespace around clusters.",
+      "expectedIntentCount": 2,
+      "requiredIntentTerms": [["label", "short"], ["whitespace", "cluster"]]
+    },
+    {
+      "id": "dev-plan-10",
+      "tags": ["single", "en", "conditional"],
+      "userTurn": "If a source is missing, ask me instead of inventing facts.",
+      "expectedIntentCount": 0,
+      "requiredIntentTerms": []
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.zipp.ai.application.memory.AutoMemoryExtractionWorkPort;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.FencedCommitOutcome;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
@@ -66,20 +67,21 @@ public class MySqlResponseTurnCommitAdapter implements ResponseTurnCommitPort {
             """;
 
     private final JdbcOperations jdbc;
-    private final MySqlCompletedTurnMemoryProposalWriter memoryProposals;
+    private final AutoMemoryExtractionWorkPort memoryExtractionWork;
     private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlResponseTurnCommitAdapter(JdbcOperations jdbc) {
-        this(jdbc, null);
+        this(jdbc, AutoMemoryExtractionWorkPort.NOOP);
     }
 
     @Autowired
     public MySqlResponseTurnCommitAdapter(
             JdbcOperations jdbc,
-            MySqlCompletedTurnMemoryProposalWriter memoryProposals
+            AutoMemoryExtractionWorkPort memoryExtractionWork
     ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
-        this.memoryProposals = memoryProposals;
+        this.memoryExtractionWork =
+                Objects.requireNonNull(memoryExtractionWork, "memoryExtractionWork");
     }
 
     @Override
@@ -138,9 +140,8 @@ public class MySqlResponseTurnCommitAdapter implements ResponseTurnCommitPort {
             // fence expires between the initial check and the terminal CAS.
             throw new IllegalStateException("RESPONSE_COMMIT_FENCE_NOT_APPLIED");
         }
-        if (memoryProposals != null) {
-            memoryProposals.write(attempt, command.diagramId());
-        }
+        // The extractor is intentionally outside the terminal transaction.
+        memoryExtractionWork.enqueue(attempt.key(), command.diagramId());
         return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
                 TurnStatus.COMPLETED,
                 "COMPLETED",

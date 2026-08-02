@@ -18,7 +18,7 @@ import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.AvailableContext;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.context.ChartbookProfileContext;
-import org.zipp.ai.application.turn.context.ConfirmedMemoryContext;
+import org.zipp.ai.application.turn.context.AutoMemoryContext;
 import org.zipp.ai.application.turn.context.ContextDiagnostics;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextSlice;
@@ -141,8 +141,8 @@ class ChatPlainResponseAdapterTest {
                         new AvailableContext<>(new ChartbookProfileContext(
                                 "keep labels short", "review goal", "team diagram", List.of("API"), "blue"),
                                 "profile"),
-                        new AvailableContext<>(new ConfirmedMemoryContext(List.of("use short labels")),
-                                "memory"),
+                        new AvailableContext<>(new AutoMemoryContext(
+                                List.of("use short labels"), List.of()), "memory"),
                         new ContextDiagnostics(List.of())),
                 readSet(),
                 new PlainResponsePlan(PlainResponseKind.REVIEW, "review the diagram", true),

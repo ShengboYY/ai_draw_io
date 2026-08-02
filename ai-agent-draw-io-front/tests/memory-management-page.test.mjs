@@ -7,14 +7,18 @@ const read = path => readFileSync(fileURLToPath(new URL(path, import.meta.url)),
 const page = read('../src/app/chartbooks/memory/page.tsx');
 const client = read('../src/api/memory.ts');
 
-test('Memory page exposes explicit confirmation and owner-fenced management actions', () => {
-  assert.match(page, /explicit confirmation only/);
-  assert.match(page, /client\.confirm/);
-  assert.match(page, /client\.revoke/);
+test('Memory page exposes scoped automatic Memory and reversible management actions', () => {
+  assert.match(page, /automatic · reversible/);
+  assert.match(page, /This Chartbook/);
+  assert.match(page, /Across all Chartbooks/);
+  assert.match(page, /client\.listUser/);
+  assert.match(page, /client\.listChartbook/);
   assert.match(page, /client\.edit/);
   assert.match(page, /client\.disable/);
+  assert.match(page, /client\.activate/);
   assert.match(page, /client\.remove/);
-  assert.match(client, /declarationDigest/);
+  assert.doesNotMatch(page, /client\.confirm/);
+  assert.doesNotMatch(page, /client\.revoke/);
   assert.match(client, /If-Match/);
-  assert.match(client, /\/candidates/);
+  assert.doesNotMatch(client, /\/candidates/);
 });

@@ -44,6 +44,47 @@ app:
   security:
     # Credentialed CORS is restricted to known SPA origins; production should set this env var.
     allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  memory:
+    # Enable only after the 20260814 database migration has completed.
+    auto-enabled: ${AUTO_MEMORY_ENABLED:false}
+    extractor-agent-id: ${AUTO_MEMORY_EXTRACTOR_AGENT_ID:300030}
+    worker-delay-ms: ${AUTO_MEMORY_WORKER_DELAY_MS:5000}
+    worker-batch-size: ${AUTO_MEMORY_WORKER_BATCH_SIZE:10}
+    context:
+      # V1.7 semantic selection is opt-in; SQL ordering remains the failure fallback.
+      semantic-enabled: ${AUTO_MEMORY_CONTEXT_SEMANTIC_ENABLED:false}
+      # V1.8 planning is a separate opt-in and has no effect while semantic selection is disabled.
+      multi-intent-enabled: ${AUTO_MEMORY_CONTEXT_MULTI_INTENT_ENABLED:false}
+      planner-agent-id: ${AUTO_MEMORY_CONTEXT_PLANNER_AGENT_ID:300031}
+      minimum-score: ${AUTO_MEMORY_CONTEXT_MINIMUM_SCORE:0.82}
+      minimum-lead: ${AUTO_MEMORY_CONTEXT_MINIMUM_LEAD:0.02}
+      maximum-score-drop: ${AUTO_MEMORY_CONTEXT_MAXIMUM_SCORE_DROP:0.03}
+      # V1.8.2 candidate-only floor; final planned selection remains one authority-checked winner/facet.
+      facet-minimum-score: ${AUTO_MEMORY_CONTEXT_FACET_MINIMUM_SCORE:0.80}
+      reference-facet-minimum-score: ${AUTO_MEMORY_CONTEXT_REFERENCE_FACET_MINIMUM_SCORE:0.76}
+      # Different decisions that remain nearly tied are not injected.
+      facet-minimum-lead: ${AUTO_MEMORY_CONTEXT_FACET_MINIMUM_LEAD:0.01}
+      max-entries: ${AUTO_MEMORY_CONTEXT_MAX_ENTRIES:12}
+      max-characters: ${AUTO_MEMORY_CONTEXT_MAX_CHARACTERS:6000}
+    # V1.2 ages only unconfirmed OBSERVED candidates and remains opt-in after Auto Memory rollout.
+    aging-enabled: ${AUTO_MEMORY_AGING_ENABLED:false}
+    observed-retention-days: ${AUTO_MEMORY_OBSERVED_RETENTION_DAYS:90}
+    aging-delay-ms: ${AUTO_MEMORY_AGING_DELAY_MS:3600000}
+    aging-batch-size: ${AUTO_MEMORY_AGING_BATCH_SIZE:100}
+    vector:
+      # Requires the 20260816 outbox migration; canary changes candidates and is local-only in V1.5.
+      projection-enabled: ${AUTO_MEMORY_VECTOR_PROJECTION_ENABLED:false}
+      shadow-enabled: ${AUTO_MEMORY_VECTOR_SHADOW_ENABLED:false}
+      canary-enabled: ${AUTO_MEMORY_VECTOR_CANARY_ENABLED:false}
+      worker-delay-ms: ${AUTO_MEMORY_VECTOR_WORKER_DELAY_MS:5000}
+      worker-batch-size: ${AUTO_MEMORY_VECTOR_WORKER_BATCH_SIZE:10}
+      pinecone:
+        api-key: ${AUTO_MEMORY_VECTOR_PINECONE_API_KEY:${PINECONE_API_KEY:}}
+        index-host: ${AUTO_MEMORY_VECTOR_PINECONE_INDEX_HOST:${PINECONE_INDEX_HOST:}}
+        namespace: ${AUTO_MEMORY_VECTOR_PINECONE_NAMESPACE:auto-memory-v1}
+        embedding-model: ${AUTO_MEMORY_VECTOR_EMBEDDING_MODEL:${PINECONE_EMBEDDING_MODEL:multilingual-e5-large}}
+        dimension: ${AUTO_MEMORY_VECTOR_DIMENSION:${PINECONE_DIMENSION:1024}}
+        partition-secret: ${AUTO_MEMORY_VECTOR_PARTITION_SECRET:${PINECONE_TENANT_HMAC_SECRET:}}
   material-catalog:
     # Enable only after the WP1 foundation and WP4-A idempotency migration are applied.
     enabled: ${MATERIAL_CATALOG_ENABLED:false}

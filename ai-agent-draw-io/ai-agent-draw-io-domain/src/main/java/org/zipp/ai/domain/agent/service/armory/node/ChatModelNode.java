@@ -14,6 +14,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 
@@ -87,6 +88,12 @@ public class ChatModelNode extends AbstractArmorySupport {
         // Only an explicit YAML value overrides the provider default.
         if (config.getTemperature() != null) {
             builder.temperature(config.getTemperature());
+        }
+        if ("json_object".equals(config.getResponseFormat())) {
+            // Fixed internal extractors can opt into JSON without affecting tool-calling agents.
+            builder.responseFormat(ResponseFormat.builder()
+                    .type(ResponseFormat.Type.JSON_OBJECT)
+                    .build());
         }
         return builder.build();
     }

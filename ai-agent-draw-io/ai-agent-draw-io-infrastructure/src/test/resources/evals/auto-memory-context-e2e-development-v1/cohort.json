@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "AUTO_MEMORY_CONTEXT_E2E_CASES_V1",
+  "datasetVersion": "auto-memory-context-e2e-development-v1",
+  "privacyClassification": "synthetic",
+  "usagePolicy": "development-tuning-allowed",
+  "qualityGate": {
+    "minimumTargetRecall": 0.8,
+    "minimumCompletePositiveCaseRate": 0.75,
+    "minimumPromptPrecision": 0.8,
+    "maximumIrrelevantInjectionRate": 0.2,
+    "maximumNegativeCaseInjectionRate": 0.25,
+    "maximumForbiddenSelectionRate": 0.0,
+    "maximumUnauthorizedSelectionCount": 0,
+    "maximumDisabledSelectionCount": 0,
+    "minimumPromptParityRate": 1.0
+  },
+  "targets": [
+    {"id":"e2ed-u-api-navy","scope":"USER","semanticKey":"api-border-color","title":"API border color","canonicalText":"Use navy borders for API nodes"},
+    {"id":"e2ed-u-retry-dashed","scope":"USER","semanticKey":"retry-edge-pattern","title":"Retry edge pattern","canonicalText":"Render retry edges as dashed lines"},
+    {"id":"e2ed-b-lane-horizontal","scope":"CHARTBOOK","semanticKey":"async-lane-direction","title":"Async lane direction","canonicalText":"Arrange asynchronous processing lanes horizontally"},
+    {"id":"e2ed-b-pager-triangle","scope":"CHARTBOOK","semanticKey":"pager-node-shape","title":"Pager node shape","canonicalText":"Render Pager nodes as triangles"},
+    {"id":"e2ed-u-hide-ids","scope":"USER","semanticKey":"internal-id-visibility","title":"Internal ID visibility","canonicalText":"Never show internal identifiers"},
+    {"id":"e2ed-u-title-labels","scope":"USER","semanticKey":"public-label-case","title":"Public label case","canonicalText":"Use title case for user-facing labels"},
+    {"id":"e2ed-b-cache-teal","scope":"CHARTBOOK","semanticKey":"cache-node-color","title":"Cache node color","canonicalText":"Fill cache nodes with teal"},
+    {"id":"e2ed-b-database-cylinder","scope":"CHARTBOOK","semanticKey":"database-node-shape","title":"Database node shape","canonicalText":"Render database nodes as cylinders"},
+    {"id":"e2ed-u-owner-top","scope":"USER","semanticKey":"owner-badge-position","title":"Owner badge position","canonicalText":"Place owner badges above service nodes"},
+    {"id":"e2ed-u-storage-stripes","scope":"USER","semanticKey":"storage-node-pattern","title":"Storage node pattern","canonicalText":"Use blue and green stripes for storage nodes"},
+    {"id":"e2ed-u-alert-amber","scope":"USER","semanticKey":"alert-node-color","title":"Global alert color","canonicalText":"Use amber alert nodes"},
+    {"id":"e2ed-b-alert-crimson","scope":"CHARTBOOK","semanticKey":"alert-node-color","title":"Chartbook alert color","canonicalText":"Use crimson alert nodes"}
+  ],
+  "noise": [
+    {"semanticKey":"legend-position","title":"Legend position","canonicalText":"Place legends in the lower right"},
+    {"semanticKey":"queue-node-color","title":"Queue color","canonicalText":"Fill queue nodes with lavender"},
+    {"semanticKey":"client-node-shape","title":"Client shape","canonicalText":"Render client nodes as rounded rectangles"},
+    {"semanticKey":"note-font-size","title":"Note font size","canonicalText":"Use small text for annotation notes"},
+    {"semanticKey":"gateway-border-pattern","title":"Gateway border","canonicalText":"Use double borders for gateway nodes"},
+    {"semanticKey":"approval-node-position","title":"Approval position","canonicalText":"Place approval nodes at the bottom"},
+    {"semanticKey":"event-node-color","title":"Event color","canonicalText":"Fill event nodes with pale yellow"},
+    {"semanticKey":"connector-label-case","title":"Connector label case","canonicalText":"Use lowercase connector labels"},
+    {"semanticKey":"cluster-spacing","title":"Cluster spacing","canonicalText":"Leave wide gaps between clusters"},
+    {"semanticKey":"external-actor-shape","title":"External actor shape","canonicalText":"Render external actors as circles"},
+    {"semanticKey":"timeout-edge-color","title":"Timeout edge color","canonicalText":"Use orange timeout edges"},
+    {"semanticKey":"footer-visibility","title":"Footer visibility","canonicalText":"Hide diagram footers"}
+  ],
+  "cases": [
+    {"id":"e2ed-multi-user","queryText":"Keep API borders navy while making retry paths dashed.","chartbookContext":false,"expectedRelevantIds":["e2ed-u-api-navy","e2ed-u-retry-dashed"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed-multi-chartbook","queryText":"当前画册的异步处理泳道横向排列，同时把 Pager 节点画成三角形。","chartbookContext":true,"expectedRelevantIds":["e2ed-b-lane-horizontal","e2ed-b-pager-triangle"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed-negative-positive","queryText":"Do not expose internal IDs, and keep user-facing labels in title case.","chartbookContext":false,"expectedRelevantIds":["e2ed-u-hide-ids","e2ed-u-title-labels"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed-multi-properties","queryText":"Color caches teal; databases should remain cylindrical.","chartbookContext":true,"expectedRelevantIds":["e2ed-b-cache-teal","e2ed-b-database-cylinder"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed-single-owner","queryText":"Keep the ownership badge above each service.","chartbookContext":false,"expectedRelevantIds":["e2ed-u-owner-top"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed-single-coordination","queryText":"Give storage nodes a blue and green striped pattern.","chartbookContext":false,"expectedRelevantIds":["e2ed-u-storage-stripes"],"forbiddenSelectedIds":[]},
+    {"id":"e2ed-chartbook-override","queryText":"Use the current chartbook alert-node color.","chartbookContext":true,"expectedRelevantIds":["e2ed-b-alert-crimson"],"forbiddenSelectedIds":["e2ed-u-alert-amber"]},
+    {"id":"e2ed-negative-operation","queryText":"Export this diagram as SVG once.","chartbookContext":true,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2ed-negative-memory-query","queryText":"Which long-term memories do you currently have?","chartbookContext":false,"expectedRelevantIds":[],"forbiddenSelectedIds":[]},
+    {"id":"e2ed-negative-fact","queryText":"What is the current production database version?","chartbookContext":true,"expectedRelevantIds":[],"forbiddenSelectedIds":[]}
+  ]
+}

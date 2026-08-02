@@ -1,33 +1,19 @@
 import { createCsrfHeadersProvider, type CsrfHeadersProvider } from './csrf.ts';
 
-export type MemoryCandidate = {
-  candidateId: string;
-  chartbookId: string;
-  diagramId: string;
-  sourceConversationId: string;
-  sourceTurnId: string;
-  decisionKey: string;
-  applicabilityStage: string;
-  scope: string;
-  canonicalText: string;
-  policyVersion: string;
-  declarationDigest: string;
-  status: string;
-  version: number;
-  expiresAt: string;
-};
-
-export type ConfirmedMemory = {
+export type AutoMemory = {
   memoryId: string;
-  chartbookId: string;
-  sourceConversationId: string;
-  sourceTurnId: string;
-  decisionKey: string;
-  applicabilityStage: string;
-  scope: string;
+  scopeType: 'USER' | 'CHARTBOOK';
+  scopeKey: string;
+  memoryType: 'PREFERENCE' | 'FEEDBACK' | 'PROJECT' | 'REFERENCE';
+  semanticKey: string;
+  title: string;
   canonicalText: string;
-  status: 'ACTIVE' | 'DISABLED' | 'DELETED' | string;
+  status: 'OBSERVED' | 'ACTIVE' | 'DISABLED';
+  confidence: number;
+  evidenceCount: number;
+  explicit: boolean;
   version: number;
+  updatedAt: string;
 };
 
 type ApiEnvelope<T> = { code: string; info?: string; data?: T };
@@ -53,8 +39,13 @@ export const createMemoryClient = (options: MemoryClientOptions) => {
   const fetchImplementation = options.fetch || globalThis.fetch.bind(globalThis);
   const csrfHeaders = options.csrfHeaders || createCsrfHeadersProvider(options.baseUrl, fetchImplementation);
   const { baseUrl } = options;
-  const path = (chartbookId: string, suffix = '') =>
-    `/chartbooks/${encodeURIComponent(chartbookId)}/memory${suffix}`;
+  const scopePath = (scopeType: AutoMemory['scopeType'], chartbookId?: string) => {
+    if (scopeType === 'USER') return '/memory';
+    if (!chartbookId) throw new Error('chartbookId is required for Chartbook Memory');
+    return `/chartbooks/${encodeURIComponent(chartbookId)}/memory`;
+  };
+  const itemPath = (memory: AutoMemory, chartbookId?: string, suffix = '') =>
+    `${scopePath(memory.scopeType, chartbookId)}/${encodeURIComponent(memory.memoryId)}${suffix}`;
   const request = async <T>(pathValue: string, init: RequestInit = {}, write = false): Promise<T> => {
     const response = await fetchImplementation(`${baseUrl}${pathValue}`, {
       ...init,
@@ -67,45 +58,35 @@ export const createMemoryClient = (options: MemoryClientOptions) => {
     }
     return envelope.data as T;
   };
-  const json = (value: unknown): RequestInit => ({
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(value),
+  const mutation = (method: 'PATCH' | 'POST' | 'DELETE', memory: AutoMemory, body?: unknown): RequestInit => ({
+    method,
+    headers: {
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      'If-Match': String(memory.version),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
   return {
-    pending: (chartbookId: string) => request<MemoryCandidate[]>(path(chartbookId, '/candidates')),
-    confirm: (chartbookId: string, candidate: MemoryCandidate) => request<ConfirmedMemory>(
-      path(chartbookId, `/candidates/${encodeURIComponent(candidate.candidateId)}/confirm`),
-      json({
-        sourceConversationId: candidate.sourceConversationId,
-        sourceTurnId: candidate.sourceTurnId,
-        declarationDigest: candidate.declarationDigest,
-      }), true),
-    revoke: (chartbookId: string, candidate: MemoryCandidate) => request<void>(
-      path(chartbookId, `/candidates/${encodeURIComponent(candidate.candidateId)}/revoke`),
-      json({
-        sourceConversationId: candidate.sourceConversationId,
-        sourceTurnId: candidate.sourceTurnId,
-        declarationDigest: candidate.declarationDigest,
-      }), true),
-    list: (chartbookId: string, includeDisabled = true) => request<ConfirmedMemory[]>(
-      `${path(chartbookId)}?includeDisabled=${includeDisabled ? 'true' : 'false'}`),
-    edit: (chartbookId: string, memory: ConfirmedMemory, canonicalText: string) => request<ConfirmedMemory>(
-      path(chartbookId, `/${encodeURIComponent(memory.memoryId)}`), {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'If-Match': String(memory.version) },
-        body: JSON.stringify({ canonicalText }),
-      }, true),
-    disable: (chartbookId: string, memory: ConfirmedMemory) => request<ConfirmedMemory>(
-      path(chartbookId, `/${encodeURIComponent(memory.memoryId)}/disable`), {
-        method: 'POST',
-        headers: { 'If-Match': String(memory.version) },
-      }, true),
-    remove: (chartbookId: string, memory: ConfirmedMemory) => request<void>(
-      path(chartbookId, `/${encodeURIComponent(memory.memoryId)}`), {
-        method: 'DELETE',
-        headers: { 'If-Match': String(memory.version) },
-      }, true),
+    listUser: () => request<AutoMemory[]>(
+      `${scopePath('USER')}?includeObserved=true&includeDisabled=true`),
+    listChartbook: (chartbookId: string) => request<AutoMemory[]>(
+      `${scopePath('CHARTBOOK', chartbookId)}?includeObserved=true&includeDisabled=true`),
+    edit: (memory: AutoMemory, canonicalText: string, chartbookId?: string) => request<AutoMemory>(
+      itemPath(memory, chartbookId),
+      mutation('PATCH', memory, { canonicalText }),
+      true),
+    disable: (memory: AutoMemory, chartbookId?: string) => request<AutoMemory>(
+      itemPath(memory, chartbookId, '/disable'),
+      mutation('POST', memory),
+      true),
+    activate: (memory: AutoMemory, chartbookId?: string) => request<AutoMemory>(
+      itemPath(memory, chartbookId, '/activate'),
+      mutation('POST', memory),
+      true),
+    remove: (memory: AutoMemory, chartbookId?: string) => request<void>(
+      itemPath(memory, chartbookId),
+      mutation('DELETE', memory),
+      true),
   };
 };

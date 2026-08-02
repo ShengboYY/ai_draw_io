@@ -1,0 +1,356 @@
+// FreeDraw recommended durable-workflow target architecture.
+digraph FreeDrawTarget {
+  graph [
+    rankdir=TB,
+    splines=polyline,
+    bgcolor="#FFFFFF",
+    pad="0.35",
+    nodesep="0.40",
+    ranksep="0.82",
+    newrank=true,
+    ratio=fill,
+    size="16,10!",
+    fontname="PingFang SC",
+    fontsize=18,
+    labelloc=t,
+    label="FreeDraw 推荐目标架构 · Durable AI Diagram Workflow"
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    color="#A8B3C2",
+    fillcolor="#F8FAFC",
+    fontcolor="#243247",
+    fontname="PingFang SC",
+    fontsize=10.5,
+    penwidth=1.2,
+    margin="0.17,0.10"
+  ];
+
+  edge [
+    color="#3775BA",
+    fontcolor="#315D8C",
+    fontname="PingFang SC",
+    fontsize=8.8,
+    penwidth=1.6,
+    arrowsize=0.72
+  ];
+
+  user [label="用户 / Browser", fillcolor="#EAF2FB", color="#3775BA"];
+  edgegw [label="Cloudflare + ALB\nHTTPS / Routing / WAF", fillcolor="#F3F4F6"];
+
+  subgraph cluster_experience {
+    label="Experience Plane";
+    color="#B8CEE7";
+    fillcolor="#F7FBFF";
+    style="rounded,filled";
+    penwidth=1.4;
+    fontname="PingFang SC";
+    fontcolor="#315D8C";
+
+    client [
+      label="Next.js + Draw.io\n交互编辑 · Stream Projection\n本地未提交 Canvas",
+      fillcolor="#EAF2FB",
+      color="#3775BA"
+    ];
+  }
+
+  subgraph cluster_control {
+    label="Control Plane · Web API（短请求、可水平扩展）";
+    color="#B8CEE7";
+    fillcolor="#FAFCFF";
+    style="rounded,filled";
+    penwidth=1.4;
+    fontname="PingFang SC";
+    fontcolor="#315D8C";
+
+    api [
+      label="Web API\nAuth / CRUD · Diagram API\nStatus · Resumable SSE",
+      fillcolor="#EAF2FB",
+      color="#3775BA"
+    ];
+    admission [
+      label="Turn Admission\nAuthZ · Idempotency · Quota\nCapacity Gate · Atomic Claim",
+      fillcolor="#EAF2FB",
+      color="#3775BA"
+    ];
+    delivery [
+      label="Event Delivery\nReplay after sequence\nSSE / terminal replay",
+      fillcolor="#EAF2FB",
+      color="#3775BA"
+    ];
+
+    api -> admission [label="submit"];
+    delivery -> api [label="events"];
+    { rank=same; api; admission; delivery; }
+  }
+
+  subgraph cluster_execution {
+    label="Execution Plane · Turn Worker（长耗时、独立扩缩容）";
+    color="#C9C2EA";
+    fillcolor="#FBFAFF";
+    style="rounded,filled";
+    penwidth=1.4;
+    fontname="PingFang SC";
+    fontcolor="#5E56A1";
+
+    turnworker [
+      label="Turn Worker\nClaim · Lease · Fence · Retry\nCheckpoint / Recovery",
+      fillcolor="#F2EEFB",
+      color="#7166B5"
+    ];
+    context [
+      label="Context / RAG\nPinned Read Set\nEvidence Snapshot",
+      fillcolor="#F2EEFB",
+      color="#7166B5"
+    ];
+    agent [
+      label="Agent Runtime\nRouter · Planner · Tool Loop\nPer-route Budget",
+      fillcolor="#F2EEFB",
+      color="#7166B5"
+    ];
+    canvas [
+      label="Canvas Engine\nPatch / Compile · Validate\nOptimistic Commit",
+      fillcolor="#F2EEFB",
+      color="#7166B5"
+    ];
+    revision [
+      label="Immutable Revision\nparentRevisionId · hash\nsource / turnId / artifactRef",
+      fillcolor="#F2EEFB",
+      color="#7166B5"
+    ];
+
+    turnworker -> context [label="assemble"];
+    context -> agent [label="grounded input"];
+    agent -> canvas [label="typed action"];
+    canvas -> revision [label="atomic commit"];
+    { rank=same; turnworker; context; agent; canvas; revision; }
+  }
+
+  subgraph cluster_quality {
+    label="Quality Plane · Render / Review Worker";
+    color="#E4C979";
+    fillcolor="#FFFCF3";
+    style="rounded,filled";
+    penwidth=1.4;
+    fontname="PingFang SC";
+    fontcolor="#755F29";
+
+    render [
+      label="Canonical Render\nDraw.io XML -> PNG",
+      fillcolor="#FFF8E7",
+      color="#D1A64A"
+    ];
+    inspect [
+      label="Deterministic Check\nGraph / XML / Layout Rules",
+      fillcolor="#FFF8E7",
+      color="#D1A64A"
+    ];
+    review [
+      label="VLM Review\nBounded Evidence / Decision",
+      fillcolor="#FFF8E7",
+      color="#D1A64A"
+    ];
+    repair [
+      label="Repair Proposal\n最多一次 · ID-scoped",
+      fillcolor="#FFF8E7",
+      color="#D1A64A"
+    ];
+
+    render -> inspect [label="pixels + graph"];
+    inspect -> review [label="evidence"];
+    review -> repair [
+      label="needs repair",
+      color="#4E9A62",
+      fontcolor="#39734A",
+      style=dashed
+    ];
+    { rank=same; render; inspect; review; repair; }
+  }
+
+  subgraph cluster_knowledge {
+    label="Knowledge Plane · Ingestion Worker";
+    color="#B9D8C2";
+    fillcolor="#F6FCF7";
+    style="rounded,filled";
+    penwidth=1.4;
+    fontname="PingFang SC";
+    fontcolor="#39734A";
+
+    job [
+      label="Durable Job Queue\nLease · Fence · Retry · DLQ State",
+      fillcolor="#EAF7ED",
+      color="#4E9A62"
+    ];
+    ingest [
+      label="Ingestion Pipeline\nScan · Parse · OCR · Evidence\nChunk · Embedding · Projection",
+      fillcolor="#EAF7ED",
+      color="#4E9A62"
+    ];
+
+    job -> ingest [
+      label="claim",
+      color="#4E9A62",
+      fontcolor="#39734A",
+      style=dashed
+    ];
+    { rank=same; job; ingest; }
+  }
+
+  subgraph cluster_data {
+    label="Data Plane";
+    color="#C9CED6";
+    fillcolor="#FAFAFA";
+    style="rounded,filled";
+    penwidth=1.4;
+    fontname="PingFang SC";
+    fontcolor="#596575";
+
+    mysql [
+      label="MySQL · Correctness Source\nTurn Ledger · Event Log · Outbox\nMetadata · Revision Pointer · Jobs",
+      shape=cylinder,
+      fillcolor="#F3F4F6",
+      color="#7A8798"
+    ];
+    s3 [
+      label="S3 · Immutable Artifacts\nCanvas XML / PNG · Materials\nPages / Crops / Eval Artifacts",
+      shape=cylinder,
+      fillcolor="#F3F4F6",
+      color="#7A8798"
+    ];
+    pinecone [
+      label="Pinecone\nText / Visual Retrieval Projection",
+      shape=cylinder,
+      fillcolor="#F3F4F6",
+      color="#7A8798"
+    ];
+    redis [
+      label="Redis（可选、非权威）\nSpring Session · Pub/Sub 加速\nDistributed Rate Limit",
+      shape=cylinder,
+      fillcolor="#F3F4F6",
+      color="#7A8798",
+      style="dashed,filled"
+    ];
+    { rank=same; mysql; s3; pinecone; redis; }
+  }
+
+  model [
+    label="LLM / VLM Provider\nRouting · Generation · Review",
+    fillcolor="#F2EEFB",
+    color="#7166B5"
+  ];
+
+  user -> edgegw [label="HTTPS"];
+  edgegw -> client [label="/"];
+  edgegw -> api [label="/api/*"];
+  client -> api [label="REST"];
+  api -> delivery [label="Resumable SSE"];
+
+  admission -> mysql [label="Turn Ledger"];
+  mysql -> turnworker [
+    label="claim accepted Turn",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  turnworker -> mysql [
+    label="checkpoint / event",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  mysql -> delivery [
+    label="event replay",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+
+  context -> mysql [label="authorized metadata"];
+  context -> s3 [label="hydrate evidence"];
+  context -> pinecone [label="retrieve"];
+  agent -> model [label="LLM calls"];
+  review -> model [label="VLM call"];
+  revision -> mysql [label="pointer + metadata"];
+  revision -> s3 [label="XML / artifact"];
+
+  mysql -> render [
+    label="revision event / outbox",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  render -> s3 [
+    label="PNG",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  repair -> turnworker [
+    label="bounded repair Turn",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+
+  api -> job [
+    label="upload / reprocess",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  job -> mysql [
+    label="durable rows",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  ingest -> mysql [
+    label="state / metadata",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  ingest -> s3 [
+    label="artifacts",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+  ingest -> pinecone [
+    label="projection",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+
+  api -> redis [label="session / rate"];
+  delivery -> redis [
+    label="optional wake-up",
+    color="#4E9A62",
+    fontcolor="#39734A",
+    style=dashed
+  ];
+
+  legend_sync [
+    label="蓝色实线：同步调用",
+    shape=plaintext,
+    fontcolor="#315D8C"
+  ];
+  legend_async [
+    label="绿色虚线：异步事件 / Durable Queue",
+    shape=plaintext,
+    fontcolor="#39734A"
+  ];
+  legend_truth [
+    label="正确性边界：MySQL + Immutable Artifact；Redis 只做加速",
+    shape=note,
+    fillcolor="#FFF8E7",
+    color="#D1A64A",
+    fontcolor="#755F29"
+  ];
+
+  { rank=same; user; edgegw; client; }
+  { rank=same; legend_sync; legend_async; legend_truth; }
+}
