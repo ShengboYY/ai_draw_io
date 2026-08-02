@@ -6,7 +6,6 @@ import org.zipp.ai.application.turn.ExplicitMemoryDecision;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -18,13 +17,12 @@ import java.util.Optional;
  */
 public final class AutoMemoryExtractionWorker {
     private static final int MAX_DRAFTS = 4;
-    private static final int CANDIDATES_PER_SCOPE = 16;
     private static final Duration LEASE_DURATION = Duration.ofMinutes(2);
     private static final Duration MAX_RETRY_DELAY = Duration.ofHours(1);
 
     private final AutoMemoryExtractionWorkPort work;
     private final AutoMemoryExtractionPort extractor;
-    private final AutoMemoryQueryPort memories;
+    private final AutoMemoryConsolidationCandidateRetriever candidates;
     private final AutoMemoryObservationService observations;
     private final AutoMemoryExtractionEligibilityPolicy eligibility;
     private final Clock clock;
@@ -32,14 +30,14 @@ public final class AutoMemoryExtractionWorker {
     public AutoMemoryExtractionWorker(
             AutoMemoryExtractionWorkPort work,
             AutoMemoryExtractionPort extractor,
-            AutoMemoryQueryPort memories,
+            AutoMemoryConsolidationCandidateRetriever candidates,
             AutoMemoryObservationService observations,
             AutoMemoryExtractionEligibilityPolicy eligibility,
             Clock clock
     ) {
         this.work = Objects.requireNonNull(work, "work");
         this.extractor = Objects.requireNonNull(extractor, "extractor");
-        this.memories = Objects.requireNonNull(memories, "memories");
+        this.candidates = Objects.requireNonNull(candidates, "candidates");
         this.observations = Objects.requireNonNull(observations, "observations");
         this.eligibility = Objects.requireNonNull(eligibility, "eligibility");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -150,24 +148,11 @@ public final class AutoMemoryExtractionWorker {
     private List<AutoMemoryExtractionCandidate> loadCandidates(
             AutoMemoryExtractionLease lease
     ) {
-        List<AutoMemoryExtractionCandidate> candidates = new ArrayList<>(
-                AutoMemoryExtractionInput.MAX_EXISTING_CANDIDATES);
-        addCandidates(candidates, AutoMemoryScope.user(lease.turn().ownerKey()));
-        if (lease.chartbookId() != null) {
-            addCandidates(candidates, AutoMemoryScope.chartbook(
-                    lease.turn().ownerKey(), lease.chartbookId()));
-        }
-        return List.copyOf(candidates);
-    }
-
-    private void addCandidates(
-            List<AutoMemoryExtractionCandidate> candidates,
-            AutoMemoryScope scope
-    ) {
-        memories.findConsolidationCandidates(scope, CANDIDATES_PER_SCOPE)
-                .stream()
-                .map(AutoMemoryExtractionCandidate::from)
-                .forEach(candidates::add);
+        return candidates.retrieve(new AutoMemoryConsolidationQuery(
+                lease.turn(),
+                lease.chartbookId(),
+                lease.userContent(),
+                AutoMemoryConsolidationQuery.MAX_CANDIDATES_PER_SCOPE));
     }
 
     private static AutoMemoryExtractionDraft consolidate(

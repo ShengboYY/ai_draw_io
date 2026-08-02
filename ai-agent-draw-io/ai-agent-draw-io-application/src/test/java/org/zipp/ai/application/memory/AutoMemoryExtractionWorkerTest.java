@@ -219,7 +219,8 @@ class AutoMemoryExtractionWorkerTest {
         return new AutoMemoryExtractionWorker(
                 work,
                 extractor,
-                new FakeMemoryQuery(candidates),
+                new ScopedAutoMemoryConsolidationCandidateRetriever(
+                        new FakeMemoryQuery(candidates)),
                 observations,
                 new AutoMemoryExtractionEligibilityPolicy(),
                 Clock.fixed(NOW, ZoneOffset.UTC));

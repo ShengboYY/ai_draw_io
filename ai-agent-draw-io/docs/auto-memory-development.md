@@ -9,7 +9,8 @@
 3. **User Auto Memory**：同一用户跨 Chartbook 有效的稳定偏好与反馈。
 
 Canvas State、Chartbook Profile、RAG 继续作为独立上下文源，不并入 Memory。运行时不再存在
-Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；当前不引入向量数据库。
+Confirmed Memory 或候选确认流程。MySQL 是长期记忆的权威存储；V1.4-A 仅为语义候选检索建立
+可替换边界和质量门槛，运行时尚未启用向量数据库。
 
 ## 2. 边界与优先级
 
@@ -172,13 +173,16 @@ CHARTBOOK/PROJECT Memory。旧表暂不删除，因为 MySQL DDL 不完全事务
 `chartbook_memory` 只读投影。完整产品回滚还需同步回滚前端，因为旧候选 API 不再由新后端
 提供。
 
-## 8. 为什么当前不使用向量数据库
+## 8. 向量数据库的边界
 
-Memory Item 是小规模、结构化、带明确作用域和语义键的数据。初版先按 owner、scope、status、
-类型和更新时间召回，MySQL 更容易保证租户隔离、幂等合并、用户禁用和乐观锁。
+Memory Item 是结构化、带明确作用域和生命周期的数据。MySQL 始终负责权威 Item/Evidence、幂等
+合并、用户禁用和乐观锁；向量库只允许成为可删除、可重建的候选检索投影，不能决定激活、冲突
+晋升或删除，也不能绕过 owner/scope 过滤。
 
-只有当真实数据证明单用户 Memory 数量显著增长，且结构化召回质量不足时，才增加 embedding
-索引。向量库届时只作为可重建的检索投影，MySQL 仍是权威数据源。
+V1.4-A 运行时仍使用现有 MySQL 有界查询。它先把候选读取从 Worker 中抽成可替换端口，并冻结
+语义检索评测合同；没有创建向量 schema、写入投影或调用 embedding。现有 Material RAG 的
+Pinecone transport 可以在后续复用，但 Material 专用 metadata、generation 和 projection 不能
+直接当作 Memory 索引模型。
 
 ## 9. 验证策略
 
@@ -201,6 +205,10 @@ Memory Item 是小规模、结构化、带明确作用域和语义键的数据�
 - 冲突识别质量：V1.3 冻结样本位于
   `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-conflict-v1/cohort.json`，继续复用
   归并评估器，只增加同维度换值的 `CHALLENGE` 指标。
+- 候选检索质量：V1.4-A 冻结样本位于
+  `ai-agent-draw-io-infrastructure/src/test/resources/evals/auto-memory-retrieval-v1/cohort.json`，覆盖
+  中英文同义 challenger、否定语义、相关但不同维度、`DISABLED` opt-out、owner/scope 隔离及
+  `SUPERSEDED/DELETED` 排除。向量实现必须通过相关召回、禁用召回和零泄漏门槛后才能替换 SQL。
 
 ### 9.1 Agent `300030` 校准门槛
 
@@ -429,7 +437,23 @@ V1.3 只解决已有 `semanticKey` 下的值变化，不扩展为通用语义图
 不会自动把任意新句子映射到旧决策维度；需要确定替换已有显式 Memory 时，当前可靠入口是管理
 页面 edit，或未来单独设计用户可解释的显式目标选择，不能暗中复用推断模型。
 
-## 12. 开发日志
+## 12. V1.4-A 语义候选检索准备
+
+V1.4-A 只建立下一阶段真正需要、且当前可以验证的最小边界：
+
+1. `AutoMemoryConsolidationQuery` 统一携带当前 Turn、可选 Chartbook、用户文本和每 scope 上限，
+   并由应用层固定允许访问的 USER 与当前 CHARTBOOK scope。
+2. Worker 只依赖 `AutoMemoryConsolidationCandidateRetriever`；默认实现继续逐 scope 调用 MySQL，
+   因此 Prompt、DeepSeek 调用次数和持久化行为不变。Spring 允许后续语义适配器显式替换默认实现。
+3. 冻结 8 个纯合成 retrieval case，门槛为相关候选 `Recall@K >= 95%`、`DISABLED Recall@K = 100%`、
+   未授权候选率 `0%`、终态候选率 `0%`。隔离和生命周期是硬门禁，不能拿相关度作权衡。
+
+本阶段没有定义未使用的通用向量抽象，也没有把 Material RAG 投影强行复用到 Memory。下一步
+V1.4-B 再实现 Memory 专用的可重建投影：CURRENT Item 与未解决 CONFLICTING Evidence 分别
+建模，写入前携带严格 owner/scope/lifecycle metadata，并提供 durable retry、版本栅栏和 SQL
+降级。只有真实检索运行达到上述门槛，才接入 Worker；MySQL 合并事务仍保持唯一裁决者。
+
+## 13. 开发日志
 
 ### 2026-07-31
 
@@ -497,10 +521,20 @@ V1.3 只解决已有 `semanticKey` 下的值变化，不扩展为通用语义图
 - [x] V1.3 完整后端 `mvn test` 共执行 1,983 项测试，0 failure、0 error；18 项按既有
   live/integration 开关跳过，三个 Auto Memory live 门槛和 MySQL 集成已另行显式运行通过。
 
+### 2026-08-02
+
+- [x] 完成 V1.4-A 候选读取边界：Worker 不再内嵌 USER/CHARTBOOK SQL 组装，默认实现保持原有
+  有界顺序与作用域隔离，后续语义适配器可通过同一端口替换。
+- [x] 冻结 `auto-memory-retrieval-v1` 的 8 个语义、隔离和生命周期案例，并增加质量门槛评估器；
+  当前没有创建向量投影、调用 embedding 或改变 DeepSeek Prompt。
+- [x] V1.4-A 完整后端 `mvn test` 共执行 1,989 项测试，0 failure、0 error；18 项按既有
+  live/integration 开关跳过，本阶段没有需要联网运行的新测试。
+
 当前实现边界：迁移已在一次性 MySQL 8.4 和本地持久化 MySQL 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
 Turn → Extract → Persist → Recall 链路及 V1.3 MySQL 冲突演进均已验证。feature flag 仍保持
 默认关闭，本地 `.env` 单独开启；V1.2 老化开关也保持默认关闭，且不会时间降级 ACTIVE。
-下一步按第 7 节准备目标环境迁移和 shadow/canary 方案，未经用户授权不执行生产变更。严格显式
-句子的跨值维度映射、候选召回规模扩张和 ACTIVE 使用反馈应基于真实分布单独设计；V4 Flash 的
-成本/延迟对照也不阻塞 Pro 上线。
+V1.4-A 仅完成可替换检索边界与离线合同，运行时仍使用 MySQL；下一步是第 12 节所述的 Memory
+专用投影与影子评估，不接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经
+用户授权不执行生产变更。严格显式句子的跨值维度映射和 ACTIVE 使用反馈应基于真实分布单独设计；
+V4 Flash 的成本/延迟对照也不阻塞 Pro 上线。

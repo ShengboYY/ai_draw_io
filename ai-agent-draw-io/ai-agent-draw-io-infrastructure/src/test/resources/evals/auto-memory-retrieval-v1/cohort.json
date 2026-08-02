@@ -1,0 +1,308 @@
+{
+  "schemaVersion": "AUTO_MEMORY_RETRIEVAL_CASES_V1",
+  "datasetVersion": "auto-memory-retrieval-v1",
+  "retrievalContractVersion": "AUTO_MEMORY_RETRIEVAL_V1",
+  "privacyClassification": "synthetic",
+  "qualityGate": {
+    "minimumRelevantRecallAtK": 0.95,
+    "minimumDisabledRecallAtK": 1.0,
+    "maximumUnauthorizedRecallRate": 0.0,
+    "maximumIneligibleRecallRate": 0.0
+  },
+  "cases": [
+    {
+      "id": "en-challenger-paraphrase",
+      "tags": ["challenger", "paraphrase", "en", "user"],
+      "queryText": "Across all chartbooks, keep node labels short.",
+      "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "USER", "scopeKey": "owner-a"}
+      ],
+      "topK": 3,
+      "candidates": [
+        {
+          "id": "current-detailed-labels",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "node-label-density",
+          "title": "Node label density",
+          "canonicalText": "Prefer detailed node labels across chartbooks"
+        },
+        {
+          "id": "challenger-concise-labels",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CHALLENGER",
+          "candidateState": "CONFLICTING",
+          "semanticKey": "node-label-density",
+          "title": "Node label density",
+          "canonicalText": "Prefer concise node labels across chartbooks"
+        }
+      ],
+      "expectedRelevantIds": ["challenger-concise-labels"]
+    },
+    {
+      "id": "zh-chartbook-challenger-paraphrase",
+      "tags": ["challenger", "paraphrase", "zh-cn", "chartbook"],
+      "queryText": "这个画册里的依赖线以后都用虚线。",
+      "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "CHARTBOOK", "scopeKey": "book-1"}
+      ],
+      "topK": 3,
+      "candidates": [
+        {
+          "id": "current-solid-dependencies",
+          "ownerKey": "owner-a",
+          "scopeType": "CHARTBOOK",
+          "scopeKey": "book-1",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "dependency-edge-rendering",
+          "title": "依赖边表示",
+          "canonicalText": "当前画册使用实线表示依赖关系"
+        },
+        {
+          "id": "challenger-dashed-dependencies",
+          "ownerKey": "owner-a",
+          "scopeType": "CHARTBOOK",
+          "scopeKey": "book-1",
+          "candidateKind": "CHALLENGER",
+          "candidateState": "CONFLICTING",
+          "semanticKey": "dependency-edge-rendering",
+          "title": "依赖边表示",
+          "canonicalText": "当前画册使用虚线表示依赖关系"
+        }
+      ],
+      "expectedRelevantIds": ["challenger-dashed-dependencies"]
+    },
+    {
+      "id": "negation-prefers-avoidance-challenger",
+      "tags": ["challenger", "negation", "en", "user"],
+      "queryText": "Across all chartbooks, avoid decorative icons.",
+      "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "USER", "scopeKey": "owner-a"}
+      ],
+      "topK": 3,
+      "candidates": [
+        {
+          "id": "current-prefer-icons",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "decorative-icons",
+          "title": "Decorative icons",
+          "canonicalText": "Prefer decorative icons across chartbooks"
+        },
+        {
+          "id": "challenger-avoid-icons",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CHALLENGER",
+          "candidateState": "CONFLICTING",
+          "semanticKey": "decorative-icons",
+          "title": "Decorative icons",
+          "canonicalText": "Avoid decorative icons across chartbooks"
+        }
+      ],
+      "expectedRelevantIds": ["challenger-avoid-icons"]
+    },
+    {
+      "id": "related-label-dimensions",
+      "tags": ["current", "related", "different-dimension", "en"],
+      "queryText": "Across all chartbooks, use sentence case for node labels.",
+      "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "USER", "scopeKey": "owner-a"}
+      ],
+      "topK": 3,
+      "candidates": [
+        {
+          "id": "current-label-density",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "node-label-density",
+          "title": "Node label density",
+          "canonicalText": "Prefer concise node labels across chartbooks"
+        },
+        {
+          "id": "current-label-capitalization",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "OBSERVED",
+          "semanticKey": "node-label-capitalization",
+          "title": "Node label capitalization",
+          "canonicalText": "Use sentence case for node labels across chartbooks"
+        }
+      ],
+      "expectedRelevantIds": ["current-label-capitalization"]
+    },
+    {
+      "id": "disabled-remains-retrievable-for-consolidation",
+      "tags": ["current", "disabled", "opt-out", "en"],
+      "queryText": "Keep diagrams free of decorative icons.",
+      "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "USER", "scopeKey": "owner-a"}
+      ],
+      "topK": 3,
+      "candidates": [
+        {
+          "id": "disabled-avoid-icons",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "DISABLED",
+          "semanticKey": "decorative-icons",
+          "title": "Decorative icons",
+          "canonicalText": "Avoid decorative icons across chartbooks"
+        },
+        {
+          "id": "current-muted-palette",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "color-saturation",
+          "title": "Color saturation",
+          "canonicalText": "Prefer a muted color palette across chartbooks"
+        }
+      ],
+      "expectedRelevantIds": ["disabled-avoid-icons"]
+    },
+    {
+      "id": "scope-filter-precedes-ranking",
+      "tags": ["current", "scope-isolation", "chartbook", "en"],
+      "queryText": "In this chartbook, use left-to-right layouts.",
+      "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "CHARTBOOK", "scopeKey": "book-1"}
+      ],
+      "topK": 3,
+      "candidates": [
+        {
+          "id": "book-1-layout-direction",
+          "ownerKey": "owner-a",
+          "scopeType": "CHARTBOOK",
+          "scopeKey": "book-1",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "layout-direction",
+          "title": "Layout direction",
+          "canonicalText": "Prefer left-to-right layouts in this chartbook"
+        },
+        {
+          "id": "user-layout-direction",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "layout-direction",
+          "title": "Layout direction",
+          "canonicalText": "Prefer left-to-right layouts across chartbooks"
+        },
+        {
+          "id": "book-2-layout-direction",
+          "ownerKey": "owner-a",
+          "scopeType": "CHARTBOOK",
+          "scopeKey": "book-2",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "layout-direction",
+          "title": "Layout direction",
+          "canonicalText": "Prefer left-to-right layouts in this chartbook"
+        }
+      ],
+      "expectedRelevantIds": ["book-1-layout-direction"]
+    },
+    {
+      "id": "tenant-filter-precedes-ranking",
+      "tags": ["current", "tenant-isolation", "user", "en"],
+      "queryText": "Across all chartbooks, prefer compact spacing.",
+      "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "USER", "scopeKey": "owner-a"}
+      ],
+      "topK": 3,
+      "candidates": [
+        {
+          "id": "owner-a-compact-spacing",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "diagram-spacing",
+          "title": "Diagram spacing",
+          "canonicalText": "Prefer compact spacing across chartbooks"
+        },
+        {
+          "id": "owner-b-compact-spacing",
+          "ownerKey": "owner-b",
+          "scopeType": "USER",
+          "scopeKey": "owner-b",
+          "candidateKind": "CURRENT",
+          "candidateState": "ACTIVE",
+          "semanticKey": "diagram-spacing",
+          "title": "Diagram spacing",
+          "canonicalText": "Prefer compact spacing across chartbooks"
+        }
+      ],
+      "expectedRelevantIds": ["owner-a-compact-spacing"]
+    },
+    {
+      "id": "superseded-and-deleted-are-ineligible",
+      "tags": ["challenger", "lifecycle", "superseded", "deleted", "en"],
+      "queryText": "Across all chartbooks, keep node labels concise.",
+      "authorizedScopes": [
+        {"ownerKey": "owner-a", "scopeType": "USER", "scopeKey": "owner-a"}
+      ],
+      "topK": 3,
+      "candidates": [
+        {
+          "id": "live-concise-challenger",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CHALLENGER",
+          "candidateState": "CONFLICTING",
+          "semanticKey": "node-label-density",
+          "title": "Node label density",
+          "canonicalText": "Prefer concise node labels across chartbooks"
+        },
+        {
+          "id": "superseded-concise-challenger",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CHALLENGER",
+          "candidateState": "SUPERSEDED",
+          "semanticKey": "node-label-density",
+          "title": "Node label density",
+          "canonicalText": "Prefer concise node labels across chartbooks"
+        },
+        {
+          "id": "deleted-concise-memory",
+          "ownerKey": "owner-a",
+          "scopeType": "USER",
+          "scopeKey": "owner-a",
+          "candidateKind": "CURRENT",
+          "candidateState": "DELETED",
+          "semanticKey": "node-label-density",
+          "title": "Node label density",
+          "canonicalText": "Prefer concise node labels across chartbooks"
+        }
+      ],
+      "expectedRelevantIds": ["live-concise-challenger"]
+    }
+  ]
+}

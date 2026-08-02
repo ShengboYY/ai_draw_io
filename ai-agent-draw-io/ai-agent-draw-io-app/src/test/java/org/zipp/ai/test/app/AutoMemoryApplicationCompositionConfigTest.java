@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
+import org.zipp.ai.application.memory.AutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.AutoMemoryExtractionPort;
 import org.zipp.ai.application.memory.AutoMemoryExtractionWorkPort;
 import org.zipp.ai.application.memory.AutoMemoryExtractionWorker;
@@ -34,6 +35,7 @@ class AutoMemoryApplicationCompositionConfigTest {
                 .doesNotHaveBean(AutoMemoryObservationService.class)
                 .doesNotHaveBean(AutoMemoryManagementService.class)
                 .doesNotHaveBean(AutoMemoryMaintenanceService.class)
+                .doesNotHaveBean(AutoMemoryConsolidationCandidateRetriever.class)
                 .doesNotHaveBean(AutoMemoryExtractionWorker.class));
     }
 
@@ -43,9 +45,22 @@ class AutoMemoryApplicationCompositionConfigTest {
                 .run(context -> assertThat(context)
                         .hasSingleBean(AutoMemoryObservationService.class)
                         .hasSingleBean(AutoMemoryManagementService.class)
+                        .hasSingleBean(AutoMemoryConsolidationCandidateRetriever.class)
                         .hasSingleBean(AutoMemoryExtractionWorker.class)
                         .hasSingleBean(AutoMemoryExtractionJob.class)
                         .doesNotHaveBean(AutoMemoryMaintenanceService.class));
+    }
+
+    @Test
+    void customCandidateRetrieverReplacesTheSqlDefault() {
+        AutoMemoryConsolidationCandidateRetriever custom = query -> java.util.List.of();
+
+        contextRunner
+                .withBean(AutoMemoryConsolidationCandidateRetriever.class, () -> custom)
+                .withPropertyValues("app.memory.auto-enabled=true")
+                .run(context -> assertThat(context)
+                        .getBean(AutoMemoryConsolidationCandidateRetriever.class)
+                        .isSameAs(custom));
     }
 
     @Test

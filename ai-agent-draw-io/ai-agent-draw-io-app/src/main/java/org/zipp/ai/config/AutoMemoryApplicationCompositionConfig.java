@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.zipp.ai.application.memory.AutoMemoryConsolidationCandidateRetriever;
 import org.zipp.ai.application.memory.AutoMemoryExtractionPort;
 import org.zipp.ai.application.memory.AutoMemoryExtractionEligibilityPolicy;
 import org.zipp.ai.application.memory.AutoMemoryExtractionWorkPort;
@@ -17,6 +18,7 @@ import org.zipp.ai.application.memory.AutoMemoryMaintenanceService;
 import org.zipp.ai.application.memory.AutoMemoryObservationService;
 import org.zipp.ai.application.memory.AutoMemoryObservationStorePort;
 import org.zipp.ai.application.memory.AutoMemoryQueryPort;
+import org.zipp.ai.application.memory.ScopedAutoMemoryConsolidationCandidateRetriever;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -50,17 +52,27 @@ public class AutoMemoryApplicationCompositionConfig {
 
     @Bean
     @ConditionalOnProperty(name = "app.memory.auto-enabled", havingValue = "true")
+    @ConditionalOnMissingBean(AutoMemoryConsolidationCandidateRetriever.class)
+    public AutoMemoryConsolidationCandidateRetriever autoMemoryConsolidationCandidateRetriever(
+            AutoMemoryQueryPort memories
+    ) {
+        // Keep deterministic SQL retrieval until a semantic adapter explicitly replaces this bean.
+        return new ScopedAutoMemoryConsolidationCandidateRetriever(memories);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "app.memory.auto-enabled", havingValue = "true")
     public AutoMemoryExtractionWorker autoMemoryExtractionWorker(
             AutoMemoryExtractionWorkPort work,
             AutoMemoryExtractionPort extractor,
-            AutoMemoryQueryPort memories,
+            AutoMemoryConsolidationCandidateRetriever candidates,
             AutoMemoryObservationService observations,
             ObjectProvider<Clock> clocks
     ) {
         return new AutoMemoryExtractionWorker(
                 work,
                 extractor,
-                memories,
+                candidates,
                 observations,
                 new AutoMemoryExtractionEligibilityPolicy(),
                 clocks.getIfAvailable(Clock::systemUTC));
