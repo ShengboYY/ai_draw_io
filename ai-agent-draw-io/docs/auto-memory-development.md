@@ -670,8 +670,15 @@ Case 全部通过：Case accuracy、多意图覆盖和单意图 abstention 均�
 
 - `evaluation/auto-memory-context-v5/results/2026-08-02-development-deepseek-v4-pro.json`
 
-这一结果只证明规划合同在合成请求上可行；实现提交后才允许一次性运行冻结 holdout。跨语言的
-单目标低排名问题不属于 V1.8，也不能通过扩大当前阈值顺便修补。
+实现提交 `966fa5dc` 后，唯一一次 V1 holdout 只达到 Case accuracy 80%、多意图覆盖 66.67%、
+单意图 abstention 100% 和协议失败 0，没有通过门槛。两次漏拆分别是不同目标属性的 `while`
+表达，以及负向/正向组合；报告保留于：
+
+- `evaluation/auto-memory-context-v5/results/2026-08-02-holdout-deepseek-v4-pro.json`
+
+V1 holdout 已退役且不会重跑。V1.8.1 的 development-v2 与未见 V2 holdout 在修改前另行冻结；
+只允许澄清“可能映射到不同 semanticKey 的目标/属性才是独立意图”并扩充模型调用信号，不增加
+确定性硬拆规则，也不修改向量门槛。跨语言的单目标低排名问题仍不属于 V1.8。
 
 ## 19. 开发日志
 
@@ -836,6 +843,10 @@ Case 全部通过：Case accuracy、多意图覆盖和单意图 abstention 均�
   均为 100%，协议失败为 0；冻结 holdout 尚未运行。
 - [x] V1.8 实现提交前完整后端 `mvn test` 共执行 2,052 项测试，0 failure、0 error；23 项按
   既有 live/integration 开关跳过，development live gate 已另行显式运行通过。
+- [x] V1.8 唯一一次 V1 holdout 未通过：Case accuracy 80%、多意图覆盖 66.67%、单意图
+  abstention 100%、协议失败 0；失败报告保留且 V1 不重跑。
+- [x] 在 V1.8.1 修改前冻结 development-v2 与未见 V2 holdout，覆盖不同目标/属性与共享属性、
+  对比连接词和时态 `while` 的边界，避免只修补 V1 的两个原句。
 
 当前实现边界：截至 `20260816` 的迁移已在本地 MySQL 8.4 验证，但尚未在目标环境数据库
 执行；V6 Prompt 的离线协议、三组 DeepSeek V4 Pro 三轮真实校准、完整本地
@@ -849,9 +860,9 @@ V1.4-E 的投影、权威回查、真实 Pinecone cohort、随机 shadow 和报�
 V1.7.2 已在新 development-v2 上选定分数下限加相对分差的有界准入规则，但唯一一次 V3 因
 候选级无关率 30% 未通过；其 0% 负例误注入支持保留查询级拒绝方向，V3 不再用于调参。
 V1.7.3 的 V4 将候选无关率降至 0，但 60% 召回未通过 release gate；V4 同样不再用于调参。
-V1.8 已分离多意图查询规划，并保持 semantic 与 multi-intent 两个开关默认关闭；冻结 holdout
-仍需在实现提交后一次性运行。单目标跨语言召回仍是独立问题，不能继续修改全局 score 参数顺带
-处理。与此同时随本地真实使用积累非合成样本并比较错误归并，
+V1.8 已分离多意图查询规划，并保持 semantic 与 multi-intent 两个开关默认关闭；首次 holdout
+因漏拆未通过，V1.8.1 的新 development/holdout 已在修改前冻结。单目标跨语言召回仍是独立问题，
+不能继续修改全局 score 参数顺带处理。与此同时随本地真实使用积累非合成样本并比较错误归并，
 不因早期受控测试通过而接入生产。目标环境迁移和 shadow/canary 仍需按第 7 节另行准备，未经用户授权
 不执行生产变更。V1.6 完整质量观测按用户决定暂时跳过；V1.7 已完成 SQL 默认选择与可选 semantic
 Context 代码，semantic 开关仍默认及本地关闭，未使用合成结果替代真实注入质量证据。严格显式

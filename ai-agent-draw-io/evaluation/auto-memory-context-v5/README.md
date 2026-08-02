@@ -43,3 +43,31 @@ The planner evaluation performs no MySQL writes and does not train or fine-tune 
 separate selector test proves per-query confidence gating, merge order, deduplication and failure
 fallback. Semantic Memory Context remains default-off after V1.8 regardless of the synthetic
 result.
+
+## V1 holdout outcome
+
+The only V1 holdout run reached 80% exact case accuracy, 66.67% multi-intent coverage, 100%
+single-intent abstention and 0% protocol failures, so it did not pass. DeepSeek returned an empty
+plan for one `while` request that constrained different targets and one negative/positive request.
+The V1 holdout is retired and will not be rerun.
+
+## V1.8.1 pre-registration
+
+The next revision may clarify the general decision boundary: different targets or properties that
+could map to different Memory semantic keys are independent intents; coordinated subjects or
+values sharing one property remain one intent. It may broaden only the cheap model-call eligibility
+signals for contrastive wording. It must not add deterministic sentence splitting or alter the
+semantic vector thresholds.
+
+- Development-v2 SHA-256:
+  `31d872aa229c7ece68e878c66c5aa220171c9cee6645b610fd5272c5c4f48019`
+- Untouched V2 holdout SHA-256:
+  `52566e2605bd7ae70e8fd6d3b9996f91de8d5d2f9833bfc38e479530d9df7405`
+- Both cohorts include contrastive multi-target requests and single-intent controls containing
+  `while`, `but`, coordinated subjects or coordinated values.
+- The V2 holdout gate requires at least 90% for exact case accuracy, multi-intent coverage and
+  single-intent abstention, with 0% protocol failures.
+
+Development-v2 may be used to finalize the generic prompt distinction. The untouched V2 holdout
+may run once only after that revision is committed; the failed V1 holdout cannot be counted as
+independent evidence for the new revision.
